@@ -1,17 +1,17 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User, Session } from '@supabase/supabase-js'
-import { supabase } from '@/lib/supabase'
-import { Tables } from '@/lib/database.types'
+import { supabase } from '@/integrations/supabase/client'
+import { Tables } from '@/integrations/supabase/types'
 
 interface AuthContextType {
   user: User | null
   session: Session | null
-  profile: Tables<'users'> | null
+  profile: any | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: any }>
   signOut: () => Promise<void>
-  updateProfile: (updates: Partial<Tables<'users'>>) => Promise<{ error: any }>
+  updateProfile: (updates: any) => Promise<{ error: any }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -27,7 +27,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
-  const [profile, setProfile] = useState<Tables<'users'> | null>(null)
+  const [profile, setProfile] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -60,23 +60,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const loadProfile = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single()
-
-      if (error) {
-        console.error('Error loading profile:', error)
-      } else {
-        setProfile(data)
-      }
-    } catch (error) {
-      console.error('Error loading profile:', error)
-    } finally {
-      setLoading(false)
-    }
+    // TODO: Implement once users table is created
+    setLoading(false)
   }
 
   const signIn = async (email: string, password: string) => {
@@ -98,14 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
     })
 
-    if (!error && data.user) {
-      // Create user profile
-      await supabase.from('users').insert({
-        id: data.user.id,
-        email: data.user.email!,
-        full_name: fullName,
-      })
-    }
+    // TODO: Create user profile once users table is created
 
     return { error }
   }
@@ -114,19 +92,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await supabase.auth.signOut()
   }
 
-  const updateProfile = async (updates: Partial<Tables<'users'>>) => {
-    if (!user) return { error: new Error('No user logged in') }
-
-    const { error } = await supabase
-      .from('users')
-      .update(updates)
-      .eq('id', user.id)
-
-    if (!error) {
-      setProfile(prev => prev ? { ...prev, ...updates } : null)
-    }
-
-    return { error }
+  const updateProfile = async (updates: any) => {
+    // TODO: Implement once users table is created
+    return { error: null }
   }
 
   const value = {

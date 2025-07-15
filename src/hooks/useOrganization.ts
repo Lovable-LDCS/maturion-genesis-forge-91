@@ -1,9 +1,15 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
-import { Tables } from '@/lib/database.types'
+import { supabase } from '@/integrations/supabase/client'
+import { Tables } from '@/integrations/supabase/types'
 import { useAuth } from '@/contexts/AuthContext'
 
-interface OrganizationWithRole extends Tables<'organizations'> {
+interface OrganizationWithRole {
+  id: string
+  name: string
+  description?: string
+  created_at: string
+  updated_at: string
+  owner_id: string
   user_role: 'owner' | 'admin' | 'assessor' | 'viewer'
 }
 
@@ -20,42 +26,9 @@ export const useOrganization = () => {
   }, [user])
 
   const fetchUserOrganizations = async () => {
-    if (!user) return
-
-    try {
-      const { data, error } = await supabase
-        .from('user_organization_roles')
-        .select(`
-          role,
-          organizations (
-            id,
-            name,
-            description,
-            created_at,
-            updated_at,
-            owner_id
-          )
-        `)
-        .eq('user_id', user.id)
-
-      if (error) throw error
-
-      const organizationsWithRoles = data?.map(item => ({
-        ...item.organizations,
-        user_role: item.role
-      })) as OrganizationWithRole[]
-
-      setOrganizations(organizationsWithRoles || [])
-      
-      // Set current organization to the first one if none is set
-      if (!currentOrganization && organizationsWithRoles.length > 0) {
-        setCurrentOrganization(organizationsWithRoles[0])
-      }
-    } catch (error) {
-      console.error('Error fetching organizations:', error)
-    } finally {
-      setLoading(false)
-    }
+    // TODO: Implement once database tables are created
+    setOrganizations([])
+    setLoading(false)
   }
 
   const switchOrganization = (orgId: string) => {

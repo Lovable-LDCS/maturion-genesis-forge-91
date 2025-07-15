@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/integrations/supabase/client'
 import { Building, Plus } from 'lucide-react'
 
 const organizationSchema = z.object({
@@ -42,36 +42,12 @@ export const OrganizationSetup: React.FC<OrganizationSetupProps> = ({ onComplete
     setLoading(true)
     
     try {
-      // Create organization
-      const { data: organization, error: orgError } = await supabase
-        .from('organizations')
-        .insert({
-          name: data.name,
-          description: data.description,
-          owner_id: user.id,
-        })
-        .select()
-        .single()
-
-      if (orgError) throw orgError
-
-      // Create owner role
-      const { error: roleError } = await supabase
-        .from('user_organization_roles')
-        .insert({
-          user_id: user.id,
-          organization_id: organization.id,
-          role: 'owner',
-        })
-
-      if (roleError) throw roleError
-
+      // TODO: Implement once database tables are created
       toast({
-        title: 'Organization created!',
-        description: 'Your organization has been set up successfully.',
+        title: 'Database not ready',
+        description: 'Database tables need to be created first.',
+        variant: 'destructive',
       })
-
-      onComplete()
     } catch (error: any) {
       toast({
         title: 'Error creating organization',
