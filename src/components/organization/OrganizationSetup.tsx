@@ -42,16 +42,31 @@ export const OrganizationSetup: React.FC<OrganizationSetupProps> = ({ onComplete
     setLoading(true)
     
     try {
-      // TODO: Implement once database tables are created
+      const { data: organization, error } = await supabase
+        .from('organizations')
+        .insert({
+          name: data.name,
+          description: data.description,
+          owner_id: user.id,
+        })
+        .select()
+        .single()
+
+      if (error) {
+        throw error
+      }
+
       toast({
-        title: 'Database not ready',
-        description: 'Database tables need to be created first.',
-        variant: 'destructive',
+        title: 'Success',
+        description: 'Organization created successfully!',
       })
+
+      onComplete()
     } catch (error: any) {
+      console.error('Error creating organization:', error)
       toast({
         title: 'Error creating organization',
-        description: error.message,
+        description: error.message || 'Failed to create organization. Please try again.',
         variant: 'destructive',
       })
     } finally {
