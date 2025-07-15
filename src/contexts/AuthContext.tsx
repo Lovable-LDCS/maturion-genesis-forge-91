@@ -60,8 +60,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [])
 
   const loadProfile = async (userId: string) => {
-    // TODO: Implement once users table is created
-    setLoading(false)
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Error loading profile:', error)
+      } else {
+        setProfile(profile)
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const signIn = async (email: string, password: string) => {
@@ -83,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
     })
 
-    // TODO: Create user profile once users table is created
+    // Profile will be created automatically by the database trigger
 
     return { error }
   }
@@ -93,8 +108,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }
 
   const updateProfile = async (updates: any) => {
-    // TODO: Implement once users table is created
-    return { error: null }
+    if (!user) return { error: 'No user logged in' }
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('user_id', user.id)
+
+      if (!error) {
+        // Reload profile after update
+        await loadProfile(user.id)
+      }
+
+      return { error }
+    } catch (error) {
+      return { error }
+    }
   }
 
   const value = {
