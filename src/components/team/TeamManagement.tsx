@@ -159,6 +159,7 @@ const TeamManagement: React.FC = () => {
     
     setInviting(true);
     try {
+      // First, create the invitation in the database
       const { data, error } = await supabase
         .from('organization_invitations')
         .insert({
@@ -195,10 +196,40 @@ const TeamManagement: React.FC = () => {
         return;
       }
 
-      toast({
-        title: "Invitation sent",
-        description: `Invitation sent to ${inviteEmail}`,
-      });
+      // Send invitation email via edge function
+      try {
+        const { error: emailError } = await supabase.functions.invoke('send-invitation', {
+          body: {
+            email: inviteEmail.trim().toLowerCase(),
+            organizationName: currentOrganization.name,
+            role: inviteRole,
+            inviterName: user?.user_metadata?.full_name || user?.email || 'Someone',
+            invitationToken: data.invitation_token,
+            expiresAt: data.expires_at
+          }
+        });
+
+        if (emailError) {
+          console.error('Email sending error:', emailError);
+          toast({
+            title: "Invitation created but email failed",
+            description: "The invitation was created but the email could not be sent. You can extend the invitation later.",
+            variant: "destructive"
+          });
+        } else {
+          toast({
+            title: "Invitation sent successfully",
+            description: `Invitation sent to ${inviteEmail}`,
+          });
+        }
+      } catch (emailError) {
+        console.error('Email function error:', emailError);
+        toast({
+          title: "Invitation created but email failed",
+          description: "The invitation was created but the email could not be sent.",
+          variant: "destructive"
+        });
+      }
 
       setInviteEmail('');
       setInviteRole('viewer');
