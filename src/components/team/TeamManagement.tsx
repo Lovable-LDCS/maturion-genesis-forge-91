@@ -41,7 +41,7 @@ import {
   Trash2,
   RefreshCw,
   Users,
-  Building,
+  Home,
   AlertCircle
 } from 'lucide-react';
 import {
@@ -497,7 +497,7 @@ const TeamManagement: React.FC = () => {
         <CardContent className="text-center py-8">
           <div className="space-y-4">
             <div className="text-muted-foreground">
-              <Building className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <Home className="h-12 w-12 mx-auto mb-2 opacity-50" />
               <p>You don't belong to any organization yet.</p>
             </div>
             <Button onClick={() => window.location.href = '/'}>
