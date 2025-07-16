@@ -874,27 +874,33 @@ export type Database = {
       organizations: {
         Row: {
           created_at: string
+          created_by: string
           description: string | null
           id: string
           name: string
           owner_id: string
           updated_at: string
+          updated_by: string
         }
         Insert: {
           created_at?: string
+          created_by?: string
           description?: string | null
           id?: string
           name: string
           owner_id: string
           updated_at?: string
+          updated_by?: string
         }
         Update: {
           created_at?: string
+          created_by?: string
           description?: string | null
           id?: string
           name?: string
           owner_id?: string
           updated_at?: string
+          updated_by?: string
         }
         Relationships: []
       }
