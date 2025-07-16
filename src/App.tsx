@@ -6,7 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import Index from "./pages/Index";
-import QASignOff from "./pages/QASignOff";
+import QASignOff from "./pages/QASignOffDynamic";
 import TeamPage from "./pages/TeamPage";
 import InvitationAcceptance from "./pages/InvitationAcceptance";
 import OrganizationSettings from "./pages/OrganizationSettings";
