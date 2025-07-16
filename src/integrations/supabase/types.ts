@@ -625,6 +625,178 @@ export type Database = {
           },
         ]
       }
+      milestone_status_history: {
+        Row: {
+          change_reason: string | null
+          changed_at: string
+          changed_by: string
+          entity_id: string
+          entity_type: string
+          id: string
+          new_status: Database["public"]["Enums"]["milestone_status"]
+          old_status: Database["public"]["Enums"]["milestone_status"] | null
+          organization_id: string
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          new_status: Database["public"]["Enums"]["milestone_status"]
+          old_status?: Database["public"]["Enums"]["milestone_status"] | null
+          organization_id: string
+        }
+        Update: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          new_status?: Database["public"]["Enums"]["milestone_status"]
+          old_status?: Database["public"]["Enums"]["milestone_status"] | null
+          organization_id?: string
+        }
+        Relationships: []
+      }
+      milestone_tasks: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          display_order: number
+          id: string
+          milestone_id: string
+          name: string
+          organization_id: string
+          status: Database["public"]["Enums"]["milestone_status"]
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          milestone_id: string
+          name: string
+          organization_id: string
+          status?: Database["public"]["Enums"]["milestone_status"]
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          milestone_id?: string
+          name?: string
+          organization_id?: string
+          status?: Database["public"]["Enums"]["milestone_status"]
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestone_tasks_milestone_id_fkey"
+            columns: ["milestone_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      milestone_test_notes: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          milestone_task_id: string
+          note_content: string
+          organization_id: string
+          status_at_time: Database["public"]["Enums"]["milestone_status"]
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          milestone_task_id: string
+          note_content: string
+          organization_id: string
+          status_at_time: Database["public"]["Enums"]["milestone_status"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          milestone_task_id?: string
+          note_content?: string
+          organization_id?: string
+          status_at_time?: Database["public"]["Enums"]["milestone_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestone_test_notes_milestone_task_id_fkey"
+            columns: ["milestone_task_id"]
+            isOneToOne: false
+            referencedRelation: "milestone_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      milestones: {
+        Row: {
+          created_at: string
+          created_by: string
+          description: string | null
+          display_order: number
+          id: string
+          name: string
+          organization_id: string
+          phase: string | null
+          priority: Database["public"]["Enums"]["milestone_priority"]
+          status: Database["public"]["Enums"]["milestone_status"]
+          updated_at: string
+          updated_by: string
+          week: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          name: string
+          organization_id: string
+          phase?: string | null
+          priority?: Database["public"]["Enums"]["milestone_priority"]
+          status?: Database["public"]["Enums"]["milestone_status"]
+          updated_at?: string
+          updated_by: string
+          week?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          display_order?: number
+          id?: string
+          name?: string
+          organization_id?: string
+          phase?: string | null
+          priority?: Database["public"]["Enums"]["milestone_priority"]
+          status?: Database["public"]["Enums"]["milestone_status"]
+          updated_at?: string
+          updated_by?: string
+          week?: number | null
+        }
+        Relationships: []
+      }
       organization_invitations: {
         Row: {
           created_at: string
@@ -847,6 +1019,16 @@ export type Database = {
         | "compliant"
         | "proactive"
         | "resilient"
+      milestone_priority: "critical" | "high" | "medium" | "low"
+      milestone_status:
+        | "not_started"
+        | "in_progress"
+        | "ready_for_test"
+        | "signed_off"
+        | "failed"
+        | "rejected"
+        | "escalated"
+        | "alternative_proposal"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -993,6 +1175,17 @@ export const Constants = {
         "compliant",
         "proactive",
         "resilient",
+      ],
+      milestone_priority: ["critical", "high", "medium", "low"],
+      milestone_status: [
+        "not_started",
+        "in_progress",
+        "ready_for_test",
+        "signed_off",
+        "failed",
+        "rejected",
+        "escalated",
+        "alternative_proposal",
       ],
     },
   },
