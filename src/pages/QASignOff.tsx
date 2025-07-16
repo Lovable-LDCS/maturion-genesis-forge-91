@@ -155,7 +155,7 @@ const initialMilestones: Milestone[] = [
             id: '4',
             date: '2025-01-16',
             tester: 'Johan Ras',
-            notes: 'EMAIL WORKFLOW IMPLEMENTED:\n\n✅ Database Layer: Fixed RLS policy permission error\n✅ Edge Function: Created send-invitation function with Resend integration\n✅ Email Template: Professional HTML email with organization details and accept link\n✅ Integration: Connected invitation creation to email sending\n✅ Error Handling: Graceful fallback if email fails but invitation is created\n✅ UI Updates: Enhanced feedback for email success/failure\n\nREADY FOR END-TO-END TESTING:\n1. Owner sends invitation ✅\n2. Database record created ✅\n3. Email sent via Resend ⏳ (needs testing)\n4. Invitee receives email ⏳ (needs testing)\n5. Accept workflow ⏳ (needs testing)',
+            notes: 'EMAIL DELIVERY STATUS UPDATE:\n\n✅ Database Layer: All RLS policies working, unique constraints fixed for resending\n✅ Edge Function: Complete send-invitation function with Resend integration\n✅ Email Template: Professional HTML email template ready\n✅ Integration: Full invitation creation to email sending pipeline\n✅ Error Handling: Graceful fallback when email fails\n✅ Manual Testing: Ready for manual token-based testing\n\n🚫 Email delivery to real addresses: BLOCKED (awaiting domain verification)\n✅ Manual link flow: READY FOR TEST\n\nMANUAL TESTING PROCESS:\n1. Create invitation via UI ✅\n2. Copy invitation_token from database ⏳\n3. Construct link: /accept-invitation?token=<token> ⏳\n4. Test acceptance flow ⏳\n5. Verify membership creation ⏳',
             status: 'ready-for-test'
           }
         ]
