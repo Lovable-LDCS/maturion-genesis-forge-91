@@ -251,28 +251,67 @@ const TeamManagement: React.FC = () => {
     if (!currentOrganization) return;
     
     try {
-      const { error } = await supabase
+      // First check if the invitation still exists and is cancellable
+      const { data: invitation, error: fetchError } = await supabase
         .from('organization_invitations')
-        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .select('id, status, email')
         .eq('id', invitationId)
-        .eq('organization_id', currentOrganization.id); // Ensure user can only cancel their org's invitations
+        .eq('organization_id', currentOrganization.id)
+        .single();
 
-      if (error) {
-        console.error('Cancel invitation error:', error);
-        throw error;
+      if (fetchError || !invitation) {
+        toast({
+          title: "Error",
+          description: "Invitation not found or you don't have permission to cancel it",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (invitation.status !== 'pending') {
+        toast({
+          title: "Cannot cancel invitation",
+          description: `This invitation is already ${invitation.status} and cannot be cancelled`,
+          variant: "destructive"
+        });
+        // Refresh data to show current state
+        fetchTeamData();
+        return;
+      }
+
+      // Proceed with cancellation
+      const { error: updateError } = await supabase
+        .from('organization_invitations')
+        .update({ 
+          status: 'cancelled', 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', invitationId)
+        .eq('organization_id', currentOrganization.id)
+        .eq('status', 'pending'); // Extra safety check
+
+      if (updateError) {
+        console.error('Cancel invitation error:', updateError);
+        toast({
+          title: "Error",
+          description: `Failed to cancel invitation: ${updateError.message}`,
+          variant: "destructive"
+        });
+        return;
       }
 
       toast({
         title: "Invitation cancelled",
-        description: "The invitation has been cancelled",
+        description: `Invitation to ${invitation.email} has been cancelled successfully`,
       });
 
+      // Refresh the data to show updated state
       fetchTeamData();
     } catch (error) {
       console.error('Error cancelling invitation:', error);
       toast({
         title: "Error",
-        description: "Failed to cancel invitation. Please try again.",
+        description: "An unexpected error occurred. Please try again.",
         variant: "destructive"
       });
     }
@@ -331,7 +370,14 @@ const TeamManagement: React.FC = () => {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, expiresAt?: string) => {
+    // Check if invitation is expired
+    const isExpired = expiresAt && new Date(expiresAt) < new Date();
+    
+    if (isExpired && status === 'pending') {
+      return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Expired</Badge>;
+    }
+    
     switch (status) {
       case 'pending':
         return <Badge variant="outline" className="border-yellow-500 text-yellow-600"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
@@ -546,7 +592,7 @@ const TeamManagement: React.FC = () => {
                       {getRoleBadge(invitation.role)}
                     </TableCell>
                     <TableCell>
-                      {getStatusBadge(invitation.status)}
+                      {getStatusBadge(invitation.status, invitation.expires_at)}
                     </TableCell>
                     <TableCell>
                       {new Date(invitation.expires_at).toLocaleDateString()}
