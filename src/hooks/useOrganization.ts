@@ -26,9 +26,60 @@ export const useOrganization = () => {
   }, [user])
 
   const fetchUserOrganizations = async () => {
-    // TODO: Implement once database tables are created
-    setOrganizations([])
-    setLoading(false)
+    if (!user) {
+      setOrganizations([])
+      setLoading(false)
+      return
+    }
+
+    try {
+      setLoading(true)
+      
+      // Query organizations where user is a member
+      const { data: memberships, error } = await supabase
+        .from('organization_members')
+        .select(`
+          role,
+          organization_id,
+          organizations!inner (
+            id,
+            name,
+            description,
+            created_at,
+            updated_at,
+            owner_id
+          )
+        `)
+        .eq('user_id', user.id)
+
+      if (error) {
+        console.error('Error fetching organizations:', error)
+        setOrganizations([])
+        return
+      }
+
+      const orgsWithRoles: OrganizationWithRole[] = memberships?.map(membership => ({
+        id: membership.organizations.id,
+        name: membership.organizations.name,
+        description: membership.organizations.description,
+        created_at: membership.organizations.created_at,
+        updated_at: membership.organizations.updated_at,
+        owner_id: membership.organizations.owner_id,
+        user_role: membership.role as 'owner' | 'admin' | 'assessor' | 'viewer'
+      })) || []
+
+      setOrganizations(orgsWithRoles)
+      
+      // Auto-select first organization if none selected
+      if (orgsWithRoles.length > 0 && !currentOrganization) {
+        setCurrentOrganization(orgsWithRoles[0])
+      }
+    } catch (error) {
+      console.error('Error in fetchUserOrganizations:', error)
+      setOrganizations([])
+    } finally {
+      setLoading(false)
+    }
   }
 
   const switchOrganization = (orgId: string) => {
