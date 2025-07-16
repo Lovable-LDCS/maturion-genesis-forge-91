@@ -274,18 +274,36 @@ const TeamManagement: React.FC = () => {
     if (!currentOrganization) return;
     
     try {
-      // First check if the invitation still exists and is cancellable
+      // First check if the invitation exists and is cancellable
       const { data: invitation, error: fetchError } = await supabase
         .from('organization_invitations')
-        .select('id, status, email')
+        .select('id, status, email, organization_id')
         .eq('id', invitationId)
-        .eq('organization_id', currentOrganization.id)
         .single();
 
-      if (fetchError || !invitation) {
+      if (fetchError) {
+        console.error('Fetch invitation error:', fetchError);
         toast({
           title: "Error",
-          description: "Invitation not found or you don't have permission to cancel it",
+          description: `Cannot access invitation: ${fetchError.message}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (!invitation) {
+        toast({
+          title: "Error",
+          description: "Invitation not found",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (invitation.organization_id !== currentOrganization.id) {
+        toast({
+          title: "Error",
+          description: "You don't have permission to cancel this invitation",
           variant: "destructive"
         });
         return;
@@ -297,8 +315,7 @@ const TeamManagement: React.FC = () => {
           description: `This invitation is already ${invitation.status} and cannot be cancelled`,
           variant: "destructive"
         });
-        // Refresh data to show current state
-        fetchTeamData();
+        fetchTeamData(); // Refresh to show current state
         return;
       }
 
@@ -310,7 +327,6 @@ const TeamManagement: React.FC = () => {
           updated_at: new Date().toISOString() 
         })
         .eq('id', invitationId)
-        .eq('organization_id', currentOrganization.id)
         .eq('status', 'pending'); // Extra safety check
 
       if (updateError) {
