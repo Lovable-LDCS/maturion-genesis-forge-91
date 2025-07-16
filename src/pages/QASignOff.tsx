@@ -146,7 +146,7 @@ const initialMilestones: Milestone[] = [
         id: 'team-member-invitation',
         name: 'Team Member Invitation',
         description: 'Invite and manage team members within organizations',
-        status: 'signed-off',
+        status: 'failed',
         priority: 'high',
         lastTested: '2025-01-16',
         assignee: 'System',
@@ -155,8 +155,8 @@ const initialMilestones: Milestone[] = [
             id: '4',
             date: '2025-01-16',
             tester: 'Johan Ras',
-            notes: 'COMPREHENSIVE TESTING COMPLETED:\n\n✅ Database Structure: organization_invitations table created with proper schema\n✅ RLS Security: 3 policies implemented, prevents unauthorized access\n✅ Database Function: accept_invitation() function working correctly\n✅ UI Components: Team management page with invite dialog functional\n✅ Role Management: Admin, Assessor, Viewer roles properly configured\n✅ Email Validation: Duplicate email prevention working\n✅ Status Tracking: Pending, accepted, expired, cancelled statuses\n✅ Expiry Logic: 7-day expiration with extension capability\n✅ Permission System: Only owners/admins can manage invitations\n✅ Invitation Acceptance: Full workflow with proper error handling\n✅ Navigation: Team page accessible via user menu\n✅ Security: RLS policies properly restrict database access\n\nAll core functionality tested and working. System ready for production use.',
-            status: 'signed-off'
+            notes: 'CRITICAL ISSUE FOUND: RLS policy error "permission denied for table users". The policy was trying to access auth.users table which is restricted. Fixed by updating the SELECT policy to use application-level security instead of database-level email checking. Ready for re-testing.',
+            status: 'failed'
           }
         ]
       },
