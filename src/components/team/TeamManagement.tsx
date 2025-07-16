@@ -95,16 +95,30 @@ const TeamManagement: React.FC = () => {
     
     setLoading(true);
     try {
-      // Fetch pending invitations
+      // Fetch pending invitations with all required fields
       const { data: invitationsData, error: invitationsError } = await supabase
         .from('organization_invitations')
-        .select('*')
+        .select(`
+          id,
+          email,
+          role,
+          status,
+          invited_by,
+          expires_at,
+          created_at
+        `)
         .eq('organization_id', currentOrganization.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
       if (invitationsError) {
         console.error('Error fetching invitations:', invitationsError);
+        toast({
+          title: "Warning",
+          description: "Could not load pending invitations",
+          variant: "destructive"
+        });
+        setInvitations([]); // Set empty array instead of keeping old data
       } else {
         setInvitations(invitationsData || []);
       }
@@ -123,14 +137,23 @@ const TeamManagement: React.FC = () => {
 
       if (membersError) {
         console.error('Error fetching members:', membersError);
+        toast({
+          title: "Warning", 
+          description: "Could not load team members",
+          variant: "destructive"
+        });
         setMembers([]);
-      } else if (membersData) {
+      } else if (membersData && membersData.length > 0) {
         // Fetch profile data separately
         const userIds = membersData.map(m => m.user_id);
-        const { data: profilesData } = await supabase
+        const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
           .select('user_id, full_name, email')
           .in('user_id', userIds);
+
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+        }
 
         // Combine member data with profile data
         const membersWithProfiles = membersData.map(member => ({
