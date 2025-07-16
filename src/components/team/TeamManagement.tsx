@@ -40,7 +40,9 @@ import {
   MoreHorizontal,
   Trash2,
   RefreshCw,
-  Users
+  Users,
+  Building,
+  AlertCircle
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -75,25 +77,35 @@ const TeamManagement: React.FC = () => {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [showInviteDialog, setShowInviteDialog] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('viewer');
   const [inviting, setInviting] = useState(false);
   
-  const { currentOrganization, hasPermission } = useOrganization();
+  const { currentOrganization, hasPermission, loading: orgLoading } = useOrganization();
   const { user } = useAuth();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (currentOrganization) {
-      fetchTeamData();
+    // Wait for organization context to load, then fetch team data
+    if (!orgLoading) {
+      if (currentOrganization) {
+        fetchTeamData();
+      } else {
+        // User doesn't belong to any organization
+        setError('no_organization');
+        setLoading(false);
+      }
     }
-  }, [currentOrganization]);
+  }, [currentOrganization, orgLoading]);
 
   const fetchTeamData = async () => {
     if (!currentOrganization) return;
     
     setLoading(true);
+    setError(null);
+    
     try {
       // Fetch pending invitations with all required fields
       const { data: invitationsData, error: invitationsError } = await supabase
@@ -113,12 +125,8 @@ const TeamManagement: React.FC = () => {
 
       if (invitationsError) {
         console.error('Error fetching invitations:', invitationsError);
-        toast({
-          title: "Warning",
-          description: "Could not load pending invitations",
-          variant: "destructive"
-        });
-        setInvitations([]); // Set empty array instead of keeping old data
+        // Don't fail the whole page if invitations can't be loaded
+        setInvitations([]);
       } else {
         setInvitations(invitationsData || []);
       }
@@ -137,14 +145,15 @@ const TeamManagement: React.FC = () => {
 
       if (membersError) {
         console.error('Error fetching members:', membersError);
-        toast({
-          title: "Warning", 
-          description: "Could not load team members",
-          variant: "destructive"
-        });
+        // Check if it's a permission error vs other error
+        if (membersError.code === 'PGRST116' || membersError.message?.includes('permission denied')) {
+          setError('permission_denied');
+        } else {
+          setError('fetch_failed');
+        }
         setMembers([]);
       } else if (membersData && membersData.length > 0) {
-        // Fetch profile data separately
+        // Fetch profile data separately with error handling
         const userIds = membersData.map(m => m.user_id);
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
@@ -153,6 +162,7 @@ const TeamManagement: React.FC = () => {
 
         if (profilesError) {
           console.error('Error fetching profiles:', profilesError);
+          // Still show members without profile data
         }
 
         // Combine member data with profile data
@@ -165,13 +175,18 @@ const TeamManagement: React.FC = () => {
       } else {
         setMembers([]);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching team data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load team data",
-        variant: "destructive"
-      });
+      
+      // Determine error type for better user experience
+      if (error.message?.includes('infinite recursion') || error.message?.includes('permission')) {
+        setError('permission_denied');
+      } else {
+        setError('fetch_failed');
+      }
+      
+      setInvitations([]);
+      setMembers([]);
     } finally {
       setLoading(false);
     }
@@ -449,6 +464,103 @@ const TeamManagement: React.FC = () => {
 
   const canManageMembers = hasPermission('admin');
 
+  // Show loading while organization context is loading
+  if (orgLoading) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Users className="h-5 w-5" />
+            <span>Team Management</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2"></div>
+            <span className="text-muted-foreground">Loading organizations...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Handle different error states
+  if (error === 'no_organization') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Users className="h-5 w-5" />
+            <span>Team Management</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-center py-8">
+          <div className="space-y-4">
+            <div className="text-muted-foreground">
+              <Building className="h-12 w-12 mx-auto mb-2 opacity-50" />
+              <p>You don't belong to any organization yet.</p>
+            </div>
+            <Button onClick={() => window.location.href = '/'}>
+              Go to Dashboard
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error === 'permission_denied') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Users className="h-5 w-5" />
+            <span>Team Management</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-center py-8">
+          <div className="space-y-4">
+            <div className="text-muted-foreground">
+              <XCircle className="h-12 w-12 mx-auto mb-2 text-red-500 opacity-50" />
+              <p>You don't have permission to view team management for this organization.</p>
+              <p className="text-sm">Contact your organization administrator for access.</p>
+            </div>
+            <Button variant="outline" onClick={() => window.location.href = '/'}>
+              Go to Dashboard
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error === 'fetch_failed') {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2">
+            <Users className="h-5 w-5" />
+            <span>Team Management</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="text-center py-8">
+          <div className="space-y-4">
+            <div className="text-muted-foreground">
+              <AlertCircle className="h-12 w-12 mx-auto mb-2 text-yellow-500 opacity-50" />
+              <p>Failed to load team data.</p>
+              <p className="text-sm">Please try again or contact support if the issue persists.</p>
+            </div>
+            <Button onClick={fetchTeamData}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Try Again
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Show loading while fetching team data
   if (loading) {
     return (
       <Card>
@@ -460,7 +572,8 @@ const TeamManagement: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2"></div>
+            <span className="text-muted-foreground">Loading team data...</span>
           </div>
         </CardContent>
       </Card>
