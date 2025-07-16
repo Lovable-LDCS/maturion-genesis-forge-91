@@ -14,12 +14,14 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Building, LogOut, Settings, ChevronDown, Target, Users, BarChart3 } from 'lucide-react';
+import { Building, LogOut, Settings, ChevronDown, Target, Users, BarChart3, FileText } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const { user, signOut, profile } = useAuth();
   const { organizations, currentOrganization, loading } = useOrganization();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [showOrgSetup, setShowOrgSetup] = useState(false);
 
   useEffect(() => {
@@ -101,6 +103,10 @@ const Index = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate('/qa-signoff')}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  QA Sign-Off
+                </DropdownMenuItem>
                 <DropdownMenuItem>
                   <Settings className="mr-2 h-4 w-4" />
                   Settings
