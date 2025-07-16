@@ -35,22 +35,29 @@ export const useOrganization = () => {
     try {
       setLoading(true)
       
-      // Query organizations where user is a member
-      const { data: memberships, error } = await supabase
+      // First get user's memberships
+      const { data: memberships, error: membershipError } = await supabase
         .from('organization_members')
-        .select(`
-          role,
-          organization_id,
-          organizations!inner (
-            id,
-            name,
-            description,
-            created_at,
-            updated_at,
-            owner_id
-          )
-        `)
+        .select('role, organization_id')
         .eq('user_id', user.id)
+
+      if (membershipError) {
+        console.error('Error fetching memberships:', membershipError)
+        setOrganizations([])
+        return
+      }
+
+      if (!memberships || memberships.length === 0) {
+        setOrganizations([])
+        return
+      }
+
+      // Then get organization details for each membership
+      const orgIds = memberships.map(m => m.organization_id)
+      const { data: orgs, error } = await supabase
+        .from('organizations')
+        .select('*')
+        .in('id', orgIds)
 
       if (error) {
         console.error('Error fetching organizations:', error)
@@ -58,14 +65,20 @@ export const useOrganization = () => {
         return
       }
 
-      const orgsWithRoles: OrganizationWithRole[] = memberships?.map(membership => ({
-        id: membership.organizations.id,
-        name: membership.organizations.name,
-        description: membership.organizations.description,
-        created_at: membership.organizations.created_at,
-        updated_at: membership.organizations.updated_at,
-        owner_id: membership.organizations.owner_id,
-        user_role: membership.role as 'owner' | 'admin' | 'assessor' | 'viewer'
+      // Create a map of organization_id to role for easy lookup
+      const roleMap = memberships.reduce((acc, membership) => {
+        acc[membership.organization_id] = membership.role
+        return acc
+      }, {} as Record<string, string>)
+
+      const orgsWithRoles: OrganizationWithRole[] = orgs?.map(org => ({
+        id: org.id,
+        name: org.name,
+        description: org.description,
+        created_at: org.created_at,
+        updated_at: org.updated_at,
+        owner_id: org.owner_id,
+        user_role: roleMap[org.id] as 'owner' | 'admin' | 'assessor' | 'viewer'
       })) || []
 
       setOrganizations(orgsWithRoles)
