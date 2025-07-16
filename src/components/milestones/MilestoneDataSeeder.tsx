@@ -12,45 +12,80 @@ interface MilestoneDataSeederProps {
   onSeedComplete?: () => void;
 }
 
-// Hardcoded milestone data to seed the database
+// Real project milestone data to seed the database
 const SEED_MILESTONES = [
   {
-    name: 'Foundation Setup',
-    description: 'Core system infrastructure and basic functionality',
-    phase: 'Phase 1',
+    name: 'Organization Setup',
+    description: 'Core organization management functionality for APGI',
+    phase: 'Foundation',
     week: 1,
     priority: 'critical' as const,
-    status: 'in_progress' as const,
+    status: 'not_started' as const,
     display_order: 1,
     tasks: [
       {
-        name: 'Supabase Integration',
-        description: 'Database setup, authentication, RLS policies, and basic CRUD operations',
-        status: 'signed_off' as const,
+        name: 'Create Organization',
+        description: 'Implement organization creation with name, description, owner assignment. Validate required fields, handle database errors, show success confirmation.',
+        status: 'not_started' as const,
         display_order: 1,
       },
       {
-        name: 'User Management System',
-        description: 'User authentication, profiles, and session management',
-        status: 'signed_off' as const,
+        name: 'Edit Organization',
+        description: 'Enable organization editing for owners/admins. Form validation, permission checks, optimistic updates, error handling.',
+        status: 'not_started' as const,
         display_order: 2,
       },
       {
-        name: 'Organization Setup',
-        description: 'Organization creation, management, and basic structure',
-        status: 'in_progress' as const,
+        name: 'Delete Organization',
+        description: 'Implement organization deletion with cascade handling. Confirmation dialog, data cleanup, member notification, audit trail.',
+        status: 'not_started' as const,
         display_order: 3,
       },
       {
-        name: 'Team Member Invitation',
-        description: 'Invite and manage team members within organizations',
-        status: 'ready_for_test' as const,
+        name: 'Organization Settings',
+        description: 'Settings page for organization configuration. Branding, preferences, integrations, notification settings.',
+        status: 'not_started' as const,
+        display_order: 4,
+      }
+    ]
+  },
+  {
+    name: 'Team Management',
+    description: 'Complete team invitation and member management system',
+    phase: 'Foundation',
+    week: 2,
+    priority: 'high' as const,
+    status: 'not_started' as const,
+    display_order: 2,
+    tasks: [
+      {
+        name: 'Invitation Flow',
+        description: 'Send team invitations via email. Role selection, expiration handling, duplicate prevention, email validation.',
+        status: 'not_started' as const,
+        display_order: 1,
+      },
+      {
+        name: 'Invitation Acceptance',
+        description: 'Accept invitations and join organizations. Token validation, email matching, membership creation, welcome flow.',
+        status: 'not_started' as const,
+        display_order: 2,
+      },
+      {
+        name: 'Resend Invitations',
+        description: 'Resend pending invitations. Status tracking, rate limiting, notification updates, audit logging.',
+        status: 'not_started' as const,
+        display_order: 3,
+      },
+      {
+        name: 'Cancel Invitations',
+        description: 'Cancel pending invitations. Permission validation, status updates, notification cleanup, audit trail.',
+        status: 'not_started' as const,
         display_order: 4,
       },
       {
-        name: 'Real Milestone Tracking',
-        description: 'Replace hardcoded milestone data with dynamic tracking system',
-        status: 'in_progress' as const,
+        name: 'Member Management',
+        description: 'Manage existing team members. Role changes, member removal, permission controls, activity tracking.',
+        status: 'not_started' as const,
         display_order: 5,
       }
     ]
@@ -59,40 +94,70 @@ const SEED_MILESTONES = [
     name: 'Assessment Framework Phase 1A - Database Enhancement',
     description: 'Complete database foundation for assessment framework with status lifecycle, AI integration, and audit trail',
     phase: 'Phase 1A',
-    week: 2,
+    week: 3,
     priority: 'critical' as const,
-    status: 'ready_for_test' as const,
-    display_order: 2,
+    status: 'signed_off' as const,
+    display_order: 3,
     tasks: [
       {
         name: 'Core Assessment Tables',
         description: 'domains, MPS, criteria, maturity_levels, assessments, evidence, assessment_scores tables with proper relationships',
-        status: 'ready_for_test' as const,
+        status: 'signed_off' as const,
         display_order: 1,
       },
       {
         name: '8-Status Lifecycle System',
         description: 'assessment_status enum with not_started, in_progress, ai_evaluated, submitted_for_approval, approved_locked, rejected, escalated, alternative_proposal',
-        status: 'ready_for_test' as const,
+        status: 'signed_off' as const,
         display_order: 2,
       },
       {
         name: 'AI Integration Fields',
         description: 'AI suggestion storage, user acceptance tracking, evaluation results fields added to all tables',
-        status: 'ready_for_test' as const,
+        status: 'signed_off' as const,
         display_order: 3,
       },
       {
         name: 'Comprehensive Audit Trail',
         description: 'audit_trail table with triggers capturing all changes, who/what/when/previous/new values',
-        status: 'ready_for_test' as const,
+        status: 'signed_off' as const,
         display_order: 4,
       },
       {
         name: 'RLS Security Policies',
         description: 'Organization-scoped access control, role-based permissions for all assessment tables',
-        status: 'ready_for_test' as const,
+        status: 'signed_off' as const,
         display_order: 5,
+      },
+      {
+        name: 'Auto-numbering Triggers',
+        description: 'Automatic criteria numbering (MPS.sequential), validation triggers, data integrity constraints',
+        status: 'signed_off' as const,
+        display_order: 6,
+      },
+      {
+        name: 'Assessment Score Calculations',
+        description: 'Completion percentage calculations, evidence scoring, AI confidence tracking, maturity level assignments',
+        status: 'signed_off' as const,
+        display_order: 7,
+      },
+      {
+        name: 'Approval Workflow Tables',
+        description: 'approval_requests, override_approvals tables with decision tracking, escalation paths, approval history',
+        status: 'signed_off' as const,
+        display_order: 8,
+      },
+      {
+        name: 'Auditor Assignment System',
+        description: 'auditor_assignments table with site visit scheduling, completion tracking, assignment management',
+        status: 'signed_off' as const,
+        display_order: 9,
+      },
+      {
+        name: 'Performance Indexes',
+        description: 'Database indexes for query optimization, foreign key constraints, composite indexes for filtering',
+        status: 'signed_off' as const,
+        display_order: 10,
       }
     ]
   },
@@ -100,10 +165,10 @@ const SEED_MILESTONES = [
     name: 'Assessment Framework Phase 1B - Admin Content Interface',
     description: 'Admin UI for domain, MPS, and criteria seeding with AI assistance',
     phase: 'Phase 1B',
-    week: 3,
+    week: 4,
     priority: 'critical' as const,
     status: 'in_progress' as const,
-    display_order: 3,
+    display_order: 4,
     tasks: [
       {
         name: 'Domain Management UI',
@@ -132,6 +197,88 @@ const SEED_MILESTONES = [
       {
         name: 'ISO Compliance Validation',
         description: 'Validate framework structure against ISO standards. Completeness checks, standard compliance reporting.',
+        status: 'not_started' as const,
+        display_order: 5,
+      }
+    ]
+  },
+  {
+    name: 'Evidence Management System',
+    description: 'Complete evidence upload, categorization, and review workflow for assessments',
+    phase: 'Phase 2',
+    week: 5,
+    priority: 'high' as const,
+    status: 'not_started' as const,
+    display_order: 5,
+    tasks: [
+      {
+        name: 'Evidence Upload System',
+        description: 'File upload interface with drag-drop, progress tracking, file validation. Support for documents, photos, logs, comments.',
+        status: 'not_started' as const,
+        display_order: 1,
+      },
+      {
+        name: 'Evidence Categorization',
+        description: 'Categorize evidence by type and criteria. Metadata management, tagging system, search functionality.',
+        status: 'not_started' as const,
+        display_order: 2,
+      },
+      {
+        name: 'Evidence Review Workflow',
+        description: 'Review and approval workflow for evidence. AI-assisted evaluation, compliance scoring, findings documentation.',
+        status: 'not_started' as const,
+        display_order: 3,
+      },
+      {
+        name: 'Evidence Storage Management',
+        description: 'Supabase storage bucket configuration, file organization, access permissions, cleanup policies.',
+        status: 'not_started' as const,
+        display_order: 4,
+      },
+      {
+        name: 'Evidence Analytics',
+        description: 'Evidence completion tracking, quality metrics, compliance scoring analytics, reporting dashboard.',
+        status: 'not_started' as const,
+        display_order: 5,
+      }
+    ]
+  },
+  {
+    name: 'Milestone Tracking System',
+    description: 'Real-time milestone and task tracking with QA sign-off workflow',
+    phase: 'Meta',
+    week: 6,
+    priority: 'medium' as const,
+    status: 'ready_for_test' as const,
+    display_order: 6,
+    tasks: [
+      {
+        name: 'Dynamic QA Sign-off Page',
+        description: 'Connected QA page to milestone database tables. Real-time updates, persistent storage, organization scoping.',
+        status: 'ready_for_test' as const,
+        display_order: 1,
+      },
+      {
+        name: 'Milestone Status Tracking',
+        description: '8-status lifecycle for milestones and tasks. Status history, change auditing, approval workflow integration.',
+        status: 'ready_for_test' as const,
+        display_order: 2,
+      },
+      {
+        name: 'Test Notes and Comments',
+        description: 'Test notes attached to tasks with status context. Comments, feedback, approval reasons, issue tracking.',
+        status: 'ready_for_test' as const,
+        display_order: 3,
+      },
+      {
+        name: 'Milestone Data Seeding',
+        description: 'Database seeding component for initial milestone structure. Organization-scoped, RLS-compliant data seeding.',
+        status: 'ready_for_test' as const,
+        display_order: 4,
+      },
+      {
+        name: 'Progress Analytics',
+        description: 'Progress tracking, completion metrics, timeline analysis, team performance indicators.',
         status: 'not_started' as const,
         display_order: 5,
       }
