@@ -366,47 +366,97 @@ const initialMilestones: Milestone[] = [
     description: 'Admin UI for domain, MPS, and criteria seeding with AI assistance',
     phase: 'Phase 1B',
     targetWeek: 'Week 2-3',
-    overallStatus: 'not-started',
+    overallStatus: 'in-progress',
     features: [
       {
         id: 'domain-management-ui',
         name: 'Domain Management UI',
-        description: 'Create and manage assessment domains with AI-assisted intent statements',
-        status: 'not-started',
+        description: 'Create and manage assessment domains with AI-assisted intent statements. CRUD operations with validation, display order management, intent statement approval workflow.',
+        status: 'in-progress',
         priority: 'critical',
-        testNotes: []
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '20',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'QA ACCEPTANCE CRITERIA:\n✅ Create domains with name, intent statement, display order\n✅ Edit existing domains with approval tracking\n✅ Delete/archive domains with dependency checks\n✅ AI-assisted intent statement generation\n✅ User approval workflow for AI suggestions\n✅ Organization-scoped domain management\n✅ Real-time validation and error handling\n⏳ Status: Development in progress',
+            status: 'in-progress'
+          }
+        ]
       },
       {
         id: 'mps-creation-interface',
         name: 'MPS Creation Interface',
-        description: 'Setup MPS with sequential numbering and AI-generated content',
-        status: 'not-started',
+        description: 'Setup MPS with sequential numbering (1-25) and AI-generated content. Auto-assignment to domains, intent statement management, summary generation.',
+        status: 'in-progress',
         priority: 'critical',
-        testNotes: []
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '21',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'QA ACCEPTANCE CRITERIA:\n✅ Create MPS with auto-numbering (1-25)\n✅ Link MPS to domains with validation\n✅ AI-generated intent statements and summaries\n✅ User approval workflow for AI content\n✅ Bulk MPS creation with domain assignment\n✅ Sequential numbering with gap detection\n✅ Edit MPS with audit trail logging\n⏳ Status: Development in progress',
+            status: 'in-progress'
+          }
+        ]
       },
       {
         id: 'criteria-configuration-ui',
         name: 'Criteria Configuration UI',
-        description: 'Configure criteria with maturity descriptors and auto-numbering',
-        status: 'not-started',
+        description: 'Configure criteria with maturity descriptors and auto-numbering (1.1, 1.2, 2.1). Maturity level management, AI-assisted descriptor generation.',
+        status: 'in-progress',
         priority: 'critical',
-        testNotes: []
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '22',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'QA ACCEPTANCE CRITERIA:\n✅ Create criteria with auto-numbering (MPS.sequential)\n✅ Define all 5 maturity levels per criteria\n✅ AI-generated maturity descriptors\n✅ User approval workflow for descriptors\n✅ Criteria statement management\n✅ Bulk criteria creation and editing\n✅ Validation against MPS constraints\n⏳ Status: Development in progress',
+            status: 'in-progress'
+          }
+        ]
       },
       {
         id: 'bulk-import-export',
         name: 'Bulk Import/Export',
-        description: 'Import and export assessment frameworks in bulk',
+        description: 'Import and export assessment frameworks in bulk. CSV/Excel support, validation, error reporting, template downloads.',
         status: 'not-started',
         priority: 'high',
-        testNotes: []
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '23',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'QA ACCEPTANCE CRITERIA:\n⏳ Import domains, MPS, criteria from CSV/Excel\n⏳ Export existing frameworks for backup\n⏳ Data validation with error reporting\n⏳ Template downloads for proper format\n⏳ Bulk update operations\n⏳ Progress tracking for large imports\n⏳ Rollback capability for failed imports\n⏳ Status: Pending development start',
+            status: 'not-started'
+          }
+        ]
       },
       {
         id: 'iso-compliance-validation',
         name: 'ISO Compliance Validation',
-        description: 'Validate framework structure against ISO standards',
+        description: 'Validate framework structure against ISO standards. Completeness checks, standard compliance reporting.',
         status: 'not-started',
         priority: 'high',
-        testNotes: []
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '24',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'QA ACCEPTANCE CRITERIA:\n⏳ Validate domain structure against ISO requirements\n⏳ Check MPS completeness and numbering\n⏳ Verify criteria coverage across all domains\n⏳ Compliance reporting with recommendations\n⏳ Standard alignment verification\n⏳ Gap analysis and remediation suggestions\n⏳ Compliance certification tracking\n⏳ Status: Pending development start',
+            status: 'not-started'
+          }
+        ]
       }
     ]
   },
