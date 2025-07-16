@@ -193,7 +193,14 @@ const TeamManagement: React.FC = () => {
   };
 
   const sendInvitation = async () => {
-    if (!currentOrganization || !inviteEmail.trim()) return;
+    if (!currentOrganization || !inviteEmail.trim()) {
+      toast({
+        title: "Invalid Input",
+        description: "Please enter a valid email address",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setInviting(true);
     try {
@@ -220,14 +227,26 @@ const TeamManagement: React.FC = () => {
         
         if (error.code === '23505') { // Unique constraint violation
           toast({
-            title: "Invitation already exists",
+            title: "Invitation Already Exists",
             description: "This email has already been invited to this organization",
+            variant: "destructive"
+          });
+        } else if (error.code === '42501') { // Insufficient privilege
+          toast({
+            title: "Permission Denied",
+            description: "You don't have permission to send invitations. Contact your organization owner.",
+            variant: "destructive"
+          });
+        } else if (error.code === 'PGRST301') { // RLS violation
+          toast({
+            title: "Access Denied",
+            description: "Unable to create invitation. Please check your permissions.",
             variant: "destructive"
           });
         } else {
           toast({
-            title: "Error",
-            description: `Failed to send invitation: ${error.message}`,
+            title: "Database Error",
+            description: `Failed to create invitation: ${error.message}`,
             variant: "destructive"
           });
         }
@@ -249,23 +268,25 @@ const TeamManagement: React.FC = () => {
 
         if (emailError) {
           console.error('Email sending error:', emailError);
+          // Still consider this a success since the invitation was created
           toast({
-            title: "Invitation created but email failed",
-            description: "The invitation was created but the email could not be sent. You can extend the invitation later.",
-            variant: "destructive"
+            title: "Invitation Created",
+            description: "Invitation saved but email failed to send. You can resend it from the pending invitations list.",
+            variant: "default"
           });
         } else {
           toast({
-            title: "Invitation sent successfully",
+            title: "Invitation Sent Successfully",
             description: `Invitation sent to ${inviteEmail}`,
           });
         }
       } catch (emailError) {
         console.error('Email function error:', emailError);
+        // Still consider this a success since the invitation was created
         toast({
-          title: "Invitation created but email failed",
-          description: "The invitation was created but the email could not be sent.",
-          variant: "destructive"
+          title: "Invitation Created",
+          description: "Invitation saved but email failed to send. You can resend it from the pending invitations list.",
+          variant: "default"
         });
       }
 
