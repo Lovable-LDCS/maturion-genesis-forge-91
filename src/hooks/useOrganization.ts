@@ -35,10 +35,10 @@ export const useOrganization = () => {
     try {
       setLoading(true)
       
-      // First get user's memberships
+      // Step 1: Get my memberships
       const { data: memberships, error: membershipError } = await supabase
         .from('organization_members')
-        .select('role, organization_id')
+        .select('organization_id, role')
         .eq('user_id', user.id)
 
       if (membershipError) {
@@ -52,9 +52,9 @@ export const useOrganization = () => {
         return
       }
 
-      // Then get organization details for each membership
+      // Step 2: Get those organizations
       const orgIds = memberships.map(m => m.organization_id)
-      const { data: orgs, error } = await supabase
+      const { data: organizations, error } = await supabase
         .from('organizations')
         .select('*')
         .in('id', orgIds)
@@ -71,7 +71,7 @@ export const useOrganization = () => {
         return acc
       }, {} as Record<string, string>)
 
-      const orgsWithRoles: OrganizationWithRole[] = orgs?.map(org => ({
+      const orgsWithRoles: OrganizationWithRole[] = organizations?.map(org => ({
         id: org.id,
         name: org.name,
         description: org.description,
