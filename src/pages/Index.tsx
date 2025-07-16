@@ -103,6 +103,10 @@ const Index = () => {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => navigate('/team')}>
+                  <Users className="mr-2 h-4 w-4" />
+                  Team Management
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/qa-signoff')}>
                   <FileText className="mr-2 h-4 w-4" />
                   QA Sign-Off
