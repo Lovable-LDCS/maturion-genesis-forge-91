@@ -154,6 +154,10 @@ export type Database = {
         Args: { invitation_token_param: string }
         Returns: Json
       }
+      user_can_view_organization: {
+        Args: { org_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       invitation_status: "pending" | "accepted" | "expired" | "cancelled"
