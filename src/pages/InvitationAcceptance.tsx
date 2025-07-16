@@ -123,9 +123,16 @@ const InvitationAcceptance: React.FC = () => {
         throw error;
       }
 
-      const result = data as { success: boolean; error?: string; organization_id?: string; role?: string };
+      const result = data as { 
+        success: boolean; 
+        error?: string; 
+        organization_id?: string; 
+        organization_name?: string;
+        role?: string; 
+      };
 
       if (!result.success) {
+        setError(result.error || "Failed to accept invitation");
         toast({
           title: "Error",
           description: result.error || "Failed to accept invitation",
@@ -136,7 +143,7 @@ const InvitationAcceptance: React.FC = () => {
 
       toast({
         title: "Welcome to the team!",
-        description: `You've successfully joined ${invitation.organizations.name} as ${result.role}`,
+        description: `You've successfully joined ${result.organization_name || invitation.organizations.name} as ${result.role}`,
       });
 
       // Redirect to dashboard after a short delay

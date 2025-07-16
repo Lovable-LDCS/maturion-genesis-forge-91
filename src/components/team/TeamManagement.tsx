@@ -248,13 +248,19 @@ const TeamManagement: React.FC = () => {
   };
 
   const cancelInvitation = async (invitationId: string) => {
+    if (!currentOrganization) return;
+    
     try {
       const { error } = await supabase
         .from('organization_invitations')
-        .update({ status: 'cancelled' })
-        .eq('id', invitationId);
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .eq('id', invitationId)
+        .eq('organization_id', currentOrganization.id); // Ensure user can only cancel their org's invitations
 
-      if (error) throw error;
+      if (error) {
+        console.error('Cancel invitation error:', error);
+        throw error;
+      }
 
       toast({
         title: "Invitation cancelled",
@@ -266,7 +272,7 @@ const TeamManagement: React.FC = () => {
       console.error('Error cancelling invitation:', error);
       toast({
         title: "Error",
-        description: "Failed to cancel invitation",
+        description: "Failed to cancel invitation. Please try again.",
         variant: "destructive"
       });
     }
