@@ -39,10 +39,10 @@ const mockMilestones: Milestone[] = [
     id: '3',
     name: 'Organization Setup',
     description: 'Create organization and branch management interfaces',
-    status: 'in_progress',
+    status: 'completed',
     phase: 'Phase 1',
     week: 'Week 1',
-    progress: 25,
+    progress: 100,
   },
   {
     id: '4',

@@ -107,13 +107,13 @@ const Index = () => {
                   <Users className="mr-2 h-4 w-4" />
                   Team Management
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/organization/settings')}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Organization Settings
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/qa-signoff')}>
                   <FileText className="mr-2 h-4 w-4" />
                   QA Sign-Off
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Settings
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />

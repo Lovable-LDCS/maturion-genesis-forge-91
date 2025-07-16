@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import QASignOff from "./pages/QASignOff";
 import TeamPage from "./pages/TeamPage";
 import InvitationAcceptance from "./pages/InvitationAcceptance";
+import OrganizationSettings from "./pages/OrganizationSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/qa-signoff" element={<QASignOff />} />
               <Route path="/team" element={<TeamPage />} />
+              <Route path="/organization/settings" element={<OrganizationSettings />} />
               <Route path="/accept-invitation" element={<InvitationAcceptance />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
