@@ -171,6 +171,14 @@ const TeamManagement: React.FC = () => {
         .single();
 
       if (error) {
+        console.error('Detailed invitation error:', error);
+        console.log('Attempted values:', {
+          organization_id: currentOrganization.id,
+          email: inviteEmail.trim().toLowerCase(),
+          role: inviteRole,
+          invited_by: user?.id
+        });
+        
         if (error.code === '23505') { // Unique constraint violation
           toast({
             title: "Invitation already exists",
@@ -178,7 +186,11 @@ const TeamManagement: React.FC = () => {
             variant: "destructive"
           });
         } else {
-          throw error;
+          toast({
+            title: "Error",
+            description: `Failed to send invitation: ${error.message}`,
+            variant: "destructive"
+          });
         }
         return;
       }
