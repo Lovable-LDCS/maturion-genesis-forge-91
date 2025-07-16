@@ -47,7 +47,7 @@ const handler = async (req: Request): Promise<Response> => {
     const roleDescription = roleDescriptions[role as keyof typeof roleDescriptions] || role;
 
     const emailResponse = await resend.emails.send({
-      from: "Maturion <onboarding@resend.dev>",
+      from: "Maturion <noreply@yourdomain.com>", // Replace with your verified domain
       to: [email],
       subject: `You're invited to join ${organizationName}`,
       html: `
