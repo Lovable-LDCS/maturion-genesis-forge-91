@@ -14,6 +14,617 @@ export type Database = {
   }
   public: {
     Tables: {
+      approval_requests: {
+        Row: {
+          approver_id: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision: Database["public"]["Enums"]["approval_decision"]
+          decision_reason: string | null
+          entity_id: string
+          entity_type: string
+          id: string
+          organization_id: string
+          request_details: Json | null
+          request_type: string
+          requester_id: string
+          updated_at: string
+        }
+        Insert: {
+          approver_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: Database["public"]["Enums"]["approval_decision"]
+          decision_reason?: string | null
+          entity_id: string
+          entity_type: string
+          id?: string
+          organization_id: string
+          request_details?: Json | null
+          request_type: string
+          requester_id: string
+          updated_at?: string
+        }
+        Update: {
+          approver_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision?: Database["public"]["Enums"]["approval_decision"]
+          decision_reason?: string | null
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          organization_id?: string
+          request_details?: Json | null
+          request_type?: string
+          requester_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      assessment_scores: {
+        Row: {
+          ai_confidence_score: number | null
+          ai_suggested_level:
+            | Database["public"]["Enums"]["maturity_level"]
+            | null
+          approved_at: string | null
+          approved_by: string | null
+          assessment_id: string
+          created_at: string
+          created_by: string
+          criteria_id: string
+          current_maturity_level:
+            | Database["public"]["Enums"]["maturity_level"]
+            | null
+          evidence_completeness_score: number | null
+          id: string
+          organization_id: string
+          overall_score: number | null
+          status: Database["public"]["Enums"]["assessment_status"]
+          target_maturity_level:
+            | Database["public"]["Enums"]["maturity_level"]
+            | null
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          ai_confidence_score?: number | null
+          ai_suggested_level?:
+            | Database["public"]["Enums"]["maturity_level"]
+            | null
+          approved_at?: string | null
+          approved_by?: string | null
+          assessment_id: string
+          created_at?: string
+          created_by: string
+          criteria_id: string
+          current_maturity_level?:
+            | Database["public"]["Enums"]["maturity_level"]
+            | null
+          evidence_completeness_score?: number | null
+          id?: string
+          organization_id: string
+          overall_score?: number | null
+          status?: Database["public"]["Enums"]["assessment_status"]
+          target_maturity_level?:
+            | Database["public"]["Enums"]["maturity_level"]
+            | null
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          ai_confidence_score?: number | null
+          ai_suggested_level?:
+            | Database["public"]["Enums"]["maturity_level"]
+            | null
+          approved_at?: string | null
+          approved_by?: string | null
+          assessment_id?: string
+          created_at?: string
+          created_by?: string
+          criteria_id?: string
+          current_maturity_level?:
+            | Database["public"]["Enums"]["maturity_level"]
+            | null
+          evidence_completeness_score?: number | null
+          id?: string
+          organization_id?: string
+          overall_score?: number | null
+          status?: Database["public"]["Enums"]["assessment_status"]
+          target_maturity_level?:
+            | Database["public"]["Enums"]["maturity_level"]
+            | null
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "assessment_scores_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "assessment_scores_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "criteria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      assessments: {
+        Row: {
+          assessment_period_end: string | null
+          assessment_period_start: string | null
+          created_at: string
+          created_by: string
+          description: string | null
+          id: string
+          name: string
+          organization_id: string
+          overall_completion_percentage: number | null
+          status: Database["public"]["Enums"]["assessment_status"]
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          assessment_period_end?: string | null
+          assessment_period_start?: string | null
+          created_at?: string
+          created_by: string
+          description?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          overall_completion_percentage?: number | null
+          status?: Database["public"]["Enums"]["assessment_status"]
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          assessment_period_end?: string | null
+          assessment_period_start?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          overall_completion_percentage?: number | null
+          status?: Database["public"]["Enums"]["assessment_status"]
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: []
+      }
+      audit_trail: {
+        Row: {
+          action: string
+          change_reason: string | null
+          changed_at: string
+          changed_by: string
+          field_name: string | null
+          id: string
+          ip_address: unknown | null
+          new_value: string | null
+          old_value: string | null
+          organization_id: string
+          record_id: string
+          session_id: string | null
+          table_name: string
+        }
+        Insert: {
+          action: string
+          change_reason?: string | null
+          changed_at?: string
+          changed_by: string
+          field_name?: string | null
+          id?: string
+          ip_address?: unknown | null
+          new_value?: string | null
+          old_value?: string | null
+          organization_id: string
+          record_id: string
+          session_id?: string | null
+          table_name: string
+        }
+        Update: {
+          action?: string
+          change_reason?: string | null
+          changed_at?: string
+          changed_by?: string
+          field_name?: string | null
+          id?: string
+          ip_address?: unknown | null
+          new_value?: string | null
+          old_value?: string | null
+          organization_id?: string
+          record_id?: string
+          session_id?: string | null
+          table_name?: string
+        }
+        Relationships: []
+      }
+      auditor_assignments: {
+        Row: {
+          assessment_id: string
+          assigned_at: string
+          assigned_by: string
+          auditor_id: string
+          completion_date: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          organization_id: string
+          site_visit_date: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assessment_id: string
+          assigned_at?: string
+          assigned_by: string
+          auditor_id: string
+          completion_date?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          organization_id: string
+          site_visit_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assessment_id?: string
+          assigned_at?: string
+          assigned_by?: string
+          auditor_id?: string
+          completion_date?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          site_visit_date?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "auditor_assignments_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      criteria: {
+        Row: {
+          ai_suggested_statement: string | null
+          ai_suggested_summary: string | null
+          created_at: string
+          created_by: string
+          criteria_number: string
+          id: string
+          mps_id: string
+          organization_id: string
+          statement: string
+          statement_approved_at: string | null
+          statement_approved_by: string | null
+          status: Database["public"]["Enums"]["assessment_status"]
+          summary: string | null
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          ai_suggested_statement?: string | null
+          ai_suggested_summary?: string | null
+          created_at?: string
+          created_by: string
+          criteria_number: string
+          id?: string
+          mps_id: string
+          organization_id: string
+          statement: string
+          statement_approved_at?: string | null
+          statement_approved_by?: string | null
+          status?: Database["public"]["Enums"]["assessment_status"]
+          summary?: string | null
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          ai_suggested_statement?: string | null
+          ai_suggested_summary?: string | null
+          created_at?: string
+          created_by?: string
+          criteria_number?: string
+          id?: string
+          mps_id?: string
+          organization_id?: string
+          statement?: string
+          statement_approved_at?: string | null
+          statement_approved_by?: string | null
+          status?: Database["public"]["Enums"]["assessment_status"]
+          summary?: string | null
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "criteria_mps_id_fkey"
+            columns: ["mps_id"]
+            isOneToOne: false
+            referencedRelation: "maturity_practice_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      domains: {
+        Row: {
+          ai_suggested_intent: string | null
+          created_at: string
+          created_by: string
+          display_order: number
+          id: string
+          intent_approved_at: string | null
+          intent_approved_by: string | null
+          intent_statement: string | null
+          name: string
+          organization_id: string
+          status: Database["public"]["Enums"]["assessment_status"]
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          ai_suggested_intent?: string | null
+          created_at?: string
+          created_by: string
+          display_order?: number
+          id?: string
+          intent_approved_at?: string | null
+          intent_approved_by?: string | null
+          intent_statement?: string | null
+          name: string
+          organization_id: string
+          status?: Database["public"]["Enums"]["assessment_status"]
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          ai_suggested_intent?: string | null
+          created_at?: string
+          created_by?: string
+          display_order?: number
+          id?: string
+          intent_approved_at?: string | null
+          intent_approved_by?: string | null
+          intent_statement?: string | null
+          name?: string
+          organization_id?: string
+          status?: Database["public"]["Enums"]["assessment_status"]
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: []
+      }
+      evidence: {
+        Row: {
+          ai_compliance_score: number | null
+          ai_suggested_findings: string | null
+          ai_suggested_recommendations: string | null
+          assessment_id: string
+          compliance_score: number | null
+          created_at: string
+          created_by: string
+          criteria_id: string
+          description: string | null
+          evidence_type: Database["public"]["Enums"]["evidence_type"]
+          file_name: string | null
+          file_path: string | null
+          file_size: number | null
+          findings: string | null
+          findings_approved_at: string | null
+          findings_approved_by: string | null
+          id: string
+          mime_type: string | null
+          organization_id: string
+          recommendations: string | null
+          status: Database["public"]["Enums"]["assessment_status"]
+          title: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          ai_compliance_score?: number | null
+          ai_suggested_findings?: string | null
+          ai_suggested_recommendations?: string | null
+          assessment_id: string
+          compliance_score?: number | null
+          created_at?: string
+          created_by: string
+          criteria_id: string
+          description?: string | null
+          evidence_type: Database["public"]["Enums"]["evidence_type"]
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          findings?: string | null
+          findings_approved_at?: string | null
+          findings_approved_by?: string | null
+          id?: string
+          mime_type?: string | null
+          organization_id: string
+          recommendations?: string | null
+          status?: Database["public"]["Enums"]["assessment_status"]
+          title: string
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          ai_compliance_score?: number | null
+          ai_suggested_findings?: string | null
+          ai_suggested_recommendations?: string | null
+          assessment_id?: string
+          compliance_score?: number | null
+          created_at?: string
+          created_by?: string
+          criteria_id?: string
+          description?: string | null
+          evidence_type?: Database["public"]["Enums"]["evidence_type"]
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          findings?: string | null
+          findings_approved_at?: string | null
+          findings_approved_by?: string | null
+          id?: string
+          mime_type?: string | null
+          organization_id?: string
+          recommendations?: string | null
+          status?: Database["public"]["Enums"]["assessment_status"]
+          title?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "criteria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maturity_levels: {
+        Row: {
+          ai_suggested_descriptor: string | null
+          created_at: string
+          created_by: string
+          criteria_id: string
+          descriptor: string
+          descriptor_approved_at: string | null
+          descriptor_approved_by: string | null
+          id: string
+          level: Database["public"]["Enums"]["maturity_level"]
+          organization_id: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          ai_suggested_descriptor?: string | null
+          created_at?: string
+          created_by: string
+          criteria_id: string
+          descriptor: string
+          descriptor_approved_at?: string | null
+          descriptor_approved_by?: string | null
+          id?: string
+          level: Database["public"]["Enums"]["maturity_level"]
+          organization_id: string
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          ai_suggested_descriptor?: string | null
+          created_at?: string
+          created_by?: string
+          criteria_id?: string
+          descriptor?: string
+          descriptor_approved_at?: string | null
+          descriptor_approved_by?: string | null
+          id?: string
+          level?: Database["public"]["Enums"]["maturity_level"]
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maturity_levels_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "criteria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      maturity_practice_statements: {
+        Row: {
+          ai_suggested_intent: string | null
+          created_at: string
+          created_by: string
+          domain_id: string
+          id: string
+          intent_approved_at: string | null
+          intent_approved_by: string | null
+          intent_statement: string | null
+          mps_number: number
+          name: string
+          organization_id: string
+          status: Database["public"]["Enums"]["assessment_status"]
+          summary: string | null
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          ai_suggested_intent?: string | null
+          created_at?: string
+          created_by: string
+          domain_id: string
+          id?: string
+          intent_approved_at?: string | null
+          intent_approved_by?: string | null
+          intent_statement?: string | null
+          mps_number: number
+          name: string
+          organization_id: string
+          status?: Database["public"]["Enums"]["assessment_status"]
+          summary?: string | null
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          ai_suggested_intent?: string | null
+          created_at?: string
+          created_by?: string
+          domain_id?: string
+          id?: string
+          intent_approved_at?: string | null
+          intent_approved_by?: string | null
+          intent_statement?: string | null
+          mps_number?: number
+          name?: string
+          organization_id?: string
+          status?: Database["public"]["Enums"]["assessment_status"]
+          summary?: string | null
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "maturity_practice_statements_domain_id_fkey"
+            columns: ["domain_id"]
+            isOneToOne: false
+            referencedRelation: "domains"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_invitations: {
         Row: {
           created_at: string
@@ -115,6 +726,45 @@ export type Database = {
         }
         Relationships: []
       }
+      override_approvals: {
+        Row: {
+          approved_at: string
+          approved_by: string
+          audit_notes: string | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          evidence_completeness_score: number
+          id: string
+          organization_id: string
+          override_reason: string
+        }
+        Insert: {
+          approved_at?: string
+          approved_by: string
+          audit_notes?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          evidence_completeness_score: number
+          id?: string
+          organization_id: string
+          override_reason: string
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string
+          audit_notes?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          evidence_completeness_score?: number
+          id?: string
+          organization_id?: string
+          override_reason?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -179,7 +829,24 @@ export type Database = {
       }
     }
     Enums: {
+      approval_decision: "pending" | "approved" | "rejected" | "escalated"
+      assessment_status:
+        | "not_started"
+        | "in_progress"
+        | "ai_evaluated"
+        | "submitted_for_approval"
+        | "approved_locked"
+        | "rejected"
+        | "escalated"
+        | "alternative_proposal"
+      evidence_type: "document" | "photo" | "log" | "comment"
       invitation_status: "pending" | "accepted" | "expired" | "cancelled"
+      maturity_level:
+        | "basic"
+        | "reactive"
+        | "compliant"
+        | "proactive"
+        | "resilient"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -307,7 +974,26 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      approval_decision: ["pending", "approved", "rejected", "escalated"],
+      assessment_status: [
+        "not_started",
+        "in_progress",
+        "ai_evaluated",
+        "submitted_for_approval",
+        "approved_locked",
+        "rejected",
+        "escalated",
+        "alternative_proposal",
+      ],
+      evidence_type: ["document", "photo", "log", "comment"],
       invitation_status: ["pending", "accepted", "expired", "cancelled"],
+      maturity_level: [
+        "basic",
+        "reactive",
+        "compliant",
+        "proactive",
+        "resilient",
+      ],
     },
   },
 } as const

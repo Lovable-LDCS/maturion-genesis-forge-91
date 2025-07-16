@@ -171,33 +171,239 @@ const initialMilestones: Milestone[] = [
     ]
   },
   {
-    id: 'assessment-framework',
-    name: 'Assessment Framework',
-    description: 'Core assessment domain configuration and maturity criteria setup',
-    phase: 'Phase 1',
-    targetWeek: 'Week 2',
+    id: 'assessment-framework-1a',
+    name: 'Assessment Framework Phase 1A - Database Enhancement',
+    description: 'Complete database foundation for assessment framework with status lifecycle, AI integration, and audit trail',
+    phase: 'Phase 1A',
+    targetWeek: 'Week 1-2',
+    overallStatus: 'ready-for-test',
+    features: [
+      {
+        id: 'core-assessment-tables',
+        name: 'Core Assessment Tables',
+        description: 'domains, MPS, criteria, maturity_levels, assessments, evidence, assessment_scores tables with proper relationships',
+        status: 'ready-for-test',
+        priority: 'critical',
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '10',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'Created all core assessment tables with proper UUID primary keys, foreign key relationships, and organization scoping. Global MPS numbering (1-25) and criteria numbering (1.1, 1.2, 2.1, etc.) implemented.',
+            status: 'ready-for-test'
+          }
+        ]
+      },
+      {
+        id: 'status-lifecycle-system',
+        name: '8-Status Lifecycle System',
+        description: 'assessment_status enum with not_started, in_progress, ai_evaluated, submitted_for_approval, approved_locked, rejected, escalated, alternative_proposal',
+        status: 'ready-for-test',
+        priority: 'critical',
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '11',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'Implemented complete 8-status lifecycle enum matching spec: not_started (Grey), in_progress (Yellow), ai_evaluated (Purple), submitted_for_approval (Orange), approved_locked (Green), rejected (Red), escalated (Amber), alternative_proposal (Light Green). Applied to all relevant tables.',
+            status: 'ready-for-test'
+          }
+        ]
+      },
+      {
+        id: 'ai-integration-fields',
+        name: 'AI Integration Fields',
+        description: 'AI suggestion storage, user acceptance tracking, evaluation results fields added to all tables',
+        status: 'ready-for-test',
+        priority: 'high',
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '12',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'Added AI integration fields to all tables: ai_suggested_* columns for AI proposals, *_approved_by and *_approved_at for user acceptance tracking, ai_confidence_score and ai_compliance_score for AI evaluations.',
+            status: 'ready-for-test'
+          }
+        ]
+      },
+      {
+        id: 'comprehensive-audit-trail',
+        name: 'Comprehensive Audit Trail',
+        description: 'audit_trail table with triggers capturing all changes, who/what/when/previous/new values',
+        status: 'ready-for-test',
+        priority: 'critical',
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '13',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'Created comprehensive audit_trail table with log_audit_trail() function and triggers on all assessment tables. Captures INSERT, UPDATE, DELETE operations with field-level change tracking, user attribution, and timestamps.',
+            status: 'ready-for-test'
+          }
+        ]
+      },
+      {
+        id: 'approval-workflow-tables',
+        name: 'Approval Workflow Tables',
+        description: 'approval_requests, auditor_assignments, override_approvals tables for governance processes',
+        status: 'ready-for-test',
+        priority: 'high',
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '14',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'Implemented full approval workflow infrastructure: approval_requests for user submissions, auditor_assignments for evaluation tracking, override_approvals for <100% evidence sign-offs with documented reasons.',
+            status: 'ready-for-test'
+          }
+        ]
+      },
+      {
+        id: 'global-numbering-system',
+        name: 'Global Numbering System',
+        description: 'MPS sequential numbering (1-25), criteria auto-numbering (1.1, 1.2, 2.1, etc.)',
+        status: 'ready-for-test',
+        priority: 'high',
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '15',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'Implemented global numbering system with unique constraints. MPS numbered 1-25 across all domains per organization. Criteria auto-numbered using generate_criteria_number() trigger (e.g., 1.1, 1.2, 2.1, 2.2).',
+            status: 'ready-for-test'
+          }
+        ]
+      },
+      {
+        id: 'evidence-management-enhancement',
+        name: 'Evidence Management Enhancement',
+        description: 'Multi-type evidence support (document, photo, log, comment) with findings/recommendations',
+        status: 'ready-for-test',
+        priority: 'high',
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '16',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'Enhanced evidence table with evidence_type enum (document, photo, log, comment), file metadata storage, findings/recommendations sections with AI suggestions, compliance scoring, and status tracking.',
+            status: 'ready-for-test'
+          }
+        ]
+      },
+      {
+        id: 'rls-security-policies',
+        name: 'RLS Security Policies',
+        description: 'Organization-scoped access control, role-based permissions for all assessment tables',
+        status: 'ready-for-test',
+        priority: 'critical',
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '17',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'Applied RLS to all assessment tables with organization-scoped access control using existing user_can_view_organization() function. Ensures users can only access their organization\'s assessment data.',
+            status: 'ready-for-test'
+          }
+        ]
+      },
+      {
+        id: 'database-functions-triggers',
+        name: 'Database Functions & Triggers',
+        description: 'Auto-numbering, audit logging, status validation, compliance calculation functions',
+        status: 'ready-for-test',
+        priority: 'medium',
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '18',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'Implemented automated database functions: generate_criteria_number() for auto-numbering, log_audit_trail() for change tracking, calculate_assessment_completion() for progress updates. All functions use SECURITY DEFINER for proper permissions.',
+            status: 'ready-for-test'
+          }
+        ]
+      },
+      {
+        id: 'performance-indexes',
+        name: 'Performance Indexes',
+        description: 'Optimized indexes for organization_id, status, relationships, and audit trail queries',
+        status: 'ready-for-test',
+        priority: 'medium',
+        lastTested: '2025-01-16',
+        assignee: 'System',
+        testNotes: [
+          {
+            id: '19',
+            date: '2025-01-16',
+            tester: 'System',
+            notes: 'Created comprehensive index strategy: organization_id indexes on all tables, status indexes for filtering, relationship indexes for joins, specialized indexes for audit trail queries and numbering lookups.',
+            status: 'ready-for-test'
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'assessment-framework-1b',
+    name: 'Assessment Framework Phase 1B - Admin Content Interface',
+    description: 'Admin UI for domain, MPS, and criteria seeding with AI assistance',
+    phase: 'Phase 1B',
+    targetWeek: 'Week 2-3',
     overallStatus: 'not-started',
     features: [
       {
-        id: 'domain-configuration',
-        name: 'Assessment Domain Configuration',
-        description: 'Set up and manage assessment domains (e.g., Security, Operations, Development)',
+        id: 'domain-management-ui',
+        name: 'Domain Management UI',
+        description: 'Create and manage assessment domains with AI-assisted intent statements',
         status: 'not-started',
         priority: 'critical',
         testNotes: []
       },
       {
-        id: 'maturity-criteria',
-        name: 'Maturity Criteria Setup',
-        description: 'Define and configure maturity levels and criteria for each domain',
+        id: 'mps-creation-interface',
+        name: 'MPS Creation Interface',
+        description: 'Setup MPS with sequential numbering and AI-generated content',
         status: 'not-started',
         priority: 'critical',
         testNotes: []
       },
       {
-        id: 'assessment-templates',
-        name: 'Assessment Templates',
-        description: 'Create reusable assessment templates and questionnaires',
+        id: 'criteria-configuration-ui',
+        name: 'Criteria Configuration UI',
+        description: 'Configure criteria with maturity descriptors and auto-numbering',
+        status: 'not-started',
+        priority: 'critical',
+        testNotes: []
+      },
+      {
+        id: 'bulk-import-export',
+        name: 'Bulk Import/Export',
+        description: 'Import and export assessment frameworks in bulk',
+        status: 'not-started',
+        priority: 'high',
+        testNotes: []
+      },
+      {
+        id: 'iso-compliance-validation',
+        name: 'ISO Compliance Validation',
+        description: 'Validate framework structure against ISO standards',
         status: 'not-started',
         priority: 'high',
         testNotes: []
