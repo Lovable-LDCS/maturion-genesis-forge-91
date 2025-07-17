@@ -17,6 +17,9 @@ export interface AIDocument {
   created_at: string;
   updated_at: string;
   processed_at?: string;
+  domain?: string;
+  tags?: string;
+  upload_notes?: string;
 }
 
 export const useAIDocuments = () => {
@@ -50,7 +53,10 @@ export const useAIDocuments = () => {
     file: File,
     documentType: AIDocument['document_type'],
     organizationId: string,
-    userId: string
+    userId: string,
+    domain?: string,
+    tags?: string,
+    uploadNotes?: string
   ): Promise<string | null> => {
     setUploading(true);
     
@@ -79,10 +85,16 @@ export const useAIDocuments = () => {
           file_size: file.size,
           mime_type: file.type,
           document_type: documentType,
+          domain: domain,
+          tags: tags,
+          upload_notes: uploadNotes,
           uploaded_by: userId,
           metadata: {
             original_name: file.name,
-            upload_timestamp: new Date().toISOString()
+            upload_timestamp: new Date().toISOString(),
+            domain: domain,
+            tags: tags?.split(',').map(tag => tag.trim()),
+            upload_notes: uploadNotes
           }
         })
         .select()
@@ -101,7 +113,10 @@ export const useAIDocuments = () => {
           metadata: {
             file_name: file.name,
             file_size: file.size,
-            document_type: documentType
+            document_type: documentType,
+            domain: domain,
+            tags: tags,
+            upload_notes: uploadNotes
           }
         });
 

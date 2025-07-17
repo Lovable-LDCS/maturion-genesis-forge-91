@@ -4,8 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock, Tag, FolderOpen } from 'lucide-react';
 import { useAIDocuments, AIDocument } from '@/hooks/useAIDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -22,6 +25,22 @@ const documentTypeLabels: Record<AIDocument['document_type'], string> = {
   assessment_framework_component: 'Assessment Framework Component'
 };
 
+// Domain options for MPS documents
+const domainOptions = [
+  'Protection',
+  'Governance', 
+  'Risk Management',
+  'Business Continuity',
+  'Information Security',
+  'Operational Security',
+  'Physical Security',
+  'Personnel Security',
+  'Technology Security',
+  'Third Party Management',
+  'Compliance & Assurance',
+  'Performance Management'
+];
+
 const statusIcons = {
   pending: <Clock className="h-4 w-4 text-yellow-500" />,
   processing: <AlertCircle className="h-4 w-4 text-blue-500" />,
@@ -36,6 +55,9 @@ export const AIAdminUploadZone: React.FC = () => {
   const { toast } = useToast();
   
   const [selectedDocumentType, setSelectedDocumentType] = useState<AIDocument['document_type']>('mps_document');
+  const [selectedDomain, setSelectedDomain] = useState<string>('');
+  const [tags, setTags] = useState<string>('');
+  const [uploadNotes, setUploadNotes] = useState<string>('');
 
   // Check if user is admin
   const isAdmin = currentOrganization?.user_role === 'admin' || currentOrganization?.user_role === 'owner';
@@ -51,9 +73,17 @@ export const AIAdminUploadZone: React.FC = () => {
     }
 
     for (const file of acceptedFiles) {
-      await uploadDocument(file, selectedDocumentType, currentOrganization.id, user.id);
+      await uploadDocument(
+        file, 
+        selectedDocumentType, 
+        currentOrganization.id, 
+        user.id,
+        selectedDomain || undefined,
+        tags || undefined,
+        uploadNotes || undefined
+      );
     }
-  }, [user, currentOrganization, isAdmin, selectedDocumentType, uploadDocument, toast]);
+  }, [user, currentOrganization, isAdmin, selectedDocumentType, selectedDomain, tags, uploadNotes, uploadDocument, toast]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -117,7 +147,7 @@ export const AIAdminUploadZone: React.FC = () => {
         <CardContent className="space-y-6">
           {/* Document Type Selection */}
           <div className="space-y-2">
-            <label className="text-sm font-medium">Document Type</label>
+            <Label htmlFor="document-type" className="text-sm font-medium">Document Type</Label>
             <Select
               value={selectedDocumentType}
               onValueChange={(value: AIDocument['document_type']) => setSelectedDocumentType(value)}
@@ -133,6 +163,70 @@ export const AIAdminUploadZone: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Domain Selection (optional, but highlighted for MPS docs) */}
+          <div className="space-y-2">
+            <Label htmlFor="domain" className="text-sm font-medium">
+              Domain
+              <span className="text-muted-foreground ml-1">(optional)</span>
+              {selectedDocumentType === 'mps_document' && (
+                <span className="text-primary ml-1">- Recommended for MPS</span>
+              )}
+            </Label>
+            <Select
+              value={selectedDomain}
+              onValueChange={setSelectedDomain}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a domain..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No domain specified</SelectItem>
+                {domainOptions.map((domain) => (
+                  <SelectItem key={domain} value={domain}>
+                    {domain}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Tags Field */}
+          <div className="space-y-2">
+            <Label htmlFor="tags" className="text-sm font-medium">
+              Tags
+              <span className="text-muted-foreground ml-1">(optional)</span>
+            </Label>
+            <Input
+              id="tags"
+              placeholder="e.g. security, compliance, risk-management"
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              Enter comma-separated tags to improve search and categorization
+            </p>
+          </div>
+
+          {/* Upload Notes */}
+          <div className="space-y-2">
+            <Label htmlFor="upload-notes" className="text-sm font-medium">
+              Upload Notes
+              <span className="text-muted-foreground ml-1">(optional, admin-only)</span>
+            </Label>
+            <Textarea
+              id="upload-notes"
+              placeholder="Internal notes about this document, context for AI processing, or special instructions..."
+              value={uploadNotes}
+              onChange={(e) => setUploadNotes(e.target.value)}
+              rows={3}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              These notes help provide context to the AI for better processing and retrieval
+            </p>
           </div>
 
           {/* Upload Zone */}
@@ -209,9 +303,26 @@ export const AIAdminUploadZone: React.FC = () => {
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
                       <p>Size: {formatFileSize(doc.file_size)} • Type: {doc.mime_type}</p>
+                      {doc.domain && (
+                        <p className="flex items-center gap-1">
+                          <FolderOpen className="h-3 w-3" />
+                          Domain: <span className="font-medium">{doc.domain}</span>
+                        </p>
+                      )}
+                      {doc.tags && (
+                        <p className="flex items-center gap-1">
+                          <Tag className="h-3 w-3" />
+                          Tags: <span className="font-medium">{doc.tags}</span>
+                        </p>
+                      )}
                       <p>Uploaded: {formatDate(doc.created_at)}</p>
                       {doc.total_chunks > 0 && (
                         <p>Processed into {doc.total_chunks} searchable chunks</p>
+                      )}
+                      {doc.upload_notes && (
+                        <p className="text-xs italic border-l-2 border-muted pl-2 mt-2">
+                          Notes: {doc.upload_notes}
+                        </p>
                       )}
                     </div>
                   </div>

@@ -62,6 +62,7 @@ export type Database = {
         Row: {
           created_at: string
           document_type: string
+          domain: string | null
           file_name: string
           file_path: string
           file_size: number
@@ -71,13 +72,16 @@ export type Database = {
           organization_id: string
           processed_at: string | null
           processing_status: string
+          tags: string | null
           total_chunks: number | null
           updated_at: string
+          upload_notes: string | null
           uploaded_by: string
         }
         Insert: {
           created_at?: string
           document_type: string
+          domain?: string | null
           file_name: string
           file_path: string
           file_size: number
@@ -87,13 +91,16 @@ export type Database = {
           organization_id: string
           processed_at?: string | null
           processing_status?: string
+          tags?: string | null
           total_chunks?: number | null
           updated_at?: string
+          upload_notes?: string | null
           uploaded_by: string
         }
         Update: {
           created_at?: string
           document_type?: string
+          domain?: string | null
           file_name?: string
           file_path?: string
           file_size?: number
@@ -103,8 +110,10 @@ export type Database = {
           organization_id?: string
           processed_at?: string | null
           processing_status?: string
+          tags?: string | null
           total_chunks?: number | null
           updated_at?: string
+          upload_notes?: string | null
           uploaded_by?: string
         }
         Relationships: []
