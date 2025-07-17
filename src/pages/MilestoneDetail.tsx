@@ -2,13 +2,11 @@ import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useMilestones } from '@/hooks/useMilestones';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, Clock, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
-import { StatusBadge } from '@/components/milestones/StatusBadge';
-import { SignOffButton } from '@/components/milestones/SignOffButton';
+import { TaskCard } from '@/components/milestones/TaskCard';
 
 export default function MilestoneDetail() {
   const { milestone_id } = useParams<{ milestone_id: string }>();
@@ -112,52 +110,14 @@ export default function MilestoneDetail() {
           <div className="space-y-3">
             {tasks
               .sort((a, b) => a.display_order - b.display_order)
-              .map((task) => {
-                const isSignedOff = task.status === 'signed_off';
-                
-                return (
-                  <Card key={task.id} className="transition-all hover:shadow-md">
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="space-y-1 flex-1">
-                          <CardTitle className="text-lg">{task.name}</CardTitle>
-                          {task.description && (
-                            <p className="text-sm text-muted-foreground">{task.description}</p>
-                          )}
-                        </div>
-                        <div className="ml-4">
-                          <StatusBadge status={task.status} />
-                        </div>
-                      </div>
-                    </CardHeader>
-                    
-                    <CardContent className="pt-0">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                          {isSignedOff ? (
-                            <>
-                              <div className="flex items-center">
-                                <CheckCircle className="mr-1 h-4 w-4 text-green-600" />
-                                Signed off on {format(new Date(task.updated_at), 'MMM d, yyyy')}
-                              </div>
-                            </>
-                          ) : (
-                            <div className="flex items-center">
-                              <Clock className="mr-1 h-4 w-4" />
-                              Pending sign-off
-                            </div>
-                          )}
-                        </div>
-                        
-                        <SignOffButton
-                          isSignedOff={isSignedOff}
-                          onSignOff={() => handleSignOff(task.id, task.name)}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
+              .map((task) => (
+                <TaskCard
+                  key={task.id}
+                  task={task}
+                  milestoneName={milestone.name}
+                  onSignOff={handleSignOff}
+                />
+              ))}
           </div>
         )}
       </div>
