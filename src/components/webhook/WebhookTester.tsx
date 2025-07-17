@@ -315,11 +315,16 @@ const WebhookTester: React.FC = () => {
                 <Label htmlFor="custom-payload-text">Custom JSON Payload</Label>
                 <Textarea
                   id="custom-payload-text"
-                  placeholder='{"event": "custom", "data": {"message": "Custom test"}}'
+                  placeholder='{"event": "custom", "data": {"message": "Custom test for Slack", "channel": "#general"}}'
                   value={customPayload}
                   onChange={(e) => setCustomPayload(e.target.value)}
-                  rows={4}
+                  rows={6}
+                  className="font-mono text-sm resize-y"
+                  readOnly={false}
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Enter valid JSON. For Slack: use "text" field for messages or "blocks" for rich formatting.
+                </p>
               </div>
             )}
             
