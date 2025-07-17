@@ -12,6 +12,7 @@ import TeamPage from "./pages/TeamPage";
 import InvitationAcceptance from "./pages/InvitationAcceptance";
 import OrganizationSettings from "./pages/OrganizationSettings";
 import MilestoneDetail from "./pages/MilestoneDetail";
+import AIKnowledgeBase from "./pages/AIKnowledgeBase";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/assessment-framework" element={<AssessmentFramework />} />
               <Route path="/team" element={<TeamPage />} />
               <Route path="/organization/settings" element={<OrganizationSettings />} />
+              <Route path="/ai/knowledge-base" element={<AIKnowledgeBase />} />
               <Route path="/accept-invitation" element={<InvitationAcceptance />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

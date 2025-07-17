@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Building, LogOut, Settings, ChevronDown, Target, Users, BarChart3, FileText } from 'lucide-react';
+import { Building, LogOut, Settings, ChevronDown, Target, Users, BarChart3, FileText, Brain } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
@@ -111,6 +111,10 @@ const Index = () => {
                 <DropdownMenuItem onClick={() => navigate('/organization/settings')}>
                   <Settings className="mr-2 h-4 w-4" />
                   Organization Settings
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/ai/knowledge-base')}>
+                  <Brain className="mr-2 h-4 w-4" />
+                  AI Knowledge Base
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/qa-signoff')}>
                   <FileText className="mr-2 h-4 w-4" />

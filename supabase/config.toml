@@ -1,1 +1,7 @@
 project_id = "dmhlxhatogrrrvuruayv"
+
+[functions.process-ai-document]
+verify_jwt = false
+
+[functions.search-ai-context]
+verify_jwt = false
