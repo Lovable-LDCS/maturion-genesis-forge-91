@@ -11,6 +11,9 @@ interface OrganizationWithRole {
   updated_at: string
   owner_id: string
   user_role: 'owner' | 'admin' | 'assessor' | 'viewer'
+  slack_webhook_url?: string | null
+  email_webhook_url?: string | null
+  zapier_webhook_url?: string | null
 }
 
 export const useOrganization = () => {
@@ -78,7 +81,10 @@ export const useOrganization = () => {
         created_at: org.created_at,
         updated_at: org.updated_at,
         owner_id: org.owner_id,
-        user_role: roleMap[org.id] as 'owner' | 'admin' | 'assessor' | 'viewer'
+        user_role: roleMap[org.id] as 'owner' | 'admin' | 'assessor' | 'viewer',
+        slack_webhook_url: org.slack_webhook_url,
+        email_webhook_url: org.email_webhook_url,
+        zapier_webhook_url: org.zapier_webhook_url,
       })) || []
 
       setOrganizations(orgsWithRoles)

@@ -49,6 +49,7 @@ import { useMilestones, MilestoneWithTasks, MilestoneTestNoteInsert } from '@/ho
 import { useOrganization } from '@/hooks/useOrganization';
 import { Tables } from '@/integrations/supabase/types';
 import { MilestoneDataSeeder } from '@/components/milestones/MilestoneDataSeeder';
+import WebhookTester from '@/components/webhook/WebhookTester';
 
 type MilestoneStatus = Tables<'milestone_tasks'>['status'];
 
@@ -457,6 +458,9 @@ const QASignOffDynamic: React.FC = () => {
           </Accordion>
         </CardContent>
       </Card>
+
+      {/* Webhook Testing Section */}
+      <WebhookTester />
     </div>
   );
 };
