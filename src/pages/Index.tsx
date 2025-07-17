@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { OrganizationSetup } from '@/components/organization/OrganizationSetup';
 import { MilestoneTracker } from '@/components/milestones/MilestoneTracker';
+import { AssessmentFramework } from '@/components/assessment/AssessmentFramework';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -215,6 +216,7 @@ const Index = () => {
           {/* Right Column - Milestone Tracker */}
           <div className="space-y-6">
             <MilestoneTracker />
+            <AssessmentFramework />
           </div>
         </div>
       </main>
