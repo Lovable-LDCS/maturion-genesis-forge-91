@@ -160,6 +160,9 @@ export type Database = {
       }
       assessments: {
         Row: {
+          ai_confidence_score: number | null
+          ai_evaluation_result: Json | null
+          ai_feedback_summary: string | null
           assessment_period_end: string | null
           assessment_period_start: string | null
           created_at: string
@@ -172,8 +175,12 @@ export type Database = {
           status: Database["public"]["Enums"]["assessment_status"]
           updated_at: string
           updated_by: string
+          user_acceptance_status: string | null
         }
         Insert: {
+          ai_confidence_score?: number | null
+          ai_evaluation_result?: Json | null
+          ai_feedback_summary?: string | null
           assessment_period_end?: string | null
           assessment_period_start?: string | null
           created_at?: string
@@ -186,8 +193,12 @@ export type Database = {
           status?: Database["public"]["Enums"]["assessment_status"]
           updated_at?: string
           updated_by: string
+          user_acceptance_status?: string | null
         }
         Update: {
+          ai_confidence_score?: number | null
+          ai_evaluation_result?: Json | null
+          ai_feedback_summary?: string | null
           assessment_period_end?: string | null
           assessment_period_start?: string | null
           created_at?: string
@@ -200,6 +211,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["assessment_status"]
           updated_at?: string
           updated_by?: string
+          user_acceptance_status?: string | null
         }
         Relationships: []
       }
@@ -1008,6 +1020,14 @@ export type Database = {
       accept_invitation: {
         Args: { invitation_token_param: string }
         Returns: Json
+      }
+      calculate_assessment_progress: {
+        Args: { assessment_uuid: string }
+        Returns: {
+          total_criteria: number
+          completed_criteria: number
+          completion_percentage: number
+        }[]
       }
       user_can_manage_org_invitations: {
         Args: { org_id: string }
