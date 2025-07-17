@@ -134,15 +134,21 @@ export const OrganizationManagement: React.FC = () => {
     },
   })
 
-  // Reset form when organization changes
+  // Reset forms when organization changes
   React.useEffect(() => {
     if (currentOrganization) {
       form.reset({
         name: currentOrganization.name,
         description: currentOrganization.description || '',
       })
+      
+      integrationForm.reset({
+        slackWebhookUrl: currentOrganization.slack_webhook_url || '',
+        emailWebhookUrl: currentOrganization.email_webhook_url || '',
+        zapierWebhookUrl: currentOrganization.zapier_webhook_url || '',
+      })
     }
-  }, [currentOrganization, form])
+  }, [currentOrganization, form, integrationForm])
 
   const handleEdit = async (data: OrganizationData) => {
     if (!currentOrganization || !hasPermission('admin')) return
@@ -262,14 +268,25 @@ export const OrganizationManagement: React.FC = () => {
 
     setIntegrationLoading(true)
     try {
-      // In a real app, you would save this to a settings table
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
+      const { error } = await supabase
+        .from('organizations')
+        .update({
+          slack_webhook_url: data.slackWebhookUrl || null,
+          email_webhook_url: data.emailWebhookUrl || null,
+          zapier_webhook_url: data.zapierWebhookUrl || null,
+        })
+        .eq('id', currentOrganization.id)
+
+      if (error) throw error
       
       toast({
         title: 'Integrations Updated',
         description: 'Your integration settings have been saved successfully!',
       })
+
+      refetch() // Refresh organization data
     } catch (error: any) {
+      console.error('Error updating integrations:', error)
       toast({
         title: 'Error updating integrations',
         description: error.message || 'Failed to update integrations. Please try again.',

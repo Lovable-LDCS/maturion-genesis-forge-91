@@ -34,9 +34,6 @@ const WebhookTester: React.FC = () => {
   const [eventType, setEventType] = useState('test');
   const [customPayload, setCustomPayload] = useState('{"event": "custom", "data": {"message": "Custom test for Slack", "channel": "#general"}}');
   const [useCustomPayload, setUseCustomPayload] = useState(false);
-  
-  // Debug logging
-  console.log('WebhookTester state:', { useCustomPayload, customPayload: customPayload.length });
   const [isLoading, setIsLoading] = useState(false);
   const [testResults, setTestResults] = useState<WebhookTestResult[]>([]);
   
@@ -229,7 +226,22 @@ const WebhookTester: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => loadOrganizationWebhook('slack')}
+                onClick={() => {
+                  if (currentOrganization?.slack_webhook_url) {
+                    setWebhookUrl(currentOrganization.slack_webhook_url);
+                    setWebhookType('slack');
+                    toast({
+                      title: 'Loaded Slack Webhook',
+                      description: 'Loaded your saved Slack webhook URL from organization settings.',
+                    });
+                  } else {
+                    toast({
+                      title: 'No Saved Webhook',
+                      description: 'No Slack webhook URL found in organization settings. Please save one in Organization Settings first.',
+                      variant: 'destructive',
+                    });
+                  }
+                }}
                 className="flex items-center gap-1"
               >
                 <Zap className="h-3 w-3" />
@@ -238,7 +250,22 @@ const WebhookTester: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => loadOrganizationWebhook('email')}
+                onClick={() => {
+                  if (currentOrganization?.email_webhook_url) {
+                    setWebhookUrl(currentOrganization.email_webhook_url);
+                    setWebhookType('email');
+                    toast({
+                      title: 'Loaded Email Webhook',
+                      description: 'Loaded your saved email webhook URL from organization settings.',
+                    });
+                  } else {
+                    toast({
+                      title: 'No Saved Webhook',
+                      description: 'No email webhook URL found in organization settings. Please save one in Organization Settings first.',
+                      variant: 'destructive',
+                    });
+                  }
+                }}
                 className="flex items-center gap-1"
               >
                 <Zap className="h-3 w-3" />
@@ -247,7 +274,22 @@ const WebhookTester: React.FC = () => {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => loadOrganizationWebhook('zapier')}
+                onClick={() => {
+                  if (currentOrganization?.zapier_webhook_url) {
+                    setWebhookUrl(currentOrganization.zapier_webhook_url);
+                    setWebhookType('zapier');
+                    toast({
+                      title: 'Loaded Zapier Webhook',
+                      description: 'Loaded your saved Zapier webhook URL from organization settings.',
+                    });
+                  } else {
+                    toast({
+                      title: 'No Saved Webhook',
+                      description: 'No Zapier webhook URL found in organization settings. Please save one in Organization Settings first.',
+                      variant: 'destructive',
+                    });
+                  }
+                }}
                 className="flex items-center gap-1"
               >
                 <Zap className="h-3 w-3" />
@@ -307,10 +349,7 @@ const WebhookTester: React.FC = () => {
                 type="checkbox"
                 id="custom-payload"
                 checked={useCustomPayload}
-                onChange={(e) => {
-                  console.log('Checkbox changed:', e.target.checked);
-                  setUseCustomPayload(e.target.checked);
-                }}
+                onChange={(e) => setUseCustomPayload(e.target.checked)}
                 className="rounded"
               />
               <Label htmlFor="custom-payload">Use Custom Payload</Label>
@@ -319,24 +358,13 @@ const WebhookTester: React.FC = () => {
             {useCustomPayload && (
               <div>
                 <Label htmlFor="custom-payload-text">Custom JSON Payload</Label>
-                <textarea
+                <Textarea
                   id="custom-payload-text"
                   placeholder='{"event": "custom", "data": {"message": "Custom test for Slack", "channel": "#general"}}'
                   value={customPayload}
-                  onChange={(e) => {
-                    console.log('Textarea onChange:', e.target.value);
-                    setCustomPayload(e.target.value);
-                  }}
-                  onFocus={() => console.log('Textarea focused')}
-                  onBlur={() => console.log('Textarea blurred')}
-                  onClick={() => console.log('Textarea clicked')}
+                  onChange={(e) => setCustomPayload(e.target.value)}
                   rows={6}
-                  className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-mono resize-y"
-                  style={{ 
-                    backgroundColor: 'white',
-                    border: '2px solid #e2e8f0',
-                    color: 'black'
-                  }}
+                  className="font-mono text-sm resize-y"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Enter valid JSON. For Slack: use "text" field for messages or "blocks" for rich formatting.
