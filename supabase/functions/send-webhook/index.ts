@@ -21,53 +21,109 @@ interface WebhookConfig {
 }
 
 const formatSlackMessage = (payload: WebhookPayload): any => {
-  if (payload.event_type === 'milestone_signed_off') {
-    const { milestone_name, task_name, signed_off_at, task_id } = payload.data || {};
-    const date = new Date(signed_off_at || payload.timestamp).toLocaleDateString('en-US', {
+  const formatDate = (dateString?: string) => {
+    return new Date(dateString || payload.timestamp).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     });
-    
-    return {
-      text: `✅ *Milestone Signed Off*\n• *Milestone:* ${milestone_name || 'Unknown'}\n• *Task:* ${task_name || 'Unknown'}\n• *Date:* ${date}\n• View: <https://your-app.com/milestones/${task_id}|Click here>`
-    };
-  }
-
-  // Default formatting for other event types
-  const eventMessages: Record<string, string> = {
-    milestone_updated: `🔄 Milestone "${payload.data?.milestone_name}" has been updated`,
-    team_member_added: `👋 New member added to the organization`,
-    team_member_removed: `👋 Member removed from the organization`,
-    team_invite_accepted: `✅ Team invitation accepted`,
-    team_invite_declined: `❌ Team invitation declined`,
-    organization_edited: `⚙️ Organization details have been updated`,
-    organization_deleted: `🗑️ Organization has been deleted`,
   };
 
-  return {
-    text: eventMessages[payload.event_type] || `Event: ${payload.event_type}`,
-    blocks: [
-      {
-        type: "section",
-        text: {
-          type: "mrkdwn",
-          text: eventMessages[payload.event_type] || `Event: ${payload.event_type}`
-        }
-      },
-      {
-        type: "context",
-        elements: [
+  const baseUrl = 'https://your-app.com'; // Replace with actual app URL
+
+  switch (payload.event_type) {
+    case 'milestone_signed_off': {
+      const { milestone_name, task_name, signed_off_at, task_id } = payload.data || {};
+      return {
+        text: `✅ *Milestone Signed Off*\n• *Milestone:* ${milestone_name || 'Unknown'}\n• *Task:* ${task_name || 'Unknown'}\n• *Date:* ${formatDate(signed_off_at)}\n• View: <${baseUrl}/milestones/${task_id}|Click here>`
+      };
+    }
+
+    case 'evidence_uploaded': {
+      const { mps_name, user_name, evidence_id } = payload.data || {};
+      return {
+        text: `📂 *Evidence Uploaded*\n• *MPS:* ${mps_name || 'Unknown'}\n• *Submitted by:* ${user_name || 'Unknown'}\n• *Date:* ${formatDate()}\n• View: <${baseUrl}/evidence/${evidence_id}|Review evidence>`
+      };
+    }
+
+    case 'audit_finding_raised': {
+      const { mps_name, finding_summary, auditor_name, finding_id } = payload.data || {};
+      return {
+        text: `🛑 *Audit Alert Raised*\n• *Domain:* ${mps_name || 'Unknown'}\n• *Finding:* ${finding_summary || 'Unknown'}\n• *Raised by:* ${auditor_name || 'Unknown'}\n• *Date:* ${formatDate()}\n• View: <${baseUrl}/findings/${finding_id}|View finding>`
+      };
+    }
+
+    case 'risk_level_increased': {
+      const { mps_name, risk_score, trigger_source, assessment_id } = payload.data || {};
+      return {
+        text: `⚠️ *Risk Score Increased*\n• *Area:* ${mps_name || 'Unknown'}\n• *New Risk Level:* ${risk_score || 'Unknown'}\n• *Triggered by:* ${trigger_source || 'System'}\n• View: <${baseUrl}/assessments/${assessment_id}|See dashboard>`
+      };
+    }
+
+    case 'team_member_added': {
+      const { user_name, role, user_id } = payload.data || {};
+      return {
+        text: `👤 *New Team Member Added*\n• *Name:* ${user_name || 'Unknown'}\n• *Role:* ${role || 'Member'}\n• *Joined:* ${formatDate()}\n• View: <${baseUrl}/team/${user_id}|Manage team>`
+      };
+    }
+
+    case 'maturity_score_updated': {
+      const { mps_name, maturity_level, user_name, assessment_id } = payload.data || {};
+      return {
+        text: `📈 *Maturity Level Updated*\n• *Domain:* ${mps_name || 'Unknown'}\n• *New Level:* ${maturity_level || 'Unknown'}\n• *Evaluator:* ${user_name || 'Unknown'}\n• *Date:* ${formatDate()}\n• View: <${baseUrl}/assessments/${assessment_id}|Open dashboard>`
+      };
+    }
+
+    case 'qa_signoff_completed': {
+      const { section_name, user_name, record_id } = payload.data || {};
+      return {
+        text: `🧾 *QA Sign-Off Completed*\n• *Section:* ${section_name || 'Unknown'}\n• *Approved by:* ${user_name || 'Unknown'}\n• *Date:* ${formatDate()}\n• View: <${baseUrl}/qa/${record_id}|View record>`
+      };
+    }
+
+    case 'organization_registered': {
+      const { org_name, user_name, org_id } = payload.data || {};
+      return {
+        text: `🏢 *New Organization Registered*\n• *Name:* ${org_name || 'Unknown'}\n• *Created by:* ${user_name || 'Unknown'}\n• *Date:* ${formatDate()}\n• View: <${baseUrl}/admin/organizations/${org_id}|Admin panel>`
+      };
+    }
+
+    // Fallback for other event types
+    default: {
+      const eventMessages: Record<string, string> = {
+        milestone_updated: `🔄 Milestone "${payload.data?.milestone_name}" has been updated`,
+        team_member_removed: `👋 Member removed from the organization`,
+        team_invite_accepted: `✅ Team invitation accepted`,
+        team_invite_declined: `❌ Team invitation declined`,
+        organization_edited: `⚙️ Organization details have been updated`,
+        organization_deleted: `🗑️ Organization has been deleted`,
+      };
+
+      return {
+        text: eventMessages[payload.event_type] || `Event: ${payload.event_type}`,
+        blocks: [
           {
-            type: "mrkdwn",
-            text: `Organization ID: ${payload.organization_id} | ${payload.timestamp}`
+            type: "section",
+            text: {
+              type: "mrkdwn",
+              text: eventMessages[payload.event_type] || `Event: ${payload.event_type}`
+            }
+          },
+          {
+            type: "context",
+            elements: [
+              {
+                type: "mrkdwn",
+                text: `Organization ID: ${payload.organization_id} | ${formatDate()}`
+              }
+            ]
           }
         ]
-      }
-    ]
-  };
+      };
+    }
+  }
 };
 
 const sendWebhook = async (url: string, payload: any, type: 'slack' | 'email' | 'zapier'): Promise<boolean> => {

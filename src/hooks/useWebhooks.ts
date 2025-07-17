@@ -3,8 +3,14 @@ import { useAuth } from '@/contexts/AuthContext';
 
 export type WebhookEventType = 
   | 'milestone_signed_off'
-  | 'milestone_updated'
+  | 'evidence_uploaded'
+  | 'audit_finding_raised'
+  | 'risk_level_increased'
   | 'team_member_added'
+  | 'maturity_score_updated'
+  | 'qa_signoff_completed'
+  | 'organization_registered'
+  | 'milestone_updated'
   | 'team_member_removed'
   | 'team_invite_accepted'
   | 'team_invite_declined'
