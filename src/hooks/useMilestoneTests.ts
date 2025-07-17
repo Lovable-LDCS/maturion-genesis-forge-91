@@ -15,6 +15,8 @@ export interface TestResult {
 export interface TestSession {
   id: string;
   milestoneId: string;
+  taskId?: string; // Add task ID for task-specific tests
+  isTaskTest?: boolean; // Flag to distinguish task tests from milestone tests
   timestamp: Date;
   results: TestResult[];
   overallStatus: 'passed' | 'failed' | 'warning';
@@ -396,6 +398,238 @@ export const useMilestoneTests = () => {
     return results;
   };
 
+  // Task-specific database tests
+  const runTaskDatabaseTests = async (task: any): Promise<TestResult[]> => {
+    const results: TestResult[] = [];
+
+    // Test 1: Check task data structure
+    try {
+      const { data: taskData, error } = await supabase
+        .from('milestone_tasks')
+        .select('*')
+        .eq('id', task.id)
+        .single();
+
+      if (error) throw error;
+
+      results.push({
+        id: 'db-task-structure',
+        name: 'Task Data Structure',
+        status: 'passed',
+        message: 'Task record found and accessible',
+        category: 'database'
+      });
+    } catch (error) {
+      results.push({
+        id: 'db-task-structure',
+        name: 'Task Data Structure',
+        status: 'failed',
+        message: `Failed to access task data: ${error}`,
+        category: 'database'
+      });
+    }
+
+    // Test 2: Check task audit trail
+    try {
+      const { data: auditData, error } = await supabase
+        .from('audit_trail')
+        .select('*')
+        .eq('record_id', task.id)
+        .limit(1);
+
+      if (error) throw error;
+
+      if (auditData && auditData.length > 0) {
+        results.push({
+          id: 'db-task-audit',
+          name: 'Task Audit Trail',
+          status: 'passed',
+          message: 'Task audit trail is active',
+          category: 'database'
+        });
+      } else {
+        results.push({
+          id: 'db-task-audit',
+          name: 'Task Audit Trail',
+          status: 'warning',
+          message: 'No audit trail entries found for this task',
+          category: 'database'
+        });
+      }
+    } catch (error) {
+      results.push({
+        id: 'db-task-audit',
+        name: 'Task Audit Trail',
+        status: 'failed',
+        message: `Task audit trail check failed: ${error}`,
+        category: 'database'
+      });
+    }
+
+    // Test 3: Check milestone relationship
+    try {
+      const { data: milestoneData, error } = await supabase
+        .from('milestones')
+        .select('name, status')
+        .eq('id', task.milestone_id)
+        .single();
+
+      if (error) throw error;
+
+      results.push({
+        id: 'db-milestone-link',
+        name: 'Milestone Relationship',
+        status: 'passed',
+        message: `Task linked to milestone: ${milestoneData.name}`,
+        category: 'database'
+      });
+    } catch (error) {
+      results.push({
+        id: 'db-milestone-link',
+        name: 'Milestone Relationship',
+        status: 'failed',
+        message: `Failed to verify milestone relationship: ${error}`,
+        category: 'database'
+      });
+    }
+
+    return results;
+  };
+
+  // Task-specific structure tests
+  const runTaskStructureTests = async (task: any): Promise<TestResult[]> => {
+    const results: TestResult[] = [];
+
+    // Test 1: Required fields check
+    const requiredFields = ['name', 'milestone_id', 'organization_id', 'created_by', 'updated_by'];
+    const missingFields = requiredFields.filter(field => !task[field]);
+
+    if (missingFields.length === 0) {
+      results.push({
+        id: 'struct-task-fields',
+        name: 'Task Required Fields',
+        status: 'passed',
+        message: 'All required task fields are present',
+        category: 'structure'
+      });
+    } else {
+      results.push({
+        id: 'struct-task-fields',
+        name: 'Task Required Fields',
+        status: 'failed',
+        message: `Missing task fields: ${missingFields.join(', ')}`,
+        category: 'structure'
+      });
+    }
+
+    // Test 2: Status validation
+    const validStatuses = ['not_started', 'in_progress', 'ready_for_test', 'signed_off', 'failed', 'rejected', 'escalated', 'alternative_proposal'];
+    if (validStatuses.includes(task.status)) {
+      results.push({
+        id: 'struct-task-status',
+        name: 'Task Status Validation',
+        status: 'passed',
+        message: `Task status "${task.status}" is valid`,
+        category: 'structure'
+      });
+    } else {
+      results.push({
+        id: 'struct-task-status',
+        name: 'Task Status Validation',
+        status: 'failed',
+        message: `Invalid task status: "${task.status}"`,
+        category: 'structure'
+      });
+    }
+
+    // Test 3: Name validation
+    if (task.name && task.name.trim().length > 0) {
+      results.push({
+        id: 'struct-task-name',
+        name: 'Task Name Validation',
+        status: 'passed',
+        message: `Task name is valid: "${task.name}"`,
+        category: 'structure'
+      });
+    } else {
+      results.push({
+        id: 'struct-task-name',
+        name: 'Task Name Validation',
+        status: 'failed',
+        message: 'Task name is missing or empty',
+        category: 'structure'
+      });
+    }
+
+    return results;
+  };
+
+  // Run tests for a specific task
+  const runTaskTests = async (task: any): Promise<TestSession> => {
+    setIsRunning(true);
+    
+    const sessionId = `task-test-${task.id}-${Date.now()}`;
+    const allResults: TestResult[] = [];
+
+    try {
+      toast({
+        title: 'Running Task Tests',
+        description: `Starting health check for task: ${task.name}`,
+      });
+
+      // Run task-specific test categories
+      const [dbResults, structResults] = await Promise.all([
+        runTaskDatabaseTests(task),
+        runTaskStructureTests(task)
+      ]);
+
+      allResults.push(...dbResults, ...structResults);
+
+      // Determine overall status
+      const failedTests = allResults.filter(r => r.status === 'failed');
+      const warningTests = allResults.filter(r => r.status === 'warning');
+      
+      let overallStatus: 'passed' | 'failed' | 'warning';
+      if (failedTests.length > 0) {
+        overallStatus = 'failed';
+      } else if (warningTests.length > 0) {
+        overallStatus = 'warning';
+      } else {
+        overallStatus = 'passed';
+      }
+
+      const session: TestSession = {
+        id: sessionId,
+        milestoneId: task.milestone_id, // Parent milestone ID
+        taskId: task.id, // Specific task ID
+        isTaskTest: true, // Flag to identify task tests
+        timestamp: new Date(),
+        results: allResults,
+        overallStatus
+      };
+
+      // Remove any existing test session for this specific task
+      setTestSessions(prev => [session, ...prev.filter(s => !(s.taskId === task.id && s.isTaskTest))]);
+
+      toast({
+        title: 'Task Tests Complete',
+        description: `${allResults.length} tests completed with ${overallStatus} status`,
+        variant: overallStatus === 'failed' ? 'destructive' : 'default'
+      });
+
+      return session;
+    } catch (error) {
+      toast({
+        title: 'Task Test Failed',
+        description: `Error running task tests: ${error}`,
+        variant: 'destructive'
+      });
+      throw error;
+    } finally {
+      setIsRunning(false);
+    }
+  };
+
   // Run all tests for a milestone
   const runTests = async (milestone: MilestoneWithTasks): Promise<TestSession> => {
     setIsRunning(true);
@@ -528,6 +762,7 @@ export const useMilestoneTests = () => {
     testSessions,
     isRunning,
     runTests,
+    runTaskTests, // Add the new task test function
     setManualVerification,
     exportTestResults
   };

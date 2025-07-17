@@ -22,35 +22,20 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onSignOff 
 }) => {
   const [showTestResults, setShowTestResults] = useState(false);
-  const { testSessions, isRunning, runTests, setManualVerification, exportTestResults } = useMilestoneTests();
+  const { testSessions, isRunning, runTaskTests, setManualVerification, exportTestResults } = useMilestoneTests();
   
   const isSignedOff = task.status === 'signed_off';
   
-  // Get the latest test session for this task (using task.id as milestoneId for individual task tests)
-  const latestTestSession = testSessions.find(session => session.milestoneId === task.id);
+  // Get the latest test session for this specific task
+  const latestTestSession = testSessions.find(session => 
+    session.taskId === task.id && session.isTaskTest === true
+  );
   
   const handleRunTest = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      // Create a complete milestone object for the task test
-      const taskAsMilestone: any = {
-        id: task.id,
-        name: task.name,
-        description: task.description || '',
-        status: task.status,
-        priority: 'medium' as const,
-        organization_id: task.organization_id,
-        created_at: task.created_at,
-        updated_at: task.updated_at,
-        created_by: task.created_by,
-        updated_by: task.updated_by,
-        display_order: task.display_order,
-        week: null,
-        phase: null,
-        milestone_tasks: [task],
-        milestone_test_notes: []
-      };
-      const session = await runTests(taskAsMilestone);
+      // Run task-specific tests
+      const session = await runTaskTests(task);
       setShowTestResults(true);
     } catch (error) {
       console.error('Test failed:', error);
