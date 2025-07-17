@@ -117,7 +117,11 @@ export const TestResultsDialog: React.FC<TestResultsDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent 
+        className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <span>Test Results</span>
@@ -132,10 +136,30 @@ export const TestResultsDialog: React.FC<TestResultsDialogProps> = ({
         <div className="flex-1 overflow-hidden">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
             <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="details">Test Details</TabsTrigger>
-              <TabsTrigger value="manual">Manual Review</TabsTrigger>
-              <TabsTrigger value="export">Export</TabsTrigger>
+              <TabsTrigger 
+                value="overview" 
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab('overview'); }}
+              >
+                Overview
+              </TabsTrigger>
+              <TabsTrigger 
+                value="details"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab('details'); }}
+              >
+                Test Details
+              </TabsTrigger>
+              <TabsTrigger 
+                value="manual"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab('manual'); }}
+              >
+                Manual Review
+              </TabsTrigger>
+              <TabsTrigger 
+                value="export"
+                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab('export'); }}
+              >
+                Export
+              </TabsTrigger>
             </TabsList>
 
             <div className="flex-1 overflow-auto">
