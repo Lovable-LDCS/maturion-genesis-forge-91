@@ -876,34 +876,43 @@ export type Database = {
           created_at: string
           created_by: string
           description: string | null
+          email_webhook_url: string | null
           id: string
           logo_url: string | null
           name: string
           owner_id: string
+          slack_webhook_url: string | null
           updated_at: string
           updated_by: string
+          zapier_webhook_url: string | null
         }
         Insert: {
           created_at?: string
           created_by?: string
           description?: string | null
+          email_webhook_url?: string | null
           id?: string
           logo_url?: string | null
           name: string
           owner_id?: string
+          slack_webhook_url?: string | null
           updated_at?: string
           updated_by?: string
+          zapier_webhook_url?: string | null
         }
         Update: {
           created_at?: string
           created_by?: string
           description?: string | null
+          email_webhook_url?: string | null
           id?: string
           logo_url?: string | null
           name?: string
           owner_id?: string
+          slack_webhook_url?: string | null
           updated_at?: string
           updated_by?: string
+          zapier_webhook_url?: string | null
         }
         Relationships: []
       }
