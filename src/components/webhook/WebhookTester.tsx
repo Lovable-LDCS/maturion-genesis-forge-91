@@ -34,6 +34,9 @@ const WebhookTester: React.FC = () => {
   const [eventType, setEventType] = useState('test');
   const [customPayload, setCustomPayload] = useState('{"event": "custom", "data": {"message": "Custom test for Slack", "channel": "#general"}}');
   const [useCustomPayload, setUseCustomPayload] = useState(false);
+  
+  // Debug logging
+  console.log('WebhookTester state:', { useCustomPayload, customPayload: customPayload.length });
   const [isLoading, setIsLoading] = useState(false);
   const [testResults, setTestResults] = useState<WebhookTestResult[]>([]);
   
@@ -304,7 +307,10 @@ const WebhookTester: React.FC = () => {
                 type="checkbox"
                 id="custom-payload"
                 checked={useCustomPayload}
-                onChange={(e) => setUseCustomPayload(e.target.checked)}
+                onChange={(e) => {
+                  console.log('Checkbox changed:', e.target.checked);
+                  setUseCustomPayload(e.target.checked);
+                }}
                 className="rounded"
               />
               <Label htmlFor="custom-payload">Use Custom Payload</Label>
@@ -313,15 +319,24 @@ const WebhookTester: React.FC = () => {
             {useCustomPayload && (
               <div>
                 <Label htmlFor="custom-payload-text">Custom JSON Payload</Label>
-                <Textarea
+                <textarea
                   id="custom-payload-text"
                   placeholder='{"event": "custom", "data": {"message": "Custom test for Slack", "channel": "#general"}}'
                   value={customPayload}
-                  onChange={(e) => setCustomPayload(e.target.value)}
+                  onChange={(e) => {
+                    console.log('Textarea onChange:', e.target.value);
+                    setCustomPayload(e.target.value);
+                  }}
+                  onFocus={() => console.log('Textarea focused')}
+                  onBlur={() => console.log('Textarea blurred')}
+                  onClick={() => console.log('Textarea clicked')}
                   rows={6}
-                  className="font-mono text-sm resize-y border-2 focus:border-primary"
-                  disabled={false}
-                  autoFocus={true}
+                  className="flex min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 font-mono resize-y"
+                  style={{ 
+                    backgroundColor: 'white',
+                    border: '2px solid #e2e8f0',
+                    color: 'black'
+                  }}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Enter valid JSON. For Slack: use "text" field for messages or "blocks" for rich formatting.
