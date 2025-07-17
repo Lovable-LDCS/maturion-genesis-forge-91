@@ -44,6 +44,7 @@ import {
   FolderOpen
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import WebhookTester from '@/components/webhook/WebhookTester';
 
 // Types for our QA system
 type FeatureStatus = 'not-started' | 'in-progress' | 'ready-for-test' | 'signed-off' | 'failed';
@@ -818,6 +819,11 @@ const QASignOff: React.FC = () => {
             </AccordionItem>
           ))}
         </Accordion>
+
+        {/* Webhook Testing Utility */}
+        <div className="mt-8">
+          <WebhookTester />
+        </div>
       </main>
     </div>
   );
