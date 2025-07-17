@@ -32,7 +32,7 @@ const WebhookTester: React.FC = () => {
   const [webhookUrl, setWebhookUrl] = useState('');
   const [webhookType, setWebhookType] = useState<'slack' | 'email' | 'zapier'>('slack');
   const [eventType, setEventType] = useState('test');
-  const [customPayload, setCustomPayload] = useState('');
+  const [customPayload, setCustomPayload] = useState('{"event": "custom", "data": {"message": "Custom test for Slack", "channel": "#general"}}');
   const [useCustomPayload, setUseCustomPayload] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [testResults, setTestResults] = useState<WebhookTestResult[]>([]);
@@ -319,8 +319,9 @@ const WebhookTester: React.FC = () => {
                   value={customPayload}
                   onChange={(e) => setCustomPayload(e.target.value)}
                   rows={6}
-                  className="font-mono text-sm resize-y"
-                  readOnly={false}
+                  className="font-mono text-sm resize-y border-2 focus:border-primary"
+                  disabled={false}
+                  autoFocus={true}
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   Enter valid JSON. For Slack: use "text" field for messages or "blocks" for rich formatting.
