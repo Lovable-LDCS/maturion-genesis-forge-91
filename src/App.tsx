@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
-import Index from "./pages/Index";
+import AssessmentFramework from "./pages/AssessmentFramework";
 import QASignOff from "./pages/QASignOffDynamic";
 import TeamPage from "./pages/TeamPage";
 import InvitationAcceptance from "./pages/InvitationAcceptance";
@@ -26,7 +26,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/qa-signoff" element={<QASignOff />} />
-              <Route path="/milestones/:milestone_id" element={<MilestoneDetail />} />
+              <Route path="/assessment-framework" element={<AssessmentFramework />} />
               <Route path="/team" element={<TeamPage />} />
               <Route path="/organization/settings" element={<OrganizationSettings />} />
               <Route path="/accept-invitation" element={<InvitationAcceptance />} />
