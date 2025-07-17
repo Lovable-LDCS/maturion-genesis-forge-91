@@ -10,6 +10,7 @@ import QASignOff from "./pages/QASignOffDynamic";
 import TeamPage from "./pages/TeamPage";
 import InvitationAcceptance from "./pages/InvitationAcceptance";
 import OrganizationSettings from "./pages/OrganizationSettings";
+import MilestoneDetail from "./pages/MilestoneDetail";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,6 +26,7 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/qa-signoff" element={<QASignOff />} />
+              <Route path="/milestones/:milestone_id" element={<MilestoneDetail />} />
               <Route path="/team" element={<TeamPage />} />
               <Route path="/organization/settings" element={<OrganizationSettings />} />
               <Route path="/accept-invitation" element={<InvitationAcceptance />} />
