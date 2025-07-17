@@ -10,11 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button as ClearButton } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock, Tag, FolderOpen, X, Edit3, Save, XCircle } from 'lucide-react';
+import { Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock, Tag, FolderOpen, X, Edit3, Save, XCircle, History } from 'lucide-react';
 import { useAIDocuments, AIDocument } from '@/hooks/useAIDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
+import { DocumentVersionDialog } from './DocumentVersionDialog';
 
 const documentTypeLabels: Record<AIDocument['document_type'], string> = {
   maturity_model: 'Maturity Model',
@@ -63,6 +64,11 @@ export const AIAdminUploadZone: React.FC = () => {
   const [editNotes, setEditNotes] = useState<string>('');
   const [editDocumentType, setEditDocumentType] = useState<AIDocument['document_type']>('mps_document');
   const [isSaving, setIsSaving] = useState(false);
+  const [editChangeReason, setEditChangeReason] = useState<string>('');
+  
+  // Version history dialog state
+  const [versionDialogDocument, setVersionDialogDocument] = useState<AIDocument | null>(null);
+  const [showVersionDialog, setShowVersionDialog] = useState(false);
 
   // Check if user is admin
   const isAdmin = currentOrganization?.user_role === 'admin' || currentOrganization?.user_role === 'owner';
@@ -137,6 +143,7 @@ export const AIAdminUploadZone: React.FC = () => {
     setEditTags(doc.tags || '');
     setEditNotes(doc.upload_notes || '');
     setEditDocumentType(doc.document_type);
+    setEditChangeReason('');
   };
 
   const handleSaveEdit = async () => {
@@ -148,7 +155,8 @@ export const AIAdminUploadZone: React.FC = () => {
       domain: editDomain || undefined,
       tags: editTags || undefined,
       upload_notes: editNotes || undefined,
-      document_type: editDocumentType
+      document_type: editDocumentType,
+      change_reason: editChangeReason || 'Document metadata updated'
     });
     
     if (success) {
@@ -165,6 +173,16 @@ export const AIAdminUploadZone: React.FC = () => {
     if (window.confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
       await deleteDocument(documentId);
     }
+  };
+
+  const handleShowVersionHistory = (doc: AIDocument) => {
+    setVersionDialogDocument(doc);
+    setShowVersionDialog(true);
+  };
+
+  const handleVersionDialogClose = () => {
+    setShowVersionDialog(false);
+    setVersionDialogDocument(null);
   };
 
   if (!isAdmin) {
@@ -411,8 +429,18 @@ export const AIAdminUploadZone: React.FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
+                      onClick={() => handleShowVersionHistory(doc)}
+                      className="text-blue-600 hover:text-blue-600"
+                      title="View version history"
+                    >
+                      <History className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
                       onClick={() => handleEditDocument(doc)}
                       className="text-primary hover:text-primary"
+                      title="Edit document"
                     >
                       <Edit3 className="h-4 w-4" />
                     </Button>
@@ -421,6 +449,7 @@ export const AIAdminUploadZone: React.FC = () => {
                       size="sm"
                       onClick={() => handleDeleteDocument(doc.id)}
                       className="text-destructive hover:text-destructive"
+                      title="Delete document"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -529,6 +558,19 @@ export const AIAdminUploadZone: React.FC = () => {
                 rows={3}
               />
             </div>
+            {/* Change Reason */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-change-reason">Change Reason</Label>
+              <Input
+                id="edit-change-reason"
+                value={editChangeReason}
+                onChange={(e) => setEditChangeReason(e.target.value)}
+                placeholder="Brief description of changes made..."
+              />
+              <p className="text-xs text-muted-foreground">
+                This will be logged for audit and compliance purposes
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
@@ -550,6 +592,17 @@ export const AIAdminUploadZone: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Version History Dialog */}
+      <DocumentVersionDialog
+        document={versionDialogDocument}
+        open={showVersionDialog}
+        onClose={handleVersionDialogClose}
+        onDocumentUpdated={() => {
+          // Refresh the documents list after rollback
+          window.location.reload(); // Simple refresh for now
+        }}
+      />
     </div>
   );
 };

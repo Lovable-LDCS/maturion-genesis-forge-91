@@ -164,6 +164,7 @@ export const useAIDocuments = () => {
       tags?: string;
       upload_notes?: string;
       document_type?: AIDocument['document_type'];
+      change_reason?: string;
     }
   ): Promise<boolean> => {
     try {
@@ -190,6 +191,7 @@ export const useAIDocuments = () => {
             domain: updates.domain,
             tags: updates.tags?.split(',').map(tag => tag.trim()),
             upload_notes: updates.upload_notes,
+            change_reason: updates.change_reason || 'Document updated',
             last_updated: new Date().toISOString()
           }
         })

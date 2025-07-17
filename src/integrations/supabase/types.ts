@@ -58,6 +58,74 @@ export type Database = {
           },
         ]
       }
+      ai_document_versions: {
+        Row: {
+          change_reason: string | null
+          created_at: string
+          created_by: string
+          document_id: string
+          document_type: string
+          domain: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id: string
+          metadata: Json | null
+          mime_type: string
+          organization_id: string
+          tags: string | null
+          title: string
+          upload_notes: string | null
+          version_number: number
+        }
+        Insert: {
+          change_reason?: string | null
+          created_at?: string
+          created_by: string
+          document_id: string
+          document_type: string
+          domain?: string | null
+          file_name: string
+          file_path: string
+          file_size: number
+          id?: string
+          metadata?: Json | null
+          mime_type: string
+          organization_id: string
+          tags?: string | null
+          title: string
+          upload_notes?: string | null
+          version_number: number
+        }
+        Update: {
+          change_reason?: string | null
+          created_at?: string
+          created_by?: string
+          document_id?: string
+          document_type?: string
+          domain?: string | null
+          file_name?: string
+          file_path?: string
+          file_size?: number
+          id?: string
+          metadata?: Json | null
+          mime_type?: string
+          organization_id?: string
+          tags?: string | null
+          title?: string
+          upload_notes?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_documents: {
         Row: {
           created_at: string
