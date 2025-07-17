@@ -877,6 +877,7 @@ export type Database = {
           created_by: string
           description: string | null
           id: string
+          logo_url: string | null
           name: string
           owner_id: string
           updated_at: string
@@ -887,6 +888,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          logo_url?: string | null
           name: string
           owner_id?: string
           updated_at?: string
@@ -897,6 +899,7 @@ export type Database = {
           created_by?: string
           description?: string | null
           id?: string
+          logo_url?: string | null
           name?: string
           owner_id?: string
           updated_at?: string
