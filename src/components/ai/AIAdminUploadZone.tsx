@@ -28,18 +28,11 @@ const documentTypeLabels: Record<AIDocument['document_type'], string> = {
 
 // Domain options for MPS documents
 const domainOptions = [
+  'Leadership & Governance',
+  'Process Integrity',
+  'People & Culture',
   'Protection',
-  'Governance', 
-  'Risk Management',
-  'Business Continuity',
-  'Information Security',
-  'Operational Security',
-  'Physical Security',
-  'Personnel Security',
-  'Technology Security',
-  'Third Party Management',
-  'Compliance & Assurance',
-  'Performance Management'
+  'Proof it Works'
 ];
 
 const statusIcons = {
