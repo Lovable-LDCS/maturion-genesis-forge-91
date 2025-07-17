@@ -73,6 +73,7 @@ export type Database = {
           processed_at: string | null
           processing_status: string
           tags: string | null
+          title: string | null
           total_chunks: number | null
           updated_at: string
           upload_notes: string | null
@@ -92,6 +93,7 @@ export type Database = {
           processed_at?: string | null
           processing_status?: string
           tags?: string | null
+          title?: string | null
           total_chunks?: number | null
           updated_at?: string
           upload_notes?: string | null
@@ -111,6 +113,7 @@ export type Database = {
           processed_at?: string | null
           processing_status?: string
           tags?: string | null
+          title?: string | null
           total_chunks?: number | null
           updated_at?: string
           upload_notes?: string | null

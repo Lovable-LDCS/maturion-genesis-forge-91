@@ -17,6 +17,7 @@ export interface AIDocument {
   created_at: string;
   updated_at: string;
   processed_at?: string;
+  title?: string;
   domain?: string;
   tags?: string;
   upload_notes?: string;
@@ -54,6 +55,7 @@ export const useAIDocuments = () => {
     documentType: AIDocument['document_type'],
     organizationId: string,
     userId: string,
+    title?: string,
     domain?: string,
     tags?: string,
     uploadNotes?: string
@@ -85,6 +87,7 @@ export const useAIDocuments = () => {
           file_size: file.size,
           mime_type: file.type,
           document_type: documentType,
+          title: title || file.name.replace(/\.[^/.]+$/, ''), // Use provided title or filename without extension
           domain: domain,
           tags: tags,
           upload_notes: uploadNotes,
@@ -92,6 +95,7 @@ export const useAIDocuments = () => {
           metadata: {
             original_name: file.name,
             upload_timestamp: new Date().toISOString(),
+            title: title,
             domain: domain,
             tags: tags?.split(',').map(tag => tag.trim()),
             upload_notes: uploadNotes

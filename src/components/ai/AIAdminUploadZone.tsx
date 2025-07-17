@@ -49,6 +49,7 @@ export const AIAdminUploadZone: React.FC = () => {
   const { toast } = useToast();
   
   const [selectedDocumentType, setSelectedDocumentType] = useState<AIDocument['document_type']>('mps_document');
+  const [title, setTitle] = useState<string>('');
   const [selectedDomain, setSelectedDomain] = useState<string>('');
   const [tags, setTags] = useState<string>('');
   const [uploadNotes, setUploadNotes] = useState<string>('');
@@ -67,15 +68,24 @@ export const AIAdminUploadZone: React.FC = () => {
     }
 
     for (const file of acceptedFiles) {
+      // Auto-populate title from first file if empty
+      const fileTitle = title || file.name.replace(/\.[^/.]+$/, '');
+      
       await uploadDocument(
         file, 
         selectedDocumentType, 
         currentOrganization.id, 
         user.id,
+        fileTitle,
         selectedDomain || undefined,
         tags || undefined,
         uploadNotes || undefined
       );
+      
+      // Set title from first file for subsequent uploads in the same session
+      if (!title) {
+        setTitle(fileTitle);
+      }
     }
   }, [user, currentOrganization, isAdmin, selectedDocumentType, selectedDomain, tags, uploadNotes, uploadDocument, toast]);
 
@@ -157,6 +167,23 @@ export const AIAdminUploadZone: React.FC = () => {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Title Field */}
+          <div className="space-y-2">
+            <Label htmlFor="title" className="text-sm font-medium">
+              Title <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="title"
+              placeholder="Enter document title (will auto-fill from filename)"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full"
+            />
+            <p className="text-xs text-muted-foreground">
+              This title will be used for display and AI referencing. Leave blank to auto-populate from filename.
+            </p>
           </div>
 
           {/* Domain Selection (optional, but highlighted for MPS docs) */}
@@ -299,7 +326,7 @@ export const AIAdminUploadZone: React.FC = () => {
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
                       <FileText className="h-5 w-5 text-muted-foreground" />
-                      <span className="font-medium">{doc.file_name}</span>
+                      <span className="font-medium">{doc.title || doc.file_name}</span>
                       <Badge variant="secondary">
                         {documentTypeLabels[doc.document_type]}
                       </Badge>
@@ -309,7 +336,7 @@ export const AIAdminUploadZone: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">
-                      <p>Size: {formatFileSize(doc.file_size)} • Type: {doc.mime_type}</p>
+                      <p>File: {doc.file_name} • Size: {formatFileSize(doc.file_size)} • Type: {doc.mime_type}</p>
                       {doc.domain && (
                         <p className="flex items-center gap-1">
                           <FolderOpen className="h-3 w-3" />
