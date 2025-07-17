@@ -9,7 +9,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import {
@@ -151,174 +150,178 @@ export const TestResultsDialog: React.FC<TestResultsDialogProps> = ({
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden">
-          <Tabs value={activeTab} onValueChange={(value) => {
-            console.log('Tab change:', value);
-            setActiveTab(value);
-          }} className="h-full flex flex-col">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger 
-                value="overview" 
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                Overview
-              </TabsTrigger>
-              <TabsTrigger 
-                value="details"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                Test Details
-              </TabsTrigger>
-              <TabsTrigger 
-                value="manual"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                Manual Review
-              </TabsTrigger>
-              <TabsTrigger 
-                value="export"
-                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                Export
-              </TabsTrigger>
-            </TabsList>
+          {/* Custom Tab Implementation to avoid routing conflicts */}
+          <div className="h-full flex flex-col">
+            {/* Tab Navigation */}
+            <div className="grid w-full grid-cols-4 border-b">
+              {['overview', 'details', 'manual', 'export'].map((tab) => (
+                <button
+                  key={tab}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Custom tab click:', tab);
+                    setActiveTab(tab);
+                  }}
+                  className={`
+                    px-4 py-2 text-sm font-medium transition-colors
+                    ${activeTab === tab 
+                      ? 'bg-primary text-primary-foreground border-b-2 border-primary' 
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    }
+                  `}
+                  type="button"
+                >
+                  {tab === 'overview' && 'Overview'}
+                  {tab === 'details' && 'Test Details'}
+                  {tab === 'manual' && 'Manual Review'}
+                  {tab === 'export' && 'Export'}
+                </button>
+              ))}
+            </div>
 
-            <div className="flex-1 overflow-auto">
-              <TabsContent value="overview" className="space-y-4 mt-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium">Overall Status</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center space-x-2">
-                        {getStatusBadge(session.overallStatus)}
-                        <span className="text-2xl font-bold">{Math.round(successRate)}%</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium">Test Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-green-600">✓ Passed</span>
-                          <span className="font-medium">{passedTests}</span>
+            {/* Tab Content */}
+            <div className="flex-1 overflow-auto p-4">
+              {activeTab === 'overview' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Overall Status</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center space-x-2">
+                          {getStatusBadge(session.overallStatus)}
+                          <span className="text-2xl font-bold">{Math.round(successRate)}%</span>
                         </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-yellow-600">⚠ Warnings</span>
-                          <span className="font-medium">{warningTests}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-red-600">✗ Failed</span>
-                          <span className="font-medium">{failedTests}</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
 
-                  <Card>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium">Manual Verification</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center space-x-2">
-                        {session.manualVerified ? (
-                          <>
-                            <CheckSquare className="h-4 w-4 text-green-600" />
-                            <span className="text-sm text-green-600">Verified</span>
-                          </>
-                        ) : (
-                          <>
-                            <Square className="h-4 w-4 text-gray-400" />
-                            <span className="text-sm text-gray-500">Not verified</span>
-                          </>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Progress</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <Progress value={successRate} className="h-3" />
-                    <p className="text-sm text-muted-foreground mt-2">
-                      {passedTests} of {totalTests} tests passed
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {Object.entries(resultsByCategory).map(([category, results]) => {
-                    const categoryPassed = results.filter(r => r.status === 'passed').length;
-                    const categoryTotal = results.length;
-                    const categorySuccess = (categoryPassed / categoryTotal) * 100;
-
-                    return (
-                      <Card key={category}>
-                        <CardHeader className="pb-3">
-                          <CardTitle className="flex items-center space-x-2 text-sm">
-                            {getCategoryIcon(category as TestResult['category'])}
-                            <span className="capitalize">{category}</span>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <Progress value={categorySuccess} className="h-2 mb-2" />
-                          <p className="text-xs text-muted-foreground">
-                            {categoryPassed}/{categoryTotal} tests passed
-                          </p>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="details" className="space-y-4 mt-4">
-                {Object.entries(resultsByCategory).map(([category, results]) => (
-                  <Card key={category}>
-                    <CardHeader>
-                      <CardTitle className="flex items-center space-x-2">
-                        {getCategoryIcon(category as TestResult['category'])}
-                        <span className="capitalize">{category} Tests</span>
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-3">
-                        {results.map((result) => (
-                          <div key={result.id} className="flex items-start space-x-3 p-3 border rounded-lg">
-                            {getStatusIcon(result.status)}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between">
-                                <h4 className="font-medium">{result.name}</h4>
-                                {getStatusBadge(result.status)}
-                              </div>
-                              <p className="text-sm text-muted-foreground mt-1">{result.message}</p>
-                              {result.details && (
-                                <details className="mt-2">
-                                  <summary className="text-xs text-muted-foreground cursor-pointer">
-                                    View details
-                                  </summary>
-                                  <p className="text-xs text-muted-foreground mt-1 font-mono whitespace-pre-wrap">
-                                    {result.details}
-                                  </p>
-                                </details>
-                              )}
-                            </div>
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Test Summary</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-green-600">✓ Passed</span>
+                            <span className="font-medium">{passedTests}</span>
                           </div>
-                        ))}
-                      </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-yellow-600">⚠ Warnings</span>
+                            <span className="font-medium">{warningTests}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-red-600">✗ Failed</span>
+                            <span className="font-medium">{failedTests}</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium">Manual Verification</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-center space-x-2">
+                          {session.manualVerified ? (
+                            <>
+                              <CheckSquare className="h-4 w-4 text-green-600" />
+                              <span className="text-sm text-green-600">Verified</span>
+                            </>
+                          ) : (
+                            <>
+                              <Square className="h-4 w-4 text-gray-400" />
+                              <span className="text-sm text-gray-500">Not verified</span>
+                            </>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Progress</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Progress value={successRate} className="h-3" />
+                      <p className="text-sm text-muted-foreground mt-2">
+                        {passedTests} of {totalTests} tests passed
+                      </p>
                     </CardContent>
                   </Card>
-                ))}
-              </TabsContent>
 
-              <TabsContent value="manual" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {Object.entries(resultsByCategory).map(([category, results]) => {
+                      const categoryPassed = results.filter(r => r.status === 'passed').length;
+                      const categoryTotal = results.length;
+                      const categorySuccess = (categoryPassed / categoryTotal) * 100;
+
+                      return (
+                        <Card key={category}>
+                          <CardHeader className="pb-3">
+                            <CardTitle className="flex items-center space-x-2 text-sm">
+                              {getCategoryIcon(category as TestResult['category'])}
+                              <span className="capitalize">{category}</span>
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <Progress value={categorySuccess} className="h-2 mb-2" />
+                            <p className="text-xs text-muted-foreground">
+                              {categoryPassed}/{categoryTotal} tests passed
+                            </p>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'details' && (
+                <div className="space-y-4">
+                  {Object.entries(resultsByCategory).map(([category, results]) => (
+                    <Card key={category}>
+                      <CardHeader>
+                        <CardTitle className="flex items-center space-x-2">
+                          {getCategoryIcon(category as TestResult['category'])}
+                          <span className="capitalize">{category} Tests</span>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {results.map((result) => (
+                            <div key={result.id} className="flex items-start space-x-3 p-3 border rounded-lg">
+                              {getStatusIcon(result.status)}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <h4 className="font-medium">{result.name}</h4>
+                                  {getStatusBadge(result.status)}
+                                </div>
+                                <p className="text-sm text-muted-foreground mt-1">{result.message}</p>
+                                {result.details && (
+                                  <details className="mt-2">
+                                    <summary className="text-xs text-muted-foreground cursor-pointer">
+                                      View details
+                                    </summary>
+                                    <p className="text-xs text-muted-foreground mt-1 font-mono whitespace-pre-wrap">
+                                      {result.details}
+                                    </p>
+                                  </details>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'manual' && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Manual Verification</CardTitle>
@@ -370,9 +373,9 @@ export const TestResultsDialog: React.FC<TestResultsDialogProps> = ({
                     </div>
                   </CardContent>
                 </Card>
-              </TabsContent>
+              )}
 
-              <TabsContent value="export" className="space-y-4 mt-4">
+              {activeTab === 'export' && (
                 <Card>
                   <CardHeader>
                     <CardTitle>Export Test Results</CardTitle>
@@ -421,9 +424,9 @@ ${session.notes ? `Notes: ${session.notes}` : ''}`;
                     </div>
                   </CardContent>
                 </Card>
-              </TabsContent>
+              )}
             </div>
-          </Tabs>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
