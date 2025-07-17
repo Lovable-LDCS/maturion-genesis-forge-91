@@ -156,6 +156,87 @@ export const useAIDocuments = () => {
     }
   };
 
+  const updateDocument = async (
+    documentId: string,
+    updates: {
+      title?: string;
+      domain?: string;
+      tags?: string;
+      upload_notes?: string;
+      document_type?: AIDocument['document_type'];
+    }
+  ): Promise<boolean> => {
+    try {
+      const { data: currentDoc } = await supabase
+        .from('ai_documents')
+        .select('*')
+        .eq('id', documentId)
+        .single();
+
+      if (!currentDoc) throw new Error('Document not found');
+
+      const { error: updateError } = await supabase
+        .from('ai_documents')
+        .update({
+          title: updates.title,
+          domain: updates.domain,
+          tags: updates.tags,
+          upload_notes: updates.upload_notes,
+          document_type: updates.document_type,
+          updated_at: new Date().toISOString(),
+          metadata: {
+            ...(typeof currentDoc.metadata === 'object' && currentDoc.metadata !== null ? currentDoc.metadata : {}),
+            title: updates.title,
+            domain: updates.domain,
+            tags: updates.tags?.split(',').map(tag => tag.trim()),
+            upload_notes: updates.upload_notes,
+            last_updated: new Date().toISOString()
+          }
+        })
+        .eq('id', documentId);
+
+      if (updateError) throw updateError;
+
+      // Create audit log
+      await supabase
+        .from('ai_upload_audit')
+        .insert({
+          organization_id: currentDoc.organization_id,
+          document_id: documentId,
+          action: 'update',
+          user_id: (await supabase.auth.getUser()).data.user?.id || '',
+          metadata: {
+            updated_fields: Object.keys(updates),
+            old_values: {
+              title: currentDoc.title,
+              domain: currentDoc.domain,
+              tags: currentDoc.tags,
+              upload_notes: currentDoc.upload_notes,
+              document_type: currentDoc.document_type
+            },
+            new_values: updates
+          }
+        });
+
+      toast({
+        title: "Document updated",
+        description: "Document metadata has been successfully updated",
+      });
+
+      // Refresh documents list
+      await fetchDocuments();
+      return true;
+    } catch (error: any) {
+      console.error('Update error:', error);
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update document",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   const deleteDocument = async (documentId: string) => {
     try {
       // Get document info first
@@ -167,12 +248,15 @@ export const useAIDocuments = () => {
 
       if (!doc) throw new Error('Document not found');
 
-      // Delete from storage
+      // Delete from storage first
       const { error: storageError } = await supabase.storage
         .from('ai-documents')
         .remove([doc.file_path]);
 
-      if (storageError) throw storageError;
+      if (storageError) {
+        console.warn('Storage deletion warning:', storageError);
+        // Continue with database deletion even if storage fails
+      }
 
       // Delete document record (chunks will be deleted via CASCADE)
       const { error: deleteError } = await supabase
@@ -219,6 +303,7 @@ export const useAIDocuments = () => {
     loading,
     uploading,
     uploadDocument,
+    updateDocument,
     deleteDocument,
     refreshDocuments: fetchDocuments
   };

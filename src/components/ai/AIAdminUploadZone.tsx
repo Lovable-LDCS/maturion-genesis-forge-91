@@ -7,9 +7,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button as ClearButton } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock, Tag, FolderOpen, X } from 'lucide-react';
+import { Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock, Tag, FolderOpen, X, Edit3, Save, XCircle } from 'lucide-react';
 import { useAIDocuments, AIDocument } from '@/hooks/useAIDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -45,7 +46,7 @@ const statusIcons = {
 export const AIAdminUploadZone: React.FC = () => {
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
-  const { documents, loading, uploading, uploadDocument, deleteDocument } = useAIDocuments();
+  const { documents, loading, uploading, uploadDocument, updateDocument, deleteDocument } = useAIDocuments();
   const { toast } = useToast();
   
   const [selectedDocumentType, setSelectedDocumentType] = useState<AIDocument['document_type']>('mps_document');
@@ -53,6 +54,15 @@ export const AIAdminUploadZone: React.FC = () => {
   const [selectedDomain, setSelectedDomain] = useState<string>('');
   const [tags, setTags] = useState<string>('');
   const [uploadNotes, setUploadNotes] = useState<string>('');
+  
+  // Edit dialog state
+  const [editingDocument, setEditingDocument] = useState<AIDocument | null>(null);
+  const [editTitle, setEditTitle] = useState<string>('');
+  const [editDomain, setEditDomain] = useState<string>('');
+  const [editTags, setEditTags] = useState<string>('');
+  const [editNotes, setEditNotes] = useState<string>('');
+  const [editDocumentType, setEditDocumentType] = useState<AIDocument['document_type']>('mps_document');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Check if user is admin
   const isAdmin = currentOrganization?.user_role === 'admin' || currentOrganization?.user_role === 'owner';
@@ -118,6 +128,43 @@ export const AIAdminUploadZone: React.FC = () => {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  const handleEditDocument = (doc: AIDocument) => {
+    setEditingDocument(doc);
+    setEditTitle(doc.title || doc.file_name);
+    setEditDomain(doc.domain || '');
+    setEditTags(doc.tags || '');
+    setEditNotes(doc.upload_notes || '');
+    setEditDocumentType(doc.document_type);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingDocument) return;
+    
+    setIsSaving(true);
+    const success = await updateDocument(editingDocument.id, {
+      title: editTitle,
+      domain: editDomain || undefined,
+      tags: editTags || undefined,
+      upload_notes: editNotes || undefined,
+      document_type: editDocumentType
+    });
+    
+    if (success) {
+      setEditingDocument(null);
+    }
+    setIsSaving(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingDocument(null);
+  };
+
+  const handleDeleteDocument = async (documentId: string) => {
+    if (window.confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
+      await deleteDocument(documentId);
+    }
   };
 
   if (!isAdmin) {
@@ -360,20 +407,149 @@ export const AIAdminUploadZone: React.FC = () => {
                       )}
                     </div>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => deleteDocument(doc.id)}
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleEditDocument(doc)}
+                      className="text-primary hover:text-primary"
+                    >
+                      <Edit3 className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDeleteDocument(doc.id)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Edit Document Dialog */}
+      <Dialog open={!!editingDocument} onOpenChange={() => setEditingDocument(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Document</DialogTitle>
+            <DialogDescription>
+              Update the document metadata and categorization
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Document Type */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-document-type">Document Type</Label>
+              <Select
+                value={editDocumentType}
+                onValueChange={(value: AIDocument['document_type']) => setEditDocumentType(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(documentTypeLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Title */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-title">Title</Label>
+              <Input
+                id="edit-title"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="Document title"
+              />
+            </div>
+
+            {/* Domain */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-domain">Domain</Label>
+              <div className="flex gap-2">
+                <Select
+                  value={editDomain}
+                  onValueChange={setEditDomain}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select a domain..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {domainOptions.map((domain) => (
+                      <SelectItem key={domain} value={domain}>
+                        {domain}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {editDomain && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setEditDomain('')}
+                    className="shrink-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-tags">Tags</Label>
+              <Input
+                id="edit-tags"
+                value={editTags}
+                onChange={(e) => setEditTags(e.target.value)}
+                placeholder="e.g. security, compliance, risk-management"
+              />
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="edit-notes">Upload Notes</Label>
+              <Textarea
+                id="edit-notes"
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                placeholder="Internal notes about this document..."
+                rows={3}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCancelEdit}
+              disabled={isSaving}
+            >
+              <XCircle className="h-4 w-4 mr-2" />
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={isSaving || !editTitle.trim()}
+            >
+              <Save className="h-4 w-4 mr-2" />
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
