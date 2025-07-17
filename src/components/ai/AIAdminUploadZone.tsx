@@ -16,7 +16,10 @@ const documentTypeLabels: Record<AIDocument['document_type'], string> = {
   sector_context: 'Sector Context',
   scoring_logic: 'Scoring Logic',
   sop_template: 'SOP Template',
-  general: 'General Knowledge'
+  general: 'General Knowledge',
+  mps_document: 'MPS Document',
+  iso_alignment: 'ISO Alignment',
+  assessment_framework_component: 'Assessment Framework Component'
 };
 
 const statusIcons = {
@@ -32,7 +35,7 @@ export const AIAdminUploadZone: React.FC = () => {
   const { documents, loading, uploading, uploadDocument, deleteDocument } = useAIDocuments();
   const { toast } = useToast();
   
-  const [selectedDocumentType, setSelectedDocumentType] = useState<AIDocument['document_type']>('general');
+  const [selectedDocumentType, setSelectedDocumentType] = useState<AIDocument['document_type']>('mps_document');
 
   // Check if user is admin
   const isAdmin = currentOrganization?.user_role === 'admin' || currentOrganization?.user_role === 'owner';
