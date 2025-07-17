@@ -55,6 +55,7 @@ type MilestoneStatus = Tables<'milestone_tasks'>['status'];
 
 const QASignOffDynamic: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Tables<'milestone_tasks'> | null>(null);
+  const [selectedMilestone, setSelectedMilestone] = useState<MilestoneWithTasks | null>(null);
   const [testNotes, setTestNotes] = useState('');
   const [testStatus, setTestStatus] = useState<MilestoneStatus>('ready_for_test');
   const { toast } = useToast();
@@ -143,10 +144,15 @@ const QASignOffDynamic: React.FC = () => {
 
       // Update task status if changed
       if (selectedTask.status !== testStatus) {
-        await updateMilestoneTask(selectedTask.id, {
-          status: testStatus,
-          updated_by: currentOrganization.owner_id, // In real app, use auth.uid()
-        });
+        await updateMilestoneTask(
+          selectedTask.id, 
+          {
+            status: testStatus,
+            updated_by: currentOrganization.owner_id, // In real app, use auth.uid()
+          },
+          selectedTask.name, // task name
+          selectedMilestone?.name // milestone name
+        );
       }
 
       setTestNotes('');
@@ -365,10 +371,11 @@ const QASignOffDynamic: React.FC = () => {
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    onClick={() => {
-                                      setSelectedTask(task);
-                                      setTestStatus(task.status);
-                                    }}
+                                     onClick={() => {
+                                       setSelectedTask(task);
+                                       setSelectedMilestone(milestone);
+                                       setTestStatus(task.status);
+                                     }}
                                   >
                                     <Edit className="h-4 w-4 mr-1" />
                                     Update

@@ -21,8 +21,23 @@ interface WebhookConfig {
 }
 
 const formatSlackMessage = (payload: WebhookPayload): any => {
+  if (payload.event_type === 'milestone_signed_off') {
+    const { milestone_name, task_name, signed_off_at, task_id } = payload.data || {};
+    const date = new Date(signed_off_at || payload.timestamp).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    return {
+      text: `✅ *Milestone Signed Off*\n• *Milestone:* ${milestone_name || 'Unknown'}\n• *Task:* ${task_name || 'Unknown'}\n• *Date:* ${date}\n• View: <https://your-app.com/milestones/${task_id}|Click here>`
+    };
+  }
+
+  // Default formatting for other event types
   const eventMessages: Record<string, string> = {
-    milestone_signed_off: `✅ Milestone "${payload.data?.milestone_name}" has been signed off`,
     milestone_updated: `🔄 Milestone "${payload.data?.milestone_name}" has been updated`,
     team_member_added: `👋 New member added to the organization`,
     team_member_removed: `👋 Member removed from the organization`,

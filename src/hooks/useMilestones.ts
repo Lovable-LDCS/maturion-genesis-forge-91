@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
+import { useWebhooks } from '@/hooks/useWebhooks';
 
 export type Milestone = Tables<'milestones'>;
 export type MilestoneTask = Tables<'milestone_tasks'>;
@@ -26,6 +27,7 @@ export const useMilestones = (organizationId?: string) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { triggerWebhook } = useWebhooks();
 
   // Fetch milestones with tasks and test notes
   const fetchMilestones = async () => {
@@ -154,7 +156,7 @@ export const useMilestones = (organizationId?: string) => {
   };
 
   // Update a milestone task
-  const updateMilestoneTask = async (id: string, updates: MilestoneTaskUpdate) => {
+  const updateMilestoneTask = async (id: string, updates: MilestoneTaskUpdate, taskName?: string, milestoneName?: string) => {
     try {
       const { data, error } = await supabase
         .from('milestone_tasks')
@@ -164,6 +166,20 @@ export const useMilestones = (organizationId?: string) => {
         .single();
 
       if (error) throw error;
+
+      // Check if task was signed off and trigger webhook
+      if (updates.status === 'signed_off' && organizationId) {
+        await triggerWebhook(
+          organizationId,
+          'milestone_signed_off',
+          {
+            milestone_name: milestoneName || 'Unknown Milestone',
+            task_name: taskName || 'Unknown Task',
+            signed_off_at: new Date().toISOString(),
+            task_id: id
+          }
+        );
+      }
 
       toast({
         title: 'Success',
