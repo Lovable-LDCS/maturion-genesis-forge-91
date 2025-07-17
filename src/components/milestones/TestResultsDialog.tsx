@@ -351,7 +351,13 @@ export const TestResultsDialog: React.FC<TestResultsDialogProps> = ({
                       <label className="text-sm font-medium">Verification Notes</label>
                       <Textarea
                         value={manualNotes}
-                        onChange={(e) => setManualNotes(e.target.value)}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setManualNotes(e.target.value);
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
                         placeholder="Add notes about manual review, additional checks performed, etc."
                         className="mt-1"
                         rows={4}
@@ -360,12 +366,25 @@ export const TestResultsDialog: React.FC<TestResultsDialogProps> = ({
 
                     <div className="flex space-x-2">
                       {!session.manualVerified ? (
-                        <Button onClick={handleManualVerify}>
+                        <Button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleManualVerify();
+                          }}
+                        >
                           <CheckSquare className="mr-2 h-4 w-4" />
                           Mark as Manually Verified
                         </Button>
                       ) : (
-                        <Button variant="outline" onClick={handleRemoveVerification}>
+                        <Button 
+                          variant="outline" 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleRemoveVerification();
+                          }}
+                        >
                           <Square className="mr-2 h-4 w-4" />
                           Remove Verification
                         </Button>
