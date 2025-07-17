@@ -240,7 +240,7 @@ export const CriteriaManagement: React.FC = () => {
             updated_at: new Date().toISOString()
           })
           .eq('criteria_id', criteriaId)
-          .eq('level', update.level);
+          .eq('level', update.level as 'basic' | 'reactive' | 'compliant' | 'proactive' | 'resilient');
 
         if (error) throw error;
       }

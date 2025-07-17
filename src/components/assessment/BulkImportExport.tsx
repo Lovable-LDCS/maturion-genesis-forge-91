@@ -247,11 +247,13 @@ Information Security,Information security management system,1,1,Security Governa
             if (existingCriteria) {
               criteriaMap.set(criteriaKey, existingCriteria.id);
             } else {
+              const mpsNumber = parseInt(row[3]) || 1;
               const { data: newCriteria, error: criteriaError } = await supabase
                 .from('criteria')
                 .insert({
                   statement: row[7]?.trim(),
                   summary: row[8]?.trim() || null,
+                  criteria_number: `${mpsNumber}.${Math.floor(Math.random() * 1000)}`, // Temporary numbering
                   mps_id: mpsMap.get(mpsKey),
                   organization_id: orgData.organization_id,
                   created_by: user.user.id,
@@ -267,11 +269,12 @@ Information Security,Information security management system,1,1,Security Governa
           }
 
           // Process Maturity Level
+          const levelValue = row[9]?.toLowerCase().trim() as 'basic' | 'reactive' | 'compliant' | 'proactive' | 'resilient';
           const { error: maturityError } = await supabase
             .from('maturity_levels')
             .upsert({
               criteria_id: criteriaMap.get(criteriaKey),
-              level: row[9]?.toLowerCase().trim(),
+              level: levelValue,
               descriptor: row[10]?.trim(),
               organization_id: orgData.organization_id,
               created_by: user.user.id,
