@@ -1,59 +1,12 @@
 import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { CheckCircle, Clock, AlertCircle, XCircle, ChevronRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useOrganization } from '@/hooks/useOrganization'
 import { useMilestones } from '@/hooks/useMilestones'
+import { MilestoneCard } from './MilestoneCard'
 
 
-const getStatusIcon = (status: string) => {
-  switch (status) {
-    case 'signed_off':
-      return <CheckCircle className="h-4 w-4 text-green-500" />
-    case 'ready_for_test':
-    case 'in_progress':
-      return <Clock className="h-4 w-4 text-blue-500" />
-    case 'failed':
-    case 'rejected':
-      return <XCircle className="h-4 w-4 text-red-500" />
-    default:
-      return <AlertCircle className="h-4 w-4 text-gray-400" />
-  }
-}
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'signed_off':
-      return 'bg-green-500'
-    case 'ready_for_test':
-    case 'in_progress':
-      return 'bg-blue-500'
-    case 'failed':
-    case 'rejected':
-      return 'bg-red-500'
-    default:
-      return 'bg-gray-400'
-  }
-}
-
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'signed_off':
-      return 'Signed Off'
-    case 'ready_for_test':
-      return 'Ready for Test'
-    case 'in_progress':
-      return 'In Progress'
-    case 'failed':
-      return 'Failed'
-    case 'rejected':
-      return 'Rejected'
-    default:
-      return 'Not Started'
-  }
-}
 
 export const MilestoneTracker: React.FC = () => {
   const navigate = useNavigate()
@@ -126,63 +79,13 @@ export const MilestoneTracker: React.FC = () => {
             </CardContent>
           </Card>
         ) : (
-          milestones.map((milestone) => {
-            const completedTasks = milestone.milestone_tasks?.filter(task => task.status === 'signed_off').length || 0
-            const totalTasks = milestone.milestone_tasks?.length || 0
-            const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
-            
-            return (
-              <Card 
-                key={milestone.id} 
-                className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => navigate(`/milestones/${milestone.id}`)}
-              >
-                <CardContent className="pt-6">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start space-x-3 flex-1">
-                      {getStatusIcon(milestone.status)}
-                      <div className="space-y-2 flex-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <h4 className="font-medium">{milestone.name}</h4>
-                            {milestone.phase && (
-                              <Badge variant="outline" className="text-xs">
-                                {milestone.phase}
-                              </Badge>
-                            )}
-                            {milestone.week && (
-                              <Badge variant="secondary" className="text-xs">
-                                Week {milestone.week}
-                              </Badge>
-                            )}
-                          </div>
-                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                        </div>
-                        {milestone.description && (
-                          <p className="text-sm text-muted-foreground">
-                            {milestone.description}
-                          </p>
-                        )}
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{completedTasks}/{totalTasks} tasks completed</span>
-                          <span>{Math.round(progress)}% complete</span>
-                        </div>
-                        <Progress value={progress} className="h-2" />
-                      </div>
-                    </div>
-                    <div className="ml-4">
-                      <Badge 
-                        variant="outline" 
-                        className={`${getStatusColor(milestone.status)} text-white`}
-                      >
-                        {getStatusText(milestone.status)}
-                      </Badge>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )
-          })
+          milestones.map((milestone) => (
+            <MilestoneCard
+              key={milestone.id}
+              milestone={milestone}
+              onClick={() => navigate(`/milestones/${milestone.id}`)}
+            />
+          ))
         )}
       </div>
     </div>

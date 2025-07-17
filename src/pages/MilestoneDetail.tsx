@@ -1,14 +1,14 @@
 import { useParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
-import { useMilestones, MilestoneWithTasks } from '@/hooks/useMilestones';
-import { Button } from '@/components/ui/button';
+import { useMilestones } from '@/hooks/useMilestones';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { CheckCircle, Clock, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
+import { StatusBadge } from '@/components/milestones/StatusBadge';
+import { SignOffButton } from '@/components/milestones/SignOffButton';
 
 export default function MilestoneDetail() {
   const { milestone_id } = useParams<{ milestone_id: string }>();
@@ -71,18 +71,6 @@ export default function MilestoneDetail() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case 'signed_off':
-        return <Badge variant="default" className="bg-green-100 text-green-800 border-green-200">Signed Off</Badge>;
-      case 'ready_for_test':
-        return <Badge variant="secondary">Ready for Test</Badge>;
-      case 'in_progress':
-        return <Badge variant="outline">In Progress</Badge>;
-      default:
-        return <Badge variant="outline">Pending</Badge>;
-    }
-  };
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
@@ -138,7 +126,7 @@ export default function MilestoneDetail() {
                           )}
                         </div>
                         <div className="ml-4">
-                          {getStatusBadge(task.status)}
+                          <StatusBadge status={task.status} />
                         </div>
                       </div>
                     </CardHeader>
@@ -161,15 +149,10 @@ export default function MilestoneDetail() {
                           )}
                         </div>
                         
-                        <Button
-                          variant={isSignedOff ? "outline" : "default"}
-                          size="sm"
-                          disabled={isSignedOff}
-                          onClick={() => handleSignOff(task.id, task.name)}
-                          className={isSignedOff ? "cursor-not-allowed" : ""}
-                        >
-                          {isSignedOff ? 'Signed Off' : 'Sign Off'}
-                        </Button>
+                        <SignOffButton
+                          isSignedOff={isSignedOff}
+                          onSignOff={() => handleSignOff(task.id, task.name)}
+                        />
                       </div>
                     </CardContent>
                   </Card>
