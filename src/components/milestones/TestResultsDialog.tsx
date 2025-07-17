@@ -33,6 +33,7 @@ interface TestResultsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   session: TestSession | null;
+  milestoneName?: string;
   onManualVerify: (verified: boolean, notes?: string) => void;
   onExport: () => void;
 }
@@ -82,10 +83,12 @@ export const TestResultsDialog: React.FC<TestResultsDialogProps> = ({
   open,
   onOpenChange,
   session,
+  milestoneName,
   onManualVerify,
   onExport
 }) => {
   const [manualNotes, setManualNotes] = useState(session?.notes || '');
+  const [activeTab, setActiveTab] = useState('overview');
 
   if (!session) return null;
 
@@ -118,6 +121,7 @@ export const TestResultsDialog: React.FC<TestResultsDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
             <span>Test Results</span>
+            {milestoneName && <span className="text-muted-foreground">- {milestoneName}</span>}
             {getStatusIcon(session.overallStatus)}
           </DialogTitle>
           <DialogDescription>
@@ -126,7 +130,7 @@ export const TestResultsDialog: React.FC<TestResultsDialogProps> = ({
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden">
-          <Tabs defaultValue="overview" className="h-full flex flex-col">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview">Overview</TabsTrigger>
               <TabsTrigger value="details">Test Details</TabsTrigger>

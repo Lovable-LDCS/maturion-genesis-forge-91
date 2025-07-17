@@ -154,14 +154,15 @@ export const MilestoneCard: React.FC<MilestoneCardProps> = ({
            </div>
          </div>
          
-         {/* Test Results Dialog */}
-         <TestResultsDialog
-           open={showTestResults}
-           onOpenChange={setShowTestResults}
-           session={latestTestSession}
-           onManualVerify={handleManualVerify}
-           onExport={handleExport}
-         />
+          {/* Test Results Dialog */}
+          <TestResultsDialog
+            open={showTestResults}
+            onOpenChange={setShowTestResults}
+            session={latestTestSession}
+            milestoneName={milestone.name}
+            onManualVerify={handleManualVerify}
+            onExport={handleExport}
+          />
       </CardContent>
     </Card>
   );
