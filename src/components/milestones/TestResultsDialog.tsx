@@ -90,6 +90,13 @@ export const TestResultsDialog: React.FC<TestResultsDialogProps> = ({
   const [manualNotes, setManualNotes] = useState(session?.notes || '');
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Reset tab to overview when modal opens
+  React.useEffect(() => {
+    if (open) {
+      setActiveTab('overview');
+    }
+  }, [open]);
+
   if (!session) return null;
 
   const resultsByCategory = session.results.reduce((acc, result) => {
@@ -116,11 +123,21 @@ export const TestResultsDialog: React.FC<TestResultsDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog 
+      open={open} 
+      onOpenChange={(newOpen) => {
+        if (!newOpen) {
+          setActiveTab('overview'); // Reset tab when closing
+        }
+        onOpenChange(newOpen);
+      }}
+    >
       <DialogContent 
         className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
-        onPointerDownOutside={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => {
+          // Prevent closing when clicking inside tab content
+          e.preventDefault();
+        }}
       >
         <DialogHeader>
           <DialogTitle className="flex items-center space-x-2">
@@ -134,29 +151,32 @@ export const TestResultsDialog: React.FC<TestResultsDialogProps> = ({
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+          <Tabs value={activeTab} onValueChange={(value) => {
+            console.log('Tab change:', value);
+            setActiveTab(value);
+          }} className="h-full flex flex-col">
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger 
                 value="overview" 
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab('overview'); }}
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 Overview
               </TabsTrigger>
               <TabsTrigger 
                 value="details"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab('details'); }}
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 Test Details
               </TabsTrigger>
               <TabsTrigger 
                 value="manual"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab('manual'); }}
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 Manual Review
               </TabsTrigger>
               <TabsTrigger 
                 value="export"
-                onClick={(e) => { e.preventDefault(); e.stopPropagation(); setActiveTab('export'); }}
+                className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
               >
                 Export
               </TabsTrigger>
