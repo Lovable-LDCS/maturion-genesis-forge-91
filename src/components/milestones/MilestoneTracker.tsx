@@ -2,112 +2,81 @@ import React from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { CheckCircle, Clock, AlertCircle, XCircle } from 'lucide-react'
+import { CheckCircle, Clock, AlertCircle, XCircle, ChevronRight } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { useOrganization } from '@/hooks/useOrganization'
+import { useMilestones } from '@/hooks/useMilestones'
 
-interface Milestone {
-  id: string
-  name: string
-  description: string
-  status: 'not_started' | 'in_progress' | 'completed' | 'blocked'
-  phase: string
-  week: string
-  progress: number
-  notes?: string
-}
 
-const mockMilestones: Milestone[] = [
-  {
-    id: '1',
-    name: 'Supabase Integration',
-    description: 'Set up authentication, database, and file storage',
-    status: 'in_progress',
-    phase: 'Phase 1',
-    week: 'Week 1',
-    progress: 75,
-    notes: 'Authentication complete, working on database schema'
-  },
-  {
-    id: '2',
-    name: 'User Management System',
-    description: 'Implement RBAC and organizational hierarchy',
-    status: 'in_progress',
-    phase: 'Phase 1',
-    week: 'Week 1',
-    progress: 50,
-  },
-  {
-    id: '3',
-    name: 'Organization Setup',
-    description: 'Create organization and branch management interfaces',
-    status: 'completed',
-    phase: 'Phase 1',
-    week: 'Week 1',
-    progress: 100,
-  },
-  {
-    id: '4',
-    name: 'Assessment Framework',
-    description: 'Build configuration interfaces for domains, MPS, and criteria',
-    status: 'not_started',
-    phase: 'Phase 1',
-    week: 'Week 2',
-    progress: 0,
-  },
-  {
-    id: '5',
-    name: 'Evidence Management',
-    description: 'Implement evidence upload and basic verification',
-    status: 'not_started',
-    phase: 'Phase 1',
-    week: 'Week 2',
-    progress: 0,
-  },
-]
-
-const getStatusIcon = (status: Milestone['status']) => {
+const getStatusIcon = (status: string) => {
   switch (status) {
-    case 'completed':
+    case 'signed_off':
       return <CheckCircle className="h-4 w-4 text-green-500" />
+    case 'ready_for_test':
     case 'in_progress':
       return <Clock className="h-4 w-4 text-blue-500" />
-    case 'blocked':
+    case 'failed':
+    case 'rejected':
       return <XCircle className="h-4 w-4 text-red-500" />
     default:
       return <AlertCircle className="h-4 w-4 text-gray-400" />
   }
 }
 
-const getStatusColor = (status: Milestone['status']) => {
+const getStatusColor = (status: string) => {
   switch (status) {
-    case 'completed':
+    case 'signed_off':
       return 'bg-green-500'
+    case 'ready_for_test':
     case 'in_progress':
       return 'bg-blue-500'
-    case 'blocked':
+    case 'failed':
+    case 'rejected':
       return 'bg-red-500'
     default:
       return 'bg-gray-400'
   }
 }
 
-const getStatusText = (status: Milestone['status']) => {
+const getStatusText = (status: string) => {
   switch (status) {
-    case 'completed':
-      return 'Completed'
+    case 'signed_off':
+      return 'Signed Off'
+    case 'ready_for_test':
+      return 'Ready for Test'
     case 'in_progress':
       return 'In Progress'
-    case 'blocked':
-      return 'Blocked'
+    case 'failed':
+      return 'Failed'
+    case 'rejected':
+      return 'Rejected'
     default:
       return 'Not Started'
   }
 }
 
 export const MilestoneTracker: React.FC = () => {
-  const totalMilestones = mockMilestones.length
-  const completedMilestones = mockMilestones.filter(m => m.status === 'completed').length
-  const inProgressMilestones = mockMilestones.filter(m => m.status === 'in_progress').length
-  const overallProgress = (completedMilestones / totalMilestones) * 100
+  const navigate = useNavigate()
+  const { currentOrganization } = useOrganization()
+  const { milestones, loading } = useMilestones(currentOrganization?.id)
+  
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="p-6">
+          <div className="animate-pulse space-y-4">
+            <div className="h-4 bg-muted rounded w-3/4"></div>
+            <div className="h-4 bg-muted rounded w-1/2"></div>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  const totalMilestones = milestones.length
+  const completedMilestones = milestones.filter(m => m.status === 'signed_off').length
+  const inProgressMilestones = milestones.filter(m => m.status === 'in_progress' || m.status === 'ready_for_test').length
+  const overallProgress = totalMilestones > 0 ? (completedMilestones / totalMilestones) * 100 : 0
 
   return (
     <div className="space-y-6">
@@ -150,55 +119,71 @@ export const MilestoneTracker: React.FC = () => {
 
       <div className="space-y-4">
         <h3 className="text-lg font-semibold">Current Milestones</h3>
-        {mockMilestones.map((milestone) => (
-          <Card key={milestone.id}>
-            <CardContent className="pt-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-3">
-                  {getStatusIcon(milestone.status)}
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <h4 className="font-medium">{milestone.name}</h4>
-                      <Badge variant="outline" className="text-xs">
-                        {milestone.phase}
-                      </Badge>
-                      <Badge variant="secondary" className="text-xs">
-                        {milestone.week}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {milestone.description}
-                    </p>
-                    {milestone.notes && (
-                      <p className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
-                        {milestone.notes}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="text-right">
-                  <Badge 
-                    variant="outline" 
-                    className={`${getStatusColor(milestone.status)} text-white`}
-                  >
-                    {getStatusText(milestone.status)}
-                  </Badge>
-                </div>
-              </div>
-              {milestone.status === 'in_progress' && (
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Progress</span>
-                    <span className="text-sm text-muted-foreground">
-                      {milestone.progress}%
-                    </span>
-                  </div>
-                  <Progress value={milestone.progress} className="h-2" />
-                </div>
-              )}
+        {milestones.length === 0 ? (
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-center text-muted-foreground">No milestones found. Create your first milestone to get started.</p>
             </CardContent>
           </Card>
-        ))}
+        ) : (
+          milestones.map((milestone) => {
+            const completedTasks = milestone.milestone_tasks?.filter(task => task.status === 'signed_off').length || 0
+            const totalTasks = milestone.milestone_tasks?.length || 0
+            const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0
+            
+            return (
+              <Card 
+                key={milestone.id} 
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => navigate(`/milestones/${milestone.id}`)}
+              >
+                <CardContent className="pt-6">
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-start space-x-3 flex-1">
+                      {getStatusIcon(milestone.status)}
+                      <div className="space-y-2 flex-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <h4 className="font-medium">{milestone.name}</h4>
+                            {milestone.phase && (
+                              <Badge variant="outline" className="text-xs">
+                                {milestone.phase}
+                              </Badge>
+                            )}
+                            {milestone.week && (
+                              <Badge variant="secondary" className="text-xs">
+                                Week {milestone.week}
+                              </Badge>
+                            )}
+                          </div>
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        </div>
+                        {milestone.description && (
+                          <p className="text-sm text-muted-foreground">
+                            {milestone.description}
+                          </p>
+                        )}
+                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{completedTasks}/{totalTasks} tasks completed</span>
+                          <span>{Math.round(progress)}% complete</span>
+                        </div>
+                        <Progress value={progress} className="h-2" />
+                      </div>
+                    </div>
+                    <div className="ml-4">
+                      <Badge 
+                        variant="outline" 
+                        className={`${getStatusColor(milestone.status)} text-white`}
+                      >
+                        {getStatusText(milestone.status)}
+                      </Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )
+          })
+        )}
       </div>
     </div>
   )
