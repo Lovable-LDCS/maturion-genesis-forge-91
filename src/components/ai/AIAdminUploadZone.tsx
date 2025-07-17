@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Button as ClearButton } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock, Tag, FolderOpen } from 'lucide-react';
+import { Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock, Tag, FolderOpen, X } from 'lucide-react';
 import { useAIDocuments, AIDocument } from '@/hooks/useAIDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -174,22 +175,35 @@ export const AIAdminUploadZone: React.FC = () => {
                 <span className="text-primary ml-1">- Recommended for MPS</span>
               )}
             </Label>
-            <Select
-              value={selectedDomain}
-              onValueChange={setSelectedDomain}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select a domain..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">No domain specified</SelectItem>
-                {domainOptions.map((domain) => (
-                  <SelectItem key={domain} value={domain}>
-                    {domain}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex gap-2">
+              <Select
+                value={selectedDomain}
+                onValueChange={setSelectedDomain}
+              >
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Select a domain..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {domainOptions.map((domain) => (
+                    <SelectItem key={domain} value={domain}>
+                      {domain}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {selectedDomain && (
+                <ClearButton
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setSelectedDomain('')}
+                  className="shrink-0"
+                  title="Clear domain selection"
+                >
+                  <X className="h-4 w-4" />
+                </ClearButton>
+              )}
+            </div>
           </div>
 
           {/* Tags Field */}
