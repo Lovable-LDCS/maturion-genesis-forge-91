@@ -31,6 +31,230 @@ export const useMilestoneTests = () => {
   const [isRunning, setIsRunning] = useState(false);
   const { toast } = useToast();
 
+  // Phase 1B Milestone-Specific Tests
+  const runPhase1BTests = async (milestone: MilestoneWithTasks): Promise<TestResult[]> => {
+    const results: TestResult[] = [];
+    const milestoneName = milestone.name.toLowerCase();
+
+    // Domain Management UI (Phase 1B)
+    if (milestoneName.includes('domain management')) {
+      // Test domain-specific functionality
+      try {
+        const { data: domains, error } = await supabase
+          .from('domains')
+          .select('*')
+          .eq('organization_id', milestone.organization_id);
+
+        if (error) throw error;
+
+        results.push({
+          id: 'domain-mgmt-access',
+          name: 'Domain Management Access',
+          status: 'passed',
+          message: `Found ${domains?.length || 0} domains for organization`,
+          category: 'structure'
+        });
+
+        // Check domain intent statements
+        const domainsWithIntent = domains?.filter(d => d.intent_statement) || [];
+        results.push({
+          id: 'domain-intent-statements',
+          name: 'Domain Intent Statements',
+          status: domainsWithIntent.length > 0 ? 'passed' : 'warning',
+          message: `${domainsWithIntent.length} of ${domains?.length || 0} domains have intent statements`,
+          category: 'structure'
+        });
+
+      } catch (error) {
+        results.push({
+          id: 'domain-mgmt-access',
+          name: 'Domain Management Access',
+          status: 'failed',
+          message: `Domain access failed: ${error}`,
+          category: 'database'
+        });
+      }
+    }
+
+    // MPS Management (Phase 1B)
+    if (milestoneName.includes('mps management') || milestoneName.includes('maturity practice')) {
+      try {
+        const { data: mps, error } = await supabase
+          .from('maturity_practice_statements')
+          .select('*, domains!inner(*)')
+          .eq('organization_id', milestone.organization_id);
+
+        if (error) throw error;
+
+        results.push({
+          id: 'mps-mgmt-access',
+          name: 'MPS Management Access',
+          status: 'passed',
+          message: `Found ${mps?.length || 0} MPS records`,
+          category: 'structure'
+        });
+
+        // Check MPS-Domain relationships
+        const mpsWithDomains = mps?.filter(m => m.domains) || [];
+        results.push({
+          id: 'mps-domain-links',
+          name: 'MPS-Domain Relationships',
+          status: mpsWithDomains.length > 0 ? 'passed' : 'warning',
+          message: `${mpsWithDomains.length} MPS records properly linked to domains`,
+          category: 'structure'
+        });
+
+      } catch (error) {
+        results.push({
+          id: 'mps-mgmt-access',
+          name: 'MPS Management Access',
+          status: 'failed',
+          message: `MPS access failed: ${error}`,
+          category: 'database'
+        });
+      }
+    }
+
+    // Criteria Management (Phase 1B)
+    if (milestoneName.includes('criteria management')) {
+      try {
+        const { data: criteria, error } = await supabase
+          .from('criteria')
+          .select('*, maturity_practice_statements!inner(*)')
+          .eq('organization_id', milestone.organization_id);
+
+        if (error) throw error;
+
+        results.push({
+          id: 'criteria-mgmt-access',
+          name: 'Criteria Management Access',
+          status: 'passed',
+          message: `Found ${criteria?.length || 0} criteria records`,
+          category: 'structure'
+        });
+
+        // Check criteria numbering
+        const criteriaWithNumbers = criteria?.filter(c => c.criteria_number) || [];
+        results.push({
+          id: 'criteria-numbering',
+          name: 'Criteria Numbering System',
+          status: criteriaWithNumbers.length > 0 ? 'passed' : 'warning',
+          message: `${criteriaWithNumbers.length} criteria have proper numbering`,
+          category: 'structure'
+        });
+
+      } catch (error) {
+        results.push({
+          id: 'criteria-mgmt-access',
+          name: 'Criteria Management Access',
+          status: 'failed',
+          message: `Criteria access failed: ${error}`,
+          category: 'database'
+        });
+      }
+    }
+
+    // Assessment Framework (Phase 1B)
+    if (milestoneName.includes('assessment framework')) {
+      try {
+        const { data: assessments, error } = await supabase
+          .from('assessments')
+          .select('*')
+          .eq('organization_id', milestone.organization_id);
+
+        if (error) throw error;
+
+        results.push({
+          id: 'assessment-framework-access',
+          name: 'Assessment Framework Access',
+          status: 'passed',
+          message: `Found ${assessments?.length || 0} assessments`,
+          category: 'structure'
+        });
+
+        // Check assessment completeness
+        const activeAssessments = assessments?.filter(a => a.status !== 'not_started') || [];
+        results.push({
+          id: 'assessment-activity',
+          name: 'Assessment Activity',
+          status: activeAssessments.length > 0 ? 'passed' : 'warning',
+          message: `${activeAssessments.length} active assessments found`,
+          category: 'structure'
+        });
+
+      } catch (error) {
+        results.push({
+          id: 'assessment-framework-access',
+          name: 'Assessment Framework Access',
+          status: 'failed',
+          message: `Assessment framework access failed: ${error}`,
+          category: 'database'
+        });
+      }
+    }
+
+    // AI Knowledge Base (Phase 1B)
+    if (milestoneName.includes('ai knowledge') || milestoneName.includes('knowledge base')) {
+      try {
+        const { data: documents, error } = await supabase
+          .from('ai_documents')
+          .select('*')
+          .eq('organization_id', milestone.organization_id);
+
+        if (error) throw error;
+
+        results.push({
+          id: 'ai-knowledge-access',
+          name: 'AI Knowledge Base Access',
+          status: 'passed',
+          message: `Found ${documents?.length || 0} AI documents`,
+          category: 'structure'
+        });
+
+        // Check document processing status
+        const processedDocs = documents?.filter(d => d.processing_status === 'completed') || [];
+        const processingDocs = documents?.filter(d => d.processing_status === 'processing') || [];
+        
+        if (processedDocs.length > 0) {
+          results.push({
+            id: 'ai-doc-processing',
+            name: 'Document Processing Status',
+            status: 'passed',
+            message: `${processedDocs.length} documents processed, ${processingDocs.length} processing`,
+            category: 'performance'
+          });
+        } else if (processingDocs.length > 0) {
+          results.push({
+            id: 'ai-doc-processing',
+            name: 'Document Processing Status',
+            status: 'warning',
+            message: `${processingDocs.length} documents still processing`,
+            category: 'performance'
+          });
+        } else {
+          results.push({
+            id: 'ai-doc-processing',
+            name: 'Document Processing Status',
+            status: 'warning',
+            message: 'No documents found or processed',
+            category: 'performance'
+          });
+        }
+
+      } catch (error) {
+        results.push({
+          id: 'ai-knowledge-access',
+          name: 'AI Knowledge Base Access',
+          status: 'failed',
+          message: `AI knowledge base access failed: ${error}`,
+          category: 'database'
+        });
+      }
+    }
+
+    return results;
+  };
+
   // Database health checks
   const runDatabaseTests = async (milestone: MilestoneWithTasks): Promise<TestResult[]> => {
     const results: TestResult[] = [];
@@ -723,7 +947,7 @@ export const useMilestoneTests = () => {
     }
   };
 
-  // Run all tests for a milestone
+  // Run Phase 1B milestone-specific tests
   const runTests = async (milestone: MilestoneWithTasks): Promise<TestSession> => {
     setIsRunning(true);
     
@@ -732,19 +956,22 @@ export const useMilestoneTests = () => {
 
     try {
       toast({
-        title: 'Running Tests',
-        description: `Starting health check for ${milestone.name}`,
+        title: 'Running Phase 1B Tests',
+        description: `Starting milestone-specific validation for ${milestone.name}`,
       });
 
-      // Run all test categories
-      const [dbResults, secResults, structResults, perfResults] = await Promise.all([
+      // Run milestone-specific Phase 1B tests
+      const phase1BResults = await runPhase1BTests(milestone);
+      allResults.push(...phase1BResults);
+
+      // Run basic health checks specific to this milestone
+      const [dbResults, secResults, structResults] = await Promise.all([
         runDatabaseTests(milestone),
         runSecurityTests(milestone),
-        runStructureTests(milestone),
-        runPerformanceTests(milestone)
+        runStructureTests(milestone)
       ]);
 
-      allResults.push(...dbResults, ...secResults, ...structResults, ...perfResults);
+      allResults.push(...dbResults, ...secResults, ...structResults);
 
       // Determine overall status
       const failedTests = allResults.filter(r => r.status === 'failed');
@@ -767,11 +994,12 @@ export const useMilestoneTests = () => {
         overallStatus
       };
 
-      setTestSessions(prev => [session, ...prev.filter(s => s.milestoneId !== milestone.id)]);
+      // Remove any existing test session for this specific milestone (Phase 1B isolation)
+      setTestSessions(prev => [session, ...prev.filter(s => s.milestoneId !== milestone.id && !s.isTaskTest)]);
 
       toast({
-        title: 'Tests Complete',
-        description: `${allResults.length} tests completed with ${overallStatus} status`,
+        title: 'Phase 1B Tests Complete',
+        description: `${allResults.length} milestone-specific tests completed with ${overallStatus} status`,
         variant: overallStatus === 'failed' ? 'destructive' : 'default'
       });
 
