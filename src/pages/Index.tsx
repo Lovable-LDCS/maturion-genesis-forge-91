@@ -6,30 +6,41 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Target, Clock, Bot, Eye, ChevronRight, LogIn } from 'lucide-react';
 
-const LDCS_DOMAINS = [
+const ISMS_JOURNEY_COMPONENTS = [
   {
-    name: "Leadership & Governance",
-    description: "Strategic direction, risk management, and organizational accountability"
+    name: "Maturity Development Journey",
+    description: "Begin with maturity assessment, then activate smart tools to protect your progress",
+    category: "foundation",
+    highlighted: true,
+    icon: Target
   },
   {
-    name: "Process Integrity", 
-    description: "Operational effectiveness, quality control, and process optimization"
+    name: "Risk Management Framework", 
+    description: "Comprehensive risk identification, assessment, and mitigation strategies",
+    category: "enablement",
+    highlighted: false,
+    icon: Eye
   },
   {
-    name: "People & Culture",
-    description: "Team capability, training, awareness, and cultural maturity"
+    name: "Action Management System",
+    description: "Track, prioritize, and execute improvement initiatives systematically",
+    category: "enablement",
+    highlighted: false,
+    icon: Bot
   },
   {
-    name: "Protection",
-    description: "Security measures, incident response, and resilience planning"
+    name: "Access Analytics",
+    description: "Monitor and analyze user access patterns and security compliance",
+    category: "enablement",
+    highlighted: false,
+    icon: Clock
   },
   {
-    name: "Proof it Works",
-    description: "Monitoring, measurement, and continuous improvement validation"
-  },
-  {
-    name: "Enablement",
-    description: "Technology, tools, and infrastructure supporting operations"
+    name: "Video Surveillance Analysis",
+    description: "AI-powered video analysis for security and operational insights",
+    category: "enablement",
+    highlighted: false,
+    icon: Eye
   }
 ];
 
@@ -107,7 +118,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/10">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-violet-50/40">
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
@@ -151,7 +162,7 @@ const Index = () => {
           <Button 
             size="lg" 
             onClick={handleStartAssessment}
-            className="text-lg px-8 py-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+            className="text-lg px-8 py-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border-0"
           >
             Start Your Free Assessment
             <ChevronRight className="ml-2 h-5 w-5" />
@@ -194,43 +205,75 @@ const Index = () => {
         </div>
       </section>
 
-      {/* LDCS Domains Grid */}
-      <section className="container mx-auto px-4 py-16 bg-secondary/5">
+      {/* ISMS Journey Section */}
+      <section className="container mx-auto px-4 py-16 bg-gradient-to-r from-violet-50/50 to-blue-50/50">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">
-              Six Domains of Operational Excellence
+            <h2 className="text-3xl font-bold mb-4 bg-gradient-to-r from-violet-600 to-blue-600 bg-clip-text text-transparent">
+              🌐 Your Integrated ISMS Journey
             </h2>
             <p className="text-lg text-muted-foreground">
-              Hover over each domain to understand what it covers in your maturity journey
+              Begin with maturity assessment, then activate smart tools to protect your progress
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {LDCS_DOMAINS.map((domain, index) => (
+          {/* Foundation Component */}
+          <div className="mb-8">
+            {ISMS_JOURNEY_COMPONENTS.filter(component => component.highlighted).map((component, index) => (
               <Card 
                 key={index}
-                className="relative transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer group"
+                className="relative transition-all duration-300 hover:shadow-xl border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-green-50 cursor-pointer group"
+                onClick={() => navigate('/journey')}
+              >
+                <CardHeader className="text-center">
+                  <div className="mx-auto mb-4 w-20 h-20 bg-gradient-to-r from-emerald-500 to-green-500 rounded-full flex items-center justify-center shadow-lg">
+                    <component.icon className="h-10 w-10 text-white" />
+                  </div>
+                  <CardTitle className="text-2xl text-emerald-700 group-hover:text-emerald-800 transition-colors">
+                    {component.name}
+                  </CardTitle>
+                  <CardDescription className="text-base text-emerald-600">
+                    {component.description}
+                  </CardDescription>
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+
+          {/* Enable Resilience Tools */}
+          <div className="text-center mb-6">
+            <h3 className="text-xl font-semibold text-slate-700">Enable Resilience</h3>
+            <p className="text-sm text-muted-foreground">Smart tools to strengthen and accelerate your path to operational resilience</p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {ISMS_JOURNEY_COMPONENTS.filter(component => !component.highlighted).map((component, index) => (
+              <Card 
+                key={index}
+                className="relative transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer group border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50"
                 onMouseEnter={() => {
                   setHoveredDomain(index);
-                  console.log('Landing Page - Domain Hover:', {
-                    domain: domain.name,
+                  console.log('Landing Page - Tool Hover:', {
+                    tool: component.name,
                     index
                   });
                 }}
                 onMouseLeave={() => setHoveredDomain(null)}
               >
-                <CardHeader>
-                  <CardTitle className="text-lg group-hover:text-primary transition-colors">
-                    {domain.name}
+                <CardHeader className="text-center pb-4">
+                  <div className="mx-auto mb-3 w-12 h-12 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-lg flex items-center justify-center">
+                    <component.icon className="h-6 w-6 text-white" />
+                  </div>
+                  <CardTitle className="text-sm font-medium text-blue-700 group-hover:text-blue-800 transition-colors">
+                    {component.name}
                   </CardTitle>
                 </CardHeader>
                 
-                {/* Domain description on hover */}
+                {/* Tool description on hover */}
                 {hoveredDomain === index && (
                   <CardContent className="pt-0">
-                    <CardDescription className="text-sm">
-                      {domain.description}
+                    <CardDescription className="text-xs text-blue-600">
+                      {component.description}
                     </CardDescription>
                   </CardContent>
                 )}
@@ -254,7 +297,7 @@ const Index = () => {
           <Button 
             size="lg" 
             onClick={handleStartAssessment}
-            className="text-lg px-8 py-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300"
+            className="text-lg px-8 py-6 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border-0"
           >
             Start Your Free Assessment
             <ChevronRight className="ml-2 h-5 w-5" />
