@@ -108,11 +108,33 @@ export const AIAdminUploadZone: React.FC = () => {
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
+      // Documents
       'application/pdf': ['.pdf'],
       'application/msword': ['.doc'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
       'text/plain': ['.txt'],
-      'text/markdown': ['.md']
+      'text/markdown': ['.md'],
+      'text/html': ['.html'],
+      'text/xml': ['.xml'],
+      'application/rtf': ['.rtf'],
+      
+      // Data files
+      'application/json': ['.json'],
+      'text/yaml': ['.yaml', '.yml'], 
+      'text/csv': ['.csv'],
+      'application/sql': ['.sql'],
+      
+      // Code files
+      'text/javascript': ['.js'],
+      'text/typescript': ['.ts'],
+      'text/css': ['.css'],
+      'text/python': ['.py'],
+      
+      // Images
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/png': ['.png'],
+      'image/svg+xml': ['.svg'],
+      'image/webp': ['.webp']
     },
     multiple: true,
     disabled: !isAdmin || uploading
@@ -346,8 +368,17 @@ export const AIAdminUploadZone: React.FC = () => {
                 <p className="text-lg font-medium mb-2">
                   Drag & drop files here, or click to select
                 </p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  <strong>Documents:</strong> PDF, Word (.doc, .docx), Text (.txt), Markdown (.md), HTML, XML, RTF
+                </p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  <strong>Data:</strong> JSON, YAML, CSV, SQL
+                </p>
+                <p className="text-sm text-muted-foreground mb-1">
+                  <strong>Code:</strong> JavaScript, TypeScript, CSS, Python
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  Supports PDF, Word documents (.doc, .docx), plain text (.txt), and Markdown (.md)
+                  <strong>Images:</strong> JPG, PNG, SVG, WebP
                 </p>
               </>
             )}
