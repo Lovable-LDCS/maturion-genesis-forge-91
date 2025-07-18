@@ -33,6 +33,7 @@ const App = () => (
               <Route path="/organization/settings" element={<OrganizationSettings />} />
               <Route path="/ai/knowledge-base" element={<AIKnowledgeBase />} />
               <Route path="/accept-invitation" element={<InvitationAcceptance />} />
+              <Route path="/milestones/:id" element={<MilestoneDetail />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
