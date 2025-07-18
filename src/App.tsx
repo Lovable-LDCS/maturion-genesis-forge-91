@@ -29,6 +29,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/qa-signoff" element={<QASignOff />} />
               <Route path="/assessment-framework" element={<AssessmentFramework />} />
+              <Route path="/domain-management" element={<AssessmentFramework />} />
               <Route path="/team" element={<TeamPage />} />
               <Route path="/organization/settings" element={<OrganizationSettings />} />
               <Route path="/ai/knowledge-base" element={<AIKnowledgeBase />} />
