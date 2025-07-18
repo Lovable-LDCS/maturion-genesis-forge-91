@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import Index from "./pages/Index";
+import Dashboard from "./pages/Dashboard";
+import Assessment from "./pages/Assessment";
 import AssessmentFramework from "./pages/AssessmentFramework";
 import QASignOff from "./pages/QASignOffDynamic";
 import TeamPage from "./pages/TeamPage";
@@ -27,6 +29,8 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/assessment" element={<Assessment />} />
               <Route path="/qa-signoff" element={<QASignOff />} />
               <Route path="/assessment-framework" element={<AssessmentFramework />} />
               <Route path="/domain-management" element={<AssessmentFramework />} />
