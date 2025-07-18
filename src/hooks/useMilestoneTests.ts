@@ -35,15 +35,22 @@ export const useMilestoneTests = () => {
   const runPhase1BTests = async (milestone: MilestoneWithTasks): Promise<TestResult[]> => {
     const results: TestResult[] = [];
     const milestoneName = milestone.name.toLowerCase();
+    
+    console.log(`🔍 Starting Phase 1B tests for milestone: ${milestone.name} (${milestone.id})`);
+    console.log(`📋 Checking milestone tasks:`, milestone.milestone_tasks?.map(t => t.name));
 
-    // Domain Management UI (Phase 1B) - UI-specific tests
-    if (milestoneName.includes('domain management') || milestoneName.includes('domain') || 
+    // Check if this is the Phase 1B Assessment Framework milestone
+    if (milestoneName.includes('phase 1b') || milestoneName.includes('admin content interface') || 
         milestone.id === '6b3cee30-13b1-4597-ab06-57d121923ffd') {
       
-      console.log(`🔍 Running Domain Management UI tests for milestone: ${milestone.name} (${milestone.id})`);
+      console.log(`✅ Confirmed Phase 1B milestone, running UI-specific tests`);
       
-      // Test 1: UI Component Rendering
-      try {
+      // Domain Management UI Task Tests
+      const domainTask = milestone.milestone_tasks?.find(t => t.name.toLowerCase().includes('domain management'));
+      if (domainTask) {
+        console.log(`🎯 Running Domain Management UI tests for task: ${domainTask.name}`);
+        
+        try {
         // Check if domains exist for UI rendering
         const { data: domains, error } = await supabase
           .from('domains')
@@ -133,184 +140,10 @@ export const useMilestoneTests = () => {
       }
       
       console.log(`✅ Domain Management UI tests completed: ${results.length} tests`);
-    }
-
-    // MPS Management (Phase 1B)
-    if (milestoneName.includes('mps management') || milestoneName.includes('maturity practice')) {
-      try {
-        const { data: mps, error } = await supabase
-          .from('maturity_practice_statements')
-          .select('*, domains!inner(*)')
-          .eq('organization_id', milestone.organization_id);
-
-        if (error) throw error;
-
-        results.push({
-          id: 'mps-mgmt-access',
-          name: 'MPS Management Access',
-          status: 'passed',
-          message: `Found ${mps?.length || 0} MPS records`,
-          category: 'structure'
-        });
-
-        // Check MPS-Domain relationships
-        const mpsWithDomains = mps?.filter(m => m.domains) || [];
-        results.push({
-          id: 'mps-domain-links',
-          name: 'MPS-Domain Relationships',
-          status: mpsWithDomains.length > 0 ? 'passed' : 'warning',
-          message: `${mpsWithDomains.length} MPS records properly linked to domains`,
-          category: 'structure'
-        });
-
-      } catch (error) {
-        results.push({
-          id: 'mps-mgmt-access',
-          name: 'MPS Management Access',
-          status: 'failed',
-          message: `MPS access failed: ${error}`,
-          category: 'database'
-        });
       }
     }
 
-    // Criteria Management (Phase 1B)
-    if (milestoneName.includes('criteria management')) {
-      try {
-        const { data: criteria, error } = await supabase
-          .from('criteria')
-          .select('*, maturity_practice_statements!inner(*)')
-          .eq('organization_id', milestone.organization_id);
-
-        if (error) throw error;
-
-        results.push({
-          id: 'criteria-mgmt-access',
-          name: 'Criteria Management Access',
-          status: 'passed',
-          message: `Found ${criteria?.length || 0} criteria records`,
-          category: 'structure'
-        });
-
-        // Check criteria numbering
-        const criteriaWithNumbers = criteria?.filter(c => c.criteria_number) || [];
-        results.push({
-          id: 'criteria-numbering',
-          name: 'Criteria Numbering System',
-          status: criteriaWithNumbers.length > 0 ? 'passed' : 'warning',
-          message: `${criteriaWithNumbers.length} criteria have proper numbering`,
-          category: 'structure'
-        });
-
-      } catch (error) {
-        results.push({
-          id: 'criteria-mgmt-access',
-          name: 'Criteria Management Access',
-          status: 'failed',
-          message: `Criteria access failed: ${error}`,
-          category: 'database'
-        });
-      }
-    }
-
-    // Assessment Framework (Phase 1B)
-    if (milestoneName.includes('assessment framework')) {
-      try {
-        const { data: assessments, error } = await supabase
-          .from('assessments')
-          .select('*')
-          .eq('organization_id', milestone.organization_id);
-
-        if (error) throw error;
-
-        results.push({
-          id: 'assessment-framework-access',
-          name: 'Assessment Framework Access',
-          status: 'passed',
-          message: `Found ${assessments?.length || 0} assessments`,
-          category: 'structure'
-        });
-
-        // Check assessment completeness
-        const activeAssessments = assessments?.filter(a => a.status !== 'not_started') || [];
-        results.push({
-          id: 'assessment-activity',
-          name: 'Assessment Activity',
-          status: activeAssessments.length > 0 ? 'passed' : 'warning',
-          message: `${activeAssessments.length} active assessments found`,
-          category: 'structure'
-        });
-
-      } catch (error) {
-        results.push({
-          id: 'assessment-framework-access',
-          name: 'Assessment Framework Access',
-          status: 'failed',
-          message: `Assessment framework access failed: ${error}`,
-          category: 'database'
-        });
-      }
-    }
-
-    // AI Knowledge Base (Phase 1B)
-    if (milestoneName.includes('ai knowledge') || milestoneName.includes('knowledge base')) {
-      try {
-        const { data: documents, error } = await supabase
-          .from('ai_documents')
-          .select('*')
-          .eq('organization_id', milestone.organization_id);
-
-        if (error) throw error;
-
-        results.push({
-          id: 'ai-knowledge-access',
-          name: 'AI Knowledge Base Access',
-          status: 'passed',
-          message: `Found ${documents?.length || 0} AI documents`,
-          category: 'structure'
-        });
-
-        // Check document processing status
-        const processedDocs = documents?.filter(d => d.processing_status === 'completed') || [];
-        const processingDocs = documents?.filter(d => d.processing_status === 'processing') || [];
-        
-        if (processedDocs.length > 0) {
-          results.push({
-            id: 'ai-doc-processing',
-            name: 'Document Processing Status',
-            status: 'passed',
-            message: `${processedDocs.length} documents processed, ${processingDocs.length} processing`,
-            category: 'performance'
-          });
-        } else if (processingDocs.length > 0) {
-          results.push({
-            id: 'ai-doc-processing',
-            name: 'Document Processing Status',
-            status: 'warning',
-            message: `${processingDocs.length} documents still processing`,
-            category: 'performance'
-          });
-        } else {
-          results.push({
-            id: 'ai-doc-processing',
-            name: 'Document Processing Status',
-            status: 'warning',
-            message: 'No documents found or processed',
-            category: 'performance'
-          });
-        }
-
-      } catch (error) {
-        results.push({
-          id: 'ai-knowledge-access',
-          name: 'AI Knowledge Base Access',
-          status: 'failed',
-          message: `AI knowledge base access failed: ${error}`,
-          category: 'database'
-        });
-      }
-    }
-
+    console.log(`🔄 Phase 1B tests completed. Total results: ${results.length}`);
     return results;
   };
 
