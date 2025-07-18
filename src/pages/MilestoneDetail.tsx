@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom';
 import { TaskCard } from '@/components/milestones/TaskCard';
 
 export default function MilestoneDetail() {
-  const { milestone_id } = useParams<{ milestone_id: string }>();
+  const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const { milestones, loading, updateMilestoneTask } = useMilestones(currentOrganization?.id);
@@ -30,7 +30,7 @@ export default function MilestoneDetail() {
     );
   }
 
-  const milestone = milestones.find((m) => m.id === milestone_id);
+  const milestone = milestones.find((m) => m.id === id);
 
   if (!milestone) {
     return (
