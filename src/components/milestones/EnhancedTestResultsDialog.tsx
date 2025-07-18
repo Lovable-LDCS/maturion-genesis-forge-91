@@ -27,7 +27,7 @@ import {
   User,
   RefreshCw
 } from 'lucide-react';
-import { TestSession } from '@/hooks/useMilestoneTests';
+import { TestSession, TestResult } from '@/hooks/useMilestoneTests';
 import { AdvancedDiagnostics } from '@/components/diagnostics/AdvancedDiagnostics';
 
 interface EnhancedTestResultsDialogProps {
@@ -141,19 +141,25 @@ export const EnhancedTestResultsDialog: React.FC<EnhancedTestResultsDialogProps>
               <CardContent>
                 <div className="grid grid-cols-4 gap-4">
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-green-600">{session.results?.passed || 0}</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {session.results.filter(r => r.status === 'passed').length}
+                    </p>
                     <p className="text-sm text-muted-foreground">Passed</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-yellow-600">{session.results?.warnings || 0}</p>
+                    <p className="text-2xl font-bold text-yellow-600">
+                      {session.results.filter(r => r.status === 'warning').length}
+                    </p>
                     <p className="text-sm text-muted-foreground">Warnings</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold text-red-600">{session.results?.failed || 0}</p>
+                    <p className="text-2xl font-bold text-red-600">
+                      {session.results.filter(r => r.status === 'failed').length}
+                    </p>
                     <p className="text-sm text-muted-foreground">Failed</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-2xl font-bold">{session.results?.total || 0}</p>
+                    <p className="text-2xl font-bold">{session.results.length}</p>
                     <p className="text-sm text-muted-foreground">Total</p>
                   </div>
                 </div>
@@ -189,12 +195,12 @@ export const EnhancedTestResultsDialog: React.FC<EnhancedTestResultsDialogProps>
                   <div className="space-y-4">
                     {/* Group results by category */}
                     {Object.entries(
-                      (session.results || []).reduce((acc: Record<string, any[]>, result: any) => {
+                      session.results.reduce((acc: Record<string, TestResult[]>, result: TestResult) => {
                         const category = result.category || 'general';
                         if (!acc[category]) acc[category] = [];
                         acc[category].push(result);
                         return acc;
-                      }, {})
+                      }, {} as Record<string, TestResult[]>)
                     ).map(([category, results]) => (
                       <div key={category} className="border rounded-lg p-4">
                         <h4 className="font-medium mb-3 flex items-center gap-2">
@@ -204,14 +210,14 @@ export const EnhancedTestResultsDialog: React.FC<EnhancedTestResultsDialogProps>
                             {results?.length || 0} tests
                           </Badge>
                         </h4>
-                        <div className="space-y-2">
-                          {(results || []).map((result: any, index: number) => (
+                         <div className="space-y-2">
+                           {results.map((result: TestResult, index: number) => (
                             <div key={index} className="flex items-start justify-between p-3 border rounded-lg">
                               <div className="flex items-start space-x-3">
                                 {getStatusIcon(result.status)}
-                                <div className="flex-1">
-                                  <p className="font-medium">{result.name}</p>
-                                  <p className="text-sm text-muted-foreground">{result.description}</p>
+                                 <div className="flex-1">
+                                   <p className="font-medium">{result.name}</p>
+                                   <p className="text-sm text-muted-foreground">{result.message}</p>
                                   {result.details && (
                                     <details className="text-xs text-muted-foreground mt-1">
                                       <summary className="cursor-pointer">Technical Details</summary>
@@ -256,7 +262,7 @@ export const EnhancedTestResultsDialog: React.FC<EnhancedTestResultsDialogProps>
               <CardContent>
                 <ScrollArea className="h-80">
                   <div className="space-y-2">
-                    {session.testResults
+                    {session.results
                       .filter(result => result.status === 'failed' || result.status === 'warning')
                       .map((result, index) => (
                         <Alert key={index} className={
@@ -269,12 +275,12 @@ export const EnhancedTestResultsDialog: React.FC<EnhancedTestResultsDialogProps>
                           <AlertDescription>
                             <div className="space-y-1">
                               <p className="font-medium">{result.name}</p>
-                              <p className="text-sm">{result.description}</p>
-                              {result.errorMessage && (
-                                <p className="text-xs font-mono bg-white/50 p-2 rounded">
-                                  {result.errorMessage}
-                                </p>
-                              )}
+                               <p className="text-sm">{result.message}</p>
+                               {result.details && (
+                                 <p className="text-xs font-mono bg-white/50 p-2 rounded">
+                                   {result.details}
+                                 </p>
+                               )}
                               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                                 <span>Category: {result.category}</span>
                                 <span>Timestamp: {new Date().toLocaleString()}</span>
@@ -284,7 +290,7 @@ export const EnhancedTestResultsDialog: React.FC<EnhancedTestResultsDialogProps>
                         </Alert>
                       ))}
 
-                    {session.testResults.filter(r => r.status === 'failed' || r.status === 'warning').length === 0 && (
+                    {session.results.filter(r => r.status === 'failed' || r.status === 'warning').length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-500" />
                         <p>No errors or warnings detected</p>
@@ -482,12 +488,12 @@ export const EnhancedTestResultsDialog: React.FC<EnhancedTestResultsDialogProps>
                   </div>
                 </div>
 
-                {session.manualVerified && session.verificationNotes && (
+                {session.manualVerified && (
                   <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                     <h4 className="font-medium text-green-800 mb-2">Phase 1B Verification Completed</h4>
-                    <p className="text-sm text-green-700">{session.verificationNotes}</p>
+                    <p className="text-sm text-green-700">This milestone has been manually verified by QA.</p>
                     <p className="text-xs text-green-600 mt-2">
-                      Verified on: {session.verifiedAt?.toLocaleString()}
+                      Verified on: {session.timestamp.toLocaleString()}
                     </p>
                   </div>
                 )}
