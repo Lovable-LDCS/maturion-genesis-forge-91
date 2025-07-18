@@ -14,6 +14,7 @@ export interface AIDocument {
   total_chunks: number;
   metadata: any;
   uploaded_by: string;
+  updated_by: string;
   created_at: string;
   updated_at: string;
   processed_at?: string;
@@ -92,6 +93,7 @@ export const useAIDocuments = () => {
           tags: tags,
           upload_notes: uploadNotes,
           uploaded_by: userId,
+          updated_by: userId,
           metadata: {
             original_name: file.name,
             upload_timestamp: new Date().toISOString(),
@@ -185,6 +187,7 @@ export const useAIDocuments = () => {
           upload_notes: updates.upload_notes,
           document_type: updates.document_type,
           updated_at: new Date().toISOString(),
+          updated_by: (await supabase.auth.getUser()).data.user?.id || '',
           metadata: {
             ...(typeof currentDoc.metadata === 'object' && currentDoc.metadata !== null ? currentDoc.metadata : {}),
             title: updates.title,

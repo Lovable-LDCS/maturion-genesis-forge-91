@@ -144,6 +144,7 @@ export type Database = {
           title: string | null
           total_chunks: number | null
           updated_at: string
+          updated_by: string
           upload_notes: string | null
           uploaded_by: string
         }
@@ -164,6 +165,7 @@ export type Database = {
           title?: string | null
           total_chunks?: number | null
           updated_at?: string
+          updated_by: string
           upload_notes?: string | null
           uploaded_by: string
         }
@@ -184,6 +186,7 @@ export type Database = {
           title?: string | null
           total_chunks?: number | null
           updated_at?: string
+          updated_by?: string
           upload_notes?: string | null
           uploaded_by?: string
         }
