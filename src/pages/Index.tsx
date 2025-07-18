@@ -75,18 +75,12 @@ const Index = () => {
       description: "Your complete audit & improvement journey starts here",
     });
 
-    // Redirect authenticated users to dashboard
-    if (user) {
-      console.log('Landing Page - Authenticated user detected, redirecting to dashboard');
-      navigate('/dashboard');
-    }
-
     return () => {
       console.log('Landing Page - Exit:', {
         timestamp: new Date().toISOString()
       });
     };
-  }, [user, navigate, toast]);
+  }, [toast]);
 
   const handleStartAssessment = () => {
     console.log('Landing Page - CTA Click:', {
@@ -125,10 +119,20 @@ const Index = () => {
               <h1 className="text-2xl font-bold">Maturion</h1>
             </div>
             
-            <Button variant="outline" onClick={handleLogin} className="flex items-center space-x-2">
-              <LogIn className="h-4 w-4" />
-              <span>Sign In</span>
-            </Button>
+            {user ? (
+              <Button 
+                onClick={() => navigate('/dashboard')} 
+                className="flex items-center space-x-2"
+              >
+                <Target className="h-4 w-4" />
+                <span>Go to Dashboard</span>
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={handleLogin} className="flex items-center space-x-2">
+                <LogIn className="h-4 w-4" />
+                <span>Sign In</span>
+              </Button>
+            )}
           </div>
         </div>
       </header>
