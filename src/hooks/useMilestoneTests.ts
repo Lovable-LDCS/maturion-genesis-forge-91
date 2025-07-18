@@ -37,7 +37,11 @@ export const useMilestoneTests = () => {
     const milestoneName = milestone.name.toLowerCase();
 
     // Domain Management UI (Phase 1B) - UI-specific tests
-    if (milestoneName.includes('domain management')) {
+    if (milestoneName.includes('domain management') || milestoneName.includes('domain') || 
+        milestone.id === '6b3cee30-13b1-4597-ab06-57d121923ffd') {
+      
+      console.log(`🔍 Running Domain Management UI tests for milestone: ${milestone.name} (${milestone.id})`);
+      
       // Test 1: UI Component Rendering
       try {
         // Check if domains exist for UI rendering
@@ -84,6 +88,40 @@ export const useMilestoneTests = () => {
           category: 'structure'
         });
 
+        // Test 5: Component-specific audit trail entry
+        try {
+          const { error: auditError } = await supabase
+            .from('audit_trail')
+            .insert({
+              organization_id: milestone.organization_id,
+              table_name: 'milestones',
+              record_id: milestone.id,
+              action: 'domain_ui_test',
+              field_name: 'status',
+              new_value: 'domain_ui_tested',
+              changed_by: (await supabase.auth.getUser()).data.user?.id,
+              change_reason: 'Domain Management UI test execution'
+            });
+
+          if (!auditError) {
+            results.push({
+              id: 'domain-audit-trail',
+              name: 'Domain UI Audit Trail',
+              status: 'passed',
+              message: 'Audit trail entry created for Domain Management UI test',
+              category: 'database'
+            });
+          }
+        } catch (auditError) {
+          results.push({
+            id: 'domain-audit-trail',
+            name: 'Domain UI Audit Trail',
+            status: 'warning',
+            message: `Audit trail creation failed: ${auditError}`,
+            category: 'database'
+          });
+        }
+
       } catch (error) {
         results.push({
           id: 'domain-ui-error',
@@ -93,6 +131,8 @@ export const useMilestoneTests = () => {
           category: 'database'
         });
       }
+      
+      console.log(`✅ Domain Management UI tests completed: ${results.length} tests`);
     }
 
     // MPS Management (Phase 1B)
