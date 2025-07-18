@@ -882,19 +882,25 @@ export const useMilestoneTests = () => {
 
   // Run Phase 1B milestone-specific tests
   const runTests = async (milestone: MilestoneWithTasks): Promise<TestSession> => {
+    console.log(`🚀 MAIN runTests called for milestone: ${milestone.name} (${milestone.id})`);
+    
     setIsRunning(true);
     
     const sessionId = `test-${milestone.id}-${Date.now()}`;
     const allResults: TestResult[] = [];
 
     try {
+      console.log(`🔥 Starting test execution for milestone: ${milestone.name}`);
+      
       toast({
         title: 'Running Phase 1B Tests',
         description: `Starting milestone-specific validation for ${milestone.name}`,
       });
 
       // Run milestone-specific Phase 1B tests
+      console.log(`🎯 About to call runPhase1BTests...`);
       const phase1BResults = await runPhase1BTests(milestone);
+      console.log(`📊 Phase 1B results received:`, phase1BResults.length, phase1BResults);
       allResults.push(...phase1BResults);
 
       // Run basic health checks specific to this milestone
