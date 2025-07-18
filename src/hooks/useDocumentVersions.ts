@@ -34,13 +34,7 @@ export const useDocumentVersions = (documentId?: string) => {
     try {
       const { data, error } = await supabase
         .from('ai_document_versions')
-        .select(`
-          *,
-          created_by_profile:created_by (
-            full_name,
-            email
-          )
-        `)
+        .select('*')
         .eq('document_id', docId)
         .order('version_number', { ascending: false });
 
