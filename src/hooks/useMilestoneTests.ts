@@ -36,6 +36,12 @@ export const useMilestoneTests = () => {
     const results: TestResult[] = [];
     const milestoneName = milestone.name.toLowerCase();
     
+    // Add immediate visual feedback via toast
+    toast({
+      title: 'Phase 1B Debug',
+      description: `🔍 Starting Phase 1B tests for: ${milestone.name}`,
+    });
+    
     console.log(`🔍 Starting Phase 1B tests for milestone: ${milestone.name} (${milestone.id})`);
     console.log(`📋 Checking milestone tasks:`, milestone.milestone_tasks?.map(t => t.name));
 
@@ -45,10 +51,20 @@ export const useMilestoneTests = () => {
       
       console.log(`✅ Confirmed Phase 1B milestone, running UI-specific tests`);
       
+      toast({
+        title: 'Phase 1B Confirmed',
+        description: `✅ Running UI-specific tests for Phase 1B milestone`,
+      });
+      
       // Domain Management UI Task Tests
       const domainTask = milestone.milestone_tasks?.find(t => t.name.toLowerCase().includes('domain management'));
       if (domainTask) {
         console.log(`🎯 Running Domain Management UI tests for task: ${domainTask.name}`);
+        
+        toast({
+          title: 'Domain UI Tests',
+          description: `🎯 Found Domain Management UI task - running tests`,
+        });
         
         try {
         // Check if domains exist for UI rendering
@@ -140,10 +156,35 @@ export const useMilestoneTests = () => {
       }
       
       console.log(`✅ Domain Management UI tests completed: ${results.length} tests`);
+      
+      toast({
+        title: 'Domain UI Tests Complete',
+        description: `✅ Added ${results.length} UI-specific tests to results`,
+      });
+      } else {
+        console.log(`⚠️  Domain Management task not found in milestone tasks`);
+        toast({
+          title: 'Domain Task Missing',
+          description: `⚠️  Domain Management task not found in milestone`,
+          variant: 'destructive'
+        });
       }
+    } else {
+      console.log(`❌ Milestone not recognized as Phase 1B: ${milestone.name}`);
+      toast({
+        title: 'Phase 1B Not Matched',
+        description: `❌ Milestone "${milestone.name}" not recognized as Phase 1B`,
+        variant: 'destructive'
+      });
     }
 
     console.log(`🔄 Phase 1B tests completed. Total results: ${results.length}`);
+    
+    toast({
+      title: 'Phase 1B Debug Complete',
+      description: `🔄 Phase 1B tests finished with ${results.length} total results`,
+    });
+    
     return results;
   };
 
