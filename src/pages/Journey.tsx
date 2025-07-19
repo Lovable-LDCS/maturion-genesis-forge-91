@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Target, ChevronRight, ArrowLeft, Shield, Settings, Users, Lock, BarChart, Rocket, Eye, Database, Search, Crosshair, AlertTriangle, Zap, MonitorSpeaker, HeartHandshake, Key, CalendarCheck, LifeBuoy, Wrench } from 'lucide-react';
+import { Target, ChevronRight, ArrowLeft, Shield, Settings, Users, Lock, BarChart, Rocket, Eye, Database, Search, Crosshair, AlertTriangle, Zap, MonitorSpeaker, HeartHandshake, Key, CalendarCheck, LifeBuoy, Wrench, Info, Ban, Clock, CheckCircle, Play, Zap as ZapIcon, BarChart2, Cog } from 'lucide-react';
 
 const MATURITY_DOMAINS = [
   {
@@ -189,6 +189,66 @@ const OPERATIONAL_DRIVERS = [
   }
 ];
 
+// Elements of Security - 8 Key Elements
+const SECURITY_ELEMENTS = [
+  {
+    title: "Information Management",
+    icon: Info,
+    color: "from-blue-500 to-indigo-600",
+    insight: "Stay ahead by understanding risks before they materialize.",
+    description: "Security information is proactive insight. It includes data collection, trend analysis, and external monitoring to predict threats before they strike. Information drives informed planning and response readiness, making security smarter—not just stronger."
+  },
+  {
+    title: "Deterrence",
+    icon: Ban,
+    color: "from-red-500 to-rose-600",
+    insight: "Create visible and psychological barriers to threat actors.",
+    description: "Deterrence prevents actions before they begin. Whether through signage, visible security presence, or consequence-based policy, deterrence shifts the cost-benefit equation in your favor. A visible, confident security posture discourages internal and external threats alike."
+  },
+  {
+    title: "Detection",
+    icon: Search,
+    color: "from-orange-500 to-amber-600",
+    insight: "Identify incidents the moment they happen.",
+    description: "Detection is the linchpin of active security. It encompasses surveillance, sensors, AI, and behavior analytics—triggering awareness when thresholds are crossed. Early detection minimizes loss, protects people, and enables rapid containment."
+  },
+  {
+    title: "Delay",
+    icon: Clock,
+    color: "from-yellow-500 to-orange-600",
+    insight: "Slow intruders to buy time for intervention.",
+    description: "Delays frustrate and disrupt attacks. Barriers, access control layers, and procedural protocols increase the time it takes to breach your defenses. This creates a critical window for escalation, verification, and response—turning time into your ally."
+  },
+  {
+    title: "Verification/Validation",
+    icon: CheckCircle,
+    color: "from-green-500 to-emerald-600",
+    insight: "Ensure accurate assessment before action.",
+    description: "False alarms waste time. Verification and validation provide critical checks before response—using multiple data points, AI confirmation, or human oversight. They reduce noise and allow response teams to act with confidence, clarity, and credibility."
+  },
+  {
+    title: "Respond",
+    icon: Play,
+    color: "from-teal-500 to-cyan-600",
+    insight: "Act decisively when a threat is confirmed.",
+    description: "Security response must be timely, trained, and tactical. From first-responder protocols to escalation workflows and de-escalation strategies, effective response limits damage, reassures staff, and re-establishes control. Every plan must end with action."
+  },
+  {
+    title: "Resilience",
+    icon: ZapIcon,
+    color: "from-purple-500 to-violet-600",
+    insight: "Bounce back stronger after an incident.",
+    description: "Resilience is the ability to absorb impact and restore functionality. It covers recovery planning, redundancy, communication, and cultural readiness. True security isn't about zero incidents—it's about learning, adapting, and improving from every experience."
+  },
+  {
+    title: "Process Efficiencies",
+    icon: Cog,
+    color: "from-indigo-500 to-blue-600",
+    insight: "Map vulnerabilities, reduce friction, and optimize controls.",
+    description: "Process inefficiencies are soft targets. Mapping workflows, identifying bottlenecks, and applying structured risk analysis reveals exploitable gaps. By integrating efficiency with security, organizations reduce complexity, increase visibility, and close doors to both malicious and accidental loss."
+  }
+];
+
 const Journey = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -197,6 +257,7 @@ const Journey = () => {
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
   const [lockedLevel, setLockedLevel] = useState<number | null>(null);
   const [hoveredDriver, setHoveredDriver] = useState<number | null>(null);
+  const [hoveredElement, setHoveredElement] = useState<number | null>(null);
 
   useEffect(() => {
     console.log('Journey Page - Entry:', {
@@ -507,6 +568,68 @@ const Journey = () => {
                   <div className="mt-4">
                     <p className="text-sm leading-relaxed text-muted-foreground">
                       {driver.description}
+                    </p>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Elements of Security */}
+      <section className="container mx-auto px-4 py-16 bg-gradient-to-br from-white to-slate-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4 text-slate-800">
+              Elements of Security
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Eight fundamental elements that create a comprehensive security framework
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {SECURITY_ELEMENTS.map((element, index) => (
+              <Dialog key={index}>
+                <DialogTrigger asChild>
+                  <Card 
+                    className="relative transition-all duration-300 hover:shadow-xl hover:scale-105 cursor-pointer group border-2 bg-white"
+                    onMouseEnter={() => setHoveredElement(index)}
+                    onMouseLeave={() => setHoveredElement(null)}
+                  >
+                    <CardHeader className="text-center pb-4">
+                      <div className={`mx-auto mb-4 w-16 h-16 bg-gradient-to-r ${element.color} rounded-full flex items-center justify-center shadow-lg`}>
+                        <element.icon className="h-8 w-8 text-white" />
+                      </div>
+                      <CardTitle className="text-sm font-semibold group-hover:scale-105 transition-transform leading-tight">
+                        {element.title}
+                      </CardTitle>
+                    </CardHeader>
+                    
+                    {hoveredElement === index && (
+                      <CardContent className="pt-0">
+                        <CardDescription className="text-xs leading-relaxed">
+                          {element.insight}
+                        </CardDescription>
+                      </CardContent>
+                    )}
+                  </Card>
+                </DialogTrigger>
+                
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <div className={`mx-auto mb-4 w-16 h-16 bg-gradient-to-r ${element.color} rounded-full flex items-center justify-center shadow-lg`}>
+                      <element.icon className="h-8 w-8 text-white" />
+                    </div>
+                    <DialogTitle className="text-center">{element.title}</DialogTitle>
+                    <DialogDescription className="text-center text-sm font-medium text-primary">
+                      {element.insight}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4">
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {element.description}
                     </p>
                   </div>
                 </DialogContent>
