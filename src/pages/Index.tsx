@@ -4,7 +4,59 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Target, Clock, Bot, Eye, ChevronRight, LogIn, GraduationCap } from 'lucide-react';
+import { Target, Clock, Bot, Eye, ChevronRight, LogIn, GraduationCap, Shield, Settings, Users, Lock, BarChart, Rocket } from 'lucide-react';
+
+// Six Domains of Operational Excellence with new gradient icon design
+const OPERATIONAL_DOMAINS = [
+  {
+    name: "Leadership & Governance",
+    description: "Strategic oversight, policy framework, and organizational accountability",
+    icon: Shield,
+    gradient: "from-emerald-400 to-green-500",
+    bgGradient: "from-emerald-50 to-green-50",
+    borderColor: "border-emerald-200"
+  },
+  {
+    name: "Process Integrity", 
+    description: "Systematic workflows, quality controls, and operational consistency",
+    icon: Settings,
+    gradient: "from-orange-400 to-amber-500",
+    bgGradient: "from-orange-50 to-amber-50",
+    borderColor: "border-orange-200"
+  },
+  {
+    name: "People & Culture",
+    description: "Team development, organizational values, and collaborative excellence",
+    icon: Users,
+    gradient: "from-red-400 to-pink-500",
+    bgGradient: "from-red-50 to-pink-50",
+    borderColor: "border-red-200"
+  },
+  {
+    name: "Protection",
+    description: "Risk mitigation, security measures, and asset safeguarding",
+    icon: Lock,
+    gradient: "from-blue-400 to-cyan-500",
+    bgGradient: "from-blue-50 to-cyan-50",
+    borderColor: "border-blue-200"
+  },
+  {
+    name: "Proof it Works",
+    description: "Performance metrics, validation processes, and outcome measurement",
+    icon: BarChart,
+    gradient: "from-purple-600 to-indigo-600",
+    bgGradient: "from-purple-50 to-indigo-50",
+    borderColor: "border-purple-200"
+  },
+  {
+    name: "Enablement",
+    description: "Technology adoption, capability building, and innovation acceleration",
+    icon: Rocket,
+    gradient: "from-violet-400 to-purple-500",
+    bgGradient: "from-violet-50 to-purple-50",
+    borderColor: "border-violet-200"
+  }
+];
 
 const ISMS_JOURNEY_COMPONENTS = [
   {
@@ -337,6 +389,53 @@ const Index = () => {
                       <span className="text-xs text-purple-600">
                         Combines operational insight, AI integration, and strategic thinking to equip practitioners with in-demand capabilities for leadership roles in modern risk and loss prevention environments.
                       </span>
+                    </CardDescription>
+                  </CardContent>
+                )}
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Six Domains of Operational Excellence */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4">Six Domains of Operational Excellence</h2>
+            <p className="text-lg text-muted-foreground">
+              Comprehensive framework for organizational maturity and resilience
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {OPERATIONAL_DOMAINS.map((domain, index) => (
+              <Card 
+                key={index}
+                className={`relative transition-all duration-300 hover:shadow-xl hover:scale-105 cursor-pointer group border-2 ${domain.borderColor} bg-gradient-to-br ${domain.bgGradient}`}
+                onMouseEnter={() => {
+                  setHoveredDomain(index + 20); // Offset to avoid conflicts
+                  console.log('Landing Page - Domain Hover:', {
+                    domain: domain.name,
+                    index
+                  });
+                }}
+                onMouseLeave={() => setHoveredDomain(null)}
+              >
+                <CardHeader className="text-center pb-4">
+                  <div className={`mx-auto mb-4 w-16 h-16 bg-gradient-to-r ${domain.gradient} rounded-full flex items-center justify-center shadow-lg`}>
+                    <domain.icon className="h-8 w-8 text-white" />
+                  </div>
+                  <CardTitle className="text-lg font-semibold group-hover:scale-105 transition-transform">
+                    {domain.name}
+                  </CardTitle>
+                </CardHeader>
+                
+                {/* Domain description on hover */}
+                {hoveredDomain === index + 20 && (
+                  <CardContent className="pt-0">
+                    <CardDescription className="text-sm leading-relaxed">
+                      {domain.description}
                     </CardDescription>
                   </CardContent>
                 )}
