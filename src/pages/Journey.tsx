@@ -101,151 +101,194 @@ const MATURITY_LEVELS = [
   }
 ];
 
-// What Drives Loss Prevention and Operational Integrity - 12 Key Areas
+// Principles That Drive Loss Prevention - 12 Key Areas
 const OPERATIONAL_DRIVERS = [
   {
     title: "The Security Control Environment",
     icon: Shield,
     color: "from-emerald-500 to-green-600",
-    insight: "Integrated framework combining people, processes, and technology for comprehensive protection.",
-    description: "A well-defined security control environment forms the foundation of effective loss prevention. It aligns leadership commitment, employee accountability, and system capability to ensure coordinated protection. This environment must be understood as a cultural and structural anchor that shifts security from isolated effort to integrated resilience."
+    insight: "Integrated framework combining people, processes, and tech for protection.",
+    description: "Security controls must be integrated, consistent, and adaptive. People, process, and technology must operate in unison to reduce risks and enable transparent assurance."
   },
   {
     title: "Risk-Based Decisions",
     icon: Target,
     color: "from-blue-500 to-cyan-600",
-    insight: "Data-driven choices that balance threat probability with business impact and mitigation costs.",
-    description: "Moving beyond intuition to evidence-based decision making. Every security investment, policy change, and resource allocation is justified through quantifiable risk assessment, ensuring optimal resource deployment and measurable ROI. This approach forms the backbone of modern, cost-efficient protection."
+    insight: "Data-driven actions that balance threats with impact and cost.",
+    description: "Move beyond guesswork—every security control must be backed by quantified risk, ensuring that security spend delivers measurable value and ROI."
   },
   {
     title: "Security Systems Optimisation",
     icon: Settings,
     color: "from-purple-500 to-violet-600",
-    insight: "Ensure each system performs its intended function without overlap or waste.",
-    description: "Effective systems don't rely on volume—they rely on purpose. Optimisation means analyzing the coverage, performance, and integration of each system to eliminate duplication, detect blind spots, and streamline surveillance and access control operations. Every dollar spent must return value in deterrence, detection, and response."
+    insight: "Align systems with performance and detection outcomes.",
+    description: "Security isn't about more hardware—it's about ensuring existing systems are aligned with threats, performance indicators, and loss prevention."
   },
   {
     title: "Data Mining Approach",
     icon: Database,
     color: "from-orange-500 to-red-600",
-    insight: "Unlock hidden patterns in behavior, transactions, and movements.",
-    description: "Data is the new frontline in security. From incident logs to access records and surveillance analytics, every action leaves a trail. Mining this data uncovers loss trends, insider threats, and vulnerabilities long before they become incidents. The goal: predict and prevent, not just react."
+    insight: "Turn operational data into actionable intelligence.",
+    description: "Security thrives on analytics. When you mine access logs, shift data, camera feeds, and HR inputs—you can predict and prevent losses."
   },
   {
     title: "Protection at Source",
     icon: Crosshair,
     color: "from-teal-500 to-cyan-600",
-    insight: "Secure assets where they originate, not just where they're stored.",
-    description: "Loss prevention must begin at the point of creation—whether it's raw material, a document, or a digital credential. Protecting the source reduces dependency on back-end controls and reduces opportunity for manipulation, substitution, or diversion. Every source point becomes a checkpoint."
+    insight: "Address risk at the earliest opportunity.",
+    description: "The longer a vulnerability exists, the harder it is to manage. Effective security intercepts threats before they develop into loss events."
   },
   {
     title: "Malicious and Non-Malicious Loss",
     icon: AlertTriangle,
     color: "from-red-500 to-pink-600",
-    insight: "Recognize that loss isn't always caused by bad actors.",
-    description: "Losses can be intentional (malicious) or unintentional (non-malicious). Mistakes, negligence, fatigue, and flawed processes can cause as much damage as theft. A balanced security posture anticipates both types and implements interventions like training, automation, and process clarity to reduce human error."
+    insight: "Not all losses are criminal—some are systemic.",
+    description: "Preventing malicious loss is important, but so is tackling inefficiencies, negligence, and accidental failures that enable loss."
   },
   {
     title: "Black Screen Surveillance Technology",
     icon: MonitorSpeaker,
     color: "from-indigo-500 to-purple-600",
-    insight: "Empower surveillance teams through AI-assisted anomaly detection.",
-    description: "Traditional screen-watching has limited value. Black screen surveillance shifts focus to what matters. The AI monitors thousands of data points in real time—flagging anomalies, alerting to risk, and freeing up human operators to act rather than watch. It's the future of proactive surveillance."
+    insight: "Intelligent alerting from invisible monitoring.",
+    description: "Rather than watching screens passively, use AI-driven surveillance to alert operators to anomalies and let people focus only on what matters."
   },
   {
     title: "Teamwork – No More Working in Silos",
     icon: HeartHandshake,
     color: "from-green-500 to-emerald-600",
-    insight: "Loss prevention requires cross-functional collaboration.",
-    description: "Security is not a department—it's a discipline. Engineering, operations, HR, and finance all influence the risk landscape. Breaking silos ensures aligned goals, shared data, and collective accountability. One integrated effort outperforms ten isolated ones. The strongest defense is a united one."
+    insight: "Security is a team sport.",
+    description: "Loss prevention is not owned by the security team alone—every department, process, and manager plays a role. Break the silos."
   },
   {
     title: "Rules-Based Access",
     icon: Key,
     color: "from-yellow-500 to-orange-600",
-    insight: "Control access with logic, not status or convenience.",
-    description: "Access must be defined by role, task, and risk—not by rank or routine. Rules-based access assigns permissions based on logic and necessity. Every exception creates an opening for misuse. Eliminate legacy habits and replace them with access rules that adapt to risk, time, and context."
+    insight: "Restrict access using policies, not personalities.",
+    description: "Access should follow logic—based on roles, responsibilities, risk. No exceptions, no guesswork. Every entry must be justifiable."
   },
   {
     title: "Plan, Plan, Plan",
     icon: CalendarCheck,
     color: "from-blue-500 to-indigo-600",
-    insight: "Prevention starts with clarity, coordination, and continuity.",
-    description: "Failing to plan means planning to fail. Whether it's a routine process or emergency response, having defined, rehearsed, and documented plans ensures consistency under pressure. Planning includes risk mapping, SOPs, task delegation, and response timing. Real security is premeditated."
+    insight: "No plan = predictable failure.",
+    description: "Most security failures are predictable. You need a plan, a test, and a backup for every operational vulnerability."
   },
   {
     title: "Have a Backup Plan",
     icon: LifeBuoy,
     color: "from-emerald-500 to-teal-600",
-    insight: "If plan A fails, plan B must already be active.",
-    description: "Redundancy is resilience. Backup plans cover power loss, staff absence, system failure, or sabotage. Every failure point must have a fallback—and it must be tested. Recovery speed determines reputation, cost, and continuity. A smart plan fails safe, not hard."
+    insight: "Assume failure. Then beat it.",
+    description: "Even the best plan can fail. Layer your defenses, document contingencies, and rehearse responses to reduce impact."
   },
   {
     title: "Be a Problem Solver, Not a Problem Generator",
     icon: Wrench,
     color: "from-violet-500 to-purple-600",
-    insight: "A resilient team solves problems early, not late.",
-    description: "Loss prevention is a mindset. It thrives in organizations where individuals feel ownership, speak up, and act early. Teams must be trained and empowered to solve problems on the ground before they escalate. This principle transforms security from reactive enforcement to proactive enablement."
+    insight: "Build a solution culture.",
+    description: "When problems arise, fix them. Security should be seen as a source of solutions, not friction. Own your influence."
   }
 ];
 
-// Elements of Security - 8 Key Elements
+// Elements of Security - 7 Key Elements
 const SECURITY_ELEMENTS = [
   {
-    title: "Information Management",
+    title: "Intelligence",
     icon: Info,
     color: "from-blue-500 to-indigo-600",
-    insight: "Stay ahead by understanding risks before they materialize.",
-    description: "Security information is proactive insight. It includes data collection, trend analysis, and external monitoring to predict threats before they strike. Information drives informed planning and response readiness, making security smarter—not just stronger."
+    insight: "Awareness of internal and external threats.",
+    description: "Security begins with understanding your environment. Intelligence gathering enables anticipation of threats before they act."
   },
   {
     title: "Deterrence",
     icon: Ban,
     color: "from-red-500 to-rose-600",
-    insight: "Create visible and psychological barriers to threat actors.",
-    description: "Deterrence prevents actions before they begin. Whether through signage, visible security presence, or consequence-based policy, deterrence shifts the cost-benefit equation in your favor. A visible, confident security posture discourages internal and external threats alike."
+    insight: "Discourage hostile action before it starts.",
+    description: "The visibility and credibility of your security systems must deter would-be threats. People don't act if they believe they'll be caught."
   },
   {
     title: "Detection",
     icon: Search,
     color: "from-orange-500 to-amber-600",
-    insight: "Identify incidents the moment they happen.",
-    description: "Detection is the linchpin of active security. It encompasses surveillance, sensors, AI, and behavior analytics—triggering awareness when thresholds are crossed. Early detection minimizes loss, protects people, and enables rapid containment."
+    insight: "Spot problems early.",
+    description: "Real-time detection through surveillance, analytics, and access control is essential. The quicker you spot, the quicker you stop."
   },
   {
     title: "Delay",
     icon: Clock,
     color: "from-yellow-500 to-orange-600",
-    insight: "Slow intruders to buy time for intervention.",
-    description: "Delays frustrate and disrupt attacks. Barriers, access control layers, and procedural protocols increase the time it takes to breach your defenses. This creates a critical window for escalation, verification, and response—turning time into your ally."
+    insight: "Slow the attacker.",
+    description: "When incidents occur, delays—physical or procedural—buy you time to respond. Delay is a critical window for intervention."
   },
   {
     title: "Verification/Validation",
     icon: CheckCircle,
     color: "from-green-500 to-emerald-600",
-    insight: "Ensure accurate assessment before action.",
-    description: "False alarms waste time. Verification and validation provide critical checks before response—using multiple data points, AI confirmation, or human oversight. They reduce noise and allow response teams to act with confidence, clarity, and credibility."
+    insight: "Trust, but verify.",
+    description: "Assumptions are dangerous. All alerts, anomalies, and breaches must be verified before action is taken. Accuracy is everything."
   },
   {
-    title: "Respond",
+    title: "Response",
     icon: Play,
     color: "from-teal-500 to-cyan-600",
-    insight: "Act decisively when a threat is confirmed.",
-    description: "Security response must be timely, trained, and tactical. From first-responder protocols to escalation workflows and de-escalation strategies, effective response limits damage, reassures staff, and re-establishes control. Every plan must end with action."
+    insight: "Take action, fast.",
+    description: "Incident response must be trained, resourced, and practiced. The effectiveness of your reaction determines outcome."
   },
   {
     title: "Resilience",
     icon: ZapIcon,
     color: "from-purple-500 to-violet-600",
-    insight: "Bounce back stronger after an incident.",
-    description: "Resilience is the ability to absorb impact and restore functionality. It covers recovery planning, redundancy, communication, and cultural readiness. True security isn't about zero incidents—it's about learning, adapting, and improving from every experience."
-  },
+    insight: "Bounce back stronger.",
+    description: "Resilience isn't just recovery—it's learning. Build processes that can take a hit, adapt, and return stronger."
+  }
+];
+
+// Process Efficiencies - 1 Key Area
+const PROCESS_EFFICIENCIES = [
   {
     title: "Process Efficiencies",
     icon: Cog,
     color: "from-indigo-500 to-blue-600",
-    insight: "Map vulnerabilities, reduce friction, and optimize controls.",
-    description: "Process inefficiencies are soft targets. Mapping workflows, identifying bottlenecks, and applying structured risk analysis reveals exploitable gaps. By integrating efficiency with security, organizations reduce complexity, increase visibility, and close doors to both malicious and accidental loss."
+    insight: "Secure processes are efficient processes.",
+    description: "Every loss event originates from a process. By mapping operations, identifying weak points, and linking them to threat models, you secure both security and productivity. Use structured risk tools like WRAC, Bowtie, and Incident Trees."
+  }
+];
+
+// Internalising Security - 5 Key Areas
+const INTERNALIZATION_AREAS = [
+  {
+    title: "Security – a Weakest Link Problem",
+    icon: Shield,
+    color: "from-red-500 to-orange-600",
+    insight: "Security is only as strong as its weakest point. Everyone is responsible.",
+    description: "Security failures often occur at the weakest link in your chain. Every person, process, and system must be considered part of your security posture. Individual responsibility and collective accountability create true organizational resilience."
+  },
+  {
+    title: "Security Programme Trade-Offs",
+    icon: BarChart2,
+    color: "from-blue-500 to-cyan-600",
+    insight: "Design is a compromise. Costs, convenience, and coverage must be balanced.",
+    description: "No security program is perfect. Every decision involves trade-offs between cost, user convenience, and security coverage. The key is making informed decisions about acceptable risk while maintaining operational effectiveness."
+  },
+  {
+    title: "Internalisation of Security",
+    icon: HeartHandshake,
+    color: "from-green-500 to-emerald-600",
+    insight: "Security norms must be learned, accepted, and lived. Make it personal.",
+    description: "True security culture happens when security practices become second nature. People must understand why security matters to them personally and how their actions impact the organization's overall security posture."
+  },
+  {
+    title: "Security in Project Management",
+    icon: CalendarCheck,
+    color: "from-purple-500 to-violet-600",
+    insight: "Involve security from Day 1 of every project—never as an afterthought.",
+    description: "Security considerations must be embedded into project planning from the beginning. When security is added later, it's more expensive, less effective, and creates friction. Build security into your project methodology."
+  },
+  {
+    title: "Risk-Based Culture",
+    icon: Target,
+    color: "from-yellow-500 to-orange-600",
+    insight: "All actions must be traceable to risk. If you can't explain it, don't approve it.",
+    description: "Every decision should be backed by risk assessment. Create a culture where people naturally consider risk implications and can articulate why they're taking specific actions. Risk awareness should become instinctive."
   }
 ];
 
@@ -585,7 +628,7 @@ const Journey = () => {
               Elements of Security
             </h2>
             <p className="text-lg text-muted-foreground">
-              Eight fundamental elements that create a comprehensive security framework
+              Seven fundamental elements that create a comprehensive security framework
             </p>
           </div>
           
@@ -630,6 +673,118 @@ const Journey = () => {
                   <div className="mt-4">
                     <p className="text-sm leading-relaxed text-muted-foreground">
                       {element.description}
+                    </p>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Process Efficiencies */}
+      <section className="container mx-auto px-4 py-16 bg-gradient-to-br from-indigo-50 to-purple-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4 text-slate-800">
+              Process Efficiencies
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Secure processes are efficient processes
+            </p>
+          </div>
+          
+          <div className="flex justify-center">
+            {PROCESS_EFFICIENCIES.map((item, index) => (
+              <Dialog key={index}>
+                <DialogTrigger asChild>
+                  <Card className="relative transition-all duration-300 hover:shadow-xl hover:scale-105 cursor-pointer group border-2 bg-white max-w-md">
+                    <CardHeader className="text-center pb-4">
+                      <div className={`mx-auto mb-4 w-16 h-16 bg-gradient-to-r ${item.color} rounded-full flex items-center justify-center shadow-lg`}>
+                        <item.icon className="h-8 w-8 text-white" />
+                      </div>
+                      <CardTitle className="text-lg font-semibold group-hover:scale-105 transition-transform leading-tight">
+                        {item.title}
+                      </CardTitle>
+                    </CardHeader>
+                    
+                    <CardContent className="pt-0">
+                      <CardDescription className="text-sm leading-relaxed text-center">
+                        {item.insight}
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                </DialogTrigger>
+                
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <div className={`mx-auto mb-4 w-16 h-16 bg-gradient-to-r ${item.color} rounded-full flex items-center justify-center shadow-lg`}>
+                      <item.icon className="h-8 w-8 text-white" />
+                    </div>
+                    <DialogTitle className="text-center">{item.title}</DialogTitle>
+                    <DialogDescription className="text-center text-sm font-medium text-primary">
+                      {item.insight}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4">
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {item.description}
+                    </p>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Internalising Security */}
+      <section className="container mx-auto px-4 py-16 bg-gradient-to-br from-violet-50 to-purple-50">
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl font-bold mb-4 text-slate-800">
+              Internalising Security
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Building a security mindset as cultural norm, not imposed procedure
+            </p>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {INTERNALIZATION_AREAS.map((area, index) => (
+              <Dialog key={index}>
+                <DialogTrigger asChild>
+                  <Card className="relative transition-all duration-300 hover:shadow-xl hover:scale-105 cursor-pointer group border-2 bg-white">
+                    <CardHeader className="text-center pb-4">
+                      <div className={`mx-auto mb-4 w-16 h-16 bg-gradient-to-r ${area.color} rounded-full flex items-center justify-center shadow-lg`}>
+                        <area.icon className="h-8 w-8 text-white" />
+                      </div>
+                      <CardTitle className="text-sm font-semibold group-hover:scale-105 transition-transform leading-tight">
+                        {area.title}
+                      </CardTitle>
+                    </CardHeader>
+                    
+                    <CardContent className="pt-0">
+                      <CardDescription className="text-xs leading-relaxed text-center">
+                        {area.insight}
+                      </CardDescription>
+                    </CardContent>
+                  </Card>
+                </DialogTrigger>
+                
+                <DialogContent className="max-w-lg">
+                  <DialogHeader>
+                    <div className={`mx-auto mb-4 w-16 h-16 bg-gradient-to-r ${area.color} rounded-full flex items-center justify-center shadow-lg`}>
+                      <area.icon className="h-8 w-8 text-white" />
+                    </div>
+                    <DialogTitle className="text-center">{area.title}</DialogTitle>
+                    <DialogDescription className="text-center text-sm font-medium text-primary">
+                      {area.insight}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="mt-4">
+                    <p className="text-sm leading-relaxed text-muted-foreground">
+                      {area.description}
                     </p>
                   </div>
                 </DialogContent>
