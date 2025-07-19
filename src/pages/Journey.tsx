@@ -401,7 +401,7 @@ const Journey = () => {
           <div className="flex flex-col items-center space-y-6 mb-8">
             
             {/* Leadership & Governance - Roof (Triangle) */}
-            <div className="relative">
+            <div className="relative z-10">
               {MATURITY_DOMAINS.filter(d => d.position === "top").map((domain, index) => (
                 <Dialog key={index}>
                   <DialogTrigger asChild>
@@ -410,20 +410,21 @@ const Journey = () => {
                       onMouseEnter={() => setHoveredDomain(index)}
                       onMouseLeave={() => setHoveredDomain(null)}
                     >
-                      {/* Triangle Shape */}
-                      <div className="w-0 h-0 border-l-[120px] border-r-[120px] border-b-[80px] border-l-transparent border-r-transparent border-b-emerald-500 shadow-lg">
+                      {/* Triangle Shape - Made Larger */}
+                      <div className="w-0 h-0 border-l-[160px] border-r-[160px] border-b-[100px] border-l-transparent border-r-transparent border-b-emerald-500 shadow-lg">
                       </div>
                       
                       {/* Content Overlay */}
-                      <div className="absolute inset-0 flex flex-col items-center justify-center text-white pt-4">
-                        <h3 className="text-sm font-bold text-center leading-tight">{domain.name}</h3>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-white pt-6">
+                        <h3 className="text-base font-bold text-center leading-tight px-4">{domain.name}</h3>
                         <p className="text-xs text-emerald-100 mt-1">- {domain.currentLevel}</p>
                       </div>
                       
                       {/* Hover Tooltip */}
                       {hoveredDomain === index && (
-                        <div className="absolute z-10 top-full left-1/2 transform -translate-x-1/2 mt-2 p-3 bg-popover border rounded-lg shadow-lg w-64">
-                          <p className="text-xs text-popover-foreground">
+                        <div className="absolute z-50 top-full left-1/2 transform -translate-x-1/2 mt-3 p-4 bg-white border rounded-lg shadow-xl w-72 animate-fade-in">
+                          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
+                          <p className="text-sm text-gray-700">
                             {domain.description}
                           </p>
                         </div>
@@ -482,8 +483,9 @@ const Journey = () => {
                         
                         {/* Hover Tooltip */}
                         {hoveredDomain === index + 10 && (
-                          <div className="absolute z-10 top-full left-1/2 transform -translate-x-1/2 mt-2 p-3 bg-popover border rounded-lg shadow-lg w-64">
-                            <p className="text-xs text-popover-foreground">
+                          <div className="absolute z-50 top-full left-1/2 transform -translate-x-1/2 mt-3 p-4 bg-white border rounded-lg shadow-xl w-64 animate-fade-in">
+                            <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
+                            <p className="text-sm text-gray-700">
                               {domain.description}
                             </p>
                           </div>
@@ -535,8 +537,9 @@ const Journey = () => {
                       
                       {/* Hover Tooltip */}
                       {hoveredDomain === index + 20 && (
-                        <div className="absolute z-10 top-full left-1/2 transform -translate-x-1/2 mt-2 p-3 bg-popover border rounded-lg shadow-lg w-64">
-                          <p className="text-xs text-popover-foreground">
+                        <div className="absolute z-50 top-full left-1/2 transform -translate-x-1/2 mt-3 p-4 bg-white border rounded-lg shadow-xl w-64 animate-fade-in">
+                          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
+                          <p className="text-sm text-gray-700">
                             {domain.description}
                           </p>
                         </div>
@@ -609,43 +612,45 @@ const Journey = () => {
             </div>
           </div>
 
-          {/* Side Boxes */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
-            {/* Current State */}
-            <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
-              <CardHeader>
-                <CardTitle className="text-slate-700 flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                  <span>Current State</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-slate-600 mb-3">
-                  You are currently at <strong>Level 1 - Basic</strong> across most domains.
-                </p>
-                <p className="text-xs text-slate-500">
-                  Informal governance structure with limited strategic oversight of operational risks.
-                </p>
-              </CardContent>
-            </Card>
+          {/* Current State / Working Toward - Centered Under Foundation */}
+          <div className="flex justify-center">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 max-w-2xl w-full">
+              {/* Current State */}
+              <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
+                <CardHeader>
+                  <CardTitle className="text-slate-700 flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span>Current State</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-slate-600 mb-3">
+                    You are currently at <strong>Level 1 - Basic</strong> across most domains.
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    Informal governance structure with limited strategic oversight of operational risks.
+                  </p>
+                </CardContent>
+              </Card>
 
-            {/* Working Toward */}
-            <Card className="bg-gradient-to-br from-emerald-50 to-green-100 border-emerald-200">
-              <CardHeader>
-                <CardTitle className="text-emerald-700 flex items-center space-x-2">
-                  <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-                  <span>Working Toward</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-emerald-600 mb-3">
-                  We are working on moving to <strong>Level 2 - Reactive</strong>.
-                </p>
-                <p className="text-xs text-emerald-500">
-                  Establish clear governance structure and define leadership roles in risk management.
-                </p>
-              </CardContent>
-            </Card>
+              {/* Working Toward */}
+              <Card className="bg-gradient-to-br from-emerald-50 to-green-100 border-emerald-200">
+                <CardHeader>
+                  <CardTitle className="text-emerald-700 flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                    <span>Working Toward</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-emerald-600 mb-3">
+                    We are working on moving to <strong>Level 2 - Reactive</strong>.
+                  </p>
+                  <p className="text-xs text-emerald-500">
+                    Establish clear governance structure and define leadership roles in risk management.
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
         </div>
