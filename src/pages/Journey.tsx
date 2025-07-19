@@ -574,8 +574,8 @@ const Journey = () => {
           </div>
 
           {/* Maturity Level Bar */}
-          <div className="flex justify-center mb-8">
-            <div className="flex space-x-4">
+          <div className="flex justify-center mb-8 relative z-20 overflow-visible">
+            <div className="flex space-x-4 relative overflow-visible">
               {MATURITY_LEVELS.map((level, index) => (
                 <div
                   key={index}
