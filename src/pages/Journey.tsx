@@ -410,8 +410,8 @@ const Journey = () => {
                       onMouseEnter={() => setHoveredDomain(index)}
                       onMouseLeave={() => setHoveredDomain(null)}
                     >
-                      {/* Triangle Shape - Made Larger */}
-                      <div className="w-0 h-0 border-l-[160px] border-r-[160px] border-b-[100px] border-l-transparent border-r-transparent border-b-emerald-500 shadow-lg">
+                      {/* Triangle Shape - Made Larger for Better Integration */}
+                      <div className="w-0 h-0 border-l-[180px] border-r-[180px] border-b-[110px] border-l-transparent border-r-transparent border-b-emerald-500 shadow-lg">
                       </div>
                       
                       {/* Content Overlay */}
@@ -457,7 +457,7 @@ const Journey = () => {
             </div>
 
             {/* Middle Row - Three Pillars */}
-            <div className="flex justify-center space-x-6">
+            <div className="flex justify-center space-x-6 relative z-10">
               {MATURITY_DOMAINS.filter(d => d.position.startsWith("middle")).map((domain, index) => {
                 const colors = [
                   { bg: "from-red-500 to-red-600", text: "text-red-100" },
@@ -519,7 +519,7 @@ const Journey = () => {
             </div>
 
             {/* Foundation - Proof it Works */}
-            <div className="w-full max-w-md">
+            <div className="w-full max-w-md relative z-10">
               {MATURITY_DOMAINS.filter(d => d.position === "bottom").map((domain, index) => (
                 <Dialog key={index}>
                   <DialogTrigger asChild>
