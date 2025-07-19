@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Target, Clock, Bot, Eye, ChevronRight, LogIn } from 'lucide-react';
+import { Target, Clock, Bot, Eye, ChevronRight, LogIn, GraduationCap } from 'lucide-react';
 
 const ISMS_JOURNEY_COMPONENTS = [
   {
@@ -41,6 +41,14 @@ const ISMS_JOURNEY_COMPONENTS = [
     category: "enablement",
     highlighted: false,
     icon: Eye
+  },
+  {
+    name: "Security Skills Accelerator",
+    description: "A globally recognized development track designed to upskill the next generation of security professionals",
+    category: "professional",
+    highlighted: false,
+    icon: GraduationCap,
+    branded: "Powered by APGI | Global Security Professional Track"
   }
 ];
 
@@ -246,8 +254,8 @@ const Index = () => {
             <p className="text-sm text-muted-foreground">Smart tools to strengthen and accelerate your path to operational resilience</p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {ISMS_JOURNEY_COMPONENTS.filter(component => !component.highlighted).map((component, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {ISMS_JOURNEY_COMPONENTS.filter(component => !component.highlighted && component.category === "enablement").map((component, index) => (
               <Card 
                 key={index}
                 className="relative transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer group border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50"
@@ -274,6 +282,61 @@ const Index = () => {
                   <CardContent className="pt-0">
                     <CardDescription className="text-xs text-blue-600">
                       {component.description}
+                    </CardDescription>
+                  </CardContent>
+                )}
+              </Card>
+            ))}
+          </div>
+
+          {/* Professional Enablement Section */}
+          <div className="text-center mb-6">
+            <h3 className="text-xl font-semibold text-slate-700">🎓 Professional Enablement</h3>
+            <p className="text-sm text-muted-foreground">Build skills for the future of security</p>
+          </div>
+          
+          <div className="flex justify-center">
+            {ISMS_JOURNEY_COMPONENTS.filter(component => component.category === "professional").map((component, index) => (
+              <Card 
+                key={index}
+                className="relative transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer group border-2 border-teal-200 bg-gradient-to-br from-teal-50 to-purple-50 max-w-md"
+                onMouseEnter={() => {
+                  setHoveredDomain(index + 10); // Offset to avoid conflicts
+                  console.log('Landing Page - Professional Tool Hover:', {
+                    tool: component.name,
+                    index
+                  });
+                }}
+                onMouseLeave={() => setHoveredDomain(null)}
+              >
+                <CardHeader className="text-center pb-4">
+                  <div className="mx-auto mb-3 w-16 h-16 bg-gradient-to-r from-teal-600 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
+                    <component.icon className="h-8 w-8 text-white" />
+                  </div>
+                  <div className="mb-2">
+                    <span className="text-xs font-medium text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
+                      APGI
+                    </span>
+                  </div>
+                  <CardTitle className="text-lg font-medium text-teal-700 group-hover:text-teal-800 transition-colors">
+                    {component.name}
+                  </CardTitle>
+                  {component.branded && (
+                    <CardDescription className="text-xs text-purple-600 font-medium">
+                      {component.branded}
+                    </CardDescription>
+                  )}
+                </CardHeader>
+                
+                {/* Tool description on hover */}
+                {hoveredDomain === index + 10 && (
+                  <CardContent className="pt-0">
+                    <CardDescription className="text-sm text-teal-600 leading-relaxed">
+                      {component.description}
+                      <br /><br />
+                      <span className="text-xs text-purple-600">
+                        Combines operational insight, AI integration, and strategic thinking to equip practitioners with in-demand capabilities for leadership roles in modern risk and loss prevention environments.
+                      </span>
                     </CardDescription>
                   </CardContent>
                 )}
