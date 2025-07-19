@@ -108,84 +108,84 @@ const OPERATIONAL_DRIVERS = [
     icon: Shield,
     color: "from-emerald-500 to-green-600",
     insight: "Integrated framework combining people, processes, and technology for comprehensive protection.",
-    description: "A holistic security environment that doesn't rely on single points of failure but creates layered, interconnected defenses. This approach ensures that when one control fails, others compensate, maintaining operational continuity and asset protection."
+    description: "A well-defined security control environment forms the foundation of effective loss prevention. It aligns leadership commitment, employee accountability, and system capability to ensure coordinated protection. This environment must be understood as a cultural and structural anchor that shifts security from isolated effort to integrated resilience."
   },
   {
     title: "Risk-Based Decisions",
     icon: Target,
     color: "from-blue-500 to-cyan-600",
     insight: "Data-driven choices that balance threat probability with business impact and mitigation costs.",
-    description: "Moving beyond intuition to evidence-based decision making. Every security investment, policy change, and resource allocation is justified through quantifiable risk assessment, ensuring optimal resource deployment and measurable ROI."
+    description: "Moving beyond intuition to evidence-based decision making. Every security investment, policy change, and resource allocation is justified through quantifiable risk assessment, ensuring optimal resource deployment and measurable ROI. This approach forms the backbone of modern, cost-efficient protection."
   },
   {
     title: "Security Systems Optimisation",
     icon: Settings,
     color: "from-purple-500 to-violet-600",
-    insight: "Continuous refinement of security technologies for maximum effectiveness and efficiency.",
-    description: "Regular evaluation and enhancement of security systems to ensure they remain effective against evolving threats while minimizing false alarms and operational disruption. This includes system integration, performance monitoring, and strategic upgrades."
+    insight: "Ensure each system performs its intended function without overlap or waste.",
+    description: "Effective systems don't rely on volume—they rely on purpose. Optimisation means analyzing the coverage, performance, and integration of each system to eliminate duplication, detect blind spots, and streamline surveillance and access control operations. Every dollar spent must return value in deterrence, detection, and response."
   },
   {
     title: "Data Mining Approach",
     icon: Database,
     color: "from-orange-500 to-red-600",
-    insight: "Extracting actionable intelligence from security data to predict and prevent incidents.",
-    description: "Leveraging advanced analytics to identify patterns, anomalies, and trends in security data. This proactive approach enables early threat detection, predictive maintenance, and continuous improvement of security measures based on empirical evidence."
+    insight: "Unlock hidden patterns in behavior, transactions, and movements.",
+    description: "Data is the new frontline in security. From incident logs to access records and surveillance analytics, every action leaves a trail. Mining this data uncovers loss trends, insider threats, and vulnerabilities long before they become incidents. The goal: predict and prevent, not just react."
   },
   {
     title: "Protection at Source",
     icon: Crosshair,
     color: "from-teal-500 to-cyan-600",
-    insight: "Implementing security measures at the point of origin to prevent issues before they escalate.",
-    description: "Rather than reactive responses, this strategy focuses on identifying and mitigating risks at their source. Whether it's access control at entry points, quality control in manufacturing, or data protection at creation, prevention is always more cost-effective than remediation."
+    insight: "Secure assets where they originate, not just where they're stored.",
+    description: "Loss prevention must begin at the point of creation—whether it's raw material, a document, or a digital credential. Protecting the source reduces dependency on back-end controls and reduces opportunity for manipulation, substitution, or diversion. Every source point becomes a checkpoint."
   },
   {
     title: "Malicious and Non-Malicious Loss",
     icon: AlertTriangle,
     color: "from-red-500 to-pink-600",
-    insight: "Comprehensive approach addressing both intentional threats and accidental incidents.",
-    description: "Recognizing that losses come from multiple sources - from deliberate theft and fraud to honest mistakes and system failures. Effective protection requires different strategies for different loss types, but similar detection and response capabilities."
+    insight: "Recognize that loss isn't always caused by bad actors.",
+    description: "Losses can be intentional (malicious) or unintentional (non-malicious). Mistakes, negligence, fatigue, and flawed processes can cause as much damage as theft. A balanced security posture anticipates both types and implements interventions like training, automation, and process clarity to reduce human error."
   },
   {
     title: "Black Screen Surveillance Technology",
     icon: MonitorSpeaker,
     color: "from-indigo-500 to-purple-600",
-    insight: "Advanced monitoring systems that operate transparently without disrupting normal operations.",
-    description: "Next-generation surveillance that provides comprehensive coverage while remaining unobtrusive to legitimate operations. These systems use AI and analytics to distinguish between normal and suspicious behavior, reducing false alarms while increasing detection accuracy."
+    insight: "Empower surveillance teams through AI-assisted anomaly detection.",
+    description: "Traditional screen-watching has limited value. Black screen surveillance shifts focus to what matters. The AI monitors thousands of data points in real time—flagging anomalies, alerting to risk, and freeing up human operators to act rather than watch. It's the future of proactive surveillance."
   },
   {
     title: "Teamwork – No More Working in Silos",
     icon: HeartHandshake,
     color: "from-green-500 to-emerald-600",
-    insight: "Breaking down departmental barriers to create unified security awareness and response.",
-    description: "Security is everyone's responsibility, not just the security department's. This approach fosters cross-functional collaboration, shared accountability, and integrated communication systems that ensure rapid, coordinated responses to threats and incidents."
+    insight: "Loss prevention requires cross-functional collaboration.",
+    description: "Security is not a department—it's a discipline. Engineering, operations, HR, and finance all influence the risk landscape. Breaking silos ensures aligned goals, shared data, and collective accountability. One integrated effort outperforms ten isolated ones. The strongest defense is a united one."
   },
   {
     title: "Rules-Based Access",
     icon: Key,
     color: "from-yellow-500 to-orange-600",
-    insight: "Automated access control systems that enforce policies consistently and transparently.",
-    description: "Moving beyond manual, subjective access decisions to automated, rule-based systems. These ensure consistent application of access policies, reduce human error, provide audit trails, and can adapt quickly to changing security requirements or organizational structures."
+    insight: "Control access with logic, not status or convenience.",
+    description: "Access must be defined by role, task, and risk—not by rank or routine. Rules-based access assigns permissions based on logic and necessity. Every exception creates an opening for misuse. Eliminate legacy habits and replace them with access rules that adapt to risk, time, and context."
   },
   {
     title: "Plan, Plan, Plan",
     icon: CalendarCheck,
     color: "from-blue-500 to-indigo-600",
-    insight: "Strategic planning across all timescales ensures preparedness for known and unknown challenges.",
-    description: "Comprehensive planning that covers daily operations, incident response, business continuity, and strategic development. This includes scenario planning, regular plan testing and updates, and ensuring all stakeholders understand their roles in various situations."
+    insight: "Prevention starts with clarity, coordination, and continuity.",
+    description: "Failing to plan means planning to fail. Whether it's a routine process or emergency response, having defined, rehearsed, and documented plans ensures consistency under pressure. Planning includes risk mapping, SOPs, task delegation, and response timing. Real security is premeditated."
   },
   {
     title: "Have a Backup Plan",
     icon: LifeBuoy,
     color: "from-emerald-500 to-teal-600",
-    insight: "Redundancy and contingency planning ensure operations continue even when primary systems fail.",
-    description: "Building resilience through multiple layers of backup systems, alternative processes, and contingency procedures. This includes technology backups, alternative suppliers, cross-trained staff, and tested recovery procedures for various failure scenarios."
+    insight: "If plan A fails, plan B must already be active.",
+    description: "Redundancy is resilience. Backup plans cover power loss, staff absence, system failure, or sabotage. Every failure point must have a fallback—and it must be tested. Recovery speed determines reputation, cost, and continuity. A smart plan fails safe, not hard."
   },
   {
     title: "Be a Problem Solver, Not a Problem Generator",
     icon: Wrench,
     color: "from-violet-500 to-purple-600",
-    insight: "Proactive mindset that focuses on solutions and continuous improvement rather than blame.",
-    description: "Cultivating a culture where team members are empowered to identify issues early and propose solutions. This approach reduces defensive behavior, encourages transparency, and transforms potential problems into opportunities for system improvement and organizational learning."
+    insight: "A resilient team solves problems early, not late.",
+    description: "Loss prevention is a mindset. It thrives in organizations where individuals feel ownership, speak up, and act early. Teams must be trained and empowered to solve problems on the ground before they escalate. This principle transforms security from reactive enforcement to proactive enablement."
   }
 ];
 
