@@ -422,7 +422,7 @@ const Journey = () => {
                       
                       {/* Hover Tooltip */}
                       {hoveredDomain === index && (
-                        <div className="absolute z-50 top-full left-1/2 transform -translate-x-1/2 mt-3 p-4 bg-white border rounded-lg shadow-xl w-72 animate-fade-in">
+                        <div className="absolute z-50 top-full left-1/2 transform -translate-x-1/2 mt-5 p-4 bg-white border rounded-lg shadow-xl w-72 animate-fade-in">
                           <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
                           <p className="text-sm text-gray-700">
                             {domain.description}
