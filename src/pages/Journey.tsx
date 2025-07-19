@@ -396,9 +396,9 @@ const Journey = () => {
       </section>
 
       {/* Maturity House */}
-      <section className="container mx-auto px-4 py-8">
-         <div className="max-w-4xl mx-auto relative">
-           <div className="flex flex-col items-center space-y-6 mb-8 relative z-0">
+      <section className="container mx-auto px-4 py-8 overflow-visible">
+         <div className="max-w-4xl mx-auto relative overflow-visible">
+           <div className="flex flex-col items-center space-y-6 mb-8 relative z-0 overflow-visible">
             
             {/* Leadership & Governance - Roof (Triangle) */}
             <div className="relative z-10">
@@ -410,8 +410,8 @@ const Journey = () => {
                       onMouseEnter={() => setHoveredDomain(index)}
                       onMouseLeave={() => setHoveredDomain(null)}
                     >
-                      {/* Triangle Shape - Final Size for Better Integration */}
-                      <div className="w-0 h-0 border-l-[200px] border-r-[200px] border-b-[120px] border-l-transparent border-r-transparent border-b-emerald-500 shadow-lg">
+                      {/* Triangle Shape - Final Size with Overlap */}
+                      <div className="w-0 h-0 border-l-[220px] border-r-[220px] border-b-[130px] border-l-transparent border-r-transparent border-b-emerald-500 shadow-lg">
                       </div>
                       
                       {/* Content Overlay */}
@@ -519,7 +519,7 @@ const Journey = () => {
             </div>
 
             {/* Foundation - Proof it Works */}
-            <div className="w-full max-w-md relative z-10">
+            <div className="w-full max-w-md relative z-10 overflow-visible">
               {MATURITY_DOMAINS.filter(d => d.position === "bottom").map((domain, index) => (
                 <Dialog key={index}>
                   <DialogTrigger asChild>
