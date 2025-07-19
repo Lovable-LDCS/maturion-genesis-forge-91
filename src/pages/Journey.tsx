@@ -397,8 +397,8 @@ const Journey = () => {
 
       {/* Maturity House */}
       <section className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex flex-col items-center space-y-6 mb-8">
+         <div className="max-w-4xl mx-auto relative">
+           <div className="flex flex-col items-center space-y-6 mb-8 relative z-0">
             
             {/* Leadership & Governance - Roof (Triangle) */}
             <div className="relative z-10">
@@ -410,8 +410,8 @@ const Journey = () => {
                       onMouseEnter={() => setHoveredDomain(index)}
                       onMouseLeave={() => setHoveredDomain(null)}
                     >
-                      {/* Triangle Shape - Made Larger for Better Integration */}
-                      <div className="w-0 h-0 border-l-[180px] border-r-[180px] border-b-[110px] border-l-transparent border-r-transparent border-b-emerald-500 shadow-lg">
+                      {/* Triangle Shape - Final Size for Better Integration */}
+                      <div className="w-0 h-0 border-l-[200px] border-r-[200px] border-b-[120px] border-l-transparent border-r-transparent border-b-emerald-500 shadow-lg">
                       </div>
                       
                       {/* Content Overlay */}
@@ -596,8 +596,8 @@ const Journey = () => {
                   </div>
                   
                   {(hoveredLevel === index || lockedLevel === level.level) && (
-                    <div className="absolute z-10 top-full left-1/2 transform -translate-x-1/2 mt-2 p-3 bg-popover border rounded-lg shadow-lg w-48">
-                      <p className="text-xs text-popover-foreground text-center">
+                    <div className="absolute z-50 top-full left-1/2 transform -translate-x-1/2 mt-2 p-3 bg-white border rounded-lg shadow-xl w-48">
+                      <p className="text-xs text-gray-700 text-center">
                         {level.tooltip}
                       </p>
                       {lockedLevel === level.level && (
