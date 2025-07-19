@@ -397,81 +397,174 @@ const Journey = () => {
 
       {/* Maturity House */}
       <section className="container mx-auto px-4 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-12 gap-4 mb-8">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex flex-col items-center space-y-6 mb-8">
             
-            {/* Leadership & Governance - Top */}
-            <div className="col-span-12 flex justify-center">
+            {/* Leadership & Governance - Roof (Triangle) */}
+            <div className="relative">
               {MATURITY_DOMAINS.filter(d => d.position === "top").map((domain, index) => (
-                <Card 
-                  key={index}
-                  className="relative transition-all duration-300 hover:shadow-lg cursor-pointer group w-80 bg-gradient-to-r from-emerald-500 to-green-600 text-white border-0"
-                  onMouseEnter={() => setHoveredDomain(index)}
-                  onMouseLeave={() => setHoveredDomain(null)}
-                >
-                  <CardHeader className="text-center pb-2">
-                    <CardTitle className="text-lg font-bold">{domain.name}</CardTitle>
-                    <CardDescription className="text-emerald-100 text-sm">
-                      - {domain.currentLevel}
-                    </CardDescription>
-                  </CardHeader>
-                  
-                  {hoveredDomain === index && (
-                    <CardContent className="pt-0">
-                      <p className="text-xs text-emerald-50 mb-2">{domain.currentDescription}</p>
-                    </CardContent>
-                  )}
-                </Card>
+                <Dialog key={index}>
+                  <DialogTrigger asChild>
+                    <div
+                      className="relative cursor-pointer transition-all duration-300 hover:scale-105 group"
+                      onMouseEnter={() => setHoveredDomain(index)}
+                      onMouseLeave={() => setHoveredDomain(null)}
+                    >
+                      {/* Triangle Shape */}
+                      <div className="w-0 h-0 border-l-[120px] border-r-[120px] border-b-[80px] border-l-transparent border-r-transparent border-b-emerald-500 shadow-lg">
+                      </div>
+                      
+                      {/* Content Overlay */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center text-white pt-4">
+                        <h3 className="text-sm font-bold text-center leading-tight">{domain.name}</h3>
+                        <p className="text-xs text-emerald-100 mt-1">- {domain.currentLevel}</p>
+                      </div>
+                      
+                      {/* Hover Tooltip */}
+                      {hoveredDomain === index && (
+                        <div className="absolute z-10 top-full left-1/2 transform -translate-x-1/2 mt-2 p-3 bg-popover border rounded-lg shadow-lg w-64">
+                          <p className="text-xs text-popover-foreground">
+                            {domain.description}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
+                        <span>{domain.name}</span>
+                      </DialogTitle>
+                      <DialogDescription>
+                        {domain.description}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-red-600">Current State</h4>
+                        <p className="text-sm text-muted-foreground">{domain.currentDescription}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-green-600">Working Toward</h4>
+                        <p className="text-sm text-muted-foreground">{domain.nextDescription}</p>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               ))}
             </div>
 
-            {/* Middle Row - Process Integrity, People & Culture, Protection */}
-            <div className="col-span-12 grid grid-cols-3 gap-4">
-              {MATURITY_DOMAINS.filter(d => d.position.startsWith("middle")).map((domain, index) => (
-                <Card 
-                  key={index}
-                  className="relative transition-all duration-300 hover:shadow-lg cursor-pointer group bg-gradient-to-r from-red-500 to-orange-600 text-white border-0"
-                  onMouseEnter={() => setHoveredDomain(index + 10)}
-                  onMouseLeave={() => setHoveredDomain(null)}
-                >
-                  <CardHeader className="text-center pb-2">
-                    <CardTitle className="text-base font-bold">{domain.name}</CardTitle>
-                    <CardDescription className="text-red-100 text-sm">
-                      - {domain.currentLevel}
-                    </CardDescription>
-                  </CardHeader>
-                  
-                  {hoveredDomain === index + 10 && (
-                    <CardContent className="pt-0">
-                      <p className="text-xs text-red-50 mb-2">{domain.currentDescription}</p>
-                    </CardContent>
-                  )}
-                </Card>
-              ))}
+            {/* Middle Row - Three Pillars */}
+            <div className="flex justify-center space-x-6">
+              {MATURITY_DOMAINS.filter(d => d.position.startsWith("middle")).map((domain, index) => {
+                const colors = [
+                  { bg: "from-red-500 to-red-600", text: "text-red-100" },
+                  { bg: "from-emerald-500 to-emerald-600", text: "text-emerald-100" },
+                  { bg: "from-blue-500 to-blue-600", text: "text-blue-100" }
+                ];
+                const color = colors[index] || colors[0];
+                
+                return (
+                  <Dialog key={index}>
+                    <DialogTrigger asChild>
+                      <Card 
+                        className={`relative transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer group w-32 h-32 bg-gradient-to-r ${color.bg} text-white border-0 rounded-lg`}
+                        onMouseEnter={() => setHoveredDomain(index + 10)}
+                        onMouseLeave={() => setHoveredDomain(null)}
+                      >
+                        <CardHeader className="text-center p-3">
+                          <CardTitle className="text-sm font-bold leading-tight">{domain.name}</CardTitle>
+                          <CardDescription className={`${color.text} text-xs`}>
+                            - {domain.currentLevel}
+                          </CardDescription>
+                        </CardHeader>
+                        
+                        {/* Hover Tooltip */}
+                        {hoveredDomain === index + 10 && (
+                          <div className="absolute z-10 top-full left-1/2 transform -translate-x-1/2 mt-2 p-3 bg-popover border rounded-lg shadow-lg w-64">
+                            <p className="text-xs text-popover-foreground">
+                              {domain.description}
+                            </p>
+                          </div>
+                        )}
+                      </Card>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center space-x-2">
+                          <div className={`w-3 h-3 ${color.bg.includes('red') ? 'bg-red-500' : color.bg.includes('emerald') ? 'bg-emerald-500' : 'bg-blue-500'} rounded-full`}></div>
+                          <span>{domain.name}</span>
+                        </DialogTitle>
+                        <DialogDescription>
+                          {domain.description}
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <div className="space-y-2">
+                          <h4 className="font-semibold text-red-600">Current State</h4>
+                          <p className="text-sm text-muted-foreground">{domain.currentDescription}</p>
+                        </div>
+                        <div className="space-y-2">
+                          <h4 className="font-semibold text-green-600">Working Toward</h4>
+                          <p className="text-sm text-muted-foreground">{domain.nextDescription}</p>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                );
+              })}
             </div>
 
-            {/* Bottom Row - Proof it Works */}
-            <div className="col-span-12 flex justify-center">
+            {/* Foundation - Proof it Works */}
+            <div className="w-full max-w-md">
               {MATURITY_DOMAINS.filter(d => d.position === "bottom").map((domain, index) => (
-                <Card 
-                  key={index}
-                  className="relative transition-all duration-300 hover:shadow-lg cursor-pointer group w-80 bg-gradient-to-r from-red-500 to-orange-600 text-white border-0"
-                  onMouseEnter={() => setHoveredDomain(index + 20)}
-                  onMouseLeave={() => setHoveredDomain(null)}
-                >
-                  <CardHeader className="text-center pb-2">
-                    <CardTitle className="text-lg font-bold">{domain.name}</CardTitle>
-                    <CardDescription className="text-red-100 text-sm">
-                      - {domain.currentLevel}
-                    </CardDescription>
-                  </CardHeader>
-                  
-                  {hoveredDomain === index + 20 && (
-                    <CardContent className="pt-0">
-                      <p className="text-xs text-red-50 mb-2">{domain.currentDescription}</p>
-                    </CardContent>
-                  )}
-                </Card>
+                <Dialog key={index}>
+                  <DialogTrigger asChild>
+                    <Card 
+                      className="relative transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer group w-full bg-gradient-to-r from-red-500 to-red-600 text-white border-0 rounded-lg"
+                      onMouseEnter={() => setHoveredDomain(index + 20)}
+                      onMouseLeave={() => setHoveredDomain(null)}
+                    >
+                      <CardHeader className="text-center pb-3">
+                        <CardTitle className="text-lg font-bold">{domain.name}</CardTitle>
+                        <CardDescription className="text-red-100 text-sm">
+                          - {domain.currentLevel}
+                        </CardDescription>
+                      </CardHeader>
+                      
+                      {/* Hover Tooltip */}
+                      {hoveredDomain === index + 20 && (
+                        <div className="absolute z-10 top-full left-1/2 transform -translate-x-1/2 mt-2 p-3 bg-popover border rounded-lg shadow-lg w-64">
+                          <p className="text-xs text-popover-foreground">
+                            {domain.description}
+                          </p>
+                        </div>
+                      )}
+                    </Card>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                        <span>{domain.name}</span>
+                      </DialogTitle>
+                      <DialogDescription>
+                        {domain.description}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-red-600">Current State</h4>
+                        <p className="text-sm text-muted-foreground">{domain.currentDescription}</p>
+                      </div>
+                      <div className="space-y-2">
+                        <h4 className="font-semibold text-green-600">Working Toward</h4>
+                        <p className="text-sm text-muted-foreground">{domain.nextDescription}</p>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               ))}
             </div>
 
