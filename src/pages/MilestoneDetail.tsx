@@ -14,7 +14,7 @@ export default function MilestoneDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
-  const { milestones, loading, updateMilestoneTask, createMilestoneTask } = useMilestones(currentOrganization?.id);
+  const { milestones, loading, updateMilestoneTask, createMilestoneTask, refetch } = useMilestones(currentOrganization?.id);
   const { toast } = useToast();
 
   if (loading) {
@@ -86,6 +86,9 @@ export default function MilestoneDetail() {
         updated_by: user.id,
         organization_id: currentOrganization.id
       });
+
+      // Force a refetch to ensure the new task appears
+      await refetch();
 
       toast({
         title: "Task Added",
