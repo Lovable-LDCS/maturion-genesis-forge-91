@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter } from 'lucide-react';
 import { AIAdminUploadZone } from '@/components/ai/AIAdminUploadZone';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
+import { ManualDocumentProcessor } from '@/components/ai/ManualDocumentProcessor';
 import { useAIDocuments } from '@/hooks/useAIDocuments';
 
 const AIKnowledgeBase: React.FC = () => {
@@ -195,6 +196,16 @@ const AIKnowledgeBase: React.FC = () => {
 
         {/* Temporary debugging component */}
         <DocumentProcessingDebugger onProcessingComplete={() => window.location.reload()} />
+        
+        {/* Manual processor for MPS 12 troubleshooting */}
+        {stats.failed > 0 && (
+          <div className="mb-6">
+            <ManualDocumentProcessor 
+              documentId="efb1d87c-8f05-47a7-9dd2-0560bc02ce5c"
+              fileName="12. MPS 12 – Reliable People.pdf"
+            />
+          </div>
+        )}
         
         <AIAdminUploadZone filteredDocuments={filteredDocuments} />
       </div>
