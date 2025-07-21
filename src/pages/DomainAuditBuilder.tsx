@@ -4,16 +4,16 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, FileText, Target, CheckSquare, BarChart3, ClipboardCheck } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { ArrowLeft, FileText, Target, CheckSquare, BarChart3, ClipboardCheck, Sparkles } from 'lucide-react';
 import { MPSSelectionModal } from '@/components/assessment/MPSSelectionModal';
-import { MPSGeneratorSelector } from '@/components/assessment/MPSGeneratorSelector';
 import { IntentCreator } from '@/components/assessment/IntentCreator';
 
 const DomainAuditBuilder = () => {
   const navigate = useNavigate();
   const { domainId } = useParams();
   const [isMPSModalOpen, setIsMPSModalOpen] = useState(false);
-  const [isMPSGeneratorOpen, setIsMPSGeneratorOpen] = useState(false);
+  const [isGeneratingMPSs, setIsGeneratingMPSs] = useState(false);
   const [isIntentCreatorOpen, setIsIntentCreatorOpen] = useState(false);
   const [acceptedMPSs, setAcceptedMPSs] = useState<any[]>([]);
   const [mpsCompleted, setMpsCompleted] = useState(false);
@@ -91,9 +91,20 @@ const DomainAuditBuilder = () => {
     return step.status === 'completed' || step.status === 'active';
   };
 
-  const handleStepClick = (stepId: number) => {
+  const handleStepClick = async (stepId: number) => {
     if (stepId === 1) {
-      setIsMPSGeneratorOpen(true);
+      if (mpsCompleted) {
+        // If already completed, allow editing
+        setIsMPSModalOpen(true);
+      } else {
+        // Show loading state and auto-generate MPSs
+        setIsGeneratingMPSs(true);
+        // Simulate brief loading period for better UX
+        setTimeout(() => {
+          setIsGeneratingMPSs(false);
+          setIsMPSModalOpen(true);
+        }, 2000);
+      }
     } else if (stepId === 2) {
       if (mpsCompleted) {
         setIsIntentCreatorOpen(true);
@@ -101,17 +112,6 @@ const DomainAuditBuilder = () => {
     } else {
       console.log(`Navigate to step ${stepId} interface`);
     }
-  };
-
-  const handleUseAI = () => {
-    setIsMPSGeneratorOpen(false);
-    setIsMPSModalOpen(true);
-  };
-
-  const handleCreateManually = () => {
-    setIsMPSGeneratorOpen(false);
-    // TODO: Open manual MPS creator
-    console.log('Opening manual MPS creator...');
   };
 
   const handleAcceptMPSs = (selectedMPSs: any[]) => {
@@ -265,14 +265,22 @@ const DomainAuditBuilder = () => {
         </div>
       </main>
 
-      {/* MPS Generator Selector */}
-      <MPSGeneratorSelector
-        isOpen={isMPSGeneratorOpen}
-        onClose={() => setIsMPSGeneratorOpen(false)}
-        domainName={domainName}
-        onUseAI={handleUseAI}
-        onCreateManually={handleCreateManually}
-      />
+      {/* MPS Generation Loading Dialog */}
+      <Dialog open={isGeneratingMPSs} onOpenChange={() => {}}>
+        <DialogContent className="sm:max-w-md">
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <Sparkles className="h-12 w-12 text-blue-500 animate-pulse mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Generating Your MPSs</h3>
+            <p className="text-muted-foreground mb-4">
+              ✨ Creating your Mini Performance Standards based on LDCS principles and best practices. 
+              You'll be able to review and edit each one.
+            </p>
+            <div className="w-full max-w-xs">
+              <Progress value={66} className="h-2" />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* MPS Selection Modal */}
       <MPSSelectionModal
