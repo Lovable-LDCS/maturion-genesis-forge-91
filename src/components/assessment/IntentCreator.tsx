@@ -7,7 +7,6 @@ import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { Edit3, Check, X, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Checkbox } from '@/components/ui/checkbox';
 import { useIntentGeneration } from '@/hooks/useIntentGeneration';
 
 interface MPS {

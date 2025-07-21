@@ -110,19 +110,17 @@ const DomainAuditBuilder = () => {
         setIsIntentCreatorOpen(true);
       }
     } else {
-      console.log(`Navigate to step ${stepId} interface`);
+      // Future step - not yet implemented
     }
   };
 
   const handleAcceptMPSs = (selectedMPSs: any[]) => {
-    console.log('Accepted MPSs:', selectedMPSs);
     setAcceptedMPSs(selectedMPSs);
     setMpsCompleted(true);
     setIsMPSModalOpen(false);
   };
 
   const handleIntentsFinalized = (mpssWithIntents: any[]) => {
-    console.log('Intents finalized:', mpssWithIntents);
     setIntentCompleted(true);
     setIsIntentCreatorOpen(false);
   };
