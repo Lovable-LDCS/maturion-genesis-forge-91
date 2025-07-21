@@ -14,6 +14,87 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_activity_log: {
+        Row: {
+          action_type: string
+          admin_user_id: string
+          created_at: string
+          details: Json | null
+          entity_id: string | null
+          entity_type: string
+          id: string
+          ip_address: unknown | null
+          user_agent: string | null
+        }
+        Insert: {
+          action_type: string
+          admin_user_id: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+        }
+        Update: {
+          action_type?: string
+          admin_user_id?: string
+          created_at?: string
+          details?: Json | null
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          ip_address?: unknown | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      admin_approval_requests: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          expires_at: string
+          id: string
+          rejection_reason: string | null
+          request_type: string
+          requested_by: string
+          requested_changes: Json
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          expires_at?: string
+          id?: string
+          rejection_reason?: string | null
+          request_type: string
+          requested_by: string
+          requested_changes: Json
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          expires_at?: string
+          id?: string
+          rejection_reason?: string | null
+          request_type?: string
+          requested_by?: string
+          requested_changes?: Json
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       ai_document_chunks: {
         Row: {
           chunk_index: number
@@ -599,6 +680,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      discount_codes: {
+        Row: {
+          applicable_modules: string[] | null
+          code: string
+          created_at: string
+          created_by: string
+          current_usage: number
+          expiry_date: string | null
+          id: string
+          status: string
+          type: string
+          updated_at: string
+          updated_by: string
+          usage_limit: number | null
+          value: number
+        }
+        Insert: {
+          applicable_modules?: string[] | null
+          code: string
+          created_at?: string
+          created_by: string
+          current_usage?: number
+          expiry_date?: string | null
+          id?: string
+          status?: string
+          type: string
+          updated_at?: string
+          updated_by: string
+          usage_limit?: number | null
+          value: number
+        }
+        Update: {
+          applicable_modules?: string[] | null
+          code?: string
+          created_at?: string
+          created_by?: string
+          current_usage?: number
+          expiry_date?: string | null
+          id?: string
+          status?: string
+          type?: string
+          updated_at?: string
+          updated_by?: string
+          usage_limit?: number | null
+          value?: number
+        }
+        Relationships: []
       }
       domains: {
         Row: {
@@ -1219,6 +1348,48 @@ export type Database = {
         }
         Relationships: []
       }
+      subscription_modules: {
+        Row: {
+          bundle_discount_percentage: number
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          monthly_price: number
+          name: string
+          slug: string
+          updated_at: string
+          updated_by: string
+          yearly_discount_percentage: number
+        }
+        Insert: {
+          bundle_discount_percentage?: number
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          monthly_price: number
+          name: string
+          slug: string
+          updated_at?: string
+          updated_by: string
+          yearly_discount_percentage?: number
+        }
+        Update: {
+          bundle_discount_percentage?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          monthly_price?: number
+          name?: string
+          slug?: string
+          updated_at?: string
+          updated_by?: string
+          yearly_discount_percentage?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       user_organization_invitations: {
@@ -1254,6 +1425,10 @@ export type Database = {
           completed_criteria: number
           completion_percentage: number
         }[]
+      }
+      expire_approval_requests: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       halfvec_avg: {
         Args: { "": number[] }

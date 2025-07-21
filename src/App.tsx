@@ -17,6 +17,7 @@ import MilestoneDetail from "./pages/MilestoneDetail";
 import AIKnowledgeBase from "./pages/AIKnowledgeBase";
 import Journey from "./pages/Journey";
 import Subscribe from "./pages/Subscribe";
+import AdminConfig from "./pages/AdminConfig";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -42,6 +43,7 @@ const App = () => (
               <Route path="/accept-invitation" element={<InvitationAcceptance />} />
               <Route path="/journey" element={<Journey />} />
               <Route path="/subscribe" element={<Subscribe />} />
+              <Route path="/admin/config" element={<AdminConfig />} />
               <Route path="/milestones/:id" element={<MilestoneDetail />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
