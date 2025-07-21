@@ -436,6 +436,9 @@ const Journey = () => {
   const [hoveredDriver, setHoveredDriver] = useState<number | null>(null);
   const [hoveredElement, setHoveredElement] = useState<number | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{x: number, y: number} | null>(null);
+  
+  // Check if user has completed the free assessment
+  const hasCompletedAssessment = localStorage.getItem('maturion_assessment_completed') === 'true';
   const [activeTooltipDomain, setActiveTooltipDomain] = useState<number | null>(null);
 
   // Handle mouse enter for tooltips with fixed positioning
@@ -1035,7 +1038,7 @@ const Journey = () => {
         className="fixed bottom-6 right-6 z-50 text-lg px-6 py-4 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border-0 hover:scale-105 animate-pulse hover:animate-none"
         size="lg"
       >
-        Start Free Assessment
+        {hasCompletedAssessment ? "Consider Subscribing" : "Start Free Assessment"}
         <ChevronRight className="ml-2 h-5 w-5" />
       </Button>
 

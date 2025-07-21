@@ -5,97 +5,18 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { ArrowRight, ArrowLeft, CheckCircle, BarChart3, Target } from 'lucide-react';
-import { useMaturityScoring } from '@/hooks/useMaturityScoring';
-import { useOrganization } from '@/hooks/useOrganization';
-import { useToast } from '@/hooks/use-toast';
+import { ArrowRight, ArrowLeft, Target, BarChart3, CheckCircle } from 'lucide-react';
+import { AssessmentResultsPage } from './AssessmentResultsPage';
+import { getRandomizedQuestions, type AssessmentQuestion } from '@/lib/assessmentQuestions';
 import { 
+  calculateDomainMaturity, 
+  calculateAssessmentProgress,
+  validateScoringData,
   type MaturityLevel, 
   type DomainScore,
+  type CriteriaScore,
   MATURITY_LEVELS 
 } from '@/lib/maturityScoring';
-
-interface AssessmentResultsProps {
-  domainScores: DomainScore[];
-  onRestart: () => void;
-}
-
-const AssessmentResults: React.FC<AssessmentResultsProps> = ({ domainScores, onRestart }) => {
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <CheckCircle className="h-6 w-6 text-green-600" />
-            <span>Assessment Complete</span>
-          </CardTitle>
-          <CardDescription>
-            Your organizational maturity assessment results
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4">
-            {domainScores.map((domain) => (
-              <div key={domain.domainId} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-medium">{domain.domainName}</h4>
-                  <div className="flex items-center space-x-2">
-                    <Badge 
-                      variant={domain.meetsThreshold ? "default" : "secondary"}
-                      className={domain.meetsThreshold ? "bg-green-100 text-green-800" : ""}
-                    >
-                      {MATURITY_LEVELS[domain.calculatedLevel].label}
-                    </Badge>
-                    {domain.penaltyApplied && (
-                      <Badge variant="destructive" className="text-xs">
-                        Penalty Applied
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Target Level:</span>
-                    <p className="font-medium">{MATURITY_LEVELS[domain.targetLevel].label}</p>
-                  </div>
-                  <div>
-                    <span className="text-muted-foreground">Criteria at Target:</span>
-                    <p className="font-medium">{domain.percentageAtTarget.toFixed(1)}%</p>
-                  </div>
-                </div>
-                
-                {domain.penaltyApplied && (
-                  <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded">
-                    <p className="text-sm text-red-700">
-                      <strong>Two-Level Deficit Penalty:</strong> One or more criteria scored 
-                      two levels below the target, resulting in an automatic downgrade.
-                    </p>
-                  </div>
-                )}
-                
-                {!domain.meetsThreshold && !domain.penaltyApplied && (
-                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                    <p className="text-sm text-yellow-700">
-                      <strong>Threshold Not Met:</strong> Less than 80% of criteria scored 
-                      at or above the target level.
-                    </p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-          
-          <div className="mt-6 flex justify-center">
-            <Button onClick={onRestart} variant="outline">
-              Take Assessment Again
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
-};
 
 interface MaturityAssessmentProps {
   assessmentType?: 'free' | 'full';
@@ -106,33 +27,31 @@ export const MaturityAssessment: React.FC<MaturityAssessmentProps> = ({
   assessmentType = 'free',
   onComplete 
 }) => {
-  const { currentOrganization } = useOrganization();
-  const { toast } = useToast();
+  const [questions, setQuestions] = useState<AssessmentQuestion[]>([]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [responses, setResponses] = useState<Map<string, MaturityLevel>>(new Map());
   const [currentAnswer, setCurrentAnswer] = useState<MaturityLevel | null>(null);
   const [showResults, setShowResults] = useState(false);
   const [assessmentResults, setAssessmentResults] = useState<DomainScore[]>([]);
+  const [overallLevel, setOverallLevel] = useState<string>('basic');
   
-  const {
-    loading,
-    loadFreeAssessmentQuestions,
-    answerQuestion,
-    nextQuestion,
-    previousQuestion,
-    calculateResults,
-    getCurrentQuestion,
-    getProgress,
-    isComplete,
-    responses
-  } = useMaturityScoring(currentOrganization?.id || '');
-
   useEffect(() => {
-    if (currentOrganization?.id && assessmentType === 'free') {
-      loadFreeAssessmentQuestions();
-    }
-  }, [currentOrganization?.id, assessmentType, loadFreeAssessmentQuestions]);
+    // Load randomized questions on component mount
+    const randomizedQuestions = getRandomizedQuestions();
+    setQuestions(randomizedQuestions);
+    setCurrentQuestionIndex(0);
+    setResponses(new Map());
+    setCurrentAnswer(null);
+  }, []);
 
-  const currentQuestion = getCurrentQuestion();
-  const progress = getProgress();
+  const currentQuestion = questions[currentQuestionIndex];
+  const progress = {
+    current: currentQuestionIndex + 1,
+    total: questions.length,
+    percentage: questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0,
+    answeredCount: responses.size,
+    remainingCount: questions.length - responses.size
+  };
 
   const handleAnswerChange = (value: MaturityLevel) => {
     setCurrentAnswer(value);
@@ -140,49 +59,118 @@ export const MaturityAssessment: React.FC<MaturityAssessmentProps> = ({
 
   const handleNext = () => {
     if (currentAnswer && currentQuestion) {
-      answerQuestion(currentQuestion.id, currentAnswer);
+      const newResponses = new Map(responses);
+      newResponses.set(currentQuestion.id, currentAnswer);
+      setResponses(newResponses);
       setCurrentAnswer(null);
-      nextQuestion();
+      
+      if (currentQuestionIndex < questions.length - 1) {
+        setCurrentQuestionIndex(prev => prev + 1);
+      }
     }
   };
 
   const handlePrevious = () => {
-    previousQuestion();
-    // Restore previous answer if exists
-    const prevQuestion = getCurrentQuestion();
-    if (prevQuestion) {
-      const prevAnswer = responses.get(prevQuestion.id);
-      setCurrentAnswer(prevAnswer || null);
+    if (currentQuestionIndex > 0) {
+      setCurrentQuestionIndex(prev => prev - 1);
+      // Restore previous answer if exists
+      const prevQuestion = questions[currentQuestionIndex - 1];
+      if (prevQuestion) {
+        const prevAnswer = responses.get(prevQuestion.id);
+        setCurrentAnswer(prevAnswer || null);
+      }
     }
   };
 
-  const handleFinishAssessment = async () => {
-    if (currentAnswer && currentQuestion) {
-      answerQuestion(currentQuestion.id, currentAnswer);
-    }
+  const calculateResults = (): DomainScore[] => {
+    const domainMap = new Map<string, {
+      domainName: string;
+      criteriaScores: CriteriaScore[];
+      targetLevel: MaturityLevel;
+    }>();
 
-    try {
-      const results = await calculateResults();
-      setAssessmentResults(results);
-      setShowResults(true);
-      onComplete?.(results);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to calculate assessment results',
-        variant: 'destructive'
+    // Group responses by domain
+    questions.forEach(question => {
+      const response = responses.get(question.id);
+      if (response) {
+        if (!domainMap.has(question.domain)) {
+          domainMap.set(question.domain, {
+            domainName: question.domain,
+            criteriaScores: [],
+            targetLevel: 'compliant' // Default target for free assessment
+          });
+        }
+
+        const domain = domainMap.get(question.domain)!;
+        domain.criteriaScores.push({
+          criteriaId: question.id,
+          currentLevel: response,
+          targetLevel: 'compliant',
+          evidenceScore: MATURITY_LEVELS[response].value * 20 // Convert to 0-100 scale
+        });
+      }
+    });
+
+    // Calculate domain scores
+    const domainScores: DomainScore[] = [];
+    
+    for (const [domainName, domainData] of domainMap) {
+      const validation = validateScoringData(domainData.criteriaScores);
+      
+      if (!validation.isValid) {
+        console.warn(`Invalid scoring data for domain ${domainName}:`, validation.errors);
+        continue;
+      }
+
+      const result = calculateDomainMaturity(
+        domainData.criteriaScores,
+        domainData.targetLevel
+      );
+
+      domainScores.push({
+        domainId: domainName,
+        domainName: domainData.domainName,
+        criteriaScores: domainData.criteriaScores,
+        calculatedLevel: result.calculatedLevel,
+        targetLevel: domainData.targetLevel,
+        meetsThreshold: result.meetsThreshold,
+        penaltyApplied: result.penaltyApplied,
+        percentageAtTarget: result.percentageAtTarget
       });
     }
+
+    return domainScores;
+  };
+
+  const handleFinishAssessment = () => {
+    if (currentAnswer && currentQuestion) {
+      const newResponses = new Map(responses);
+      newResponses.set(currentQuestion.id, currentAnswer);
+      setResponses(newResponses);
+    }
+
+    const results = calculateResults();
+    const progress = calculateAssessmentProgress(results);
+    
+    setAssessmentResults(results);
+    setOverallLevel(progress.overallMaturityLevel);
+    setShowResults(true);
+    onComplete?.(results);
   };
 
   const handleRestart = () => {
     setShowResults(false);
     setAssessmentResults([]);
     setCurrentAnswer(null);
-    loadFreeAssessmentQuestions();
+    setCurrentQuestionIndex(0);
+    setResponses(new Map());
+    
+    // Load new randomized questions
+    const randomizedQuestions = getRandomizedQuestions();
+    setQuestions(randomizedQuestions);
   };
 
-  if (loading) {
+  if (questions.length === 0) {
     return (
       <Card>
         <CardContent className="flex items-center justify-center py-8">
@@ -196,7 +184,13 @@ export const MaturityAssessment: React.FC<MaturityAssessmentProps> = ({
   }
 
   if (showResults) {
-    return <AssessmentResults domainScores={assessmentResults} onRestart={handleRestart} />;
+    return (
+      <AssessmentResultsPage 
+        domainScores={assessmentResults} 
+        overallLevel={overallLevel}
+        onRestart={handleRestart} 
+      />
+    );
   }
 
   if (!currentQuestion) {
@@ -206,7 +200,7 @@ export const MaturityAssessment: React.FC<MaturityAssessmentProps> = ({
           <Target className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
           <h3 className="text-lg font-medium mb-2">Assessment Not Available</h3>
           <p className="text-muted-foreground">
-            No assessment questions are available. Please check your domain configuration.
+            Unable to load assessment questions. Please try refreshing the page.
           </p>
         </CardContent>
       </Card>
@@ -228,7 +222,7 @@ export const MaturityAssessment: React.FC<MaturityAssessmentProps> = ({
                 <span>Maturity Assessment</span>
               </CardTitle>
               <CardDescription>
-                Question {progress.current} of {progress.total} • {currentQuestion.domainName}
+                Question {progress.current} of {progress.total} • {currentQuestion.domain}
               </CardDescription>
             </div>
             <Badge variant="outline">
@@ -242,24 +236,36 @@ export const MaturityAssessment: React.FC<MaturityAssessmentProps> = ({
       {/* Question Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">{currentQuestion.statement}</CardTitle>
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+              <CardTitle className="text-lg mb-2">{currentQuestion.question}</CardTitle>
+              <Badge variant="outline" className="text-xs">
+                {currentQuestion.domain}
+              </Badge>
+            </div>
+          </div>
           <CardDescription>
-            Select the option that best describes your organization's current maturity level
+            Select the option that best describes your organization's current approach
           </CardDescription>
         </CardHeader>
         <CardContent>
           <RadioGroup value={currentAnswer || ''} onValueChange={handleAnswerChange}>
-            {Object.entries(MATURITY_LEVELS).map(([level, config]) => (
-              <div key={level} className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-muted/50">
-                <RadioGroupItem value={level} id={level} />
-                <Label htmlFor={level} className="flex-1 cursor-pointer">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{config.label}</span>
-                    <Badge variant="outline" className="ml-2">
-                      Level {config.value}
-                    </Badge>
+            {currentQuestion.options.map((option) => (
+              <div key={option.level} className="space-y-2">
+                <div className="flex items-start space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                  <RadioGroupItem value={option.level} id={option.level} className="mt-1" />
+                  <div className="flex-1 cursor-pointer" onClick={() => handleAnswerChange(option.level)}>
+                    <Label htmlFor={option.level} className="cursor-pointer">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium">{option.text}</span>
+                        <Badge variant="outline" className="ml-2 text-xs">
+                          {MATURITY_LEVELS[option.level].label}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">{option.description}</p>
+                    </Label>
                   </div>
-                </Label>
+                </div>
               </div>
             ))}
           </RadioGroup>
@@ -292,22 +298,22 @@ export const MaturityAssessment: React.FC<MaturityAssessmentProps> = ({
               onClick={handleNext} 
               disabled={!canProceed}
             >
-              Next
+              Next Question
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           )}
         </div>
       </div>
 
-      {/* Assessment Rules Info */}
+      {/* Assessment Info */}
       <Card className="bg-muted/30">
         <CardContent className="pt-6">
-          <h4 className="font-medium mb-2">Scoring Rules</h4>
+          <h4 className="font-medium mb-2">Assessment Information</h4>
           <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• 80% of criteria must score at or above target level</li>
-            <li>• Up to 20% may score one level below target</li>
-            <li>• Any criteria two levels below target triggers automatic downgrade</li>
-            <li>• Questions appear in random order for assessment integrity</li>
+            <li>• Questions presented in random order for assessment integrity</li>
+            <li>• 25 psychometric questions across 5 operational domains</li>
+            <li>• Advanced scoring algorithm with 80% threshold requirement</li>
+            <li>• Two-level deficit penalty system for comprehensive evaluation</li>
           </ul>
         </CardContent>
       </Card>
