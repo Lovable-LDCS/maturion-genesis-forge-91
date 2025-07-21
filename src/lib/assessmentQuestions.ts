@@ -16,813 +16,813 @@ export interface AssessmentQuestion {
   }[];
 }
 
-export const PSYCHOMETRIC_QUESTIONS: AssessmentQuestion[] = [
-  // Leadership & Governance (5 questions)
+export const assessmentQuestions: AssessmentQuestion[] = [
+  // Leadership & Governance Domain
   {
     id: 'lg-1',
     domain: 'Leadership & Governance',
-    question: 'How does your organization typically approach major security and compliance decisions?',
+    question: 'How are organizational goals and values communicated to staff?',
     options: [
       {
         level: 'basic',
-        text: 'We handle issues as they come up',
-        description: 'Reactive approach with minimal formal processes'
+        text: 'They are not formally communicated — people learn by doing.',
+        description: 'No formal communication process exists'
       },
       {
         level: 'reactive',
-        text: 'We have some informal processes but mostly respond to incidents',
-        description: 'Basic incident response with limited proactive planning'
+        text: 'Occasionally discussed during meetings but not actively reinforced.',
+        description: 'Informal, inconsistent communication'
       },
       {
         level: 'compliant',
-        text: 'We follow established policies and meet regulatory requirements',
-        description: 'Formal compliance processes with documented procedures'
+        text: 'Shared in onboarding and written materials; leadership refers to them.',
+        description: 'Documented and referenced in formal processes'
       },
       {
         level: 'proactive',
-        text: 'We anticipate risks and have strategic planning sessions',
-        description: 'Forward-thinking with regular strategy reviews'
+        text: 'Regularly reinforced through communications and decision-making practices.',
+        description: 'Actively integrated into leadership practices'
       },
       {
         level: 'resilient',
-        text: 'We continuously evolve our governance based on emerging threats and opportunities',
-        description: 'Adaptive governance with continuous improvement culture'
+        text: 'Integrated into all aspects of leadership behavior, policy, and culture.',
+        description: 'Deeply embedded across all organizational aspects'
       }
     ]
   },
   {
     id: 'lg-2',
     domain: 'Leadership & Governance',
-    question: 'When it comes to accountability for security and compliance in your organization:',
+    question: 'How often does leadership review and respond to performance or risk reports?',
     options: [
       {
         level: 'basic',
-        text: 'It\'s unclear who is responsible for what',
-        description: 'No clear ownership or accountability structure'
+        text: 'Only in crisis situations.',
+        description: 'Reactive approach to performance monitoring'
       },
       {
         level: 'reactive',
-        text: 'Someone usually steps up when there\'s a problem',
-        description: 'Ad-hoc responsibility assignment during incidents'
+        text: 'Occasionally, when something goes wrong.',
+        description: 'Problem-driven review process'
       },
       {
         level: 'compliant',
-        text: 'We have clear roles and responsibilities documented',
-        description: 'Formal RACI matrix with defined accountability'
+        text: 'According to scheduled reviews (monthly/quarterly).',
+        description: 'Regular, structured review cycles'
       },
       {
         level: 'proactive',
-        text: 'Leaders actively champion and model security behaviors',
-        description: 'Leadership engagement with visible commitment'
+        text: 'Reviews are integrated into decision-making cycles.',
+        description: 'Performance data drives decision-making'
       },
       {
         level: 'resilient',
-        text: 'Security accountability is embedded in everyone\'s performance metrics',
-        description: 'Integrated accountability across all levels'
+        text: 'Reviews are proactive, predictive, and drive continuous improvement initiatives.',
+        description: 'Forward-looking, improvement-focused approach'
       }
     ]
   },
   {
     id: 'lg-3',
     domain: 'Leadership & Governance',
-    question: 'How does your organization communicate its security and compliance vision?',
+    question: 'How are roles and responsibilities managed in your organization?',
     options: [
       {
         level: 'basic',
-        text: 'We don\'t really have a clear vision communicated',
-        description: 'No formal communication strategy'
+        text: 'Everyone figures things out as they go.',
+        description: 'No formal role definition process'
       },
       {
         level: 'reactive',
-        text: 'We send out emails when something important happens',
-        description: 'Incident-driven communication only'
+        text: 'Some basic job descriptions exist, but many overlaps or gaps.',
+        description: 'Basic documentation with unclear boundaries'
       },
       {
         level: 'compliant',
-        text: 'We have regular updates and training sessions',
-        description: 'Scheduled communication and awareness programs'
+        text: 'Roles are clearly defined, and people know who\'s responsible.',
+        description: 'Clear role definition and accountability'
       },
       {
         level: 'proactive',
-        text: 'Leadership regularly reinforces our security culture and values',
-        description: 'Consistent leadership messaging and culture building'
+        text: 'Responsibility is tracked, reviewed, and adjusted as processes evolve.',
+        description: 'Dynamic role management with regular review'
       },
       {
         level: 'resilient',
-        text: 'Our vision is lived daily and continuously evolves with our stakeholders',
-        description: 'Embedded culture with stakeholder co-creation'
+        text: 'There\'s a culture of ownership, with shared accountability and cross-functional clarity.',
+        description: 'Ownership culture with flexible accountability'
       }
     ]
   },
   {
     id: 'lg-4',
     domain: 'Leadership & Governance',
-    question: 'How does your organization handle strategic planning for operational excellence?',
+    question: 'What is your leadership team\'s approach to change and adaptation?',
     options: [
       {
         level: 'basic',
-        text: 'We focus on immediate operational needs',
-        description: 'Short-term focus without strategic planning'
+        text: 'Change is resisted or delayed unless unavoidable.',
+        description: 'Resistance to change as default approach'
       },
       {
         level: 'reactive',
-        text: 'We plan for the next year based on current challenges',
-        description: 'Annual planning driven by current issues'
+        text: 'Leaders support change, but execution is inconsistent.',
+        description: 'Supportive but inconsistent implementation'
       },
       {
         level: 'compliant',
-        text: 'We have multi-year strategic plans aligned with regulations',
-        description: 'Formal strategic planning with compliance alignment'
+        text: 'Leaders initiate change based on evidence or feedback.',
+        description: 'Evidence-based change initiation'
       },
       {
         level: 'proactive',
-        text: 'We anticipate future challenges and opportunities in our planning',
-        description: 'Forward-looking strategic planning with risk consideration'
+        text: 'Leaders champion change and allocate resources to support it.',
+        description: 'Active championing with resource allocation'
       },
       {
         level: 'resilient',
-        text: 'Our strategic planning is dynamic and adapts to emerging trends',
-        description: 'Adaptive strategic planning with continuous evolution'
+        text: 'Change is embraced as a strategic capability and is well-governed.',
+        description: 'Change as core strategic capability'
       }
     ]
   },
   {
     id: 'lg-5',
     domain: 'Leadership & Governance',
-    question: 'How does your board or senior leadership oversee operational risk management?',
+    question: 'How do leaders model ethical and governance principles?',
     options: [
       {
         level: 'basic',
-        text: 'Senior leadership is informed about major incidents after they happen',
-        description: 'Post-incident reporting only'
+        text: 'There\'s no clear example — staff follow their own judgement.',
+        description: 'No formal ethical leadership guidance'
       },
       {
         level: 'reactive',
-        text: 'Leadership receives regular reports on operational issues',
-        description: 'Regular operational reporting to leadership'
+        text: 'Leadership tries to uphold principles but may lack consistency.',
+        description: 'Inconsistent application of principles'
       },
       {
         level: 'compliant',
-        text: 'We have formal governance structures with defined reporting',
-        description: 'Structured governance with formal reporting processes'
+        text: 'A formal code exists and is generally respected.',
+        description: 'Documented code with general adherence'
       },
       {
         level: 'proactive',
-        text: 'Leadership actively participates in risk assessment and strategy',
-        description: 'Active leadership involvement in risk management'
+        text: 'Leaders actively embody and promote governance principles.',
+        description: 'Active modeling and promotion of principles'
       },
       {
         level: 'resilient',
-        text: 'Governance is integrated across all business decisions and strategy',
-        description: 'Integrated governance in all strategic decisions'
+        text: 'Ethical leadership is deeply embedded in culture, decisions, and reward systems.',
+        description: 'Ethics integrated into all organizational systems'
       }
     ]
   },
 
-  // Process Integrity (5 questions)
+  // Process Integrity Domain
   {
     id: 'pi-1',
     domain: 'Process Integrity',
-    question: 'How standardized are your organization\'s operational processes?',
+    question: 'How are critical operational processes documented and maintained?',
     options: [
       {
         level: 'basic',
-        text: 'People generally know what to do and figure it out as they go',
-        description: 'Informal processes with tribal knowledge'
+        text: 'They\'re not formally documented — most knowledge is in people\'s heads.',
+        description: 'Informal, undocumented processes'
       },
       {
         level: 'reactive',
-        text: 'We have some written procedures for critical processes',
-        description: 'Basic documentation for key processes'
+        text: 'Some documentation exists, but it\'s outdated or inconsistent.',
+        description: 'Basic but poorly maintained documentation'
       },
       {
         level: 'compliant',
-        text: 'Our processes are well-documented and regularly reviewed',
-        description: 'Formal process documentation with periodic reviews'
+        text: 'Key processes are documented and accessible to relevant staff.',
+        description: 'Documented and accessible process information'
       },
       {
         level: 'proactive',
-        text: 'We continuously improve our processes based on data and feedback',
-        description: 'Data-driven process improvement culture'
+        text: 'Documentation is reviewed regularly and updated after changes.',
+        description: 'Regularly maintained and updated documentation'
       },
       {
         level: 'resilient',
-        text: 'Our processes are adaptive and self-improving based on real-time insights',
-        description: 'Self-adaptive processes with real-time optimization'
+        text: 'Processes are mapped, optimized, version-controlled, and continuously improved.',
+        description: 'Comprehensive process management system'
       }
     ]
   },
   {
     id: 'pi-2',
     domain: 'Process Integrity',
-    question: 'How does your organization ensure process compliance and quality?',
+    question: 'How are process breakdowns or anomalies handled?',
     options: [
       {
         level: 'basic',
-        text: 'We rely on people to do the right thing',
-        description: 'Trust-based approach without formal controls'
+        text: 'They\'re usually dealt with reactively and on a case-by-case basis.',
+        description: 'Ad hoc reactive response'
       },
       {
         level: 'reactive',
-        text: 'We check processes when problems are reported',
-        description: 'Problem-driven quality checks'
+        text: 'There\'s an informal effort to track them, but follow-up is inconsistent.',
+        description: 'Informal tracking with inconsistent follow-up'
       },
       {
         level: 'compliant',
-        text: 'We have regular audits and compliance checks',
-        description: 'Scheduled compliance monitoring and auditing'
+        text: 'They are logged, investigated, and lessons learned are recorded.',
+        description: 'Formal logging and investigation process'
       },
       {
         level: 'proactive',
-        text: 'We use automated monitoring and preventive controls',
-        description: 'Automated controls with proactive monitoring'
+        text: 'Root cause analysis is conducted and corrective actions are tracked.',
+        description: 'Systematic analysis with tracked improvements'
       },
       {
         level: 'resilient',
-        text: 'Quality is built into our processes with real-time adaptation',
-        description: 'Embedded quality with continuous adaptation'
+        text: 'Anomalies are predicted, monitored in real-time, and used to inform strategic changes.',
+        description: 'Predictive monitoring with strategic integration'
       }
     ]
   },
   {
     id: 'pi-3',
     domain: 'Process Integrity',
-    question: 'How does your organization handle process exceptions and variations?',
+    question: 'How do employees learn about the processes they are involved in?',
     options: [
       {
         level: 'basic',
-        text: 'We handle exceptions case by case as they arise',
-        description: 'Ad-hoc exception handling'
+        text: 'By watching others or figuring it out on their own.',
+        description: 'Informal, self-directed learning'
       },
       {
         level: 'reactive',
-        text: 'We have informal ways to handle common exceptions',
-        description: 'Informal exception management'
+        text: 'Through informal explanations or job-shadowing.',
+        description: 'Basic informal training methods'
       },
       {
         level: 'compliant',
-        text: 'We have documented exception procedures and approval processes',
-        description: 'Formal exception handling procedures'
+        text: 'Through structured onboarding and process guides.',
+        description: 'Formal onboarding with documented guides'
       },
       {
         level: 'proactive',
-        text: 'We analyze exceptions to prevent future occurrences',
-        description: 'Exception analysis for process improvement'
+        text: 'Through regular process training and reinforcement.',
+        description: 'Ongoing training with regular reinforcement'
       },
       {
         level: 'resilient',
-        text: 'Our processes automatically adapt to handle variations',
-        description: 'Self-adaptive processes for exception handling'
+        text: 'Through simulations, cross-training, and a shared process knowledge platform.',
+        description: 'Advanced training with knowledge sharing systems'
       }
     ]
   },
   {
     id: 'pi-4',
     domain: 'Process Integrity',
-    question: 'How does your organization measure and improve process effectiveness?',
+    question: 'How are risks related to process failure assessed and mitigated?',
     options: [
       {
         level: 'basic',
-        text: 'We know if processes are working by whether customers complain',
-        description: 'Customer complaint-driven measurement'
+        text: 'Risks are not formally assessed unless something goes wrong.',
+        description: 'Reactive risk assessment only'
       },
       {
         level: 'reactive',
-        text: 'We track basic metrics like completion times and error rates',
-        description: 'Basic operational metrics tracking'
+        text: 'Known risks are addressed with informal practices.',
+        description: 'Informal risk mitigation approaches'
       },
       {
         level: 'compliant',
-        text: 'We have comprehensive KPIs and regular performance reviews',
-        description: 'Formal KPI framework with regular reviews'
+        text: 'Formal risk assessments are done periodically.',
+        description: 'Regular formal risk assessment process'
       },
       {
         level: 'proactive',
-        text: 'We use advanced analytics to predict and prevent process issues',
-        description: 'Predictive analytics for process optimization'
+        text: 'Risk is continuously monitored and integrated into process controls.',
+        description: 'Continuous monitoring with integrated controls'
       },
       {
         level: 'resilient',
-        text: 'Our processes continuously self-optimize based on real-time data',
-        description: 'Self-optimizing processes with AI-driven insights'
+        text: 'A predictive risk model informs dynamic adjustments and system-wide safeguards.',
+        description: 'Predictive risk modeling with dynamic response'
       }
     ]
   },
   {
     id: 'pi-5',
     domain: 'Process Integrity',
-    question: 'How does your organization integrate new technologies into existing processes?',
+    question: 'How is technology used to support process integrity?',
     options: [
       {
         level: 'basic',
-        text: 'We use technology when we absolutely have to',
-        description: 'Minimal technology adoption'
+        text: 'We mostly rely on manual processes.',
+        description: 'Primarily manual process execution'
       },
       {
         level: 'reactive',
-        text: 'We adopt technology to solve specific problems as they arise',
-        description: 'Problem-driven technology adoption'
+        text: 'Some tools are used but not standardized or maintained.',
+        description: 'Ad hoc tool usage without standards'
       },
       {
         level: 'compliant',
-        text: 'We have planned technology rollouts aligned with business needs',
-        description: 'Strategic technology planning and implementation'
+        text: 'Core tools are consistently used to support daily operations.',
+        description: 'Standardized tools for core operations'
       },
       {
         level: 'proactive',
-        text: 'We actively seek technologies that can enhance our processes',
-        description: 'Proactive technology scouting and adoption'
+        text: 'Technology is integrated and aligned to support process goals.',
+        description: 'Integrated technology supporting process objectives'
       },
       {
         level: 'resilient',
-        text: 'Technology integration is seamless and drives continuous innovation',
-        description: 'Seamless technology integration with innovation focus'
+        text: 'Smart systems and automation optimize, monitor, and secure critical processes.',
+        description: 'Advanced automation with optimization and security'
       }
     ]
   },
 
-  // People & Culture (5 questions)
+  // People & Culture Domain
   {
     id: 'pc-1',
     domain: 'People & Culture',
-    question: 'How does your organization approach security and compliance training?',
+    question: 'How are new employees introduced to your organization\'s culture and expectations?',
     options: [
       {
         level: 'basic',
-        text: 'People learn on the job through experience',
-        description: 'Informal on-the-job learning'
+        text: 'They\'re expected to pick things up informally.',
+        description: 'Informal, unstructured introduction'
       },
       {
         level: 'reactive',
-        text: 'We provide training when incidents happen or are required by law',
-        description: 'Incident-driven and mandatory compliance training'
+        text: 'They receive a basic orientation or briefing.',
+        description: 'Basic orientation process'
       },
       {
         level: 'compliant',
-        text: 'We have regular training programs and track completion',
-        description: 'Formal training programs with completion tracking'
+        text: 'A structured onboarding program introduces roles and values.',
+        description: 'Formal onboarding with role and value introduction'
       },
       {
         level: 'proactive',
-        text: 'Training is role-specific and updated based on emerging threats',
-        description: 'Targeted training with threat-based updates'
+        text: 'Onboarding includes mentoring and culture-building experiences.',
+        description: 'Enhanced onboarding with mentoring support'
       },
       {
         level: 'resilient',
-        text: 'Learning is continuous, adaptive, and embedded in daily work',
-        description: 'Continuous learning culture with embedded development'
+        text: 'Onboarding is immersive, ongoing, and part of a strong culture of learning.',
+        description: 'Comprehensive, continuous onboarding process'
       }
     ]
   },
   {
     id: 'pc-2',
     domain: 'People & Culture',
-    question: 'How does your organization recognize and reward security-conscious behavior?',
+    question: 'How are staff performance and behavior managed?',
     options: [
       {
         level: 'basic',
-        text: 'Security isn\'t really recognized unless there\'s a major incident',
-        description: 'No formal recognition for security behavior'
+        text: 'Issues are only addressed when serious problems occur.',
+        description: 'Crisis-driven performance management'
       },
       {
         level: 'reactive',
-        text: 'We occasionally acknowledge good security practices',
-        description: 'Informal recognition of security practices'
+        text: 'Managers try to give feedback but it\'s not consistent.',
+        description: 'Inconsistent feedback and management'
       },
       {
         level: 'compliant',
-        text: 'Security performance is part of our regular evaluation process',
-        description: 'Security included in formal performance evaluations'
+        text: 'There is a formal performance review process in place.',
+        description: 'Structured performance review system'
       },
       {
         level: 'proactive',
-        text: 'We actively celebrate and promote security champions',
-        description: 'Active promotion of security culture champions'
+        text: 'Performance is monitored, with coaching and improvement plans.',
+        description: 'Active monitoring with development support'
       },
       {
         level: 'resilient',
-        text: 'Security mindset is woven into our core values and daily recognition',
-        description: 'Security embedded in organizational values and daily culture'
+        text: 'Staff are actively developed, recognized, and aligned with strategic goals.',
+        description: 'Strategic alignment with active development'
       }
     ]
   },
   {
     id: 'pc-3',
     domain: 'People & Culture',
-    question: 'How comfortable are employees with reporting security concerns or mistakes?',
+    question: 'How would you describe the overall morale and engagement of employees?',
     options: [
       {
         level: 'basic',
-        text: 'People try to handle things themselves to avoid trouble',
-        description: 'Fear-based culture discouraging reporting'
+        text: 'Low — people mostly do the minimum.',
+        description: 'Low engagement with minimal effort'
       },
       {
         level: 'reactive',
-        text: 'People report issues when they have to, but prefer not to',
-        description: 'Reluctant reporting due to potential consequences'
+        text: 'Mixed — some are committed, others disengaged.',
+        description: 'Variable engagement across organization'
       },
       {
         level: 'compliant',
-        text: 'We have formal reporting channels and people use them',
-        description: 'Formal reporting systems with adequate usage'
+        text: 'Acceptable — most people do their job reliably.',
+        description: 'Reliable performance with acceptable engagement'
       },
       {
         level: 'proactive',
-        text: 'People actively look for and report potential issues',
-        description: 'Proactive issue identification and reporting culture'
+        text: 'Generally positive — teams work well together.',
+        description: 'Good teamwork with positive environment'
       },
       {
         level: 'resilient',
-        text: 'Reporting and learning from mistakes is celebrated as continuous improvement',
-        description: 'Learning culture that celebrates transparency and improvement'
+        text: 'High — people feel connected to the mission and contribute proactively.',
+        description: 'High engagement with mission alignment'
       }
     ]
   },
   {
     id: 'pc-4',
     domain: 'People & Culture',
-    question: 'How does your organization handle knowledge sharing and collaboration?',
+    question: 'How are conflicts or personnel issues typically handled?',
     options: [
       {
         level: 'basic',
-        text: 'Knowledge mostly stays with individuals who learned it',
-        description: 'Individual knowledge silos'
+        text: 'Avoided or dealt with informally.',
+        description: 'Informal or avoidance-based approach'
       },
       {
         level: 'reactive',
-        text: 'We share knowledge when someone asks or leaves the company',
-        description: 'Reactive knowledge sharing upon request or departure'
+        text: 'Addressed when they escalate.',
+        description: 'Escalation-driven conflict resolution'
       },
       {
         level: 'compliant',
-        text: 'We have regular knowledge sharing sessions and documentation',
-        description: 'Formal knowledge sharing processes and documentation'
+        text: 'Managed using standard HR procedures.',
+        description: 'Standard HR process-based resolution'
       },
       {
         level: 'proactive',
-        text: 'We actively facilitate cross-team learning and best practice sharing',
-        description: 'Active cross-functional knowledge sharing initiatives'
+        text: 'Resolved constructively with clear support and follow-up.',
+        description: 'Constructive resolution with ongoing support'
       },
       {
         level: 'resilient',
-        text: 'Knowledge flows freely across all levels with continuous learning mindset',
-        description: 'Seamless knowledge flow with continuous learning culture'
+        text: 'Proactively prevented through a culture of openness and early intervention.',
+        description: 'Prevention-focused with open culture'
       }
     ]
   },
   {
     id: 'pc-5',
     domain: 'People & Culture',
-    question: 'How does your organization build security awareness and mindset?',
+    question: 'How is learning and professional development approached?',
     options: [
       {
         level: 'basic',
-        text: 'Security is seen as IT\'s responsibility',
-        description: 'Security viewed as technical department responsibility'
+        text: 'Staff are expected to learn on the job.',
+        description: 'Self-directed, on-the-job learning only'
       },
       {
         level: 'reactive',
-        text: 'People understand security basics and follow rules when reminded',
-        description: 'Basic security understanding with rule-following behavior'
+        text: 'Occasional training is offered when needed.',
+        description: 'Ad hoc training based on immediate needs'
       },
       {
         level: 'compliant',
-        text: 'Security awareness is built through regular communication and training',
-        description: 'Structured security awareness programs'
+        text: 'Regular training is scheduled and tracked.',
+        description: 'Structured training program with tracking'
       },
       {
         level: 'proactive',
-        text: 'People actively think about security implications in their daily work',
-        description: 'Proactive security mindset in daily operations'
+        text: 'Learning paths are personalized and strategically planned.',
+        description: 'Strategic, personalized development planning'
       },
       {
         level: 'resilient',
-        text: 'Security thinking is natural and automatic across the organization',
-        description: 'Intuitive security culture embedded in all activities'
+        text: 'A culture of continuous learning is embedded across all levels.',
+        description: 'Embedded learning culture organization-wide'
       }
     ]
   },
 
-  // Protection (5 questions)
+  // Protection Domain
   {
     id: 'pr-1',
     domain: 'Protection',
-    question: 'How does your organization approach cybersecurity and data protection?',
+    question: 'How is access to physical facilities or critical areas managed?',
     options: [
       {
         level: 'basic',
-        text: 'We have basic antivirus and passwords',
-        description: 'Minimal security controls'
+        text: 'It\'s mostly open — access is based on trust.',
+        description: 'Trust-based access without formal controls'
       },
       {
         level: 'reactive',
-        text: 'We add security measures after incidents or when required',
-        description: 'Incident-driven security improvements'
+        text: 'Basic locks or controls exist but aren\'t consistently enforced.',
+        description: 'Basic controls with inconsistent enforcement'
       },
       {
         level: 'compliant',
-        text: 'We follow industry standards and regulatory requirements',
-        description: 'Standards-based security framework'
+        text: 'Authorized access is managed through defined procedures.',
+        description: 'Formal access control procedures'
       },
       {
         level: 'proactive',
-        text: 'We anticipate threats and implement preventive measures',
-        description: 'Threat-anticipating security posture'
+        text: 'Access is monitored, logged, and reviewed regularly.',
+        description: 'Active monitoring with regular review'
       },
       {
         level: 'resilient',
-        text: 'Our security adapts automatically to emerging threats and business changes',
-        description: 'Adaptive security with automatic threat response'
+        text: 'Access is risk-based, tightly controlled, and integrated with other systems.',
+        description: 'Risk-based integrated access control system'
       }
     ]
   },
   {
     id: 'pr-2',
     domain: 'Protection',
-    question: 'How does your organization handle access control and identity management?',
+    question: 'How are internal threats like fraud, sabotage, or negligence addressed?',
     options: [
       {
         level: 'basic',
-        text: 'People have access to what they need, managed informally',
-        description: 'Informal access management'
+        text: 'Rarely considered — we react if something happens.',
+        description: 'Reactive response to internal threats'
       },
       {
         level: 'reactive',
-        text: 'We review and adjust access when there are issues or changes',
-        description: 'Issue-driven access reviews and adjustments'
+        text: 'There\'s general awareness but no formal strategy.',
+        description: 'Awareness without formal threat management'
       },
       {
         level: 'compliant',
-        text: 'We have formal access controls and regular access reviews',
-        description: 'Formal access control framework with regular reviews'
+        text: 'Policies exist and incidents are investigated.',
+        description: 'Formal policies with incident investigation'
       },
       {
         level: 'proactive',
-        text: 'Access is automatically managed based on roles and risk levels',
-        description: 'Automated role-based access with risk consideration'
+        text: 'There\'s proactive detection and targeted prevention.',
+        description: 'Proactive detection with prevention measures'
       },
       {
         level: 'resilient',
-        text: 'Identity and access adapt in real-time based on behavior and context',
-        description: 'Context-aware adaptive access controls'
+        text: 'A behavioral risk framework actively monitors and mitigates internal threats.',
+        description: 'Comprehensive behavioral risk management'
       }
     ]
   },
   {
     id: 'pr-3',
     domain: 'Protection',
-    question: 'How does your organization protect against business disruption?',
+    question: 'How is sensitive information protected?',
     options: [
       {
         level: 'basic',
-        text: 'We deal with disruptions as they happen',
-        description: 'Reactive disruption response'
+        text: 'There are no specific protections.',
+        description: 'No formal information protection measures'
       },
       {
         level: 'reactive',
-        text: 'We have basic backup systems and contact lists',
-        description: 'Basic business continuity preparations'
+        text: 'Some ad hoc measures (e.g., password protection) are in place.',
+        description: 'Basic, inconsistent protection measures'
       },
       {
         level: 'compliant',
-        text: 'We have tested business continuity and disaster recovery plans',
-        description: 'Formal tested business continuity planning'
+        text: 'Access is restricted, with basic information security protocols.',
+        description: 'Formal access restrictions and basic protocols'
       },
       {
         level: 'proactive',
-        text: 'We actively monitor for threats and have multiple recovery options',
-        description: 'Proactive threat monitoring with multiple recovery scenarios'
+        text: 'Data handling policies are enforced and regularly reviewed.',
+        description: 'Enforced policies with regular review'
       },
       {
         level: 'resilient',
-        text: 'Our operations can automatically adapt and continue despite disruptions',
-        description: 'Self-healing operations with automatic disruption adaptation'
+        text: 'Information security is embedded in systems, training, and culture.',
+        description: 'Comprehensive security integration across organization'
       }
     ]
   },
   {
     id: 'pr-4',
     domain: 'Protection',
-    question: 'How does your organization handle vendor and third-party risk?',
+    question: 'What level of situational awareness does your team maintain around protection risks?',
     options: [
       {
         level: 'basic',
-        text: 'We trust our vendors to handle their own security',
-        description: 'Trust-based vendor relationships'
+        text: 'We usually find out about issues after they\'ve happened.',
+        description: 'Reactive awareness after incidents occur'
       },
       {
         level: 'reactive',
-        text: 'We ask vendors about security when issues arise',
-        description: 'Issue-triggered vendor security discussions'
+        text: 'We rely on individuals to notice and report problems.',
+        description: 'Individual-based problem identification'
       },
       {
         level: 'compliant',
-        text: 'We have vendor security requirements and assessments',
-        description: 'Formal vendor security assessment processes'
+        text: 'Security briefings or alerts are occasionally issued.',
+        description: 'Periodic security communications'
       },
       {
         level: 'proactive',
-        text: 'We continuously monitor vendor risk and require security improvements',
-        description: 'Continuous vendor risk monitoring and improvement'
+        text: 'Risks are monitored and acted on in near real-time.',
+        description: 'Real-time risk monitoring and response'
       },
       {
         level: 'resilient',
-        text: 'Vendor relationships are integrated into our risk ecosystem with real-time visibility',
-        description: 'Integrated vendor risk ecosystem with real-time monitoring'
+        text: 'Teams are trained to anticipate, escalate, and respond to emerging threats.',
+        description: 'Proactive threat anticipation and response capability'
       }
     ]
   },
   {
     id: 'pr-5',
     domain: 'Protection',
-    question: 'How does your organization approach incident response and crisis management?',
+    question: 'How are external risks (e.g. theft, intrusion, cyber threats) managed?',
     options: [
       {
         level: 'basic',
-        text: 'We figure out what to do when incidents happen',
-        description: 'Ad-hoc incident response'
+        text: 'There\'s no formal protection strategy.',
+        description: 'No formal external threat management'
       },
       {
         level: 'reactive',
-        text: 'We have basic incident response procedures and contacts',
-        description: 'Basic incident response procedures'
+        text: 'We use basic deterrents like fences or antivirus.',
+        description: 'Basic deterrent measures only'
       },
       {
         level: 'compliant',
-        text: 'We have tested incident response plans with defined roles',
-        description: 'Formal tested incident response capability'
+        text: 'Security measures are defined and regularly checked.',
+        description: 'Defined security measures with regular review'
       },
       {
         level: 'proactive',
-        text: 'We simulate incidents and continuously improve our response capability',
-        description: 'Proactive incident response testing and improvement'
+        text: 'There\'s a coordinated strategy involving tech, people, and procedures.',
+        description: 'Coordinated multi-layered security strategy'
       },
       {
         level: 'resilient',
-        text: 'Our incident response is integrated with business operations and adapts automatically',
-        description: 'Integrated adaptive incident response with business operations'
+        text: 'Protection is predictive, intelligence-led, and adaptive to evolving threats.',
+        description: 'Predictive, adaptive threat management system'
       }
     ]
   },
 
-  // Proof it Works (5 questions)
+  // Proof it Works Domain
   {
     id: 'pw-1',
     domain: 'Proof it Works',
-    question: 'How does your organization measure the effectiveness of its operational controls?',
+    question: 'How do you know whether your operational systems are working effectively?',
     options: [
       {
         level: 'basic',
-        text: 'We assume things are working if there are no major problems',
-        description: 'Assumption-based effectiveness assessment'
+        text: 'We mostly rely on gut feel or experience.',
+        description: 'Intuition-based effectiveness assessment'
       },
       {
         level: 'reactive',
-        text: 'We check controls when auditors ask or incidents happen',
-        description: 'Event-driven control effectiveness checking'
+        text: 'We look at outputs, but don\'t measure systematically.',
+        description: 'Informal output review without systematic measurement'
       },
       {
         level: 'compliant',
-        text: 'We have regular testing and monitoring of key controls',
-        description: 'Scheduled control testing and monitoring programs'
+        text: 'Key indicators are tracked and reviewed regularly.',
+        description: 'Regular tracking of key performance indicators'
       },
       {
         level: 'proactive',
-        text: 'We continuously assess control effectiveness and make improvements',
-        description: 'Continuous control effectiveness assessment and improvement'
+        text: 'Metrics are tied to goals and used to drive action.',
+        description: 'Goal-oriented metrics driving decision-making'
       },
       {
         level: 'resilient',
-        text: 'Control effectiveness is measured in real-time with automatic optimization',
-        description: 'Real-time control effectiveness with automatic optimization'
+        text: 'Performance data is integrated, benchmarked, and drives ongoing optimization.',
+        description: 'Integrated performance data driving continuous optimization'
       }
     ]
   },
   {
     id: 'pw-2',
     domain: 'Proof it Works',
-    question: 'How does your organization demonstrate compliance to stakeholders?',
+    question: 'How often are audits, reviews, or self-assessments conducted?',
     options: [
       {
         level: 'basic',
-        text: 'We provide information when specifically asked',
-        description: 'Reactive compliance reporting upon request'
+        text: 'Rarely or only when required.',
+        description: 'Minimal review activity'
       },
       {
         level: 'reactive',
-        text: 'We prepare compliance reports for audits and regulatory reviews',
-        description: 'Audit-driven compliance documentation'
+        text: 'Occasionally, when a problem arises.',
+        description: 'Problem-driven review process'
       },
       {
         level: 'compliant',
-        text: 'We maintain comprehensive compliance documentation and evidence',
-        description: 'Comprehensive compliance documentation and evidence management'
+        text: 'Conducted periodically using a checklist or framework.',
+        description: 'Regular structured review process'
       },
       {
         level: 'proactive',
-        text: 'We proactively share compliance status and improvements with stakeholders',
-        description: 'Proactive stakeholder compliance communication'
+        text: 'Regular and structured, with follow-up actions documented.',
+        description: 'Structured reviews with documented follow-up'
       },
       {
         level: 'resilient',
-        text: 'Compliance status is transparent and available in real-time to all stakeholders',
-        description: 'Real-time transparent compliance visibility for stakeholders'
+        text: 'Continuous, risk-based, and part of a culture of accountability.',
+        description: 'Continuous review integrated into accountability culture'
       }
     ]
   },
   {
     id: 'pw-3',
     domain: 'Proof it Works',
-    question: 'How does your organization handle audit and assessment activities?',
+    question: 'How are lessons learned captured and applied?',
     options: [
       {
         level: 'basic',
-        text: 'Audits are stressful events we try to get through',
-        description: 'Audit survival mindset'
+        text: 'We don\'t formally capture them.',
+        description: 'No formal lesson capture process'
       },
       {
         level: 'reactive',
-        text: 'We prepare for audits when they\'re scheduled',
-        description: 'Pre-audit preparation activities'
+        text: 'Lessons are shared informally in teams.',
+        description: 'Informal team-based lesson sharing'
       },
       {
         level: 'compliant',
-        text: 'We maintain audit readiness and have defined audit processes',
-        description: 'Continuous audit readiness with formal processes'
+        text: 'Key incidents are reviewed and documented.',
+        description: 'Formal incident review and documentation'
       },
       {
         level: 'proactive',
-        text: 'We use audits as opportunities for improvement and validation',
-        description: 'Audit-driven improvement and validation opportunities'
+        text: 'Lessons are tracked, shared, and linked to improvement actions.',
+        description: 'Systematic lesson tracking with improvement integration'
       },
       {
         level: 'resilient',
-        text: 'Audit and assessment insights are integrated into continuous improvement',
-        description: 'Integrated audit insights for continuous organizational improvement'
+        text: 'A formal learning loop ensures insights shape future strategy and processes.',
+        description: 'Strategic learning loop influencing organizational direction'
       }
     ]
   },
   {
     id: 'pw-4',
     domain: 'Proof it Works',
-    question: 'How does your organization track and report on key performance indicators?',
+    question: 'How do you demonstrate compliance or assurance to stakeholders (internal or external)?',
     options: [
       {
         level: 'basic',
-        text: 'We track basic operational metrics when needed',
-        description: 'Ad-hoc basic operational metrics'
+        text: 'We respond to concerns as they come up.',
+        description: 'Reactive response to stakeholder concerns'
       },
       {
         level: 'reactive',
-        text: 'We prepare reports when requested by management or regulators',
-        description: 'Request-driven reporting preparation'
+        text: 'We provide information when requested.',
+        description: 'Request-driven information provision'
       },
       {
         level: 'compliant',
-        text: 'We have regular reporting on defined KPIs and metrics',
-        description: 'Formal KPI reporting framework'
+        text: 'We maintain records and reports to meet requirements.',
+        description: 'Formal records and reporting for compliance'
       },
       {
         level: 'proactive',
-        text: 'We use metrics to drive decision-making and process improvements',
-        description: 'Metrics-driven decision making and improvement'
+        text: 'We proactively share results and evidence of compliance.',
+        description: 'Proactive compliance communication and evidence sharing'
       },
       {
         level: 'resilient',
-        text: 'Our metrics provide real-time insights that automatically inform strategy',
-        description: 'Real-time metrics driving automatic strategic insights'
+        text: 'We use dashboards and audits to provide real-time, transparent assurance.',
+        description: 'Real-time transparency through integrated assurance systems'
       }
     ]
   },
   {
     id: 'pw-5',
     domain: 'Proof it Works',
-    question: 'How does your organization validate that changes and improvements actually work?',
+    question: 'How is evidence used in decision-making?',
     options: [
       {
         level: 'basic',
-        text: 'We implement changes and hope they work as intended',
-        description: 'Implementation without validation'
+        text: 'Decisions are made based on experience or urgency.',
+        description: 'Experience and urgency-driven decision-making'
       },
       {
         level: 'reactive',
-        text: 'We check if changes worked when problems are reported',
-        description: 'Problem-triggered change validation'
+        text: 'Evidence is sometimes used, but not consistently.',
+        description: 'Inconsistent use of evidence in decisions'
       },
       {
         level: 'compliant',
-        text: 'We have formal testing and validation processes for changes',
-        description: 'Formal change testing and validation procedures'
+        text: 'Decisions are supported by relevant data or reports.',
+        description: 'Data-supported decision-making process'
       },
       {
         level: 'proactive',
-        text: 'We measure the impact of changes and continuously refine them',
-        description: 'Impact measurement with continuous refinement'
+        text: 'Data is analyzed to guide choices and reduce uncertainty.',
+        description: 'Analytical approach to reduce decision uncertainty'
       },
       {
         level: 'resilient',
-        text: 'Changes are validated in real-time with automatic adjustment based on results',
-        description: 'Real-time change validation with automatic adjustment'
+        text: 'Real-time evidence and trends drive continuous, informed decision-making.',
+        description: 'Continuous evidence-driven decision optimization'
       }
     ]
   }
@@ -832,7 +832,7 @@ export const PSYCHOMETRIC_QUESTIONS: AssessmentQuestion[] = [
  * Shuffle questions for random order presentation
  */
 export function getRandomizedQuestions(): AssessmentQuestion[] {
-  const shuffled = [...PSYCHOMETRIC_QUESTIONS];
+  const shuffled = [...assessmentQuestions];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
@@ -844,7 +844,7 @@ export function getRandomizedQuestions(): AssessmentQuestion[] {
  * Get questions grouped by domain
  */
 export function getQuestionsByDomain(): Record<string, AssessmentQuestion[]> {
-  return PSYCHOMETRIC_QUESTIONS.reduce((acc, question) => {
+  return assessmentQuestions.reduce((acc, question) => {
     if (!acc[question.domain]) {
       acc[question.domain] = [];
     }
