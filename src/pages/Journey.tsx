@@ -1029,6 +1029,16 @@ const Journey = () => {
         </div>
       </footer>
 
+      {/* Floating Assessment Button */}
+      <Button 
+        onClick={handleStartAssessment}
+        className="fixed bottom-6 right-6 z-50 text-lg px-6 py-4 rounded-full shadow-2xl hover:shadow-3xl transition-all duration-300 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white border-0 hover:scale-105 animate-pulse hover:animate-none"
+        size="lg"
+      >
+        Start Free Assessment
+        <ChevronRight className="ml-2 h-5 w-5" />
+      </Button>
+
       {/* Maturion AI Chat Assistant */}
       <MaturionChat 
         context="maturity journey exploration and domain-specific guidance"
