@@ -4,8 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, HelpCircle, Check, Loader2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, HelpCircle, Check, Loader2, Edit, Save, X, RotateCcw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { useAIMPSGeneration } from '@/hooks/useAIMPSGeneration';
 import { useToast } from '@/hooks/use-toast';
 
@@ -17,6 +19,8 @@ interface MPS {
   criteriaCount: number;
   selected: boolean;
   rationale?: string;
+  isEdited?: boolean;
+  originalMPS?: Omit<MPS, 'isEdited' | 'originalMPS'>;
 }
 
 interface MPSSelectionModalProps {
@@ -35,6 +39,8 @@ export const MPSSelectionModal: React.FC<MPSSelectionModalProps> = ({
   const { generatedMPSs, isLoading, error, generateMPSsForDomain } = useAIMPSGeneration();
   const { toast } = useToast();
   const [mpsList, setMpsList] = useState<MPS[]>([]);
+  const [editingMPS, setEditingMPS] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<Partial<MPS>>({});
 
   // Generate MPSs when modal opens
   useEffect(() => {
@@ -88,6 +94,63 @@ export const MPSSelectionModal: React.FC<MPSSelectionModalProps> = ({
     const selectedMPSs = mpsList.filter(mps => mps.selected);
     onAcceptMPSs(selectedMPSs);
     onClose();
+  };
+
+  const startEdit = (mps: MPS) => {
+    setEditingMPS(mps.id);
+    setEditForm({
+      title: mps.title,
+      intent: mps.intent,
+      rationale: mps.rationale,
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingMPS(null);
+    setEditForm({});
+  };
+
+  const saveEdit = () => {
+    if (!editingMPS) return;
+    
+    setMpsList(prev => prev.map(mps => {
+      if (mps.id === editingMPS) {
+        // Store original if this is the first edit
+        const originalMPS = mps.originalMPS || {
+          id: mps.id,
+          number: mps.number,
+          title: mps.title,
+          intent: mps.intent,
+          criteriaCount: mps.criteriaCount,
+          selected: mps.selected,
+          rationale: mps.rationale,
+        };
+        
+        return {
+          ...mps,
+          title: editForm.title || mps.title,
+          intent: editForm.intent || mps.intent,
+          rationale: editForm.rationale || mps.rationale,
+          isEdited: true,
+          originalMPS,
+        };
+      }
+      return mps;
+    }));
+    
+    cancelEdit();
+  };
+
+  const resetToOriginal = (mpsId: string) => {
+    setMpsList(prev => prev.map(mps => {
+      if (mps.id === mpsId && mps.originalMPS) {
+        return {
+          ...mps.originalMPS,
+          selected: mps.selected, // Preserve selection state
+        };
+      }
+      return mps;
+    }));
   };
 
   const selectedCount = mpsList.filter(mps => mps.selected).length;
@@ -164,68 +227,158 @@ export const MPSSelectionModal: React.FC<MPSSelectionModalProps> = ({
                         : 'border-muted hover:border-muted-foreground/50'
                     }`}
                   >
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-3">
-                        <Checkbox
-                          id={mps.id}
-                          checked={mps.selected}
-                          onCheckedChange={() => toggleMPSSelection(mps.id)}
-                          className="mt-1"
-                        />
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <Badge variant="outline" className="mr-2">
-                                {mps.number}
-                              </Badge>
-                              <span className="font-medium">{mps.title}</span>
-                            </div>
-                            {mps.rationale && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => toggleMPSExpansion(mps.id)}
-                                className="text-amber-600 hover:text-amber-700"
-                              >
-                                <HelpCircle className="h-4 w-4 mr-1" />
-                                Why this MPS?
-                                {expandedMPS.has(mps.id) ? (
-                                  <ChevronUp className="h-4 w-4 ml-1" />
-                                ) : (
-                                  <ChevronDown className="h-4 w-4 ml-1" />
-                                )}
-                              </Button>
-                            )}
-                          </div>
+                     <CardContent className="p-4">
+                       <div className="flex items-start gap-3">
+                         <Checkbox
+                           id={mps.id}
+                           checked={mps.selected}
+                           onCheckedChange={() => toggleMPSSelection(mps.id)}
+                           className="mt-1"
+                         />
+                         <div className="flex-1 space-y-2">
+                           <div className="flex items-center justify-between">
+                             <div className="flex items-center gap-2">
+                               <Badge variant="outline" className="mr-2">
+                                 {mps.number}
+                               </Badge>
+                               {editingMPS === mps.id ? (
+                                 <Input
+                                   value={editForm.title || ''}
+                                   onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                                   className="font-medium"
+                                   placeholder="MPS Title"
+                                 />
+                               ) : (
+                                 <>
+                                   <span className="font-medium">{mps.title}</span>
+                                   {mps.isEdited && (
+                                     <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                                       Edited from AI
+                                     </Badge>
+                                   )}
+                                 </>
+                               )}
+                             </div>
+                             
+                             <div className="flex items-center gap-2">
+                               {editingMPS === mps.id ? (
+                                 <>
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     onClick={saveEdit}
+                                     className="text-green-600 hover:text-green-700"
+                                   >
+                                     <Save className="h-4 w-4" />
+                                   </Button>
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     onClick={cancelEdit}
+                                     className="text-gray-600 hover:text-gray-700"
+                                   >
+                                     <X className="h-4 w-4" />
+                                   </Button>
+                                 </>
+                               ) : (
+                                 <>
+                                   <Button
+                                     variant="ghost"
+                                     size="sm"
+                                     onClick={() => startEdit(mps)}
+                                     className="text-blue-600 hover:text-blue-700"
+                                   >
+                                     <Edit className="h-4 w-4" />
+                                     Edit
+                                   </Button>
+                                   {mps.isEdited && mps.originalMPS && (
+                                     <Button
+                                       variant="ghost"
+                                       size="sm"
+                                       onClick={() => resetToOriginal(mps.id)}
+                                       className="text-amber-600 hover:text-amber-700"
+                                     >
+                                       <RotateCcw className="h-4 w-4" />
+                                       Reset
+                                     </Button>
+                                   )}
+                                   {mps.rationale && (
+                                     <Button
+                                       variant="ghost"
+                                       size="sm"
+                                       onClick={() => toggleMPSExpansion(mps.id)}
+                                       className="text-amber-600 hover:text-amber-700"
+                                     >
+                                       <HelpCircle className="h-4 w-4 mr-1" />
+                                       Why this MPS?
+                                       {expandedMPS.has(mps.id) ? (
+                                         <ChevronUp className="h-4 w-4 ml-1" />
+                                       ) : (
+                                         <ChevronDown className="h-4 w-4 ml-1" />
+                                       )}
+                                     </Button>
+                                   )}
+                                 </>
+                               )}
+                             </div>
+                           </div>
 
-                          <Collapsible open={expandedMPS.has(mps.id)}>
-                            <CollapsibleContent className="space-y-2">
-                              <div className="pt-2 border-t border-muted">
-                                <p className="text-sm font-medium text-muted-foreground mb-1">
-                                  Intent & Objective:
-                                </p>
-                                <p className="text-sm">{mps.intent}</p>
-                                
-                                {mps.rationale && (
-                                  <>
-                                    <p className="text-sm font-medium text-muted-foreground mb-1 mt-3">
-                                      Why this MPS is important:
-                                    </p>
-                                    <p className="text-sm text-amber-700 bg-amber-50 p-2 rounded">
-                                      {mps.rationale}
-                                    </p>
-                                  </>
-                                )}
-                                
-                                <p className="text-xs text-muted-foreground mt-2">
-                                  {mps.criteriaCount} assessment criteria included
-                                </p>
-                              </div>
-                            </CollapsibleContent>
-                          </Collapsible>
-                        </div>
-                      </div>
-                    </CardContent>
+                           {editingMPS === mps.id && (
+                             <div className="space-y-3 pt-2 border-t border-muted">
+                               <div>
+                                 <label className="text-sm font-medium text-muted-foreground mb-1 block">
+                                   Intent & Objective:
+                                 </label>
+                                 <Textarea
+                                   value={editForm.intent || ''}
+                                   onChange={(e) => setEditForm(prev => ({ ...prev, intent: e.target.value }))}
+                                   placeholder="Describe the intent and objective..."
+                                   rows={3}
+                                 />
+                               </div>
+                               
+                               <div>
+                                 <label className="text-sm font-medium text-muted-foreground mb-1 block">
+                                   Why this MPS is important (optional):
+                                 </label>
+                                 <Textarea
+                                   value={editForm.rationale || ''}
+                                   onChange={(e) => setEditForm(prev => ({ ...prev, rationale: e.target.value }))}
+                                   placeholder="Explain why this MPS is important..."
+                                   rows={2}
+                                 />
+                               </div>
+                             </div>
+                           )}
+
+                           <Collapsible open={expandedMPS.has(mps.id) && editingMPS !== mps.id}>
+                             <CollapsibleContent className="space-y-2">
+                               <div className="pt-2 border-t border-muted">
+                                 <p className="text-sm font-medium text-muted-foreground mb-1">
+                                   Intent & Objective:
+                                 </p>
+                                 <p className="text-sm">{mps.intent}</p>
+                                 
+                                 {mps.rationale && (
+                                   <>
+                                     <p className="text-sm font-medium text-muted-foreground mb-1 mt-3">
+                                       Why this MPS is important:
+                                     </p>
+                                     <p className="text-sm text-amber-700 bg-amber-50 p-2 rounded">
+                                       {mps.rationale}
+                                     </p>
+                                   </>
+                                 )}
+                                 
+                                 <p className="text-xs text-muted-foreground mt-2">
+                                   {mps.criteriaCount} assessment criteria included
+                                 </p>
+                               </div>
+                             </CollapsibleContent>
+                           </Collapsible>
+                         </div>
+                       </div>
+                     </CardContent>
                   </Card>
                 ))}
               </div>
