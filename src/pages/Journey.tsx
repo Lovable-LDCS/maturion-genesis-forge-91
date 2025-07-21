@@ -15,7 +15,29 @@ const MATURITY_DOMAINS = [
     currentLevel: "Basic",
     currentDescription: "Informal governance structure with limited strategic oversight of operational risks.",
     nextLevel: "Reactive", 
-    nextDescription: "Establish clear governance structure and define leadership roles in risk management."
+    nextDescription: "Establish clear governance structure and define leadership roles in risk management.",
+    levelContent: {
+      1: {
+        oneLiner: "Leadership operates with informal oversight and limited strategic direction.",
+        paragraph: "At Level 1, your leadership team operates with informal governance structures and limited strategic oversight of operational risks. Decision-making is largely reactive, with minimal documentation of authority, responsibilities, or risk management processes. While functional, this approach creates gaps in accountability and strategic planning."
+      },
+      2: {
+        oneLiner: "Clear governance structure with defined leadership roles in risk management.",
+        paragraph: "Level 2 establishes clear governance structures with documented leadership roles and responsibilities. Risk management becomes a formal consideration in decision-making, with regular leadership meetings and basic oversight mechanisms. This creates accountability and begins systematic risk awareness."
+      },
+      3: {
+        oneLiner: "Systematic governance with compliance focus and regular risk assessment.",
+        paragraph: "At Level 3, governance becomes systematic with formal compliance frameworks, regular risk assessments, and documented processes for strategic decision-making. Leadership demonstrates clear ownership of risk management with structured reporting and monitoring mechanisms in place."
+      },
+      4: {
+        oneLiner: "Optimized governance with predictive risk management and strategic planning.",
+        paragraph: "Level 4 features optimized governance structures with predictive risk management capabilities. Leadership proactively anticipates challenges, uses data-driven insights for strategic planning, and maintains sophisticated oversight mechanisms that enable rapid response to emerging risks."
+      },
+      5: {
+        oneLiner: "Self-adapting governance with continuous innovation and industry leadership.",
+        paragraph: "At Level 5, governance systems are self-adapting with continuous innovation in risk management practices. Leadership demonstrates industry-leading practices, with autonomous optimization of processes and the ability to anticipate and shape industry trends while maintaining operational excellence."
+      }
+    }
   },
   {
     name: "Process Integrity", 
@@ -24,7 +46,29 @@ const MATURITY_DOMAINS = [
     currentLevel: "Basic",
     currentDescription: "Ad-hoc processes with minimal documentation and control mechanisms.",
     nextLevel: "Reactive",
-    nextDescription: "Document key processes and implement basic quality control measures."
+    nextDescription: "Document key processes and implement basic quality control measures.",
+    levelContent: {
+      1: {
+        oneLiner: "Ad-hoc processes with minimal documentation and inconsistent execution.",
+        paragraph: "Level 1 operations rely on ad-hoc processes with minimal documentation and inconsistent execution. Quality control is informal, often dependent on individual knowledge rather than systematic approaches. While work gets done, efficiency and reliability vary significantly across different areas."
+      },
+      2: {
+        oneLiner: "Documented processes with basic quality control and standardized procedures.",
+        paragraph: "At Level 2, key processes are documented with basic quality control measures in place. Standardized procedures begin to emerge, reducing reliance on individual knowledge. This creates more consistent outcomes and enables better training and knowledge transfer across the organization."
+      },
+      3: {
+        oneLiner: "Systematic process management with compliance monitoring and optimization.",
+        paragraph: "Level 3 implements systematic process management with formal compliance monitoring and regular optimization efforts. Processes are well-documented, regularly reviewed, and continuously improved based on performance data and compliance requirements."
+      },
+      4: {
+        oneLiner: "Optimized processes with predictive analytics and proactive improvement.",
+        paragraph: "At Level 4, processes are highly optimized with predictive analytics driving proactive improvements. Advanced monitoring systems identify potential issues before they impact operations, enabling continuous refinement and exceptional operational efficiency."
+      },
+      5: {
+        oneLiner: "Self-optimizing processes with autonomous improvement and innovation.",
+        paragraph: "Level 5 features self-optimizing processes with autonomous improvement capabilities. Advanced analytics and AI-driven insights enable continuous innovation in operational approaches, setting industry benchmarks for efficiency and effectiveness."
+      }
+    }
   },
   {
     name: "People & Culture",
@@ -33,7 +77,29 @@ const MATURITY_DOMAINS = [
     currentLevel: "Basic",
     currentDescription: "Limited awareness programs with informal training approaches.",
     nextLevel: "Reactive",
-    nextDescription: "Develop structured training programs and awareness initiatives."
+    nextDescription: "Develop structured training programs and awareness initiatives.",
+    levelContent: {
+      1: {
+        oneLiner: "Informal training with limited awareness programs and ad-hoc development.",
+        paragraph: "Level 1 relies on informal training approaches with limited awareness programs and ad-hoc professional development. Learning happens organically through experience, but lacks systematic structure or measurement. Cultural development is largely dependent on individual initiative."
+      },
+      2: {
+        oneLiner: "Structured training programs with formal awareness initiatives and development plans.",
+        paragraph: "At Level 2, structured training programs emerge with formal awareness initiatives and individual development plans. Regular training sessions address key competencies, and cultural values begin to be formally communicated and reinforced throughout the organization."
+      },
+      3: {
+        oneLiner: "Comprehensive capability development with compliance-focused culture and monitoring.",
+        paragraph: "Level 3 implements comprehensive capability development programs with a compliance-focused culture and systematic monitoring of training effectiveness. Competency frameworks guide development, and cultural metrics track progress toward organizational values."
+      },
+      4: {
+        oneLiner: "Advanced capability management with proactive culture development and leadership.",
+        paragraph: "At Level 4, advanced capability management systems drive proactive culture development and leadership cultivation. Predictive analytics identify skill gaps before they impact performance, and sophisticated cultural development programs create industry-leading workplace environments."
+      },
+      5: {
+        oneLiner: "Self-developing organization with innovative culture and adaptive learning systems.",
+        paragraph: "Level 5 represents a self-developing organization with innovative culture and adaptive learning systems. Continuous learning is embedded in daily operations, with AI-driven personalized development and cultural evolution that adapts to changing industry and societal needs."
+      }
+    }
   },
   {
     name: "Protection",
@@ -42,7 +108,29 @@ const MATURITY_DOMAINS = [
     currentLevel: "Basic",
     currentDescription: "Basic security measures with limited incident response capabilities.",
     nextLevel: "Reactive",
-    nextDescription: "Implement comprehensive security framework and incident response procedures."
+    nextDescription: "Implement comprehensive security framework and incident response procedures.",
+    levelContent: {
+      1: {
+        oneLiner: "Basic security measures with limited incident response and minimal planning.",
+        paragraph: "Level 1 implements basic security measures with limited incident response capabilities and minimal planning for security events. Protection relies primarily on standard security tools without sophisticated threat analysis or coordinated response procedures."
+      },
+      2: {
+        oneLiner: "Comprehensive security framework with documented incident response procedures.",
+        paragraph: "At Level 2, a comprehensive security framework emerges with documented incident response procedures and formal security policies. Regular security training and established communication protocols improve the organization's ability to detect and respond to security events."
+      },
+      3: {
+        oneLiner: "Systematic security management with compliance monitoring and resilience planning.",
+        paragraph: "Level 3 features systematic security management with formal compliance monitoring and comprehensive resilience planning. Security measures are regularly tested, incidents are thoroughly investigated, and lessons learned drive continuous improvement in protection capabilities."
+      },
+      4: {
+        oneLiner: "Advanced threat management with predictive security and proactive resilience.",
+        paragraph: "At Level 4, advanced threat management systems provide predictive security capabilities and proactive resilience planning. AI-driven threat detection, automated response systems, and sophisticated business continuity planning enable rapid adaptation to emerging security challenges."
+      },
+      5: {
+        oneLiner: "Adaptive security ecosystem with autonomous protection and innovative resilience.",
+        paragraph: "Level 5 represents an adaptive security ecosystem with autonomous protection capabilities and innovative resilience approaches. Self-healing systems, predictive threat intelligence, and adaptive security architectures provide industry-leading protection while enabling operational agility."
+      }
+    }
   },
   {
     name: "Proof it Works",
@@ -51,7 +139,29 @@ const MATURITY_DOMAINS = [
     currentLevel: "Basic", 
     currentDescription: "Minimal monitoring with limited measurement frameworks.",
     nextLevel: "Reactive",
-    nextDescription: "Establish key performance indicators and regular monitoring processes."
+    nextDescription: "Establish key performance indicators and regular monitoring processes.",
+    levelContent: {
+      1: {
+        oneLiner: "Minimal monitoring with basic metrics and limited measurement frameworks.",
+        paragraph: "Level 1 relies on minimal monitoring with basic metrics and limited measurement frameworks. Performance tracking is often manual and reactive, with limited insight into operational effectiveness or early warning indicators of potential issues."
+      },
+      2: {
+        oneLiner: "Structured monitoring with key performance indicators and regular reporting.",
+        paragraph: "At Level 2, structured monitoring systems emerge with established key performance indicators and regular reporting processes. Dashboards provide visibility into operational performance, enabling more informed decision-making and timely response to performance variations."
+      },
+      3: {
+        oneLiner: "Comprehensive measurement with compliance tracking and systematic validation.",
+        paragraph: "Level 3 implements comprehensive measurement systems with formal compliance tracking and systematic validation of all key processes. Regular audits, detailed analytics, and structured reporting ensure that performance claims are substantiated and improvements are measurable."
+      },
+      4: {
+        oneLiner: "Advanced analytics with predictive monitoring and optimization validation.",
+        paragraph: "At Level 4, advanced analytics provide predictive monitoring capabilities with sophisticated optimization validation. Real-time performance insights, predictive modeling, and automated alerting systems enable proactive management and continuous optimization of operations."
+      },
+      5: {
+        oneLiner: "Autonomous validation with self-optimizing monitoring and innovative measurement.",
+        paragraph: "Level 5 features autonomous validation systems with self-optimizing monitoring and innovative measurement approaches. AI-driven analytics continuously validate and improve monitoring systems themselves, providing unprecedented insight into operational effectiveness and future performance."
+      }
+    }
   },
   {
     name: "Enablement",
@@ -60,7 +170,29 @@ const MATURITY_DOMAINS = [
     currentLevel: "Basic",
     currentDescription: "Basic technology infrastructure with limited integration capabilities.",
     nextLevel: "Reactive", 
-    nextDescription: "Upgrade technology platform and improve system integration."
+    nextDescription: "Upgrade technology platform and improve system integration.",
+    levelContent: {
+      1: {
+        oneLiner: "Basic technology infrastructure with limited integration and manual processes.",
+        paragraph: "Level 1 operates with basic technology infrastructure featuring limited integration capabilities and significant manual processes. Systems often work in isolation, requiring manual data transfer and creating potential for errors and inefficiencies in operations."
+      },
+      2: {
+        oneLiner: "Improved technology platform with better integration and documented processes.",
+        paragraph: "At Level 2, technology platforms are upgraded with improved integration capabilities and documented processes. Key systems begin to communicate effectively, reducing manual effort and improving data consistency across the organization."
+      },
+      3: {
+        oneLiner: "Integrated technology ecosystem with compliance monitoring and systematic optimization.",
+        paragraph: "Level 3 establishes an integrated technology ecosystem with comprehensive compliance monitoring and systematic optimization capabilities. All major systems are connected, automated workflows reduce manual intervention, and technology performance is actively monitored and managed."
+      },
+      4: {
+        oneLiner: "Advanced technology architecture with predictive capabilities and proactive optimization.",
+        paragraph: "At Level 4, advanced technology architecture provides predictive capabilities and proactive optimization features. AI-driven insights optimize system performance, predictive maintenance prevents downtime, and intelligent automation enhances operational efficiency."
+      },
+      5: {
+        oneLiner: "Self-managing technology platform with autonomous optimization and innovative capabilities.",
+        paragraph: "Level 5 represents a self-managing technology platform with autonomous optimization and innovative capabilities. Systems self-heal, automatically optimize performance, and continuously evolve to meet changing business needs while maintaining security and compliance."
+      }
+    }
   }
 ];
 
@@ -418,7 +550,7 @@ const Journey = () => {
                       {/* Content Overlay */}
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-white pt-6">
                         <h3 className="text-base font-bold text-center leading-tight px-4">{domain.name}</h3>
-                        <p className="text-xs text-emerald-100 mt-1">- {domain.currentLevel}</p>
+                        <p className="text-xs text-emerald-100 mt-1">- Level {selectedLevel}</p>
                       </div>
                       
                       {/* Hover Tooltip */}
@@ -426,7 +558,7 @@ const Journey = () => {
                         <div className="absolute z-50 top-full left-1/2 transform -translate-x-1/2 mt-5 p-4 bg-white border rounded-lg shadow-xl w-72 animate-fade-in">
                           <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
                           <p className="text-sm text-gray-700">
-                            {domain.description}
+                            {domain.levelContent[selectedLevel]?.oneLiner || domain.description}
                           </p>
                         </div>
                       )}
@@ -442,14 +574,17 @@ const Journey = () => {
                         {domain.description}
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-4 mt-4">
                       <div className="space-y-2">
-                        <h4 className="font-semibold text-red-600">Current State</h4>
-                        <p className="text-sm text-muted-foreground">{domain.currentDescription}</p>
+                        <h4 className="font-semibold text-slate-700">Level {selectedLevel} - {MATURITY_LEVELS[selectedLevel - 1]?.name}</h4>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {domain.levelContent[selectedLevel]?.paragraph || domain.description}
+                        </p>
                       </div>
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-green-600">Working Toward</h4>
-                        <p className="text-sm text-muted-foreground">{domain.nextDescription}</p>
+                      <div className="pt-3 border-t border-slate-200">
+                        <p className="text-sm text-primary italic">
+                          If you want to know even more, ask Maturion.
+                        </p>
                       </div>
                     </div>
                   </DialogContent>
@@ -478,7 +613,7 @@ const Journey = () => {
                         <CardHeader className="text-center p-3">
                           <CardTitle className="text-sm font-bold leading-tight">{domain.name}</CardTitle>
                           <CardDescription className={`${color.text} text-xs`}>
-                            - {domain.currentLevel}
+                            - Level {selectedLevel}
                           </CardDescription>
                         </CardHeader>
                         
@@ -487,7 +622,7 @@ const Journey = () => {
                           <div className="absolute z-50 top-full left-1/2 transform -translate-x-1/2 mt-3 p-4 bg-white border rounded-lg shadow-xl w-64 animate-fade-in">
                             <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
                             <p className="text-sm text-gray-700">
-                              {domain.description}
+                              {domain.levelContent[selectedLevel]?.oneLiner || domain.description}
                             </p>
                           </div>
                         )}
@@ -503,14 +638,17 @@ const Journey = () => {
                           {domain.description}
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      <div className="space-y-4 mt-4">
                         <div className="space-y-2">
-                          <h4 className="font-semibold text-red-600">Current State</h4>
-                          <p className="text-sm text-muted-foreground">{domain.currentDescription}</p>
+                          <h4 className="font-semibold text-slate-700">Level {selectedLevel} - {MATURITY_LEVELS[selectedLevel - 1]?.name}</h4>
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {domain.levelContent[selectedLevel]?.paragraph || domain.description}
+                          </p>
                         </div>
-                        <div className="space-y-2">
-                          <h4 className="font-semibold text-green-600">Working Toward</h4>
-                          <p className="text-sm text-muted-foreground">{domain.nextDescription}</p>
+                        <div className="pt-3 border-t border-slate-200">
+                          <p className="text-sm text-primary italic">
+                            If you want to know even more, ask Maturion.
+                          </p>
                         </div>
                       </div>
                     </DialogContent>
@@ -532,7 +670,7 @@ const Journey = () => {
                       <CardHeader className="text-center pb-3">
                         <CardTitle className="text-lg font-bold">{domain.name}</CardTitle>
                         <CardDescription className="text-red-100 text-sm">
-                          - {domain.currentLevel}
+                          - Level {selectedLevel}
                         </CardDescription>
                       </CardHeader>
                       
@@ -541,7 +679,7 @@ const Journey = () => {
                         <div className="absolute z-50 top-full left-1/2 transform -translate-x-1/2 mt-3 p-4 bg-white border rounded-lg shadow-xl w-64 animate-fade-in">
                           <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
                           <p className="text-sm text-gray-700">
-                            {domain.description}
+                            {domain.levelContent[selectedLevel]?.oneLiner || domain.description}
                           </p>
                         </div>
                       )}
@@ -557,14 +695,17 @@ const Journey = () => {
                         {domain.description}
                       </DialogDescription>
                     </DialogHeader>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    <div className="space-y-4 mt-4">
                       <div className="space-y-2">
-                        <h4 className="font-semibold text-red-600">Current State</h4>
-                        <p className="text-sm text-muted-foreground">{domain.currentDescription}</p>
+                        <h4 className="font-semibold text-slate-700">Level {selectedLevel} - {MATURITY_LEVELS[selectedLevel - 1]?.name}</h4>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {domain.levelContent[selectedLevel]?.paragraph || domain.description}
+                        </p>
                       </div>
-                      <div className="space-y-2">
-                        <h4 className="font-semibold text-green-600">Working Toward</h4>
-                        <p className="text-sm text-muted-foreground">{domain.nextDescription}</p>
+                      <div className="pt-3 border-t border-slate-200">
+                        <p className="text-sm text-primary italic">
+                          If you want to know even more, ask Maturion.
+                        </p>
                       </div>
                     </div>
                   </DialogContent>
