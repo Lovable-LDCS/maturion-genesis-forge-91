@@ -1,14 +1,16 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, FileText, Target, CheckSquare, BarChart3, ClipboardCheck } from 'lucide-react';
+import { MPSSelectionModal } from '@/components/assessment/MPSSelectionModal';
 
 const DomainAuditBuilder = () => {
   const navigate = useNavigate();
   const { domainId } = useParams();
+  const [isMPSModalOpen, setIsMPSModalOpen] = useState(false);
 
   // Mock domain data - in real app this would come from API
   const domainNames: Record<string, string> = {
@@ -85,6 +87,20 @@ const DomainAuditBuilder = () => {
     return auditSteps[stepIndex - 1].status === 'completed';
   };
 
+  const handleStepClick = (stepId: number) => {
+    if (stepId === 1) {
+      setIsMPSModalOpen(true);
+    } else {
+      console.log(`Navigate to step ${stepId} interface`);
+    }
+  };
+
+  const handleAcceptMPSs = (selectedMPSs: any[]) => {
+    console.log('Accepted MPSs:', selectedMPSs);
+    // Here you would typically save the selected MPSs to your backend
+    // and update the domain's progress status
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
       {/* Header */}
@@ -139,8 +155,7 @@ const DomainAuditBuilder = () => {
                   } ${isClickable ? 'cursor-pointer hover:shadow-md' : 'opacity-60'}`}
                   onClick={() => {
                     if (isClickable) {
-                      // Navigate to specific step interface
-                      console.log(`Navigate to step ${step.id} interface`);
+                      handleStepClick(step.id);
                     }
                   }}
                 >
@@ -215,6 +230,14 @@ const DomainAuditBuilder = () => {
           </div>
         </div>
       </main>
+
+      {/* MPS Selection Modal */}
+      <MPSSelectionModal
+        isOpen={isMPSModalOpen}
+        onClose={() => setIsMPSModalOpen(false)}
+        domainName={domainName}
+        onAcceptMPSs={handleAcceptMPSs}
+      />
     </div>
   );
 };
