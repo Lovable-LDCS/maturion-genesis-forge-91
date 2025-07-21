@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from '@/hooks/use-toast';
 import { Target, ChevronRight, ArrowLeft, Shield, Settings, Users, Lock, BarChart, Rocket, Eye, Database, Search, Crosshair, AlertTriangle, Zap, MonitorSpeaker, HeartHandshake, Key, CalendarCheck, LifeBuoy, Wrench, Info, Ban, Clock, CheckCircle, Play, Zap as ZapIcon, BarChart2, Cog } from 'lucide-react';
 import { MaturionChat } from '@/components/ai/MaturionChat';
+import { TooltipPortal } from '@/components/ui/tooltip-portal';
 
 const MATURITY_DOMAINS = [
   {
@@ -434,6 +435,17 @@ const Journey = () => {
   const [lockedLevel, setLockedLevel] = useState<number | null>(null);
   const [hoveredDriver, setHoveredDriver] = useState<number | null>(null);
   const [hoveredElement, setHoveredElement] = useState<number | null>(null);
+  const [tooltipPosition, setTooltipPosition] = useState<{x: number, y: number} | null>(null);
+
+  // Handle mouse enter for tooltips with fixed positioning
+  const handleTooltipMouseEnter = (event: React.MouseEvent, domainIndex: number) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    setTooltipPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.bottom + 10
+    });
+    setHoveredDomain(domainIndex);
+  };
 
   useEffect(() => {
     console.log('Journey Page - Entry:', {
@@ -664,8 +676,11 @@ const Journey = () => {
                   <DialogTrigger asChild>
                     <Card 
                       className="relative transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer group w-full bg-gradient-to-r from-red-500 to-red-600 text-white border-0 rounded-lg"
-                      onMouseEnter={() => setHoveredDomain(index + 20)}
-                      onMouseLeave={() => setHoveredDomain(null)}
+                      onMouseEnter={(e) => handleTooltipMouseEnter(e, index + 20)}
+                      onMouseLeave={() => {
+                        setHoveredDomain(null);
+                        setTooltipPosition(null);
+                      }}
                     >
                       <CardHeader className="text-center pb-3">
                         <CardTitle className="text-lg font-bold">{domain.name}</CardTitle>
@@ -673,16 +688,6 @@ const Journey = () => {
                           - Level {selectedLevel}
                         </CardDescription>
                       </CardHeader>
-                      
-                      {/* Hover Tooltip */}
-                      {hoveredDomain === index + 20 && (
-                        <div className="absolute z-[9999] top-full left-1/2 transform -translate-x-1/2 mt-3 p-4 bg-white border rounded-lg shadow-xl w-64 animate-fade-in" style={{ zIndex: 9999 }}>
-                          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
-                          <p className="text-sm text-gray-700">
-                            {domain.levelContent[selectedLevel]?.oneLiner || domain.description}
-                          </p>
-                        </div>
-                      )}
                     </Card>
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl">
@@ -1069,6 +1074,17 @@ const Journey = () => {
         context="maturity journey exploration and domain-specific guidance"
         currentDomain={lockedLevel ? `Level ${lockedLevel} focus` : "general maturity assessment"}
       />
+
+      {/* Portal Tooltip for Foundation */}
+      <TooltipPortal
+        isVisible={hoveredDomain === 20 && tooltipPosition !== null}
+        position={tooltipPosition}
+      >
+        <p className="text-sm text-gray-700">
+          {MATURITY_DOMAINS.find(d => d.position === "bottom")?.levelContent[selectedLevel]?.oneLiner || 
+           MATURITY_DOMAINS.find(d => d.position === "bottom")?.description}
+        </p>
+      </TooltipPortal>
     </div>
   );
 };
