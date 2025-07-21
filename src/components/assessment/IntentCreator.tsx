@@ -239,7 +239,14 @@ Respond with only the intent statement, no additional text.`;
         {/* MPSs List */}
         <div className="flex-1 overflow-y-auto space-y-4">
           {mpssWithIntents.map((mps, index) => (
-            <Card key={mps.id} className="border">
+            <Card 
+              key={mps.id} 
+              className={`border transition-all duration-200 ${
+                mps.accepted 
+                  ? 'border-green-200 bg-green-50/50 ring-1 ring-green-100' 
+                  : 'border-border hover:border-green-200'
+              }`}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
