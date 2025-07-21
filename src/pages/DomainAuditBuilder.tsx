@@ -6,11 +6,13 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, FileText, Target, CheckSquare, BarChart3, ClipboardCheck } from 'lucide-react';
 import { MPSSelectionModal } from '@/components/assessment/MPSSelectionModal';
+import { MPSGeneratorSelector } from '@/components/assessment/MPSGeneratorSelector';
 
 const DomainAuditBuilder = () => {
   const navigate = useNavigate();
   const { domainId } = useParams();
   const [isMPSModalOpen, setIsMPSModalOpen] = useState(false);
+  const [isMPSGeneratorOpen, setIsMPSGeneratorOpen] = useState(false);
 
   // Mock domain data - in real app this would come from API
   const domainNames: Record<string, string> = {
@@ -89,10 +91,21 @@ const DomainAuditBuilder = () => {
 
   const handleStepClick = (stepId: number) => {
     if (stepId === 1) {
-      setIsMPSModalOpen(true);
+      setIsMPSGeneratorOpen(true);
     } else {
       console.log(`Navigate to step ${stepId} interface`);
     }
+  };
+
+  const handleUseAI = () => {
+    setIsMPSGeneratorOpen(false);
+    setIsMPSModalOpen(true);
+  };
+
+  const handleCreateManually = () => {
+    setIsMPSGeneratorOpen(false);
+    // TODO: Open manual MPS creator
+    console.log('Opening manual MPS creator...');
   };
 
   const handleAcceptMPSs = (selectedMPSs: any[]) => {
@@ -230,6 +243,15 @@ const DomainAuditBuilder = () => {
           </div>
         </div>
       </main>
+
+      {/* MPS Generator Selector */}
+      <MPSGeneratorSelector
+        isOpen={isMPSGeneratorOpen}
+        onClose={() => setIsMPSGeneratorOpen(false)}
+        domainName={domainName}
+        onUseAI={handleUseAI}
+        onCreateManually={handleCreateManually}
+      />
 
       {/* MPS Selection Modal */}
       <MPSSelectionModal
