@@ -21,12 +21,18 @@ const MaturityBuild = () => {
   const { toast } = useToast();
   const [isModelApproved, setIsModelApproved] = useState(false);
   const [buildProgress, setBuildProgress] = useState(65); // Simulated progress
+  const [setupData, setSetupData] = useState<any>(null);
 
-  // Check if user has completed setup
+  // Check if user has completed setup and load setup data
   useEffect(() => {
     const setupCompleted = localStorage.getItem('maturion_setup_completed');
     if (!setupCompleted) {
       navigate('/maturity/setup');
+    } else {
+      const storedSetupData = localStorage.getItem('maturion_setup_data');
+      if (storedSetupData) {
+        setSetupData(JSON.parse(storedSetupData));
+      }
     }
   }, [navigate]);
 
@@ -99,9 +105,28 @@ const MaturityBuild = () => {
         <div className="max-w-4xl mx-auto">
           {/* Hero Section */}
           <div className="text-center mb-12">
-            <h1 className="text-4xl font-bold mb-4">
-              Building Your Maturity Model
-            </h1>
+            {setupData && (
+              <div className="flex items-center justify-center gap-4 mb-4">
+                {setupData.companyLogo && (
+                  <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
+                    <Building className="h-6 w-6" style={{ color: setupData.primaryColor }} />
+                  </div>
+                )}
+                <div>
+                  <h1 className="text-4xl font-bold" style={{ color: setupData.primaryColor }}>
+                    {setupData.modelName || 'Building Your Maturity Model'}
+                  </h1>
+                  <p className="text-lg text-muted-foreground">
+                    {setupData.companyName} Security Control Standard
+                  </p>
+                </div>
+              </div>
+            )}
+            {!setupData && (
+              <h1 className="text-4xl font-bold mb-4">
+                Building Your Maturity Model
+              </h1>
+            )}
             <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-6">
               Work with our AI assistant to create a comprehensive Security Control Standard 
               tailored specifically for your organization.

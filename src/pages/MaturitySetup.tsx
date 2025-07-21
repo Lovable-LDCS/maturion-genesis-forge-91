@@ -85,6 +85,19 @@ const MaturitySetup = () => {
     });
   };
 
+  const triggerFileUpload = (field: 'companyLogo' | 'companyProfile') => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = field === 'companyLogo' ? 'image/*' : '.pdf,.doc,.docx,.png,.jpg,.jpeg';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        handleFileUpload(field, file);
+      }
+    };
+    input.click();
+  };
+
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -265,9 +278,13 @@ const MaturitySetup = () => {
                   <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
                     <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground mb-2">
-                      Upload your company logo
+                      {formData.companyLogo ? formData.companyLogo.name : 'Upload your company logo'}
                     </p>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => triggerFileUpload('companyLogo')}
+                    >
                       Choose File
                     </Button>
                   </div>
@@ -292,9 +309,13 @@ const MaturitySetup = () => {
                   <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
                     <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground mb-2">
-                      Upload company profile, organizational chart, or similar document
+                      {formData.companyProfile ? formData.companyProfile.name : 'Upload company profile, organizational chart, or similar document'}
                     </p>
-                    <Button variant="outline" size="sm">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => triggerFileUpload('companyProfile')}
+                    >
                       Choose File
                     </Button>
                   </div>
