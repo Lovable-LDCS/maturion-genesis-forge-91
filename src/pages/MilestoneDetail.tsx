@@ -4,15 +4,18 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useMilestones } from '@/hooks/useMilestones';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { TaskCard } from '@/components/milestones/TaskCard';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
 
 export default function MilestoneDetail() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
-  const { milestones, loading, updateMilestoneTask } = useMilestones(currentOrganization?.id);
+  const { milestones, loading, updateMilestoneTask, createMilestoneTask } = useMilestones(currentOrganization?.id);
+  const { toast } = useToast();
 
   if (loading) {
     return (
@@ -69,6 +72,35 @@ export default function MilestoneDetail() {
     }
   };
 
+  const addPhase1AQATask = async () => {
+    if (!milestone || !currentOrganization || !user) return;
+
+    try {
+      await createMilestoneTask({
+        milestone_id: milestone.id,
+        name: 'Pre-Audit Platform QA & Sign-Off',
+        description: 'Validate /, /journey, /assessment, /subscribe, and /subscribe/checkout routes. This confirms readiness to proceed into Phase 1B (Admin Content Interface build).',
+        status: 'ready_for_test',
+        display_order: 0,
+        created_by: user.id,
+        updated_by: user.id,
+        organization_id: currentOrganization.id
+      });
+
+      toast({
+        title: "Task Added",
+        description: "Phase 1A QA & Sign-Off task has been added to the milestone.",
+      });
+    } catch (error) {
+      console.error('Error adding Phase 1A QA task:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add the QA task. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
@@ -98,7 +130,15 @@ export default function MilestoneDetail() {
 
       {/* Task List Section */}
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Tasks</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Tasks</h2>
+          {!tasks.some(task => task.name === 'Pre-Audit Platform QA & Sign-Off') && (
+            <Button onClick={addPhase1AQATask} variant="outline" size="sm">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Phase 1A QA Task
+            </Button>
+          )}
+        </div>
         
         {tasks.length === 0 ? (
           <Card>
