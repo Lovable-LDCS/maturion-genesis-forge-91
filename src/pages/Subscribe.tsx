@@ -80,6 +80,8 @@ const Subscribe = () => {
   const bundlePrice = calculateBundlePrice();
   // Calculate actual savings compared to individual total
   const actualSavings = individualTotal > 0 ? Math.round(((individualTotal - bundlePrice) / individualTotal) * 100) : 0;
+  
+  console.log('Debug - actualSavings:', actualSavings, 'individualTotal:', individualTotal, 'bundlePrice:', bundlePrice);
 
   if (loading) {
     return (
