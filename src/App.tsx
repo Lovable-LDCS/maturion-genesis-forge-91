@@ -19,6 +19,7 @@ import Journey from "./pages/Journey";
 import Subscribe from "./pages/Subscribe";
 import AdminConfig from "./pages/AdminConfig";
 import NotFound from "./pages/NotFound";
+import SubscribeCheckout from "./pages/SubscribeCheckout";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/accept-invitation" element={<InvitationAcceptance />} />
               <Route path="/journey" element={<Journey />} />
               <Route path="/subscribe" element={<Subscribe />} />
+              <Route path="/subscribe/checkout" element={<SubscribeCheckout />} />
               <Route path="/admin/config" element={<AdminConfig />} />
               <Route path="/milestones/:id" element={<MilestoneDetail />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

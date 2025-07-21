@@ -228,7 +228,16 @@ const Subscribe = () => {
                         </Badge>
                       </div>
                     </div>
-                    <Button className="w-full">
+                    <Button 
+                      className="w-full"
+                      onClick={() => {
+                        const params = new URLSearchParams({
+                          modules: module.id,
+                          yearly: isYearly.toString()
+                        });
+                        navigate(`/subscribe/checkout?${params.toString()}`);
+                      }}
+                    >
                       Subscribe Now
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>
@@ -270,7 +279,17 @@ const Subscribe = () => {
                   ))}
                 </div>
               </div>
-              <Button size="lg" className="w-full">
+              <Button 
+                size="lg" 
+                className="w-full"
+                onClick={() => {
+                  const params = new URLSearchParams({
+                    bundle: 'true',
+                    yearly: isYearly.toString()
+                  });
+                  navigate(`/subscribe/checkout?${params.toString()}`);
+                }}
+              >
                 Subscribe to Full Bundle
                 <ArrowRight className="h-4 w-4 ml-2" />
               </Button>
