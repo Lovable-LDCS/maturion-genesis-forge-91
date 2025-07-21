@@ -83,10 +83,16 @@ serve(async (req) => {
       textContent = await extractTextContent(fileData, document.mime_type, document.file_name);
       console.log(`Extracted text: ${textContent.length} characters`);
       
-      // CRITICAL FIX: Remove null bytes and other problematic characters that PostgreSQL can't handle
+      // COMPREHENSIVE TEXT SANITIZATION - Remove ALL problematic characters
       textContent = textContent
-        .replace(/\u0000/g, '') // Remove null bytes - this was causing the 546 errors!
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove other control characters
+        .replace(/\u0000/g, '') // Remove null bytes
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
+        .replace(/[\uFFFE\uFFFF]/g, '') // Remove non-characters
+        .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width spaces
+        .replace(/\uFFFD/g, '') // Remove replacement characters
+        .replace(/[\u2028\u2029]/g, ' ') // Replace line/paragraph separators with spaces
+        .replace(/[\x80-\x9F]/g, '') // Remove additional control characters
+        .replace(/[^\x20-\x7E\n\r\t\u00A0-\uFFFF]/g, '') // Keep only printable characters
         .trim();
       
       console.log(`Sanitized text: ${textContent.length} characters`);
