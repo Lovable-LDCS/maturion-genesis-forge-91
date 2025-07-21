@@ -198,7 +198,10 @@ const AIKnowledgeBase: React.FC = () => {
         <DocumentProcessingDebugger onProcessingComplete={() => window.location.reload()} />
         
         {/* Manual processor for MPS 12 troubleshooting */}
-        {stats.failed > 0 && (
+        {documents.some(doc => 
+          doc.id === "efb1d87c-8f05-47a7-9dd2-0560bc02ce5c" && 
+          doc.processing_status !== 'completed'
+        ) && (
           <div className="mb-6">
             <ManualDocumentProcessor 
               documentId="efb1d87c-8f05-47a7-9dd2-0560bc02ce5c"
