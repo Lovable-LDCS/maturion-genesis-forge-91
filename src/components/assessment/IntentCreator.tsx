@@ -30,8 +30,9 @@ const getDomainMPSRange = (domainName: string): string => {
 
 interface MPS {
   id: string;
-  name: string;
+  name?: string;
   title?: string;
+  number?: string;
   intent?: string;
   description?: string;
   rationale?: string;
@@ -74,51 +75,85 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
   const generateIntentsForMPSs = async () => {
     setIsGeneratingIntents(true);
     
-    const mpssWithGeneratedIntents = await Promise.all(
-      acceptedMPSs.map(async (mps) => {
-        try {
-          const prompt = `Generate a specific, actionable intent statement for this MPS based on the uploaded document content and context:
+    try {
+      // Use the already accepted MPSs and generate all intents in one batch request
+      const mpsDataForGeneration = acceptedMPSs.map(mps => ({
+        number: mps.number || 'Unknown',
+        name: mps.name || mps.title || 'Unknown MPS',
+        description: mps.description || '',
+        rationale: mps.rationale || ''
+      }));
 
-MPS Name: ${mps.name}
-MPS Description: ${mps.description || ''}
-Domain: ${domainName}
+      const prompt = `Generate specific, actionable intent statements for these already-accepted MPSs from the ${domainName} domain. 
+
+ACCEPTED MPSs TO PROCESS:
+${mpsDataForGeneration.map(mps => `- MPS ${mps.number}: ${mps.name}${mps.description ? ` - ${mps.description}` : ''}`).join('\n')}
 
 CRITICAL INSTRUCTIONS:
-- Analyze the uploaded MPS document content to understand this specific MPS's focus and requirements
-- For "Legal and Regulatory Requirements": Reference compliance frameworks, regulatory obligations, audit requirements, applicable laws, and legal compliance duties
-- For "Leadership" MPSs: Focus on governance structures, accountability frameworks, strategic oversight, and leadership responsibilities  
-- For "Separation of Duties": Focus on role segregation, conflict prevention, access controls, and authorization mechanisms
-- Use the actual uploaded document content to inform the intent, not generic assumptions
+- Use ONLY the MPSs listed above that have already been accepted by the user
+- Generate intent statements based on the actual uploaded document content for each MPS
+- For "Legal and Regulatory Requirements": Reference compliance frameworks, regulatory obligations, audit requirements, applicable laws
+- For "Leadership" MPSs: Focus on governance structures, accountability frameworks, strategic oversight  
+- For "Separation of Duties": Focus on role segregation, conflict prevention, access controls, authorization mechanisms
+- Each intent should be 1-2 sentences, action-oriented, and auditable
 
-The intent statement should:
-- Be written in Verb-Noun-Context format starting with action verbs like "Ensure", "Establish", "Maintain", "Implement"
-- Reflect the specific MPS requirements and focus areas from the uploaded documents
-- Be 1-2 sentences maximum
-- Include domain-specific terminology and concepts from the document context
-- Focus on measurable, auditable outcomes that an auditor would verify
+Return a JSON array with this exact format:
+[
+  {
+    "mps_number": "1",
+    "intent": "specific intent statement here"
+  },
+  {
+    "mps_number": "2", 
+    "intent": "specific intent statement here"
+  }
+]
 
-Based on the uploaded document content for this specific MPS, respond with ONLY the intent statement, no additional text.`;
+Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
 
-          const generatedIntent = await generateIntent(prompt);
-          
-          return {
-            ...mps,
-            intent: generatedIntent || `Ensure ${mps.name.toLowerCase()} standards are effectively implemented and maintained within the ${domainName} domain.`,
-            accepted: false
-          };
-        } catch (error) {
-          console.error('Error generating intent for MPS:', mps.name, error);
-          return {
-            ...mps,
-            intent: `Ensure ${mps.name.toLowerCase()} standards are effectively implemented and maintained within the ${domainName} domain.`,
-            accepted: false
-          };
-        }
-      })
-    );
+      const generatedResponse = await generateIntent(prompt);
+      
+      // Parse the AI response and map back to the accepted MPSs
+      let generatedIntents: Array<{mps_number: string, intent: string}> = [];
+      
+      try {
+        // Try to parse JSON response
+        const cleanResponse = generatedResponse.replace(/```json\n?|\n?```/g, '').trim();
+        generatedIntents = JSON.parse(cleanResponse);
+      } catch (parseError) {
+        console.warn('Failed to parse JSON response, using fallback approach');
+        // Fallback: create default intents for each accepted MPS
+        generatedIntents = acceptedMPSs.map((mps, index) => ({
+          mps_number: (mps.number || (index + 1).toString()),
+          intent: `Establish ${(mps.name || mps.title)?.toLowerCase() || 'appropriate standards'} to ensure compliance and effective governance within the ${domainName} domain.`
+        }));
+      }
 
-    setMpssWithIntents(mpssWithGeneratedIntents);
-    setIsGeneratingIntents(false);
+      // Map generated intents back to the accepted MPSs structure
+      const mpssWithGeneratedIntents = acceptedMPSs.map(mps => {
+        const mpsNumber = mps.number;
+        const generatedIntent = generatedIntents.find(gi => gi.mps_number === mpsNumber);
+        
+        return {
+          ...mps,
+          intent: generatedIntent?.intent || `Establish ${(mps.name || mps.title)?.toLowerCase() || 'appropriate standards'} to ensure compliance and effective governance within the ${domainName} domain.`,
+          accepted: false
+        };
+      });
+
+      setMpssWithIntents(mpssWithGeneratedIntents);
+    } catch (error) {
+      console.error('Error generating intents for accepted MPSs:', error);
+      // Create fallback intents for all accepted MPSs
+      const fallbackMpss = acceptedMPSs.map(mps => ({
+        ...mps,
+        intent: `Establish ${mps.name?.toLowerCase() || 'appropriate standards'} to ensure compliance and effective governance within the ${domainName} domain.`,
+        accepted: false
+      }));
+      setMpssWithIntents(fallbackMpss);
+    } finally {
+      setIsGeneratingIntents(false);
+    }
   };
 
   const handleEditIntent = (mpsId: string, currentIntent: string) => {
