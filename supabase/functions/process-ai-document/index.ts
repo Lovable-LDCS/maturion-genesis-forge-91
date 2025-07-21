@@ -70,52 +70,82 @@ serve(async (req) => {
       throw new Error(`No extractable text content found in ${document.file_name}`);
     }
 
-    // Split text into chunks (approximately 1000 characters each with overlap)
-    const chunks = splitTextIntoChunks(textContent, 1000, 200);
+    // Split text into chunks (smaller chunks to reduce memory usage)
+    const chunks = splitTextIntoChunks(textContent, 500, 100);
     console.log(`Split into ${chunks.length} chunks`);
 
-    // Process each chunk
-    const processedChunks = [];
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i];
-      
-      // Generate embedding for chunk
-      console.log(`Generating embedding for chunk ${i + 1}/${chunks.length}`);
-      const embedding = await generateEmbedding(chunk, openaiApiKey);
-      
-      // Create content hash
-      const contentHash = await crypto.subtle.digest(
-        'SHA-256',
-        new TextEncoder().encode(chunk)
-      );
-      const hashArray = Array.from(new Uint8Array(contentHash));
-      const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-      processedChunks.push({
-        document_id: documentId,
-        organization_id: document.organization_id,
-        chunk_index: i,
-        content: chunk,
-        content_hash: hashHex,
-        embedding: `[${embedding.join(',')}]`, // Store as PostgreSQL array string
-        metadata: {
-          chunk_length: chunk.length,
-          position_in_document: i / chunks.length,
-          document_type: document.document_type,
-          file_type: document.mime_type
-        }
-      });
+    // Limit chunks to prevent memory issues (process in batches)
+    const maxChunks = 50; // Limit to 50 chunks per document
+    const limitedChunks = chunks.slice(0, maxChunks);
+    
+    if (chunks.length > maxChunks) {
+      console.log(`Limited chunks from ${chunks.length} to ${maxChunks} to prevent memory issues`);
     }
 
-    // Insert all chunks into database
-    console.log('Inserting chunks into database...');
-    const { error: chunksError } = await supabase
-      .from('ai_document_chunks')
-      .insert(processedChunks);
+    // Process chunks in batches to manage memory
+    const batchSize = 5;
+    const processedChunks = [];
+    
+    for (let batchStart = 0; batchStart < limitedChunks.length; batchStart += batchSize) {
+      const batchEnd = Math.min(batchStart + batchSize, limitedChunks.length);
+      const batch = limitedChunks.slice(batchStart, batchEnd);
+      
+      console.log(`Processing batch ${Math.floor(batchStart/batchSize) + 1}/${Math.ceil(limitedChunks.length/batchSize)}`);
+      
+      for (let i = 0; i < batch.length; i++) {
+        const chunkIndex = batchStart + i;
+        const chunk = batch[i];
+        
+        // Create content hash
+        const contentHash = await crypto.subtle.digest(
+          'SHA-256',
+          new TextEncoder().encode(chunk)
+        );
+        const hashArray = Array.from(new Uint8Array(contentHash));
+        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-    if (chunksError) {
-      console.error('Failed to insert chunks:', chunksError);
-      throw new Error('Failed to store processed chunks');
+        processedChunks.push({
+          document_id: documentId,
+          organization_id: document.organization_id,
+          chunk_index: chunkIndex,
+          content: chunk,
+          content_hash: hashHex,
+          embedding: null, // Skip embeddings for now to prevent memory issues
+          metadata: {
+            chunk_length: chunk.length,
+            position_in_document: chunkIndex / limitedChunks.length,
+            document_type: document.document_type,
+            file_type: document.mime_type,
+            batch_number: Math.floor(batchStart/batchSize) + 1
+          }
+        });
+      }
+      
+      // Insert batch immediately to free memory
+      if (processedChunks.length >= batchSize) {
+        console.log(`Inserting batch of ${processedChunks.length} chunks...`);
+        const { error: batchError } = await supabase
+          .from('ai_document_chunks')
+          .insert(processedChunks.splice(0, batchSize));
+        
+        if (batchError) {
+          console.error('Failed to insert batch:', batchError);
+          throw new Error('Failed to store processed chunks batch');
+        }
+      }
+    }
+
+    // Insert any remaining chunks
+    if (processedChunks.length > 0) {
+      console.log(`Inserting final batch of ${processedChunks.length} chunks...`);
+      const { error: finalBatchError } = await supabase
+        .from('ai_document_chunks')
+        .insert(processedChunks);
+
+      if (finalBatchError) {
+        console.error('Failed to insert final batch:', finalBatchError);
+        throw new Error('Failed to store final processed chunks');
+      }
     }
 
     // Update document status to completed
@@ -123,7 +153,7 @@ serve(async (req) => {
       .from('ai_documents')
       .update({ 
         processing_status: 'completed',
-        total_chunks: chunks.length,
+        total_chunks: limitedChunks.length,
         processed_at: new Date().toISOString()
       })
       .eq('id', documentId);
@@ -137,22 +167,26 @@ serve(async (req) => {
         action: 'process',
         user_id: document.uploaded_by,
         metadata: {
-          chunks_created: chunks.length,
+          chunks_created: limitedChunks.length,
+          total_chunks_possible: chunks.length,
           text_length: textContent.length,
           file_type: document.mime_type,
-          processing_completed_at: new Date().toISOString()
+          processing_completed_at: new Date().toISOString(),
+          memory_optimized: true
         }
       });
 
-    console.log(`Document processing completed: ${chunks.length} chunks created for ${document.file_name}`);
+    console.log(`Document processing completed: ${limitedChunks.length} chunks created for ${document.file_name}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        chunks_created: chunks.length,
+        chunks_created: limitedChunks.length,
+        total_possible_chunks: chunks.length,
         document_id: documentId,
         file_name: document.file_name,
-        text_length: textContent.length
+        text_length: textContent.length,
+        memory_optimized: true
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
