@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from './useOrganization';
 
 export const useIntentGeneration = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { currentOrganization } = useOrganization();
 
   const generateIntent = async (prompt: string): Promise<string> => {
     setIsLoading(true);
@@ -14,6 +16,7 @@ export const useIntentGeneration = () => {
         body: {
           prompt,
           context: 'Intent statement generation',
+          organizationId: currentOrganization?.id,
         }
       });
 

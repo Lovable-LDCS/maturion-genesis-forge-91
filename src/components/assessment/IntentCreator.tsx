@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Edit3, Check, X, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useIntentGeneration } from '@/hooks/useIntentGeneration';
+import { AISourceIndicator } from '@/components/ai/AISourceIndicator';
 
 interface MPS {
   id: string;
@@ -17,6 +18,8 @@ interface MPS {
   description?: string;
   rationale?: string;
   accepted?: boolean;
+  aiSourceType?: 'internal' | 'external';
+  hasDocumentContext?: boolean;
 }
 
 interface IntentCreatorProps {
@@ -269,10 +272,17 @@ Respond with only the intent statement, no additional text.`;
                         Pending Review
                       </Badge>
                     )}
-                    <Badge variant="outline" className="text-xs">
-                      <Sparkles className="h-3 w-3 mr-1" />
-                      Maturion
-                    </Badge>
+                     <div className="flex items-center gap-2">
+                       <Badge variant="outline" className="text-xs">
+                         <Sparkles className="h-3 w-3 mr-1" />
+                         Maturion
+                       </Badge>
+                       <AISourceIndicator 
+                         sourceType={mps.aiSourceType || 'internal'}
+                         isInternalOnlyContext={true}
+                         hasDocumentContext={mps.hasDocumentContext !== false}
+                       />
+                     </div>
                   </div>
                 </div>
               </CardHeader>
