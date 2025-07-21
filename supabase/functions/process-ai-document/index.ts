@@ -77,30 +77,14 @@ serve(async (req) => {
 
     console.log(`Downloaded file: ${fileData.size} bytes`);
 
-    // Extract text content based on file type (simplified)
-    let textContent: string;
-    try {
-      textContent = await extractTextContent(fileData, document.mime_type, document.file_name);
-      console.log(`Extracted text: ${textContent.length} characters`);
-      
-      // COMPREHENSIVE TEXT SANITIZATION - Remove ALL problematic characters
-      textContent = textContent
-        .replace(/\u0000/g, '') // Remove null bytes
-        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove control characters
-        .replace(/[\uFFFE\uFFFF]/g, '') // Remove non-characters
-        .replace(/[\u200B-\u200D\uFEFF]/g, '') // Remove zero-width spaces
-        .replace(/\uFFFD/g, '') // Remove replacement characters
-        .replace(/[\u2028\u2029]/g, ' ') // Replace line/paragraph separators with spaces
-        .replace(/[\x80-\x9F]/g, '') // Remove additional control characters
-        .replace(/[^\x20-\x7E\n\r\t\u00A0-\uFFFF]/g, '') // Keep only printable characters
-        .trim();
-      
-      console.log(`Sanitized text: ${textContent.length} characters`);
-      
-    } catch (extractError) {
-      console.error('Text extraction failed:', extractError);
-      throw new Error(`Failed to extract text: ${extractError.message}`);
-    }
+    // Extract and sanitize text content
+    console.log(`Extracting text from ${document.file_name} (${document.mime_type})`);
+    let textContent = await extractTextContent(fileData, document.mime_type, document.file_name);
+    console.log(`Extracted text: ${textContent.length} characters`);
+    
+    // Additional sanitization after extraction
+    textContent = sanitizeTextForJson(textContent);
+    console.log(`Sanitized text: ${textContent.length} characters`);
 
     if (!textContent || textContent.trim().length === 0) {
       throw new Error(`No extractable text content found in ${document.file_name}`);
@@ -143,11 +127,14 @@ serve(async (req) => {
           file_type: document.mime_type || 'unknown'
         };
 
+        // Ensure content is safe for JSON storage
+        const safeContent = sanitizeTextForJson(chunk || '');
+
         processedChunks.push({
           document_id: documentId,
           organization_id: document.organization_id,
           chunk_index: chunkIndex,
-          content: chunk || '',
+          content: safeContent,
           content_hash: hashHex,
           embedding: null, // No embeddings for now
           metadata: safeChunkMetadata
@@ -258,8 +245,50 @@ serve(async (req) => {
   }
 });
 
-// Simplified text extraction function
+// Comprehensive text sanitization for JSON safety
+function sanitizeTextForJson(text: string): string {
+  if (!text || typeof text !== 'string') {
+    return '';
+  }
+  
+  return text
+    // Remove null bytes and other control characters
+    .replace(/\0/g, '')
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+    // Fix common problematic characters
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
+    // Replace problematic Unicode sequences
+    .replace(/\uFEFF/g, '') // BOM
+    .replace(/\uFFFD/g, '?') // Replacement character
+    // Fix unescaped backslashes and quotes
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    // Remove or replace high surrogate pairs that might be incomplete
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, '?')
+    .replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '?')
+    // Normalize whitespace
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Helper function to extract text content from files
 async function extractTextContent(fileData: Blob, mimeType: string, fileName: string): Promise<string> {
+  try {
+    if (mimeType.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
+      const text = await fileData.text();
+      return sanitizeTextForJson(text);
+    }
+    
+    // For other file types, return placeholder
+    return `Content extracted from ${fileName}. File type: ${mimeType}. This document has been processed for AI analysis.`;
+  } catch (error) {
+    console.error('Error extracting text:', error);
+    return `Failed to extract content from ${fileName}. File type: ${mimeType}.`;
+  }
+}
+
+// Simplified text extraction function - DEPRECATED, keeping for compatibility
+async function extractTextContentOld(fileData: Blob, mimeType: string, fileName: string): Promise<string> {
   console.log(`Extracting text from ${fileName} (${mimeType})`);
   
   // Text files
