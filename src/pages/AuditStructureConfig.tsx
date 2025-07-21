@@ -8,8 +8,18 @@ import { ArrowLeft, Target, CheckCircle, Clock, AlertCircle } from 'lucide-react
 const AuditStructureConfig = () => {
   const navigate = useNavigate();
 
-  // Mock domain data - in real app this would come from API
+  // Domain data in logical MPS progression order
   const domains = [
+    {
+      id: 'leadership-governance',
+      name: 'Leadership & Governance',
+      description: 'Strategic oversight, risk management, and compliance frameworks',
+      mpsCount: 0,
+      criteriaCount: 0,
+      status: 'not_started' as const,
+      completionPercentage: 0,
+      mpsRange: 'MPS 1–5'
+    },
     {
       id: 'process-integrity',
       name: 'Process Integrity',
@@ -17,7 +27,8 @@ const AuditStructureConfig = () => {
       mpsCount: 2,
       criteriaCount: 6,
       status: 'completed' as const,
-      completionPercentage: 100
+      completionPercentage: 100,
+      mpsRange: 'MPS 6–10'
     },
     {
       id: 'people-culture',
@@ -26,7 +37,8 @@ const AuditStructureConfig = () => {
       mpsCount: 0,
       criteriaCount: 0,
       status: 'in_progress' as const,
-      completionPercentage: 0
+      completionPercentage: 0,
+      mpsRange: 'MPS 11–14'
     },
     {
       id: 'protection',
@@ -35,7 +47,8 @@ const AuditStructureConfig = () => {
       mpsCount: 0,
       criteriaCount: 0,
       status: 'not_started' as const,
-      completionPercentage: 0
+      completionPercentage: 0,
+      mpsRange: 'MPS 15–20'
     },
     {
       id: 'proof-it-works',
@@ -44,18 +57,19 @@ const AuditStructureConfig = () => {
       mpsCount: 0,
       criteriaCount: 0,
       status: 'not_started' as const,
-      completionPercentage: 0
-    },
-    {
-      id: 'leadership-governance',
-      name: 'Leadership & Governance',
-      description: 'Strategic oversight, risk management, and compliance frameworks',
-      mpsCount: 0,
-      criteriaCount: 0,
-      status: 'not_started' as const,
-      completionPercentage: 0
+      completionPercentage: 0,
+      mpsRange: 'MPS 21–25'
     }
   ];
+
+  // Determine next suggested domain for guidance
+  const getNextSuggestedDomain = () => {
+    const firstNotStarted = domains.find(d => d.status === 'not_started');
+    const firstInProgress = domains.find(d => d.status === 'in_progress');
+    return firstInProgress || firstNotStarted;
+  };
+
+  const nextSuggestedDomain = getNextSuggestedDomain();
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -115,64 +129,94 @@ const AuditStructureConfig = () => {
             </div>
           </div>
 
+          {/* Next Suggested Domain Guidance */}
+          {nextSuggestedDomain && (
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full text-sm text-primary">
+                <span className="animate-pulse">💡</span>
+                <span>Continue with <strong>{nextSuggestedDomain.name}</strong></span>
+              </div>
+            </div>
+          )}
+
           {/* Domain Cards Grid */}
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {domains.map((domain) => (
-              <Card 
-                key={domain.id}
-                className={`cursor-pointer transition-all hover:shadow-lg ${
-                  domain.status === 'completed' ? 'border-green-200 bg-green-50/30' :
-                  domain.status === 'in_progress' ? 'border-blue-200 bg-blue-50/30' :
-                  'hover:border-primary/50'
-                }`}
-                onClick={() => navigate(`/audit/domain/${domain.id}`)}
-              >
-                <CardHeader className="pb-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <Target className="h-5 w-5 text-primary" />
-                      <CardTitle className="text-lg">{domain.name}</CardTitle>
-                    </div>
-                    {getStatusIcon(domain.status)}
-                  </div>
-                  <CardDescription className="text-sm leading-relaxed">
-                    {domain.description}
-                  </CardDescription>
-                </CardHeader>
-                
-                <CardContent className="pt-0">
-                  <div className="space-y-3">
-                    {/* Stats */}
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">MPSs:</span>
-                      <span className="font-medium">{domain.mpsCount}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Criteria:</span>
-                      <span className="font-medium">{domain.criteriaCount}</span>
-                    </div>
-                    
-                    {/* Status Badge */}
-                    <div className="flex justify-between items-center pt-2">
-                      {getStatusBadge(domain.status)}
-                      <Button 
-                        size="sm" 
-                        variant={domain.status === 'completed' ? 'outline' : 'default'}
-                        className="text-xs"
-                      >
-                        {domain.status === 'completed' ? 'Edit MPSs' : 'Create MPSs'}
-                      </Button>
-                    </div>
-                    
-                    {domain.status === 'in_progress' && (
-                      <div className="text-xs text-center text-muted-foreground pt-1">
-                        In Progress
+            {domains.map((domain) => {
+              const isNextSuggested = nextSuggestedDomain?.id === domain.id;
+              return (
+                <Card 
+                  key={domain.id}
+                  className={`cursor-pointer transition-all duration-300 hover:shadow-lg ${
+                    domain.status === 'completed' ? 'border-green-200 bg-green-50/30' :
+                    domain.status === 'in_progress' ? 'border-blue-200 bg-blue-50/30' :
+                    isNextSuggested ? 'border-primary/40 bg-primary/5 shadow-lg ring-2 ring-primary/20 animate-pulse' :
+                    'hover:border-primary/50'
+                  }`}
+                  onClick={() => navigate(`/audit/domain/${domain.id}`)}
+                >
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-2">
+                        <Target className="h-5 w-5 text-primary" />
+                        <CardTitle className="text-lg">{domain.name}</CardTitle>
                       </div>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      <div className="flex items-center gap-2">
+                        {isNextSuggested && (
+                          <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">
+                            Next
+                          </Badge>
+                        )}
+                        {getStatusIcon(domain.status)}
+                      </div>
+                    </div>
+                    <CardDescription className="text-sm leading-relaxed">
+                      {domain.description}
+                    </CardDescription>
+                    <Badge variant="secondary" className="text-xs w-fit mt-2">
+                      {domain.mpsRange}
+                    </Badge>
+                  </CardHeader>
+                  
+                  <CardContent className="pt-0">
+                    <div className="space-y-3">
+                      {/* Stats */}
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">MPSs:</span>
+                        <span className="font-medium">{domain.mpsCount}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Criteria:</span>
+                        <span className="font-medium">{domain.criteriaCount}</span>
+                      </div>
+                      
+                      {/* Status Badge */}
+                      <div className="flex justify-between items-center pt-2">
+                        {getStatusBadge(domain.status)}
+                        <Button 
+                          size="sm" 
+                          variant={domain.status === 'completed' ? 'outline' : isNextSuggested ? 'default' : 'secondary'}
+                          className={`text-xs ${isNextSuggested ? 'bg-primary hover:bg-primary/90' : ''}`}
+                        >
+                          {domain.status === 'completed' ? 'Edit MPSs' : 'Create MPSs'}
+                        </Button>
+                      </div>
+                      
+                      {domain.status === 'in_progress' && (
+                        <div className="text-xs text-center text-muted-foreground pt-1">
+                          In Progress
+                        </div>
+                      )}
+                      
+                      {isNextSuggested && domain.status === 'not_started' && (
+                        <div className="text-xs text-center text-primary pt-1 font-medium">
+                          👈 Start here
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
       </main>
