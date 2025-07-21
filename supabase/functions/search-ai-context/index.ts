@@ -77,7 +77,7 @@ serve(async (req) => {
       .textSearch('content', query, { type: 'websearch' })
       .limit(limit);
 
-    const { data: chunks, error: searchError } = await searchQuery;
+    let { data: chunks, error: searchError } = await searchQuery;
 
     console.log('Text search completed. Results:', chunks?.length || 0);
 
