@@ -17,16 +17,30 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let documentId: string | undefined;
+  
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY')!;
+    // Check required environment variables first
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceRoleKey) {
+      throw new Error('Missing required environment variables: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY');
+    }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-
-    const { documentId }: ProcessDocumentRequest = await req.json();
+    console.log('Processing document request...');
+    
+    // Parse request body
+    const requestBody = await req.json();
+    documentId = requestBody.documentId;
+    
+    if (!documentId) {
+      throw new Error('documentId is required');
+    }
 
     console.log(`Processing document: ${documentId}`);
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
     // Get document details
     const { data: document, error: docError } = await supabase
@@ -195,27 +209,21 @@ serve(async (req) => {
     console.error('Error processing document:', error);
     
     // Try to update document status to failed if we have the documentId
-    let documentId: string | undefined;
-    try {
-      // Re-read the request body for documentId (create a clone since body can only be read once)
-      const requestBody = await req.clone().json();
-      documentId = requestBody.documentId;
-    } catch (parseError) {
-      console.error('Failed to parse request for documentId:', parseError);
-    }
-    
     if (documentId) {
       try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-        const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-        const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
         
-        await supabase
-          .from('ai_documents')
-          .update({ processing_status: 'failed' })
-          .eq('id', documentId);
-        
-        console.log(`Updated document ${documentId} status to failed`);
+        if (supabaseUrl && supabaseServiceRoleKey) {
+          const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+          
+          await supabase
+            .from('ai_documents')
+            .update({ processing_status: 'failed' })
+            .eq('id', documentId);
+          
+          console.log(`Updated document ${documentId} status to failed`);
+        }
       } catch (updateError) {
         console.error('Failed to update document status to failed:', updateError);
       }
