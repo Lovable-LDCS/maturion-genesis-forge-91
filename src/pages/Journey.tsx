@@ -747,46 +747,6 @@ const Journey = () => {
             </div>
           </div>
 
-          {/* Current State / Working Toward - Centered Under Foundation */}
-          <div className="flex justify-center">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 max-w-2xl w-full">
-              {/* Current State */}
-              <Card className="bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
-                <CardHeader>
-                  <CardTitle className="text-slate-700 flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                    <span>Current State</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-slate-600 mb-3">
-                    You are currently at <strong>Level 1 - Basic</strong> across most domains.
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Informal governance structure with limited strategic oversight of operational risks.
-                  </p>
-                </CardContent>
-              </Card>
-
-              {/* Working Toward */}
-              <Card className="bg-gradient-to-br from-emerald-50 to-green-100 border-emerald-200">
-                <CardHeader>
-                  <CardTitle className="text-emerald-700 flex items-center space-x-2">
-                    <div className="w-3 h-3 bg-emerald-500 rounded-full"></div>
-                    <span>Working Toward</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-emerald-600 mb-3">
-                    We are working on moving to <strong>Level 2 - Reactive</strong>.
-                  </p>
-                  <p className="text-xs text-emerald-500">
-                    Establish clear governance structure and define leadership roles in risk management.
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
 
         </div>
       </section>
@@ -841,11 +801,14 @@ const Journey = () => {
                       {driver.insight}
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="mt-4">
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      {driver.description}
-                    </p>
-                  </div>
+                   <div className="mt-4">
+                     <p className="text-sm leading-relaxed text-muted-foreground">
+                       {driver.description}
+                     </p>
+                     <p className="text-sm text-primary italic mt-3 pt-3 border-t border-slate-200">
+                       If you want to know even more, ask Maturion.
+                     </p>
+                   </div>
                 </DialogContent>
               </Dialog>
             ))}
@@ -903,11 +866,14 @@ const Journey = () => {
                       {element.insight}
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="mt-4">
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      {element.description}
-                    </p>
-                  </div>
+                   <div className="mt-4">
+                     <p className="text-sm leading-relaxed text-muted-foreground">
+                       {element.description}
+                     </p>
+                     <p className="text-sm text-primary italic mt-3 pt-3 border-t border-slate-200">
+                       If you want to know even more, ask Maturion.
+                     </p>
+                   </div>
                 </DialogContent>
               </Dialog>
             ))}
@@ -959,11 +925,14 @@ const Journey = () => {
                       {item.insight}
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="mt-4">
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      {item.description}
-                    </p>
-                  </div>
+                   <div className="mt-4">
+                     <p className="text-sm leading-relaxed text-muted-foreground">
+                       {item.description}
+                     </p>
+                     <p className="text-sm text-primary italic mt-3 pt-3 border-t border-slate-200">
+                       If you want to know even more, ask Maturion.
+                     </p>
+                   </div>
                 </DialogContent>
               </Dialog>
             ))}
@@ -1015,11 +984,14 @@ const Journey = () => {
                       {area.insight}
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="mt-4">
-                    <p className="text-sm leading-relaxed text-muted-foreground">
-                      {area.description}
-                    </p>
-                  </div>
+                   <div className="mt-4">
+                     <p className="text-sm leading-relaxed text-muted-foreground">
+                       {area.description}
+                     </p>
+                     <p className="text-sm text-primary italic mt-3 pt-3 border-t border-slate-200">
+                       If you want to know even more, ask Maturion.
+                     </p>
+                   </div>
                 </DialogContent>
               </Dialog>
             ))}
