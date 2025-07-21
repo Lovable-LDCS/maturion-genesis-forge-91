@@ -245,9 +245,9 @@ ${isInternalOnlyContext ? `
 🔒 INTERNAL MODE ACTIVE - This is a core audit/maturity context.
 - You MUST STRICTLY use ONLY information from the provided internal documents below
 - DO NOT generate, create, or hallucinate any MPS content not explicitly stated in the documents
-- Extract EXACTLY the MPS titles, numbers, and information as listed in the uploaded documents
-- For MPS generation: Use ONLY the exact MPS list from the internal documentation
-- If asked to generate MPSs for a domain, find and extract the exact MPSs for that domain from the internal documentation
+- Extract EXACTLY ALL MPS titles, numbers, and information as listed in the uploaded documents
+- For MPS generation: Find and extract ALL MPSs for the requested domain from the internal documentation
+- If asked to generate MPSs for a domain, find and extract ALL exact MPSs for that domain from the internal documentation (e.g., for Leadership & Governance: MPS 1, MPS 2, MPS 3, MPS 4, MPS 5, etc.)
 - Never substitute, modify, or "improve" the approved MPS titles and descriptions
 - All responses must cite the specific document sources (e.g., "From [Document Name]:")
 - If insufficient internal documentation exists, state this clearly: "Insufficient internal documentation found for this request"

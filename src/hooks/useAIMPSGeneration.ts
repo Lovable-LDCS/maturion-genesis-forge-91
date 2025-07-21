@@ -146,16 +146,17 @@ export const useAIMPSGeneration = () => {
       const prompt = hasKnowledgeBase 
         ? `${knowledgeContext}
 
-CRITICAL: Extract EXACT Mini Performance Standards (MPSs) for "${domainName}" from the KNOWLEDGE BASE CONTEXT above.
+CRITICAL: Extract ALL Mini Performance Standards (MPSs) for "${domainName}" domain from the KNOWLEDGE BASE CONTEXT above.
 
 PRIORITY INSTRUCTIONS:
-1. Use ONLY the exact MPS titles, numbers, and content from the uploaded documents above
-2. Do NOT create new MPSs - extract only what exists in the knowledge base
+1. Find and extract ALL MPSs that belong to the "${domainName}" domain from the uploaded documents above
+2. Use ONLY the exact MPS titles, numbers, and content from the knowledge base - DO NOT create new ones
 3. Maintain exact wording and numbering from source documents
-4. If a domain has specific MPSs listed, use those exact specifications
+4. Look for numbered MPS lists (e.g., MPS 1, MPS 2, MPS 3, etc.) within the domain sections
 5. Reference the source document name for each MPS
+6. Return ALL MPSs found for this domain, not just one or a few
 
-For each MPS found in the knowledge base, provide:
+For ALL MPSs found in the knowledge base for "${domainName}", provide:
 - Exact MPS number (as stated in documents)
 - Exact title (as stated in documents) 
 - Intent statement (from documents or derived from document context)
