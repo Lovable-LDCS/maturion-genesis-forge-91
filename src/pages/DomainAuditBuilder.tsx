@@ -115,6 +115,8 @@ const DomainAuditBuilder = () => {
   };
 
   const handleAcceptMPSs = (selectedMPSs: any[]) => {
+    console.log('🔍 DomainAuditBuilder - Received accepted MPSs:', selectedMPSs);
+    console.log('🔍 DomainAuditBuilder - MPS 5 in accepted:', selectedMPSs.find(mps => mps.number === '5'));
     setAcceptedMPSs(selectedMPSs);
     setMpsCompleted(true);
     setIsMPSModalOpen(false);

@@ -67,6 +67,11 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
 
   // Initialize MPSs with AI-generated intents when modal opens
   useEffect(() => {
+    console.log('🔍 IntentCreator useEffect:', { isOpen, acceptedMPSsLength: acceptedMPSs.length, mpssWithIntentsLength: mpssWithIntents.length });
+    console.log('🔍 IntentCreator acceptedMPSs:', acceptedMPSs);
+    console.log('🔍 IntentCreator - MPS 5 in accepted:', acceptedMPSs.find(mps => mps.number === '5'));
+    console.log('🔍 IntentCreator - All MPS numbers:', acceptedMPSs.map(mps => mps.number));
+    
     if (isOpen && acceptedMPSs.length > 0 && mpssWithIntents.length === 0) {
       generateIntentsForMPSs();
     }
@@ -142,6 +147,9 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
       });
 
       setMpssWithIntents(mpssWithGeneratedIntents);
+      console.log('🔍 IntentCreator - Final MPSs with intents:', mpssWithGeneratedIntents);
+      console.log('🔍 IntentCreator - MPS 5 in final list:', mpssWithGeneratedIntents.find(mps => mps.number === '5'));
+      console.log('🔍 IntentCreator - Final MPS numbers:', mpssWithGeneratedIntents.map(mps => mps.number));
     } catch (error) {
       console.error('Error generating intents for accepted MPSs:', error);
       // Create fallback intents for all accepted MPSs
@@ -303,7 +311,9 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
 
         {/* MPSs List */}
         <div className="flex-1 overflow-y-auto space-y-4">
-          {mpssWithIntents.map((mps, index) => (
+          {mpssWithIntents.map((mps, index) => {
+            console.log(`🔍 IntentCreator rendering MPS ${index}:`, { id: mps.id, number: mps.number, name: mps.name, title: mps.title });
+            return (
             <Card 
               key={mps.id} 
               className={`border transition-all duration-200 ${
@@ -316,7 +326,7 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <CardTitle className="text-base">MPS {index + 1} – {mps.title || mps.name}</CardTitle>
+                      <CardTitle className="text-base">MPS {mps.number || index + 1} – {mps.title || mps.name}</CardTitle>
                     </div>
                     {mps.description && (
                       <CardDescription className="text-sm text-muted-foreground">
@@ -434,7 +444,8 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
 
         {/* Footer Actions */}
