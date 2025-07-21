@@ -478,18 +478,24 @@ const Journey = () => {
   }, [toast]);
 
   const handleStartAssessment = () => {
+    const targetRoute = hasCompletedAssessment ? '/subscribe' : '/assessment';
+    const action = hasCompletedAssessment ? 'Consider Subscribing' : 'Start Free Assessment';
+    
     console.log('Journey Page - CTA Click:', {
       timestamp: new Date().toISOString(),
-      action: 'Start Free Assessment',
-      targetRoute: '/assessment'
+      action,
+      targetRoute,
+      hasCompletedAssessment
     });
 
     toast({
-      title: "Assessment Starting",
-      description: "Navigating to your free operational maturity assessment",
+      title: hasCompletedAssessment ? "Exploring Subscription" : "Assessment Starting",
+      description: hasCompletedAssessment 
+        ? "Discover subscription plans tailored to your assessment results"
+        : "Navigating to your free operational maturity assessment",
     });
 
-    navigate('/assessment');
+    navigate(targetRoute);
   };
 
   const handleBackToHome = () => {

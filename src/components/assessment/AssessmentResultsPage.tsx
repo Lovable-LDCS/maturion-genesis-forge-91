@@ -23,12 +23,27 @@ export const AssessmentResultsPage: React.FC<AssessmentResultsPageProps> = ({
   const { toast } = useToast();
 
   const handleSubscribeClick = () => {
-    // Mark that user completed assessment for journey page detection
+    // Mark that user completed assessment and save results for subscribe page
     localStorage.setItem('maturion_assessment_completed', 'true');
+    localStorage.setItem('maturion_assessment_results', JSON.stringify({
+      overallLevel,
+      highestDomain: domainScores.reduce((a, b) => a.calculatedLevel > b.calculatedLevel ? a : b).domainName,
+      lowestDomain: domainScores.reduce((a, b) => a.calculatedLevel < b.calculatedLevel ? a : b).domainName,
+      completedAt: new Date().toISOString()
+    }));
     
     toast({
-      title: "Exploring Full Journey",
-      description: "Discover how Maturion can guide your organization's maturity journey",
+      title: "Ready to Subscribe",
+      description: "Explore our plans designed for your maturity level",
+    });
+    
+    navigate('/subscribe');
+  };
+
+  const handleJourneyClick = () => {
+    toast({
+      title: "Exploring Journey Map",
+      description: "See how Maturion guides organizational transformation",
     });
     
     navigate('/journey');
