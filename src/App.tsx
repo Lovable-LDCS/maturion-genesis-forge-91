@@ -6,6 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import Index from "./pages/Index";
+import ModulesOverview from "./pages/ModulesOverview";
+import MaturitySetup from "./pages/MaturitySetup";
+import MaturityBuild from "./pages/MaturityBuild";
 import Dashboard from "./pages/Dashboard";
 import Assessment from "./pages/Assessment";
 import AssessmentFramework from "./pages/AssessmentFramework";
@@ -33,6 +36,9 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/" element={<Index />} />
+              <Route path="/modules" element={<ModulesOverview />} />
+              <Route path="/maturity/setup" element={<MaturitySetup />} />
+              <Route path="/maturity/build" element={<MaturityBuild />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/assessment" element={<Assessment />} />
               <Route path="/qa-signoff" element={<QASignOff />} />
