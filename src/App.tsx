@@ -12,6 +12,8 @@ import MaturityBuild from "./pages/MaturityBuild";
 import Dashboard from "./pages/Dashboard";
 import Assessment from "./pages/Assessment";
 import AssessmentFramework from "./pages/AssessmentFramework";
+import AuditStructureConfig from "./pages/AuditStructureConfig";
+import DomainAuditBuilder from "./pages/DomainAuditBuilder";
 import QASignOff from "./pages/QASignOffDynamic";
 import TeamPage from "./pages/TeamPage";
 import InvitationAcceptance from "./pages/InvitationAcceptance";
@@ -42,6 +44,8 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/assessment" element={<Assessment />} />
               <Route path="/qa-signoff" element={<QASignOff />} />
+              <Route path="/assessment/framework" element={<AuditStructureConfig />} />
+              <Route path="/audit/domain/:domainId" element={<DomainAuditBuilder />} />
               <Route path="/assessment-framework" element={<AssessmentFramework />} />
               <Route path="/domain-management" element={<AssessmentFramework />} />
               <Route path="/team" element={<TeamPage />} />

@@ -46,34 +46,38 @@ const MaturityBuild = () => {
     });
   };
 
-  const phases = [
+  const steps = [
     {
-      id: 'domains',
-      title: 'Define Domains',
-      description: 'AI-assisted domain structure based on your organization',
+      id: 1,
+      title: 'Free Assessment',
+      description: 'Complete your initial maturity assessment',
+      timeEstimate: '15-30 minutes',
       status: 'completed' as const,
-      progress: 100
+      icon: '✅'
     },
     {
-      id: 'mps',
-      title: 'Maturity Practice Statements',
-      description: 'Editable MPS structure tailored to your needs',
+      id: 2,
+      title: 'Get to Know You / Team Setup',
+      description: 'Set up your organization profile and invite team members',
+      timeEstimate: '30-45 minutes',
       status: 'completed' as const,
-      progress: 100
+      icon: '✅'
     },
     {
-      id: 'criteria',
-      title: 'Assessment Criteria',
-      description: 'Detailed criteria for maturity evaluation',
+      id: 3,
+      title: 'Audit Structure Configuration',
+      description: 'Configure your comprehensive audit framework',
+      timeEstimate: '2-4 hours',
       status: 'in_progress' as const,
-      progress: 75
+      icon: '⚙️'
     },
     {
-      id: 'review',
-      title: 'Model Review & Sign-Off',
-      description: 'Final review and approval of your maturity model',
-      status: 'pending' as const,
-      progress: 0
+      id: 4,
+      title: 'Evidence Collection & Management',
+      description: 'Upload and manage evidence for your criteria',
+      timeEstimate: 'Ongoing - 1-4 weeks',
+      status: 'locked' as const,
+      icon: '📁'
     }
   ];
 
@@ -141,55 +145,61 @@ const MaturityBuild = () => {
             </div>
           </div>
 
-          {/* Build Phases */}
-          <div className="space-y-6 mb-12">
-            {phases.map((phase, index) => (
-              <Card key={phase.id} className={`${
-                phase.status === 'completed' ? 'border-green-200 bg-green-50/50' :
-                phase.status === 'in_progress' ? 'border-blue-200 bg-blue-50/50' :
-                'border-muted'
-              }`}>
-                <CardHeader>
+          {/* Build Steps */}
+          <div className="space-y-4 mb-12">
+            {steps.map((step) => (
+              <Card 
+                key={step.id} 
+                className={`transition-all cursor-pointer hover:shadow-md ${
+                  step.status === 'completed' ? 'border-green-200 bg-green-50/50' :
+                  step.status === 'in_progress' ? 'border-blue-200 bg-blue-50/50' :
+                  step.status === 'locked' ? 'border-muted bg-muted/20 opacity-60' :
+                  'border-muted'
+                } ${step.status === 'in_progress' ? 'shadow-md' : ''}`}
+                onClick={() => {
+                  if (step.status === 'in_progress' && step.id === 3) {
+                    navigate('/assessment/framework');
+                  }
+                }}
+              >
+                <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-full ${
-                        phase.status === 'completed' ? 'bg-green-100 text-green-600' :
-                        phase.status === 'in_progress' ? 'bg-blue-100 text-blue-600' :
+                    <div className="flex items-center gap-4">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-2xl font-bold ${
+                        step.status === 'completed' ? 'bg-green-100 text-green-600' :
+                        step.status === 'in_progress' ? 'bg-blue-100 text-blue-600' :
                         'bg-muted text-muted-foreground'
                       }`}>
-                        {phase.status === 'completed' ? (
-                          <CheckCircle className="h-5 w-5" />
-                        ) : (
-                          <Brain className="h-5 w-5" />
-                        )}
+                        {step.id}
                       </div>
-                      <div>
-                        <CardTitle className="text-lg">{phase.title}</CardTitle>
-                        <CardDescription>{phase.description}</CardDescription>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-lg">{step.icon}</span>
+                          <CardTitle className="text-lg">{step.title}</CardTitle>
+                        </div>
+                        <CardDescription className="text-sm">
+                          {step.description}
+                        </CardDescription>
+                        <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
+                          <span>⏱️</span>
+                          <span>{step.timeEstimate}</span>
+                        </div>
                       </div>
                     </div>
                     
-                    <Badge variant={
-                      phase.status === 'completed' ? 'default' :
-                      phase.status === 'in_progress' ? 'secondary' :
-                      'outline'
-                    }>
-                      {phase.status === 'completed' ? 'Complete' :
-                       phase.status === 'in_progress' ? 'In Progress' :
-                       'Pending'}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      {step.status === 'completed' && (
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      )}
+                      {step.status === 'in_progress' && (
+                        <div className="w-3 h-3 bg-blue-500 rounded-full animate-pulse" />
+                      )}
+                      {step.status === 'locked' && (
+                        <Lock className="h-5 w-5 text-muted-foreground" />
+                      )}
+                    </div>
                   </div>
                 </CardHeader>
-                
-                {(phase.status === 'in_progress' || phase.status === 'completed') && (
-                  <CardContent>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm">Progress</span>
-                      <span className="text-sm text-muted-foreground">{phase.progress}%</span>
-                    </div>
-                    <Progress value={phase.progress} className="h-1" />
-                  </CardContent>
-                )}
               </Card>
             ))}
           </div>
