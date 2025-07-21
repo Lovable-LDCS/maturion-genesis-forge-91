@@ -483,7 +483,7 @@ const Journey = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50" style={{ overflow: 'visible' }}>
       {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
@@ -529,9 +529,9 @@ const Journey = () => {
       </section>
 
       {/* Maturity House */}
-      <section className="container mx-auto px-4 py-8 overflow-visible relative">
-         <div className="max-w-4xl mx-auto relative overflow-visible z-0">
-           <div className="flex flex-col items-center space-y-6 mb-8 relative z-10 overflow-visible">
+      <section className="container mx-auto px-4 py-8 relative" style={{ overflow: 'visible', zIndex: 1 }}>
+         <div className="max-w-4xl mx-auto relative" style={{ overflow: 'visible', zIndex: 1 }}>
+           <div className="flex flex-col items-center space-y-6 mb-8 relative" style={{ overflow: 'visible', zIndex: 2 }}>
             
             {/* Leadership & Governance - Roof (Triangle) */}
             <div className="relative z-10">
@@ -555,7 +555,7 @@ const Journey = () => {
                       
                       {/* Hover Tooltip */}
                       {hoveredDomain === index && (
-                        <div className="absolute z-[100] top-full left-1/2 transform -translate-x-1/2 mt-5 p-4 bg-white border rounded-lg shadow-xl w-72 animate-fade-in">
+                        <div className="absolute z-[9999] top-full left-1/2 transform -translate-x-1/2 mt-5 p-4 bg-white border rounded-lg shadow-xl w-72 animate-fade-in" style={{ zIndex: 9999 }}>
                           <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
                           <p className="text-sm text-gray-700">
                             {domain.levelContent[selectedLevel]?.oneLiner || domain.description}
@@ -619,7 +619,7 @@ const Journey = () => {
                         
                         {/* Hover Tooltip */}
                         {hoveredDomain === index + 10 && (
-                          <div className="absolute z-[100] top-full left-1/2 transform -translate-x-1/2 mt-3 p-4 bg-white border rounded-lg shadow-xl w-64 animate-fade-in">
+                          <div className="absolute z-[9999] top-full left-1/2 transform -translate-x-1/2 mt-3 p-4 bg-white border rounded-lg shadow-xl w-64 animate-fade-in" style={{ zIndex: 9999 }}>
                             <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
                             <p className="text-sm text-gray-700">
                               {domain.levelContent[selectedLevel]?.oneLiner || domain.description}
@@ -676,7 +676,7 @@ const Journey = () => {
                       
                       {/* Hover Tooltip */}
                       {hoveredDomain === index + 20 && (
-                        <div className="absolute z-[100] top-full left-1/2 transform -translate-x-1/2 mt-3 p-4 bg-white border rounded-lg shadow-xl w-64 animate-fade-in">
+                        <div className="absolute z-[9999] top-full left-1/2 transform -translate-x-1/2 mt-3 p-4 bg-white border rounded-lg shadow-xl w-64 animate-fade-in" style={{ zIndex: 9999 }}>
                           <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
                           <p className="text-sm text-gray-700">
                             {domain.levelContent[selectedLevel]?.oneLiner || domain.description}
@@ -738,7 +738,7 @@ const Journey = () => {
                   </div>
                   
                   {(hoveredLevel === index || lockedLevel === level.level) && (
-                    <div className="absolute z-[100] top-full left-1/2 transform -translate-x-1/2 mt-2 p-3 bg-white border rounded-lg shadow-xl w-48">
+                    <div className="absolute z-[9999] top-full left-1/2 transform -translate-x-1/2 mt-2 p-3 bg-white border rounded-lg shadow-xl w-48" style={{ zIndex: 9999 }}>
                       <p className="text-xs text-gray-700 text-center">
                         {level.tooltip}
                       </p>
