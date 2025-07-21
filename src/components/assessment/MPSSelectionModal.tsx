@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ChevronDown, ChevronUp, HelpCircle, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp, HelpCircle, Check, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
+import { useAIMPSGeneration } from '@/hooks/useAIMPSGeneration';
+import { useToast } from '@/hooks/use-toast';
 
 interface MPS {
   id: string;
@@ -14,6 +16,7 @@ interface MPS {
   intent: string;
   criteriaCount: number;
   selected: boolean;
+  rationale?: string;
 }
 
 interface MPSSelectionModalProps {
@@ -29,25 +32,34 @@ export const MPSSelectionModal: React.FC<MPSSelectionModalProps> = ({
   domainName,
   onAcceptMPSs
 }) => {
-  // Mock data for Process Integrity MPSs - in real app this would come from API
-  const [mpsList, setMpsList] = useState<MPS[]>([
-    {
-      id: '1',
-      number: 'MPS 1',
-      title: 'Process Documentation & Version Control',
-      intent: 'Ensure all critical operational processes are documented, controlled, and regularly updated to maintain operational integrity.',
-      criteriaCount: 2,
-      selected: true
-    },
-    {
-      id: '2',
-      number: 'MPS 2',
-      title: 'Quality Assurance & Control Systems',
-      intent: 'Establish systematic quality controls and assurance mechanisms to ensure consistent output quality and continuous improvement.',
-      criteriaCount: 1,
-      selected: false
+  const { generatedMPSs, isLoading, error, generateMPSsForDomain } = useAIMPSGeneration();
+  const { toast } = useToast();
+  const [mpsList, setMpsList] = useState<MPS[]>([]);
+
+  // Generate MPSs when modal opens
+  useEffect(() => {
+    if (isOpen && domainName) {
+      generateMPSsForDomain(domainName);
     }
-  ]);
+  }, [isOpen, domainName]);
+
+  // Update local state when AI generation completes
+  useEffect(() => {
+    if (generatedMPSs.length > 0) {
+      setMpsList(generatedMPSs);
+    }
+  }, [generatedMPSs]);
+
+  // Show error toast if generation fails
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: "AI Generation Notice",
+        description: error + " Using fallback MPSs for now.",
+        variant: "default"
+      });
+    }
+  }, [error, toast]);
 
   const [expandedMPS, setExpandedMPS] = useState<Set<string>>(new Set());
 
@@ -130,67 +142,94 @@ export const MPSSelectionModal: React.FC<MPSSelectionModalProps> = ({
               </Button>
             </div>
 
-            <div className="space-y-4">
-              {mpsList.map((mps) => (
-                <Card 
-                  key={mps.id} 
-                  className={`transition-all ${
-                    mps.selected 
-                      ? 'border-green-200 bg-green-50' 
-                      : 'border-muted hover:border-muted-foreground/50'
-                  }`}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        id={mps.id}
-                        checked={mps.selected}
-                        onCheckedChange={() => toggleMPSSelection(mps.id)}
-                        className="mt-1"
-                      />
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <Badge variant="outline" className="mr-2">
-                              {mps.number}
-                            </Badge>
-                            <span className="font-medium">{mps.title}</span>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => toggleMPSExpansion(mps.id)}
-                            className="text-amber-600 hover:text-amber-700"
-                          >
-                            <HelpCircle className="h-4 w-4 mr-1" />
-                            Why this MPS?
-                            {expandedMPS.has(mps.id) ? (
-                              <ChevronUp className="h-4 w-4 ml-1" />
-                            ) : (
-                              <ChevronDown className="h-4 w-4 ml-1" />
-                            )}
-                          </Button>
-                        </div>
+            {/* Loading State */}
+            {isLoading && (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2 text-muted-foreground">
+                  Maturion is generating tailored MPSs for {domainName}...
+                </span>
+              </div>
+            )}
 
-                        <Collapsible open={expandedMPS.has(mps.id)}>
-                          <CollapsibleContent className="space-y-2">
-                            <div className="pt-2 border-t border-muted">
-                              <p className="text-sm font-medium text-muted-foreground mb-1">
-                                Intent & Objective:
-                              </p>
-                              <p className="text-sm">{mps.intent}</p>
-                              <p className="text-xs text-muted-foreground mt-2">
-                                {mps.criteriaCount} assessment criteria included
-                              </p>
+            {/* MPS List */}
+            {!isLoading && (
+              <div className="space-y-4">
+                {mpsList.map((mps) => (
+                  <Card 
+                    key={mps.id} 
+                    className={`transition-all ${
+                      mps.selected 
+                        ? 'border-green-200 bg-green-50' 
+                        : 'border-muted hover:border-muted-foreground/50'
+                    }`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Checkbox
+                          id={mps.id}
+                          checked={mps.selected}
+                          onCheckedChange={() => toggleMPSSelection(mps.id)}
+                          className="mt-1"
+                        />
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <Badge variant="outline" className="mr-2">
+                                {mps.number}
+                              </Badge>
+                              <span className="font-medium">{mps.title}</span>
                             </div>
-                          </CollapsibleContent>
-                        </Collapsible>
+                            {mps.rationale && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => toggleMPSExpansion(mps.id)}
+                                className="text-amber-600 hover:text-amber-700"
+                              >
+                                <HelpCircle className="h-4 w-4 mr-1" />
+                                Why this MPS?
+                                {expandedMPS.has(mps.id) ? (
+                                  <ChevronUp className="h-4 w-4 ml-1" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4 ml-1" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
+
+                          <Collapsible open={expandedMPS.has(mps.id)}>
+                            <CollapsibleContent className="space-y-2">
+                              <div className="pt-2 border-t border-muted">
+                                <p className="text-sm font-medium text-muted-foreground mb-1">
+                                  Intent & Objective:
+                                </p>
+                                <p className="text-sm">{mps.intent}</p>
+                                
+                                {mps.rationale && (
+                                  <>
+                                    <p className="text-sm font-medium text-muted-foreground mb-1 mt-3">
+                                      Why this MPS is important:
+                                    </p>
+                                    <p className="text-sm text-amber-700 bg-amber-50 p-2 rounded">
+                                      {mps.rationale}
+                                    </p>
+                                  </>
+                                )}
+                                
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  {mps.criteriaCount} assessment criteria included
+                                </p>
+                              </div>
+                            </CollapsibleContent>
+                          </Collapsible>
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Selection Summary */}
