@@ -10,6 +10,8 @@ interface GeneratedMPS {
   criteriaCount: number;
   selected: boolean;
   rationale?: string;
+  knowledgeBaseUsed?: boolean;
+  sourceDocument?: string;
 }
 
 export const useAIMPSGeneration = () => {
@@ -28,41 +30,132 @@ export const useAIMPSGeneration = () => {
     setError(null);
 
     try {
-      // Create comprehensive context for AI generation
-      const organizationContext = {
-        name: currentOrganization.name,
-        description: currentOrganization.description,
-        id: currentOrganization.id
-      };
+      // STEP 1: Search AI Knowledge Base for relevant MPS documents
+      console.log(`Searching knowledge base for ${domainName} MPSs...`);
+      
+      const searchQueries = [
+        `${domainName} MPS Mini Performance Standards`,
+        `${domainName} domain standards criteria`,
+        `MPS ${domainName} requirements audit`,
+        `Annex 1 ${domainName} performance standards`
+      ];
 
-      const prompt = `Extract the exact Mini Performance Standards (MPSs) for the "${domainName}" domain from the uploaded internal documents.
+      let knowledgeBaseResults: any[] = [];
+      
+      // Search with multiple queries to find relevant documents
+      for (const searchQuery of searchQueries) {
+        try {
+          const { data: searchData, error: searchError } = await supabase.functions.invoke('search-ai-context', {
+            body: {
+              query: searchQuery,
+              organizationId: currentOrganization.id,
+              documentTypes: ['mps', 'standard', 'audit', 'criteria'],
+              limit: 10,
+              threshold: 0.6 // Lower threshold to catch more relevant content
+            }
+          });
 
-CRITICAL INSTRUCTIONS:
-- Use ONLY the exact MPS titles and details from the internal documents (specifically Annex 1)
-- Do NOT generate or create new MPSs
-- Extract the exact MPSs that belong to the "${domainName}" domain
-- Maintain the exact wording and numbering from the source documents
+          if (!searchError && searchData?.success && searchData.results?.length > 0) {
+            knowledgeBaseResults = [...knowledgeBaseResults, ...searchData.results];
+            console.log(`Found ${searchData.results.length} results for query: ${searchQuery}`);
+          }
+        } catch (searchErr) {
+          console.error(`Search failed for query "${searchQuery}":`, searchErr);
+        }
+      }
 
-Organization: ${organizationContext.name}
+      // Remove duplicates and sort by similarity
+      const uniqueResults = knowledgeBaseResults
+        .filter((result, index, self) => 
+          index === self.findIndex(r => r.chunk_id === result.chunk_id)
+        )
+        .sort((a, b) => b.similarity - a.similarity)
+        .slice(0, 20); // Top 20 most relevant chunks
 
-Required output format (JSON array):
+      console.log(`Found ${uniqueResults.length} unique knowledge base results for ${domainName}`);
+
+      // STEP 2: Build context from knowledge base
+      let knowledgeContext = '';
+      let sourceDocuments: string[] = [];
+      
+      if (uniqueResults.length > 0) {
+        knowledgeContext = `KNOWLEDGE BASE CONTEXT for ${domainName}:\n\n`;
+        uniqueResults.forEach((result, index) => {
+          knowledgeContext += `[Document: ${result.document_name}] ${result.content}\n\n`;
+          if (!sourceDocuments.includes(result.document_name)) {
+            sourceDocuments.push(result.document_name);
+          }
+        });
+        knowledgeContext += '\n---\n\n';
+      }
+
+      // STEP 3: Create AI prompt with knowledge base priority
+      const hasKnowledgeBase = uniqueResults.length > 0;
+      
+      const prompt = hasKnowledgeBase 
+        ? `${knowledgeContext}
+
+CRITICAL: Extract EXACT Mini Performance Standards (MPSs) for "${domainName}" from the KNOWLEDGE BASE CONTEXT above.
+
+PRIORITY INSTRUCTIONS:
+1. Use ONLY the exact MPS titles, numbers, and content from the uploaded documents above
+2. Do NOT create new MPSs - extract only what exists in the knowledge base
+3. Maintain exact wording and numbering from source documents
+4. If a domain has specific MPSs listed, use those exact specifications
+5. Reference the source document name for each MPS
+
+For each MPS found in the knowledge base, provide:
+- Exact MPS number (as stated in documents)
+- Exact title (as stated in documents) 
+- Intent statement (from documents or derived from document context)
+- Source document name
+- Rationale explaining why this MPS appears in the uploaded documentation
+
+Organization: ${currentOrganization.name}
+Domain: ${domainName}
+Source Documents: ${sourceDocuments.join(', ')}
+
+Return JSON format:
 [
   {
-    "number": "MPS X",
-    "title": "Exact title from internal documents",
-    "intent": "Based on internal documentation or extract from context",
-    "rationale": "Why this MPS is specified in the internal documents"
+    "number": "exact number from documents",
+    "title": "exact title from documents", 
+    "intent": "from documents or derived from context",
+    "source_document": "document name",
+    "rationale": "why this MPS is specified in the uploaded documents",
+    "knowledge_base_used": true
   }
-]
+]`
+        : `No specific MPS documents found in knowledge base for "${domainName}" domain.
 
-Please extract the "${domainName}" MPSs exactly as they appear in the internal documentation.`;
+FALLBACK MODE - Generate minimal placeholder MPSs:
+- Mark clearly as fallback suggestions (not from uploaded documents)
+- Include warning that no source documents were found
+- Recommend uploading domain-specific MPS documentation
+
+Organization: ${currentOrganization.name}
+Domain: ${domainName}
+
+Return JSON format:
+[
+  {
+    "number": "MPS 1",
+    "title": "Generic ${domainName} Standard",
+    "intent": "Placeholder - requires domain-specific documentation",
+    "source_document": "none - fallback suggestion",
+    "rationale": "No source document found in knowledge base - this is a generic suggestion",
+    "knowledge_base_used": false
+  }
+]`;
 
       const { data, error: functionError } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
           prompt,
-          context: `MPS generation for ${domainName} domain`,
+          context: `Knowledge-base enforced MPS generation for ${domainName}`,
           currentDomain: domainName,
-          organizationId: currentOrganization.id
+          organizationId: currentOrganization.id,
+          knowledgeBaseUsed: hasKnowledgeBase,
+          sourceDocuments: sourceDocuments
         }
       });
 
@@ -83,16 +176,24 @@ Please extract the "${domainName}" MPSs exactly as they appear in the internal d
             parsedMPSs = JSON.parse(response);
           }
 
-          // Transform the parsed data into our format
+          // Transform the parsed data into our format with knowledge base metadata
           const formattedMPSs: GeneratedMPS[] = parsedMPSs.map((mps: any, index: number) => ({
             id: `mps-${index + 1}`,
-            number: `MPS ${index + 1}`,
+            number: mps.number || `MPS ${index + 1}`,
             title: mps.title,
             intent: mps.intent,
             criteriaCount: Math.floor(Math.random() * 3) + 1, // Random between 1-3 criteria
             selected: false, // Default to unselected
-            rationale: mps.rationale
+            rationale: mps.knowledge_base_used 
+              ? `📚 From Knowledge Base: ${mps.rationale} (Source: ${mps.source_document})` 
+              : `⚠️ Fallback Suggestion: ${mps.rationale} - No specific documents found in knowledge base`,
+            knowledgeBaseUsed: mps.knowledge_base_used,
+            sourceDocument: mps.source_document
           }));
+
+          // Log knowledge base usage
+          const kbUsedCount = formattedMPSs.filter(mps => mps.knowledgeBaseUsed).length;
+          console.log(`Generated ${formattedMPSs.length} MPSs for ${domainName}: ${kbUsedCount} from knowledge base, ${formattedMPSs.length - kbUsedCount} fallback`);
 
           setGeneratedMPSs(formattedMPSs);
         } catch (parseError) {
@@ -100,17 +201,24 @@ Please extract the "${domainName}" MPSs exactly as they appear in the internal d
           // Fallback to creating MPSs from text response
           const fallbackMPSs = createFallbackMPSs(data.response, domainName);
           setGeneratedMPSs(fallbackMPSs);
+          console.warn(`Using fallback MPS parsing for ${domainName} - knowledge base may not have been properly accessed`);
         }
       } else {
         throw new Error(data.error || 'Failed to generate MPSs');
       }
     } catch (err) {
       console.error('Error generating MPSs:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate MPSs');
+      setError(`Knowledge base search failed: ${err instanceof Error ? err.message : 'Failed to generate MPSs'}`);
       
-      // Provide fallback MPSs based on domain
+      // Provide clearly marked fallback MPSs
       const fallbackMPSs = getDomainFallbackMPSs(domainName);
-      setGeneratedMPSs(fallbackMPSs);
+      // Mark all fallback MPSs with warning
+      const markedFallbackMPSs = fallbackMPSs.map(mps => ({
+        ...mps,
+        rationale: `⚠️ FALLBACK: ${mps.rationale} - No knowledge base access available`
+      }));
+      setGeneratedMPSs(markedFallbackMPSs);
+      console.warn(`Using complete fallback MPSs for ${domainName} due to error`);
     } finally {
       setIsLoading(false);
     }
@@ -133,7 +241,9 @@ Please extract the "${domainName}" MPSs exactly as they appear in the internal d
       intent: `Establish comprehensive ${domainName.toLowerCase()} standards to ensure operational excellence and risk mitigation.`,
       criteriaCount: Math.floor(Math.random() * 3) + 1,
       selected: false,
-      rationale: `This MPS is essential for ${domainName} maturity and aligns with industry best practices.`
+      rationale: `⚠️ PARSING FALLBACK: ${domainName} MPS derived from AI response - Knowledge base access may have failed`,
+      knowledgeBaseUsed: false,
+      sourceDocument: 'none - parsing fallback'
     }));
   };
 
@@ -147,7 +257,9 @@ Please extract the "${domainName}" MPSs exactly as they appear in the internal d
           intent: 'Ensure all critical operational processes are documented, controlled, and regularly updated to maintain operational integrity.',
           criteriaCount: 2,
           selected: false,
-          rationale: 'Process documentation is fundamental to operational consistency and compliance requirements.'
+          rationale: '⚠️ TEMPLATE FALLBACK: Process documentation is fundamental - No specific knowledge base documents found',
+          knowledgeBaseUsed: false,
+          sourceDocument: 'none - template fallback'
         },
         {
           id: 'pi-2',
@@ -156,7 +268,9 @@ Please extract the "${domainName}" MPSs exactly as they appear in the internal d
           intent: 'Establish systematic quality controls and assurance mechanisms to ensure consistent output quality.',
           criteriaCount: 3,
           selected: false,
-          rationale: 'Quality systems prevent defects and ensure continuous improvement in process delivery.'
+          rationale: '⚠️ TEMPLATE FALLBACK: Quality systems prevent defects - No specific knowledge base documents found',
+          knowledgeBaseUsed: false,
+          sourceDocument: 'none - template fallback'
         }
       ],
       'Leadership & Governance': [
@@ -167,7 +281,9 @@ Please extract the "${domainName}" MPSs exactly as they appear in the internal d
           intent: 'Establish clear governance structures with ethical leadership principles and board-level oversight.',
           criteriaCount: 2,
           selected: false,
-          rationale: 'Strong governance provides strategic direction and ensures ethical decision-making at all levels.'
+          rationale: '⚠️ TEMPLATE FALLBACK: Strong governance provides strategic direction - No specific knowledge base documents found',
+          knowledgeBaseUsed: false,
+          sourceDocument: 'none - template fallback'
         },
         {
           id: 'lg-2',
@@ -176,7 +292,9 @@ Please extract the "${domainName}" MPSs exactly as they appear in the internal d
           intent: 'Develop comprehensive policy frameworks that integrate compliance requirements with business objectives.',
           criteriaCount: 3,
           selected: false,
-          rationale: 'Integrated policies ensure consistency between compliance obligations and operational efficiency.'
+          rationale: '⚠️ TEMPLATE FALLBACK: Integrated policies ensure consistency - No specific knowledge base documents found',
+          knowledgeBaseUsed: false,
+          sourceDocument: 'none - template fallback'
         }
       ]
     };

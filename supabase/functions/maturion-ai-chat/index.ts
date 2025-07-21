@@ -45,10 +45,10 @@ async function getInternalDocuments(organizationId: string, context: string) {
   }
 }
 
-// Function to get relevant document chunks for AI context
-async function getDocumentContext(organizationId: string, query: string) {
+// Enhanced function to get relevant document chunks using semantic search
+async function getDocumentContext(organizationId: string, query: string, domain?: string) {
   try {
-    console.log('Fetching document context for organization:', organizationId);
+    console.log('Fetching document context for organization:', organizationId, 'Query:', query);
     
     // First check if there are any completed documents
     const { data: completedDocs, error: docsError } = await supabase
@@ -74,51 +74,134 @@ async function getDocumentContext(organizationId: string, query: string) {
       return '';
     }
     
-    // Get all document chunks that contain MPS or Annex information
-    const { data: chunks, error } = await supabase
-      .from('ai_document_chunks')
-      .select('content, metadata, ai_documents!inner(title, domain)')
-      .eq('organization_id', organizationId)
-      .or('content.ilike.%MPS%,content.ilike.%Annex%,content.ilike.%Mini Performance Standard%')
-      .limit(30);
+    console.log(`Found ${completedDocs.length} completed documents. Using enhanced search...`);
     
-    if (error) {
-      console.error('Error fetching document chunks:', error);
-      return '';
+    // Use the enhanced search-ai-context function for semantic search
+    const searchQueries = [
+      query,
+      domain ? `${domain} MPS Mini Performance Standards` : 'MPS standards',
+      'Annex 1 MPS list requirements',
+      domain ? `${domain} domain audit criteria` : 'audit criteria'
+    ];
+    
+    let searchResults: any[] = [];
+    
+    // Perform multiple semantic searches to gather comprehensive context
+    for (const searchQuery of searchQueries) {
+      try {
+        const searchResponse = await fetch(`${supabaseUrl}/functions/v1/search-ai-context`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            query: searchQuery,
+            organizationId: organizationId,
+            documentTypes: ['mps', 'standard', 'audit', 'criteria', 'annex'],
+            limit: 15,
+            threshold: 0.6
+          })
+        });
+        
+        if (searchResponse.ok) {
+          const searchData = await searchResponse.json();
+          if (searchData.success && searchData.results?.length > 0) {
+            searchResults = [...searchResults, ...searchData.results];
+            console.log(`Search query "${searchQuery}" returned ${searchData.results.length} results`);
+          }
+        }
+      } catch (searchErr) {
+        console.error(`Search failed for query "${searchQuery}":`, searchErr);
+      }
     }
     
-    if (!chunks || chunks.length === 0) {
-      console.log('No MPS/Annex-related document chunks found for organization:', organizationId);
-      return '';
+    // Remove duplicates and prioritize high-similarity results
+    const uniqueResults = searchResults
+      .filter((result, index, self) => 
+        index === self.findIndex(r => r.chunk_id === result.chunk_id)
+      )
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, 25); // Top 25 most relevant chunks
+    
+    if (uniqueResults.length === 0) {
+      console.log('No semantic search results found, falling back to basic content search...');
+      
+      // Fallback to basic content search
+      const { data: chunks, error } = await supabase
+        .from('ai_document_chunks')
+        .select('content, metadata, ai_documents!inner(title, domain)')
+        .eq('organization_id', organizationId)
+        .or('content.ilike.%MPS%,content.ilike.%Annex%,content.ilike.%Mini Performance Standard%')
+        .limit(20);
+      
+      if (error) {
+        console.error('Error in fallback search:', error);
+        return '';
+      }
+      
+      return chunks?.map(chunk => `[${chunk.ai_documents.title}] ${chunk.content}`).join('\n\n') || '';
     }
     
-    console.log(`Found ${chunks.length} relevant document chunks`);
+    console.log(`Found ${uniqueResults.length} unique semantic search results`);
     
-    // Prioritize chunks that contain Annex 1 (the authoritative MPS list)
-    const annex1Chunks = chunks.filter(chunk => 
-      chunk.content.toLowerCase().includes('annex 1') ||
-      chunk.content.toLowerCase().includes('annex i')
+    // Build structured context from search results
+    let contextSections: string[] = [];
+    let sourceDocuments = new Set<string>();
+    
+    // Prioritize Annex 1 or explicit MPS list content
+    const annex1Results = uniqueResults.filter(result => 
+      result.content.toLowerCase().includes('annex 1') ||
+      result.content.toLowerCase().includes('annex i') ||
+      result.content.includes('MPS 1') && result.content.includes('MPS 2')
     );
     
-    // If we have Annex 1 content, prioritize it
-    if (annex1Chunks.length > 0) {
-      console.log(`Found ${annex1Chunks.length} Annex 1 chunks - using authoritative source`);
-      return annex1Chunks.map(chunk => chunk.content).join('\n\n');
+    if (annex1Results.length > 0) {
+      contextSections.push('=== AUTHORITATIVE MPS SOURCE (Annex 1) ===');
+      annex1Results.forEach(result => {
+        contextSections.push(`[Document: ${result.document_name}] ${result.content}`);
+        sourceDocuments.add(result.document_name);
+      });
+      contextSections.push('');
     }
     
-    // Otherwise, look for structured MPS content
-    const structuredChunks = chunks.filter(chunk => 
-      chunk.content.includes('MPS 1') ||
-      chunk.content.includes('Leadership and Governance') ||
-      chunk.content.includes('Process Integrity') ||
-      chunk.content.match(/MPS\s+\d+.*?[-–]/)
+    // Add domain-specific content if specified
+    if (domain) {
+      const domainResults = uniqueResults.filter(result => 
+        result.content.toLowerCase().includes(domain.toLowerCase()) ||
+        result.document_name.toLowerCase().includes(domain.toLowerCase())
+      );
+      
+      if (domainResults.length > 0) {
+        contextSections.push(`=== ${domain.toUpperCase()} DOMAIN CONTEXT ===`);
+        domainResults.slice(0, 10).forEach(result => {
+          contextSections.push(`[Document: ${result.document_name}] ${result.content}`);
+          sourceDocuments.add(result.document_name);
+        });
+        contextSections.push('');
+      }
+    }
+    
+    // Add remaining high-relevance content
+    const remainingResults = uniqueResults.filter(result => 
+      !annex1Results.includes(result) && 
+      (!domain || !result.content.toLowerCase().includes(domain.toLowerCase()))
     );
     
-    const relevantChunks = structuredChunks.length > 0 ? structuredChunks : chunks;
+    if (remainingResults.length > 0) {
+      contextSections.push('=== ADDITIONAL RELEVANT CONTENT ===');
+      remainingResults.slice(0, 10).forEach(result => {
+        contextSections.push(`[Document: ${result.document_name}] ${result.content}`);
+        sourceDocuments.add(result.document_name);
+      });
+    }
     
-    return relevantChunks.map(chunk => chunk.content).join('\n\n');
+    const finalContext = contextSections.join('\n');
+    console.log(`Built context from ${sourceDocuments.size} source documents: ${Array.from(sourceDocuments).join(', ')}`);
+    
+    return finalContext;
   } catch (error) {
-    console.error('Error getting document context:', error);
+    console.error('Error getting enhanced document context:', error);
     return '';
   }
 }
@@ -130,7 +213,15 @@ serve(async (req) => {
   }
 
   try {
-    const { prompt, context, currentDomain, organizationId, allowExternalContext = false } = await req.json();
+    const { 
+      prompt, 
+      context, 
+      currentDomain, 
+      organizationId, 
+      allowExternalContext = false,
+      knowledgeBaseUsed = false,
+      sourceDocuments = []
+    } = await req.json();
 
     // Determine if this is an internal-only context
     const isInternalOnlyContext = INTERNAL_ONLY_CONTEXTS.some(internalContext => 
@@ -140,10 +231,11 @@ serve(async (req) => {
     let documentContext = '';
     let sourceType = 'external';
     
-    // For internal contexts, fetch and use only internal documents
+    // For internal contexts, fetch and use only internal documents with enhanced search
     if (isInternalOnlyContext && organizationId) {
-      documentContext = await getDocumentContext(organizationId, prompt);
+      documentContext = await getDocumentContext(organizationId, prompt, currentDomain);
       sourceType = 'internal';
+      console.log(`Knowledge base context length: ${documentContext.length} characters`);
     }
     
     const systemPrompt = `You are Maturion, an AI assistant specializing in operational maturity assessment and security governance. Your mission is "Powering Assurance. Elevating Performance." You are part of APGI (Assurance Protection Group Inc.) and help organizations navigate their maturity journey.
@@ -151,18 +243,31 @@ serve(async (req) => {
 CRITICAL BEHAVIOR RULES:
 ${isInternalOnlyContext ? `
 🔒 INTERNAL MODE ACTIVE - This is a core audit/maturity context.
-- You MUST ONLY use information from the provided internal documents below
-- DO NOT generate, create, or hallucinate any MPS content
-- Extract EXACTLY the MPS titles and information as listed in the uploaded documents
-- For MPS generation: Use ONLY the exact MPS list from Annex 1 in the internal documents
-- If asked to generate MPSs for a domain, find the exact MPSs for that domain from the internal documentation
-- Never substitute or modify the approved MPS titles and descriptions
-- All responses must reference the specific document sections (e.g., "From Annex 1:")
+- You MUST STRICTLY use ONLY information from the provided internal documents below
+- DO NOT generate, create, or hallucinate any MPS content not explicitly stated in the documents
+- Extract EXACTLY the MPS titles, numbers, and information as listed in the uploaded documents
+- For MPS generation: Use ONLY the exact MPS list from the internal documentation
+- If asked to generate MPSs for a domain, find and extract the exact MPSs for that domain from the internal documentation
+- Never substitute, modify, or "improve" the approved MPS titles and descriptions
+- All responses must cite the specific document sources (e.g., "From [Document Name]:")
+- If insufficient internal documentation exists, state this clearly: "Insufficient internal documentation found for this request"
 
-INTERNAL DOCUMENT CONTEXT:
+${documentContext ? `
+INTERNAL DOCUMENT CONTEXT (USE ONLY THIS CONTENT):
 ${documentContext}
 
-${documentContext ? `Based on the internal documents above, provide responses using ONLY this approved content.` : `I don't have sufficient internal documentation to provide this information. Please ensure relevant documents are uploaded to your knowledge base.`}
+IMPORTANT: Base your response STRICTLY on the internal documents above. Do not add external knowledge or assumptions.
+` : `
+⚠️ NO SUFFICIENT INTERNAL DOCUMENTATION FOUND
+I don't have sufficient internal documentation to provide authoritative information for this ${currentDomain || 'domain'} request. 
+
+Please ensure relevant documents are uploaded to your AI Knowledge Base, specifically:
+- MPS lists or Annex documents for ${currentDomain || 'this domain'}
+- Domain-specific audit criteria
+- Organizational standards and requirements
+
+Without these documents, I cannot provide accurate, organization-specific guidance.
+`}
 ` : `
 🌐 ADVISORY MODE ACTIVE - External context permitted.
 - You may use both internal documentation (if provided) and external knowledge
@@ -220,7 +325,9 @@ Respond in a helpful, professional tone that builds confidence while being reali
       success: true,
       sourceType: sourceType,
       isInternalOnlyContext: isInternalOnlyContext,
-      hasDocumentContext: documentContext.length > 0
+      hasDocumentContext: documentContext.length > 0,
+      documentContextLength: documentContext.length,
+      knowledgeBaseEnforced: isInternalOnlyContext && documentContext.length > 0
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
