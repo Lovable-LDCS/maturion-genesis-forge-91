@@ -50,13 +50,37 @@ async function getDocumentContext(organizationId: string, query: string) {
   try {
     console.log('Fetching document context for organization:', organizationId);
     
-    // Get all document chunks that contain MPS information
+    // First check if there are any completed documents
+    const { data: completedDocs, error: docsError } = await supabase
+      .from('ai_documents')
+      .select('id, title, processing_status')
+      .eq('organization_id', organizationId)
+      .eq('processing_status', 'completed');
+    
+    if (docsError) {
+      console.error('Error checking completed documents:', docsError);
+      return '';
+    }
+    
+    if (!completedDocs || completedDocs.length === 0) {
+      console.log('No completed documents found. Checking processing status...');
+      
+      const { data: allDocs } = await supabase
+        .from('ai_documents')
+        .select('id, title, processing_status')
+        .eq('organization_id', organizationId);
+      
+      console.log('Document processing status:', allDocs);
+      return '';
+    }
+    
+    // Get all document chunks that contain MPS or Annex information
     const { data: chunks, error } = await supabase
       .from('ai_document_chunks')
       .select('content, metadata, ai_documents!inner(title, domain)')
       .eq('organization_id', organizationId)
-      .ilike('content', '%MPS%')
-      .limit(20);
+      .or('content.ilike.%MPS%,content.ilike.%Annex%,content.ilike.%Mini Performance Standard%')
+      .limit(30);
     
     if (error) {
       console.error('Error fetching document chunks:', error);
@@ -64,19 +88,30 @@ async function getDocumentContext(organizationId: string, query: string) {
     }
     
     if (!chunks || chunks.length === 0) {
-      console.log('No MPS-related document chunks found for organization:', organizationId);
+      console.log('No MPS/Annex-related document chunks found for organization:', organizationId);
       return '';
     }
     
     console.log(`Found ${chunks.length} relevant document chunks`);
     
-    // Prioritize chunks that contain structured MPS lists (like Annex 1)
+    // Prioritize chunks that contain Annex 1 (the authoritative MPS list)
+    const annex1Chunks = chunks.filter(chunk => 
+      chunk.content.toLowerCase().includes('annex 1') ||
+      chunk.content.toLowerCase().includes('annex i')
+    );
+    
+    // If we have Annex 1 content, prioritize it
+    if (annex1Chunks.length > 0) {
+      console.log(`Found ${annex1Chunks.length} Annex 1 chunks - using authoritative source`);
+      return annex1Chunks.map(chunk => chunk.content).join('\n\n');
+    }
+    
+    // Otherwise, look for structured MPS content
     const structuredChunks = chunks.filter(chunk => 
-      chunk.content.includes('Annex 1') || 
       chunk.content.includes('MPS 1') ||
       chunk.content.includes('Leadership and Governance') ||
       chunk.content.includes('Process Integrity') ||
-      chunk.content.match(/MPS\s+\d+.*?-/)
+      chunk.content.match(/MPS\s+\d+.*?[-–]/)
     );
     
     const relevantChunks = structuredChunks.length > 0 ? structuredChunks : chunks;
