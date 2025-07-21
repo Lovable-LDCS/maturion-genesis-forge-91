@@ -53,12 +53,24 @@ const Subscribe = () => {
     return isYearly ? bundleYearly : bundleMonthly;
   };
 
-  // Module descriptions mapping
-  const moduleDescriptions: Record<string, string> = {
-    'Maturion Core Platform': 'Complete ISMS foundation with assessment and compliance tracking',
-    'Risk Management Framework': 'Comprehensive risk identification and mitigation strategies',
-    'Action Management System': 'Streamline corrective actions and tracking',
-    'Analytics & Surveillance Integration': 'AI-driven insights from access control and video surveillance'
+  // Module descriptions and features mapping
+  const moduleDetails: Record<string, { description: string; features: string[] }> = {
+    'Maturion Core Platform': {
+      description: 'Complete ISMS foundation with assessment and compliance tracking',
+      features: ['Core maturity engine', 'Organizational dashboard', 'Interactive reporting']
+    },
+    'Risk Management Framework': {
+      description: 'Comprehensive risk identification and mitigation strategies',
+      features: ['Threat modeling', 'Risk control registers', 'Audit baselining']
+    },
+    'Action Management System': {
+      description: 'Streamline corrective actions and tracking',
+      features: ['Issue tracking', 'Action accountability', 'Task monitoring']
+    },
+    'Analytics & Surveillance Integration': {
+      description: 'AI-driven insights from access control and video surveillance',
+      features: ['Access analytics', 'Surveillance data integration', 'Anomaly detection engine']
+    }
   };
 
   const individualTotal = modules.reduce((sum, module) => 
@@ -66,8 +78,8 @@ const Subscribe = () => {
   );
 
   const bundlePrice = calculateBundlePrice();
-  // Fixed 20% savings as specified in the brief
-  const savings = individualTotal > 0 ? 20 : 0;
+  // Calculate actual savings compared to individual total
+  const actualSavings = individualTotal > 0 ? Math.round(((individualTotal - bundlePrice) / individualTotal) * 100) : 0;
 
   if (loading) {
     return (
@@ -179,13 +191,16 @@ const Subscribe = () => {
           <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-6">
             {modules.map((module) => {
               const price = calculatePrice(module.monthly_price, module.yearly_discount_percentage);
-              const description = moduleDescriptions[module.name] || 'Advanced ISMS capabilities for your organization';
+              const moduleInfo = moduleDetails[module.name] || { 
+                description: 'Advanced ISMS capabilities for your organization',
+                features: ['Enterprise security features', 'Compliance tracking', 'Advanced reporting']
+              };
               return (
                 <Card key={module.id} className="relative">
                   <CardHeader>
                     <CardTitle className="text-lg leading-tight">{module.name}</CardTitle>
                     <CardDescription className="text-sm text-muted-foreground min-h-[2.5rem]">
-                      {description}
+                      {moduleInfo.description}
                     </CardDescription>
                     <div className="mt-4">
                       <span className="text-3xl font-bold">${price.toLocaleString()}</span>
@@ -198,9 +213,20 @@ const Subscribe = () => {
                     )}
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                      <span className="text-sm">Included in Bundle</span>
+                    <div className="space-y-2">
+                      {moduleInfo.features.map((feature, index) => (
+                        <div key={index} className="flex items-center gap-2 text-sm">
+                          <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                          <span>{feature}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="pt-2 border-t">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Badge variant="outline" className="text-xs">
+                          Included in Bundle
+                        </Badge>
+                      </div>
                     </div>
                     <Button className="w-full">
                       Subscribe Now
@@ -228,7 +254,7 @@ const Subscribe = () => {
               </div>
               <div className="mt-2">
                 <Badge variant="secondary">
-                  Save {savings}% compared to individual subscriptions
+                  Save {actualSavings}% compared to individual subscriptions
                 </Badge>
               </div>
             </CardHeader>
