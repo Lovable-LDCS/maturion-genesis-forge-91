@@ -64,10 +64,12 @@ export const useAIMPSGeneration = () => {
       
       // STEP 2: Search for specific MPS numbers within the domain range
       const searchQueries = [
-        `MPS ${mpsRange.min} MPS ${mpsRange.max} ${domainName}`,
-        `"MPS ${mpsRange.min}" "${mpsRange.max}" Mini Performance Standards`,
-        `${domainName} domain MPS numbers ${mpsRange.min} to ${mpsRange.max}`,
-        `Leadership MPS 1 MPS 2 MPS 3 MPS 4 MPS 5` // Specific for Leadership & Governance
+        `${domainName} MPS Mini Performance Standards`,
+        `MPS ${mpsRange.min} MPS ${mpsRange.min + 1} MPS ${mpsRange.min + 2} MPS ${mpsRange.min + 3} MPS ${mpsRange.min + 4}`,
+        `"MPS ${mpsRange.min}" "MPS ${mpsRange.min + 1}" "MPS ${mpsRange.min + 2}" "MPS ${mpsRange.min + 3}" "MPS ${mpsRange.min + 4}"`,
+        `${domainName} domain`,
+        `Leadership Governance MPS 1 MPS 2 MPS 3 MPS 4 MPS 5`, // Specific for Leadership & Governance
+        `MPS 1 Leadership MPS 2 Chain Custody MPS 3 Separation Duties MPS 4 Risk Management MPS 5 Legal Regulatory` // Very specific
       ];
 
       let knowledgeBaseResults: any[] = [];
@@ -166,24 +168,31 @@ CRITICAL: Extract ONLY the Mini Performance Standards (MPSs) for "${domainName}"
 STRICT DOMAIN FILTERING RULES:
 - "${domainName}" domain should ONLY contain MPS numbers ${mpsRange.min} through ${mpsRange.max}
 - Do NOT include MPSs outside this range (e.g., if MPS 13 or 14 appear, they belong to People & Culture, not Leadership & Governance)
-- Leadership & Governance = MPS 1-5 ONLY
+- Leadership & Governance = MPS 1-5 ONLY (must include ALL: MPS 1, MPS 2, MPS 3, MPS 4, MPS 5)
 - Process Integrity = MPS 6-10 ONLY  
 - People & Culture = MPS 11-14 ONLY
 - Protection = MPS 15-20 ONLY
 - Proof it Works = MPS 21-25 ONLY
 
 PRIORITY INSTRUCTIONS:
-1. Find and extract ONLY MPSs numbered ${mpsRange.min} to ${mpsRange.max} from the knowledge base context
-2. Use ONLY the exact MPS titles, numbers, and content from the knowledge base - DO NOT create new ones
-3. Maintain exact wording and numbering from source documents
-4. If an MPS number is outside the range ${mpsRange.min}-${mpsRange.max}, EXCLUDE it (it belongs to a different domain)
-5. Reference the source document name for each MPS
-6. Return ALL valid MPSs found for this domain within the number range
+1. SCAN ALL DOCUMENTS: Look through every document in the knowledge base context for ALL MPS numbers ${mpsRange.min}-${mpsRange.max}
+2. MANDATORY INCLUSION: You MUST include ALL MPSs found within the number range, including MPS 3 and MPS 5 if they exist in documents
+3. COMPREHENSIVE SEARCH: Look for patterns like "MPS 1", "MPS 2", "MPS 3", "MPS 4", "MPS 5" - include every single one found
+4. Use ONLY the exact MPS titles, numbers, and content from the knowledge base - DO NOT create new ones
+5. Maintain exact wording and numbering from source documents
+6. If an MPS number is outside the range ${mpsRange.min}-${mpsRange.max}, EXCLUDE it (it belongs to a different domain)
+7. Reference the source document name for each MPS
 
-For ONLY the valid MPSs numbered ${mpsRange.min}-${mpsRange.max} found in the knowledge base for "${domainName}", provide:
+INTENT STATEMENT REQUIREMENTS:
+- Create SPECIFIC intents for each MPS based on document content, NOT generic templates
+- AVOID: "ensure compliance with legal and regulatory requirements" unless MPS is specifically about legal/regulatory
+- USE: Actual document focus (e.g., "Leadership" = governance structures, "Risk Management" = risk processes, "Legal" = regulatory compliance)
+- Format: "Establish [specific purpose based on MPS focus] to [specific outcome] through [specific method from document]"
+
+For EVERY valid MPS numbered ${mpsRange.min}-${mpsRange.max} found in the knowledge base for "${domainName}", provide:
 - Exact MPS number (as stated in documents, must be ${mpsRange.min}-${mpsRange.max})
 - Exact title (as stated in documents) 
-- Intent statement (from documents or derived from document context)
+- Intent statement (synthesized from document content - be specific to each MPS focus area)
 - Source document name
 - Rationale explaining why this MPS appears in the uploaded documentation
 

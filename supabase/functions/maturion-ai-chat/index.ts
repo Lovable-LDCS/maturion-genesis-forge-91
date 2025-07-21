@@ -253,7 +253,9 @@ ${isInternalOnlyContext ? `
 🔒 INTERNAL MODE ACTIVE - This is a core audit/maturity context.
 - You MUST STRICTLY use ONLY information from the provided internal documents below
 - For MPS generation: Extract EXACTLY ALL MPS titles, numbers, and information as listed in the uploaded documents
-- For Intent generation: SYNTHESIZE intent statements based on document content, using format: "This MPS aims to ensure [purpose] by [method], as outlined in [document context]"
+- For Intent generation: SYNTHESIZE intent statements based on document content - create SPECIFIC intents for each MPS using actual document context, NOT generic templates
+- AVOID GENERIC STATEMENTS: Do not use "ensure compliance with legal and regulatory requirements" unless the MPS is specifically about legal/regulatory matters
+- USE SPECIFIC CONTENT: Base intent on the actual focus area of each MPS (e.g., Leadership focuses on governance, Risk Management focuses on risk processes, etc.)
 - STRICT DOMAIN FILTERING: If generating MPSs for "${currentDomain}", extract ALL MPSs that belong to this domain based on the MPS number ranges above
 - For Leadership & Governance: Extract ALL MPSs numbered 1, 2, 3, 4, and 5 that exist in the documents - EXCLUDE any MPS 13, 14, 15, etc.
 - For Process Integrity: Extract ALL MPSs numbered 6, 7, 8, 9, and 10 that exist in the documents - EXCLUDE any MPS outside this range
