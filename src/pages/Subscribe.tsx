@@ -46,20 +46,19 @@ const Subscribe = () => {
   };
 
   const calculateBundlePrice = () => {
-    if (!modules.length) return 0;
+    // Fixed bundle pricing as specified
+    const bundleMonthly = 1000;
+    const bundleYearly = 10800;
     
-    const totalMonthly = modules.reduce((sum, module) => sum + module.monthly_price, 0);
-    const bundleDiscount = 10; // 10% bundle discount as mentioned in brief
-    
-    if (isYearly) {
-      const yearlyTotal = totalMonthly * 12;
-      const yearlyDiscount = yearlyTotal * 0.1; // 10% yearly discount
-      const bundleDiscountAmount = (yearlyTotal - yearlyDiscount) * (bundleDiscount / 100);
-      return Math.round(yearlyTotal - yearlyDiscount - bundleDiscountAmount);
-    }
-    
-    const bundleDiscountAmount = totalMonthly * (bundleDiscount / 100);
-    return Math.round(totalMonthly - bundleDiscountAmount);
+    return isYearly ? bundleYearly : bundleMonthly;
+  };
+
+  // Module descriptions mapping
+  const moduleDescriptions: Record<string, string> = {
+    'Maturion Core Platform': 'Complete ISMS foundation with assessment and compliance tracking',
+    'Risk Management Framework': 'Comprehensive risk identification and mitigation strategies',
+    'Action Management System': 'Streamline corrective actions and tracking',
+    'Analytics & Surveillance Integration': 'AI-driven insights from access control and video surveillance'
   };
 
   const individualTotal = modules.reduce((sum, module) => 
@@ -67,7 +66,8 @@ const Subscribe = () => {
   );
 
   const bundlePrice = calculateBundlePrice();
-  const savings = Math.round(((individualTotal - bundlePrice) / individualTotal) * 100);
+  // Fixed 20% savings as specified in the brief
+  const savings = individualTotal > 0 ? 20 : 0;
 
   if (loading) {
     return (
@@ -172,31 +172,38 @@ const Subscribe = () => {
 
         {/* Individual Modules */}
         <div className="mb-12">
-          <h2 className="text-2xl font-bold text-center mb-8">Individual Modules</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="text-center mb-8">
+            <h2 className="text-2xl font-bold mb-2">Choose Modules Individually</h2>
+            <p className="text-muted-foreground">Subscribe only to what you need. Scale at your own pace.</p>
+          </div>
+          <div className="grid md:grid-cols-2 lg:grid-cols-2 gap-6">
             {modules.map((module) => {
               const price = calculatePrice(module.monthly_price, module.yearly_discount_percentage);
+              const description = moduleDescriptions[module.name] || 'Advanced ISMS capabilities for your organization';
               return (
                 <Card key={module.id} className="relative">
                   <CardHeader>
                     <CardTitle className="text-lg leading-tight">{module.name}</CardTitle>
+                    <CardDescription className="text-sm text-muted-foreground min-h-[2.5rem]">
+                      {description}
+                    </CardDescription>
                     <div className="mt-4">
                       <span className="text-3xl font-bold">${price.toLocaleString()}</span>
                       <span className="text-muted-foreground">/{isYearly ? 'year' : 'month'}</span>
                     </div>
                     {isYearly && (
                       <Badge variant="secondary" className="w-fit">
-                        Save {module.yearly_discount_percentage}%
+                        Save {module.yearly_discount_percentage}% yearly
                       </Badge>
                     )}
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-2 mb-4">
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center gap-2">
                       <CheckCircle className="h-4 w-4 text-green-500" />
                       <span className="text-sm">Included in Bundle</span>
                     </div>
                     <Button className="w-full">
-                      Subscribe
+                      Subscribe Now
                       <ArrowRight className="h-4 w-4 ml-2" />
                     </Button>
                   </CardContent>
