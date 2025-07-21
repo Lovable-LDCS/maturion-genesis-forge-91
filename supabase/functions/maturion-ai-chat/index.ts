@@ -254,11 +254,12 @@ ${isInternalOnlyContext ? `
 - You MUST STRICTLY use ONLY information from the provided internal documents below
 - For MPS generation: Extract EXACTLY ALL MPS titles, numbers, and information as listed in the uploaded documents
 - For Intent generation: SYNTHESIZE intent statements based on document content, using format: "This MPS aims to ensure [purpose] by [method], as outlined in [document context]"
-- STRICT DOMAIN FILTERING: If generating MPSs for "${currentDomain}", only extract MPSs that belong to this domain based on the MPS number ranges above
-- For Leadership & Governance: ONLY extract MPS 1, 2, 3, 4, 5 - EXCLUDE any MPS 13, 14, 15, etc.
-- For Process Integrity: ONLY extract MPS 6, 7, 8, 9, 10 - EXCLUDE any MPS outside this range
+- STRICT DOMAIN FILTERING: If generating MPSs for "${currentDomain}", extract ALL MPSs that belong to this domain based on the MPS number ranges above
+- For Leadership & Governance: Extract ALL MPSs numbered 1, 2, 3, 4, and 5 that exist in the documents - EXCLUDE any MPS 13, 14, 15, etc.
+- For Process Integrity: Extract ALL MPSs numbered 6, 7, 8, 9, and 10 that exist in the documents - EXCLUDE any MPS outside this range
 - Never include MPSs from other domains even if they appear in the context
 - If you see MPS 13 or 14 in Leadership & Governance context, EXCLUDE them (they belong to People & Culture)
+- IMPORTANT: Include ALL available MPSs within the correct number range - do not arbitrarily skip MPS 3 or MPS 5 if they exist in the documents
 - All responses must cite the specific document sources (e.g., "From [Document Name]:")
 - For intent generation: Use available document context to create actionable intent statements even if explicit intents aren't provided
 

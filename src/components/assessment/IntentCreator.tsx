@@ -10,6 +10,24 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { useIntentGeneration } from '@/hooks/useIntentGeneration';
 import { AISourceIndicator } from '@/components/ai/AISourceIndicator';
 
+// Helper function to get MPS range for a domain
+const getDomainMPSRange = (domainName: string): string => {
+  switch (domainName) {
+    case 'Leadership & Governance':
+      return 'MPS 1-5';
+    case 'Process Integrity':
+      return 'MPS 6-10';
+    case 'People & Culture':
+      return 'MPS 11-14';
+    case 'Protection':
+      return 'MPS 15-20';
+    case 'Proof it Works':
+      return 'MPS 21-25';
+    default:
+      return '';
+  }
+};
+
 interface MPS {
   id: string;
   name: string;
@@ -59,21 +77,27 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
     const mpssWithGeneratedIntents = await Promise.all(
       acceptedMPSs.map(async (mps) => {
         try {
-          const prompt = `Generate a clear, actionable intent statement for this MPS in the ${domainName} domain:
+          const prompt = `Generate a specific, actionable intent statement for this MPS based on the uploaded document content and context:
 
 MPS Name: ${mps.name}
 MPS Description: ${mps.description || ''}
+Domain: ${domainName}
+
+CRITICAL INSTRUCTIONS:
+- Analyze the uploaded MPS document content to understand this specific MPS's focus and requirements
+- For "Legal and Regulatory Requirements": Reference compliance frameworks, regulatory obligations, audit requirements, applicable laws, and legal compliance duties
+- For "Leadership" MPSs: Focus on governance structures, accountability frameworks, strategic oversight, and leadership responsibilities  
+- For "Separation of Duties": Focus on role segregation, conflict prevention, access controls, and authorization mechanisms
+- Use the actual uploaded document content to inform the intent, not generic assumptions
 
 The intent statement should:
-- Be written in Verb-Noun-Context format
-- Start with an action verb (e.g., "Ensure", "Establish", "Maintain", "Implement")
-- Be specific to the ${domainName} domain
-- Be concise but comprehensive (1-2 sentences max)
-- Focus on measurable outcomes
+- Be written in Verb-Noun-Context format starting with action verbs like "Ensure", "Establish", "Maintain", "Implement"
+- Reflect the specific MPS requirements and focus areas from the uploaded documents
+- Be 1-2 sentences maximum
+- Include domain-specific terminology and concepts from the document context
+- Focus on measurable, auditable outcomes that an auditor would verify
 
-Example format: "Ensure all critical operational processes are documented, controlled, and regularly updated to maintain operational integrity."
-
-Respond with only the intent statement, no additional text.`;
+Based on the uploaded document content for this specific MPS, respond with ONLY the intent statement, no additional text.`;
 
           const generatedIntent = await generateIntent(prompt);
           
@@ -193,6 +217,9 @@ Respond with only the intent statement, no additional text.`;
         <DialogHeader className="pb-4">
           <DialogTitle className="text-xl font-bold">
             {domainName} – Intent Creator
+            <span className="text-sm font-normal text-muted-foreground ml-2">
+              ({getDomainMPSRange(domainName)})
+            </span>
           </DialogTitle>
           <p className="text-sm text-muted-foreground mt-2">
             Welcome to the Intent Creator. Here you will review and refine the Intent & Objective statements for each accepted MPS in the {domainName} domain. Clear, well-defined intent statements help auditors understand the purpose, scope, and importance of each standard. Maturion will guide you with best-practice wording and suggestions.
