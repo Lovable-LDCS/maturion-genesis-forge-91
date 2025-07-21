@@ -436,6 +436,7 @@ const Journey = () => {
   const [hoveredDriver, setHoveredDriver] = useState<number | null>(null);
   const [hoveredElement, setHoveredElement] = useState<number | null>(null);
   const [tooltipPosition, setTooltipPosition] = useState<{x: number, y: number} | null>(null);
+  const [activeTooltipDomain, setActiveTooltipDomain] = useState<number | null>(null);
 
   // Handle mouse enter for tooltips with fixed positioning
   const handleTooltipMouseEnter = (event: React.MouseEvent, domainIndex: number) => {
@@ -445,6 +446,14 @@ const Journey = () => {
       y: rect.bottom + 10
     });
     setHoveredDomain(domainIndex);
+    setActiveTooltipDomain(domainIndex);
+  };
+
+  // Handle mouse leave for tooltips
+  const handleTooltipMouseLeave = () => {
+    setHoveredDomain(null);
+    setTooltipPosition(null);
+    setActiveTooltipDomain(null);
   };
 
   useEffect(() => {
@@ -550,11 +559,11 @@ const Journey = () => {
               {MATURITY_DOMAINS.filter(d => d.position === "top").map((domain, index) => (
                 <Dialog key={index}>
                   <DialogTrigger asChild>
-                    <div
-                      className="relative cursor-pointer transition-all duration-300 hover:scale-105 group"
-                      onMouseEnter={() => setHoveredDomain(index)}
-                      onMouseLeave={() => setHoveredDomain(null)}
-                    >
+                     <div
+                       className="relative cursor-pointer transition-all duration-300 hover:scale-105 group"
+                       onMouseEnter={(e) => handleTooltipMouseEnter(e, index)}
+                       onMouseLeave={handleTooltipMouseLeave}
+                     >
                       {/* Triangle Shape - Final Size with Overlap */}
                       <div className="w-0 h-0 border-l-[220px] border-r-[220px] border-b-[130px] border-l-transparent border-r-transparent border-b-emerald-500 shadow-lg">
                       </div>
@@ -565,15 +574,6 @@ const Journey = () => {
                         <p className="text-xs text-emerald-100 mt-1">- Level {selectedLevel}</p>
                       </div>
                       
-                      {/* Hover Tooltip */}
-                      {hoveredDomain === index && (
-                        <div className="absolute z-[9999] top-full left-1/2 transform -translate-x-1/2 mt-5 p-4 bg-white border rounded-lg shadow-xl w-72 animate-fade-in" style={{ zIndex: 9999 }}>
-                          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
-                          <p className="text-sm text-gray-700">
-                            {domain.levelContent[selectedLevel]?.oneLiner || domain.description}
-                          </p>
-                        </div>
-                      )}
                     </div>
                   </DialogTrigger>
                   <DialogContent className="max-w-2xl">
@@ -617,11 +617,11 @@ const Journey = () => {
                 return (
                   <Dialog key={index}>
                     <DialogTrigger asChild>
-                      <Card 
-                        className={`relative transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer group w-32 h-32 bg-gradient-to-r ${color.bg} text-white border-0 rounded-lg`}
-                        onMouseEnter={() => setHoveredDomain(index + 10)}
-                        onMouseLeave={() => setHoveredDomain(null)}
-                      >
+                       <Card 
+                         className={`relative transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer group w-32 h-32 bg-gradient-to-r ${color.bg} text-white border-0 rounded-lg`}
+                         onMouseEnter={(e) => handleTooltipMouseEnter(e, index + 10)}
+                         onMouseLeave={handleTooltipMouseLeave}
+                       >
                         <CardHeader className="text-center p-3">
                           <CardTitle className="text-sm font-bold leading-tight">{domain.name}</CardTitle>
                           <CardDescription className={`${color.text} text-xs`}>
@@ -629,15 +629,6 @@ const Journey = () => {
                           </CardDescription>
                         </CardHeader>
                         
-                        {/* Hover Tooltip */}
-                        {hoveredDomain === index + 10 && (
-                          <div className="absolute z-[9999] top-full left-1/2 transform -translate-x-1/2 mt-3 p-4 bg-white border rounded-lg shadow-xl w-64 animate-fade-in" style={{ zIndex: 9999 }}>
-                            <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-4 h-4 bg-white border-l border-t rotate-45"></div>
-                            <p className="text-sm text-gray-700">
-                              {domain.levelContent[selectedLevel]?.oneLiner || domain.description}
-                            </p>
-                          </div>
-                        )}
                       </Card>
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl">
@@ -677,10 +668,7 @@ const Journey = () => {
                     <Card 
                       className="relative transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer group w-full bg-gradient-to-r from-red-500 to-red-600 text-white border-0 rounded-lg"
                       onMouseEnter={(e) => handleTooltipMouseEnter(e, index + 20)}
-                      onMouseLeave={() => {
-                        setHoveredDomain(null);
-                        setTooltipPosition(null);
-                      }}
+                      onMouseLeave={handleTooltipMouseLeave}
                     >
                       <CardHeader className="text-center pb-3">
                         <CardTitle className="text-lg font-bold">{domain.name}</CardTitle>
@@ -1075,9 +1063,35 @@ const Journey = () => {
         currentDomain={lockedLevel ? `Level ${lockedLevel} focus` : "general maturity assessment"}
       />
 
-      {/* Portal Tooltip for Foundation */}
+      {/* Portal Tooltips for All Domains */}
+      
+      {/* Roof Tooltip - Leadership & Governance */}
       <TooltipPortal
-        isVisible={hoveredDomain === 20 && tooltipPosition !== null}
+        isVisible={activeTooltipDomain === 0 && tooltipPosition !== null}
+        position={tooltipPosition}
+      >
+        <p className="text-sm text-gray-700">
+          {MATURITY_DOMAINS.find(d => d.position === "top")?.levelContent[selectedLevel]?.oneLiner || 
+           MATURITY_DOMAINS.find(d => d.position === "top")?.description}
+        </p>
+      </TooltipPortal>
+
+      {/* Pillar Tooltips - Process Integrity, People & Culture, Protection */}
+      {MATURITY_DOMAINS.filter(d => d.position.startsWith("middle")).map((domain, index) => (
+        <TooltipPortal
+          key={`pillar-${index}`}
+          isVisible={activeTooltipDomain === index + 10 && tooltipPosition !== null}
+          position={tooltipPosition}
+        >
+          <p className="text-sm text-gray-700">
+            {domain.levelContent[selectedLevel]?.oneLiner || domain.description}
+          </p>
+        </TooltipPortal>
+      ))}
+
+      {/* Foundation Tooltip - Proof it Works */}
+      <TooltipPortal
+        isVisible={activeTooltipDomain === 20 && tooltipPosition !== null}
         position={tooltipPosition}
       >
         <p className="text-sm text-gray-700">
