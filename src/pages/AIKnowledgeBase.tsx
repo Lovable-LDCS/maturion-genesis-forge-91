@@ -1,22 +1,31 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter } from 'lucide-react';
 import { AIAdminUploadZone } from '@/components/ai/AIAdminUploadZone';
 import { useAIDocuments } from '@/hooks/useAIDocuments';
 
 const AIKnowledgeBase: React.FC = () => {
   const { documents, loading } = useAIDocuments();
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   
-  // Calculate statistics
-  const stats = React.useMemo(() => {
+  // Filter documents based on status
+  const filteredDocuments = useMemo(() => {
+    if (statusFilter === 'all') return documents;
+    return documents.filter(doc => doc.processing_status === statusFilter);
+  }, [documents, statusFilter]);
+  
+  // Calculate statistics from filtered documents
+  const stats = useMemo(() => {
     if (loading || documents.length === 0) {
       return {
         total: 0,
         completed: 0,
         processing: 0,
         failed: 0,
+        pending: 0,
         totalChunks: 0,
         completionRate: 0
       };
@@ -25,6 +34,7 @@ const AIKnowledgeBase: React.FC = () => {
     const completed = documents.filter(d => d.processing_status === 'completed').length;
     const processing = documents.filter(d => d.processing_status === 'processing').length;
     const failed = documents.filter(d => d.processing_status === 'failed').length;
+    const pending = documents.filter(d => d.processing_status === 'pending').length;
     const totalChunks = documents.reduce((sum, d) => sum + (d.total_chunks || 0), 0);
     const completionRate = documents.length > 0 ? (completed / documents.length) * 100 : 0;
 
@@ -33,6 +43,7 @@ const AIKnowledgeBase: React.FC = () => {
       completed,
       processing,
       failed,
+      pending,
       totalChunks,
       completionRate
     };
@@ -113,11 +124,19 @@ const AIKnowledgeBase: React.FC = () => {
                     </Badge>
                   </div>
                 )}
-                {stats.processing === 0 && stats.failed === 0 && stats.total > 0 && (
+                {stats.processing === 0 && stats.failed === 0 && stats.pending === 0 && stats.total > 0 && (
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-3 w-3 text-green-500" />
                     <Badge variant="default" className="text-xs">
                       All Processed
+                    </Badge>
+                  </div>
+                  )}
+                {stats.pending > 0 && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-3 w-3 text-yellow-500" />
+                    <Badge variant="outline" className="text-xs">
+                      {stats.pending} Pending
                     </Badge>
                   </div>
                 )}
@@ -143,8 +162,37 @@ const AIKnowledgeBase: React.FC = () => {
             </p>
           </CardContent>
         </Card>
+
+        {/* Document Status Filter */}
+        <Card className="mb-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Filter className="h-5 w-5" />
+                Document Status Filter
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  Showing {filteredDocuments.length} of {stats.total} documents
+                </span>
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="completed">✅ Processed</SelectItem>
+                    <SelectItem value="processing">🔵 Processing</SelectItem>
+                    <SelectItem value="pending">🟡 Pending</SelectItem>
+                    <SelectItem value="failed">🔴 Failed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
         
-        <AIAdminUploadZone />
+        <AIAdminUploadZone filteredDocuments={filteredDocuments} />
       </div>
     </div>
   );

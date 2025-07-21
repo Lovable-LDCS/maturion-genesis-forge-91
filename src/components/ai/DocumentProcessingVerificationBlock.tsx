@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   CheckCircle, 
   AlertCircle, 
@@ -16,11 +17,14 @@ import {
   Zap,
   AlertTriangle,
   Info,
-  RefreshCw
+  RefreshCw,
+  HelpCircle,
+  Timer
 } from 'lucide-react';
 import { AIDocument } from '@/hooks/useAIDocuments';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useOrganization } from '@/hooks/useOrganization';
 
 interface DocumentProcessingVerificationBlockProps {
   document: AIDocument;
@@ -36,55 +40,66 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
   const [chunkDetails, setChunkDetails] = useState<any[]>([]);
   const [showChunkDetails, setShowChunkDetails] = useState(false);
   const { toast } = useToast();
+  const { currentOrganization } = useOrganization();
+
+  // Check if user has superuser permissions
+  const isSuperuser = currentOrganization?.user_role === 'admin' || currentOrganization?.user_role === 'owner';
 
   const getStatusConfig = () => {
-    switch (document.processing_status) {
-      case 'completed':
-        return {
-          icon: <CheckCircle className="h-4 w-4 text-green-500" />,
-          variant: 'default' as const,
-          color: 'text-green-700',
-          bgColor: 'bg-green-50 border-green-200',
-          title: 'Processing Complete',
-          description: 'Document successfully processed and available for AI queries'
-        };
-      case 'processing':
-        return {
-          icon: <Clock className="h-4 w-4 text-blue-500 animate-spin" />,
-          variant: 'secondary' as const,
-          color: 'text-blue-700',
-          bgColor: 'bg-blue-50 border-blue-200',
-          title: 'Processing in Progress',
-          description: 'Document is being chunked and vectorized for AI search'
-        };
-      case 'failed':
-        return {
-          icon: <XCircle className="h-4 w-4 text-red-500" />,
-          variant: 'destructive' as const,
-          color: 'text-red-700',
-          bgColor: 'bg-red-50 border-red-200',
-          title: 'Processing Failed',
-          description: 'Document processing encountered an error - manual intervention required'
-        };
-      case 'pending':
-        return {
-          icon: <Clock className="h-4 w-4 text-yellow-500" />,
-          variant: 'outline' as const,
-          color: 'text-yellow-700',
-          bgColor: 'bg-yellow-50 border-yellow-200',
-          title: 'Pending Processing',
-          description: 'Document uploaded but not yet processed for AI search'
-        };
-      default:
-        return {
-          icon: <AlertCircle className="h-4 w-4 text-gray-500" />,
-          variant: 'outline' as const,
-          color: 'text-gray-700',
-          bgColor: 'bg-gray-50 border-gray-200',
-          title: 'Unknown Status',
-          description: 'Processing status unclear'
-        };
+    const baseConfig = {
+      pending: {
+        icon: <Clock className="h-4 w-4 text-yellow-500" />,
+        variant: 'outline' as const,
+        color: 'text-yellow-700',
+        bgColor: 'bg-yellow-50 border-yellow-200',
+        title: 'Pending Processing',
+        description: 'Document uploaded but not yet processed for AI search',
+        tooltip: '🟡 Pending = Waiting in queue for processing'
+      },
+      processing: {
+        icon: <Clock className="h-4 w-4 text-blue-500 animate-spin" />,
+        variant: 'secondary' as const,
+        color: 'text-blue-700',
+        bgColor: 'bg-blue-50 border-blue-200',
+        title: 'Processing in Progress',
+        description: 'Document is being chunked and vectorized for AI search',
+        tooltip: '🔵 Processing = Being chunked and indexed'
+      },
+      completed: {
+        icon: <CheckCircle className="h-4 w-4 text-green-500" />,
+        variant: 'default' as const,
+        color: 'text-green-700',
+        bgColor: 'bg-green-50 border-green-200',
+        title: 'Processing Complete',
+        description: 'Document successfully processed and available for AI queries',
+        tooltip: '✅ Processed = Ready for AI queries and MPS generation'
+      },
+      failed: {
+        icon: <XCircle className="h-4 w-4 text-red-500" />,
+        variant: 'destructive' as const,
+        color: 'text-red-700',
+        bgColor: 'bg-red-50 border-red-200',
+        title: 'Processing Failed',
+        description: 'Document processing encountered an error - manual intervention required',
+        tooltip: '🔴 Failed = Processing error, needs retry or support'
+      },
+      reprocessing: {
+        icon: <RefreshCw className="h-4 w-4 text-orange-500 animate-spin" />,
+        variant: 'secondary' as const,
+        color: 'text-orange-700',
+        bgColor: 'bg-orange-50 border-orange-200',
+        title: 'Queued for Reprocessing',
+        description: 'Document has been queued for reprocessing',
+        tooltip: '🟠 Queued = Reprocessing request registered'
+      }
+    };
+
+    // Check if we're in a reprocessing state
+    if (isReprocessing) {
+      return baseConfig.reprocessing;
     }
+
+    return baseConfig[document.processing_status] || baseConfig.pending;
   };
 
   const statusConfig = getStatusConfig();
@@ -107,6 +122,11 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
       if (onReprocess) {
         onReprocess(document.id);
       }
+
+      // Keep the reprocessing state for a few seconds to show feedback
+      setTimeout(() => {
+        setIsReprocessing(false);
+      }, 3000);
     } catch (error) {
       console.error('Reprocessing error:', error);
       toast({
@@ -114,7 +134,6 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
         description: "Failed to start document reprocessing. Please try again.",
         variant: "destructive"
       });
-    } finally {
       setIsReprocessing(false);
     }
   };
@@ -138,18 +157,23 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
     }
   };
 
-  const formatDate = (dateString: string | null) => {
+  const formatDate = (dateString: string | null, includeTime: boolean = true) => {
     if (!dateString) return 'Not available';
-    return new Date(dateString).toLocaleDateString('en-US', {
+    const date = new Date(dateString);
+    const options: Intl.DateTimeFormatOptions = {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+      ...(includeTime && {
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    };
+    return date.toLocaleDateString('en-US', options);
   };
 
   const getProgressValue = () => {
+    if (isReprocessing) return 75;
     switch (document.processing_status) {
       case 'completed': return 100;
       case 'processing': return 60;
@@ -160,36 +184,47 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
   };
 
   return (
-    <Card className={`transition-all duration-200 ${statusConfig.bgColor}`}>
-      <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
-        <CollapsibleTrigger asChild>
-          <CardHeader className="cursor-pointer hover:bg-white/50 transition-colors pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                {statusConfig.icon}
-                <div>
-                  <CardTitle className="text-sm font-medium">
-                    Document Processing Verification
-                  </CardTitle>
-                  <p className={`text-xs ${statusConfig.color} font-medium`}>
-                    {statusConfig.title}
-                  </p>
+    <TooltipProvider>
+      <Card className={`transition-all duration-200 ${statusConfig.bgColor}`}>
+        <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-white/50 transition-colors pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {statusConfig.icon}
+                  <div>
+                    <CardTitle className="text-sm font-medium">
+                      Document Processing Verification
+                    </CardTitle>
+                    <p className={`text-xs ${statusConfig.color} font-medium`}>
+                      {statusConfig.title}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-1">
+                        <Badge variant={statusConfig.variant} className="text-xs">
+                          {isReprocessing ? 'QUEUED' : document.processing_status.toUpperCase()}
+                        </Badge>
+                        <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      <p className="text-sm">{statusConfig.tooltip}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  )}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Badge variant={statusConfig.variant} className="text-xs">
-                  {document.processing_status.toUpperCase()}
-                </Badge>
-                {isExpanded ? (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                )}
-              </div>
-            </div>
-            <Progress value={getProgressValue()} className="h-2 mt-2" />
-          </CardHeader>
-        </CollapsibleTrigger>
+              <Progress value={getProgressValue()} className="h-2 mt-2" />
+            </CardHeader>
+          </CollapsibleTrigger>
 
         <CollapsibleContent>
           <CardContent className="pt-0 space-y-4">
@@ -215,7 +250,15 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
                   Content Analysis
                 </h4>
                 <div className="text-xs space-y-1 text-muted-foreground">
-                  <p>Total Chunks: <span className="font-medium">{document.total_chunks || 0}</span></p>
+                  {isSuperuser && (
+                    <p>
+                      <span className="font-medium">Chunks: </span>
+                      {document.total_chunks || 0}
+                      {document.processing_status === 'completed' && document.total_chunks > 0 && 
+                        <span className="text-green-600 ml-1">indexed</span>
+                      }
+                    </p>
+                  )}
                   <p>File Size: <span className="font-medium">{Math.round((document.file_size || 0) / 1024)} KB</span></p>
                   <p>Format: <span className="font-medium">{document.mime_type}</span></p>
                 </div>
@@ -223,13 +266,18 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
 
               <div className="space-y-2">
                 <h4 className="text-sm font-medium flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
+                  <Timer className="h-4 w-4" />
                   Processing Timeline
                 </h4>
                 <div className="text-xs space-y-1 text-muted-foreground">
                   <p>Uploaded: <span className="font-medium">{formatDate(document.created_at)}</span></p>
                   <p>Last Updated: <span className="font-medium">{formatDate(document.updated_at)}</span></p>
-                  <p>Processed: <span className="font-medium">{formatDate(document.processed_at)}</span></p>
+                  {document.processing_status === 'completed' && document.processed_at && (
+                    <p className="text-green-600">
+                      <span className="font-medium">Processed: </span>
+                      {formatDate(document.processed_at)}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -315,5 +363,6 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
         </CollapsibleContent>
       </Collapsible>
     </Card>
+    </TooltipProvider>
   );
 };

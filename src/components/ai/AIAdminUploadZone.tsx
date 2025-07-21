@@ -45,11 +45,18 @@ const statusIcons = {
   failed: <AlertCircle className="h-4 w-4 text-red-500" />
 };
 
-export const AIAdminUploadZone: React.FC = () => {
+interface AIAdminUploadZoneProps {
+  filteredDocuments?: AIDocument[];
+}
+
+export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDocuments }) => {
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const { documents, loading, uploading, uploadDocument, updateDocument, deleteDocument } = useAIDocuments();
   const { toast } = useToast();
+
+  // Use filtered documents if provided, otherwise use all documents
+  const displayDocuments = filteredDocuments || documents;
   
   const [selectedDocumentType, setSelectedDocumentType] = useState<AIDocument['document_type']>('mps_document');
   const [title, setTitle] = useState<string>('');
@@ -407,7 +414,7 @@ export const AIAdminUploadZone: React.FC = () => {
               <Progress value={undefined} className="w-full max-w-xs mx-auto" />
               <p className="text-sm text-muted-foreground mt-2">Loading documents...</p>
             </div>
-          ) : documents.length === 0 ? (
+          ) : displayDocuments.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p>No documents uploaded yet.</p>
@@ -415,7 +422,7 @@ export const AIAdminUploadZone: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-6">
-              {documents.map((doc) => (
+              {displayDocuments.map((doc) => (
                 <div key={doc.id} className="space-y-3">
                   {/* Main Document Info Card */}
                   <div className="flex items-center justify-between p-4 border rounded-lg bg-card">
