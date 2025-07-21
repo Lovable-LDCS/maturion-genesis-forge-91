@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter } from 'lucide-react';
 import { AIAdminUploadZone } from '@/components/ai/AIAdminUploadZone';
+import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
 import { useAIDocuments } from '@/hooks/useAIDocuments';
 
 const AIKnowledgeBase: React.FC = () => {
@@ -191,6 +192,9 @@ const AIKnowledgeBase: React.FC = () => {
             </div>
           </CardHeader>
         </Card>
+
+        {/* Temporary debugging component */}
+        <DocumentProcessingDebugger onProcessingComplete={() => window.location.reload()} />
         
         <AIAdminUploadZone filteredDocuments={filteredDocuments} />
       </div>
