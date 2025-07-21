@@ -571,7 +571,7 @@ const Journey = () => {
                       {/* Content Overlay */}
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-white pt-6">
                         <h3 className="text-base font-bold text-center leading-tight px-4">{domain.name}</h3>
-                        <p className="text-xs text-emerald-100 mt-1">- Level {selectedLevel}</p>
+                        <p className="text-xs text-emerald-100 mt-1">{MATURITY_LEVELS[selectedLevel - 1]?.name}</p>
                       </div>
                       
                     </div>
@@ -624,9 +624,9 @@ const Journey = () => {
                        >
                         <CardHeader className="text-center p-3">
                           <CardTitle className="text-sm font-bold leading-tight">{domain.name}</CardTitle>
-                          <CardDescription className={`${color.text} text-xs`}>
-                            - Level {selectedLevel}
-                          </CardDescription>
+                           <CardDescription className={`${color.text} text-xs`}>
+                             {MATURITY_LEVELS[selectedLevel - 1]?.name}
+                           </CardDescription>
                         </CardHeader>
                         
                       </Card>
@@ -672,9 +672,9 @@ const Journey = () => {
                     >
                       <CardHeader className="text-center pb-3">
                         <CardTitle className="text-lg font-bold">{domain.name}</CardTitle>
-                        <CardDescription className="text-red-100 text-sm">
-                          - Level {selectedLevel}
-                        </CardDescription>
+                         <CardDescription className="text-red-100 text-sm">
+                           {MATURITY_LEVELS[selectedLevel - 1]?.name}
+                         </CardDescription>
                       </CardHeader>
                     </Card>
                   </DialogTrigger>
