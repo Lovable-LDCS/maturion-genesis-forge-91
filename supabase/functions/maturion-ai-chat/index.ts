@@ -48,18 +48,40 @@ async function getInternalDocuments(organizationId: string, context: string) {
 // Function to get relevant document chunks for AI context
 async function getDocumentContext(organizationId: string, query: string) {
   try {
-    // This would ideally use vector similarity search, but for now we'll use basic filtering
+    console.log('Fetching document context for organization:', organizationId);
+    
+    // Get all document chunks that contain MPS information
     const { data: chunks, error } = await supabase
       .from('ai_document_chunks')
-      .select('content, metadata')
+      .select('content, metadata, ai_documents!inner(title, domain)')
       .eq('organization_id', organizationId)
-      .limit(5);
+      .ilike('content', '%MPS%')
+      .limit(20);
     
-    if (error || !chunks) {
+    if (error) {
+      console.error('Error fetching document chunks:', error);
       return '';
     }
     
-    return chunks.map(chunk => chunk.content).join('\n\n');
+    if (!chunks || chunks.length === 0) {
+      console.log('No MPS-related document chunks found for organization:', organizationId);
+      return '';
+    }
+    
+    console.log(`Found ${chunks.length} relevant document chunks`);
+    
+    // Prioritize chunks that contain structured MPS lists (like Annex 1)
+    const structuredChunks = chunks.filter(chunk => 
+      chunk.content.includes('Annex 1') || 
+      chunk.content.includes('MPS 1') ||
+      chunk.content.includes('Leadership and Governance') ||
+      chunk.content.includes('Process Integrity') ||
+      chunk.content.match(/MPS\s+\d+.*?-/)
+    );
+    
+    const relevantChunks = structuredChunks.length > 0 ? structuredChunks : chunks;
+    
+    return relevantChunks.map(chunk => chunk.content).join('\n\n');
   } catch (error) {
     console.error('Error getting document context:', error);
     return '';
@@ -95,15 +117,17 @@ CRITICAL BEHAVIOR RULES:
 ${isInternalOnlyContext ? `
 🔒 INTERNAL MODE ACTIVE - This is a core audit/maturity context.
 - You MUST ONLY use information from the provided internal documents below
-- DO NOT use external knowledge, industry trends, or general best practices
-- If the internal documents don't contain sufficient information, clearly state this limitation
-- All MPS generation, intent creation, criteria development, and maturity assessments must be based solely on approved internal documentation
-- Never substitute or hallucinate content not found in the provided documents
+- DO NOT generate, create, or hallucinate any MPS content
+- Extract EXACTLY the MPS titles and information as listed in the uploaded documents
+- For MPS generation: Use ONLY the exact MPS list from Annex 1 in the internal documents
+- If asked to generate MPSs for a domain, find the exact MPSs for that domain from the internal documentation
+- Never substitute or modify the approved MPS titles and descriptions
+- All responses must reference the specific document sections (e.g., "From Annex 1:")
 
 INTERNAL DOCUMENT CONTEXT:
 ${documentContext}
 
-If no relevant internal documents are available, respond with: "I don't have sufficient internal documentation to provide this information. Please ensure relevant documents are uploaded to your knowledge base."
+${documentContext ? `Based on the internal documents above, provide responses using ONLY this approved content.` : `I don't have sufficient internal documentation to provide this information. Please ensure relevant documents are uploaded to your knowledge base.`}
 ` : `
 🌐 ADVISORY MODE ACTIVE - External context permitted.
 - You may use both internal documentation (if provided) and external knowledge

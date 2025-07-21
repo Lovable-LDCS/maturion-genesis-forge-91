@@ -35,34 +35,27 @@ export const useAIMPSGeneration = () => {
         id: currentOrganization.id
       };
 
-      const prompt = `Generate 5 tailored Mini Performance Standards (MPSs) for the "${domainName}" domain.
+      const prompt = `Extract the exact Mini Performance Standards (MPSs) for the "${domainName}" domain from the uploaded internal documents.
 
-Organization Context:
-- Name: ${organizationContext.name}
-- Description: ${organizationContext.description || 'Not specified'}
+CRITICAL INSTRUCTIONS:
+- Use ONLY the exact MPS titles and details from the internal documents (specifically Annex 1)
+- Do NOT generate or create new MPSs
+- Extract the exact MPSs that belong to the "${domainName}" domain
+- Maintain the exact wording and numbering from the source documents
 
-Requirements:
-- Each MPS should be specific to ${domainName} domain
-- Consider LDCS (Leadership, Delivery, Culture, Systems) principles
-- Align with international standards (ISO 27001, NIST, etc.)
-- Focus on practical, measurable standards
-- Consider risk-based approach suitable for the organization
+Organization: ${organizationContext.name}
 
-For each MPS, provide:
-1. Title (concise, specific to domain)
-2. Intent (1-2 sentences describing the purpose and expected outcome)
-3. Rationale (why this MPS is important for ${domainName})
-
-Format the response as JSON array with this structure:
+Required output format (JSON array):
 [
   {
-    "title": "MPS Title",
-    "intent": "Clear statement of what this MPS achieves...",
-    "rationale": "Explanation of why this is critical for ${domainName}..."
+    "number": "MPS X",
+    "title": "Exact title from internal documents",
+    "intent": "Based on internal documentation or extract from context",
+    "rationale": "Why this MPS is specified in the internal documents"
   }
 ]
 
-Focus on ${domainName}-specific requirements while maintaining enterprise-grade rigor.`;
+Please extract the "${domainName}" MPSs exactly as they appear in the internal documentation.`;
 
       const { data, error: functionError } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
