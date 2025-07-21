@@ -287,34 +287,6 @@ async function extractTextContent(fileData: Blob, mimeType: string, fileName: st
   }
 }
 
-// Simplified text extraction function - DEPRECATED, keeping for compatibility
-async function extractTextContentOld(fileData: Blob, mimeType: string, fileName: string): Promise<string> {
-  console.log(`Extracting text from ${fileName} (${mimeType})`);
-  
-  // Text files
-  if (mimeType === 'text/plain' || mimeType === 'text/markdown' || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
-    return await fileData.text();
-  }
-  
-  // Try to extract as text for any other file type
-  try {
-    const textContent = await fileData.text();
-    if (textContent && textContent.trim().length > 0) {
-      // Check if it's mostly readable text
-      const printableChars = textContent.replace(/[^\x20-\x7E\n\r\t]/g, '').length;
-      const ratio = printableChars / textContent.length;
-      
-      if (ratio > 0.3) { // If more than 30% printable characters
-        return `${fileName} Content:\n${textContent}`;
-      }
-    }
-  } catch (e) {
-    console.log('Failed to extract as plain text');
-  }
-  
-  // For files we can't process, return a descriptive placeholder
-  return `Document: ${fileName} (${mimeType})\n\nThis document contains content that requires advanced processing for full text extraction. The document may contain important information for the maturity model assessment but needs specialized processing to extract all text content.`;
-}
 
 // Simple text chunking function
 function splitTextIntoChunks(text: string, chunkSize: number, overlap: number): string[] {
