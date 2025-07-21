@@ -39,6 +39,7 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
   const [editedIntent, setEditedIntent] = useState('');
   const [expandedReasons, setExpandedReasons] = useState<Set<string>>(new Set());
   const [isGeneratingIntents, setIsGeneratingIntents] = useState(false);
+  const [scrollToMPS, setScrollToMPS] = useState<string | null>(null);
 
   const { generateIntent, isLoading } = useIntentGeneration();
 
@@ -115,14 +116,49 @@ Respond with only the intent statement, no additional text.`;
     setEditedIntent('');
   };
 
-  const handleAcceptIntent = (mpsId: string) => {
+  const handleAcceptAndEdit = (mpsId: string) => {
+    const mps = mpssWithIntents.find(m => m.id === mpsId);
+    if (mps) {
+      setEditingMPS(mpsId);
+      setEditedIntent(mps.intent || '');
+      setMpssWithIntents(prev => 
+        prev.map(m => 
+          m.id === mpsId 
+            ? { ...m, accepted: true }
+            : m
+        )
+      );
+    }
+  };
+
+  const handleAcceptAllSuggestions = () => {
+    setMpssWithIntents(prev => 
+      prev.map(mps => ({ ...mps, accepted: true }))
+    );
+    // Focus on first non-finalized MPS for editing
+    const firstUnfinalized = mpssWithIntents.find(mps => !mps.accepted);
+    if (firstUnfinalized) {
+      setScrollToMPS(firstUnfinalized.id);
+    }
+  };
+
+  const handleFinalizeIntent = (mpsId: string) => {
     setMpssWithIntents(prev => 
       prev.map(mps => 
         mps.id === mpsId 
-          ? { ...mps, accepted: true }
+          ? { ...mps, intent: editedIntent, accepted: true }
           : mps
       )
     );
+    setEditingMPS(null);
+    setEditedIntent('');
+    
+    // Move to next unaccepted MPS
+    const currentIndex = mpssWithIntents.findIndex(mps => mps.id === mpsId);
+    const nextUnaccepted = mpssWithIntents.slice(currentIndex + 1).find(mps => !mps.accepted);
+    if (nextUnaccepted) {
+      setScrollToMPS(nextUnaccepted.id);
+    }
   };
 
   const toggleReasonExpansion = (mpsId: string) => {
@@ -174,6 +210,21 @@ Respond with only the intent statement, no additional text.`;
           </div>
           <Progress value={progress} className="h-2" />
         </div>
+
+        {/* Select All Button */}
+        {!isGeneratingIntents && mpssWithIntents.length > 0 && (
+          <div className="flex justify-center mb-4">
+            <Button
+              onClick={handleAcceptAllSuggestions}
+              variant="outline"
+              className="gap-2"
+              disabled={allIntentsAccepted}
+            >
+              <Sparkles className="h-4 w-4" />
+              Accept All Suggested Intents
+            </Button>
+          </div>
+        )}
 
         {/* Loading State */}
         {isGeneratingIntents && (
@@ -236,11 +287,11 @@ Respond with only the intent statement, no additional text.`;
                         <div className="flex gap-2">
                           <Button
                             size="sm"
-                            onClick={() => handleSaveIntent(mps.id)}
+                            onClick={() => handleFinalizeIntent(mps.id)}
                             disabled={!editedIntent.trim()}
                           >
                             <Check className="h-4 w-4 mr-1" />
-                            Save
+                            Finalize Intent
                           </Button>
                           <Button
                             size="sm"
@@ -267,16 +318,14 @@ Respond with only the intent statement, no additional text.`;
                             Edit
                           </Button>
                           {!mps.accepted && (
-                            <div className="flex items-center gap-2">
-                              <Checkbox
-                                id={`accept-${mps.id}`}
-                                checked={false}
-                                onCheckedChange={() => handleAcceptIntent(mps.id)}
-                              />
-                              <label htmlFor={`accept-${mps.id}`} className="text-xs cursor-pointer">
-                                Accept this suggestion
-                              </label>
-                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => handleAcceptAndEdit(mps.id)}
+                              className="text-xs"
+                            >
+                              <Check className="h-3 w-3 mr-1" />
+                              Accept and Edit
+                            </Button>
                           )}
                         </div>
                       </div>
