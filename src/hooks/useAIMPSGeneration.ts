@@ -20,6 +20,19 @@ export const useAIMPSGeneration = () => {
   const [error, setError] = useState<string | null>(null);
   const { currentOrganization } = useOrganization();
 
+  // Domain to MPS number mapping
+  const getDomainMPSRange = (domain: string): { min: number; max: number } => {
+    const ranges: Record<string, { min: number; max: number }> = {
+      'Leadership & Governance': { min: 1, max: 5 },
+      'Process Integrity': { min: 6, max: 10 },
+      'People & Culture': { min: 11, max: 14 },
+      'Protection': { min: 15, max: 20 },
+      'Proof it Works': { min: 21, max: 25 }
+    };
+    
+    return ranges[domain] || { min: 1, max: 25 };
+  };
+
   const generateMPSsForDomain = async (domainName: string) => {
     if (!currentOrganization) {
       setError('No organization context available');
@@ -45,14 +58,16 @@ export const useAIMPSGeneration = () => {
         console.log(`${completedDocs.length} documents are completed and ready for search`);
       }
       
-      // STEP 1: Search AI Knowledge Base for relevant MPS documents
-      console.log(`Searching knowledge base for ${domainName} MPSs...`);
+      // STEP 1: Get domain-specific MPS range
+      const mpsRange = getDomainMPSRange(domainName);
+      console.log(`${domainName} should contain MPS ${mpsRange.min}-${mpsRange.max}`);
       
+      // STEP 2: Search for specific MPS numbers within the domain range
       const searchQueries = [
-        `${domainName} MPS Mini Performance Standards`,
-        `${domainName} domain standards criteria`,
-        `MPS ${domainName} requirements audit`,
-        `Annex 1 ${domainName} performance standards`
+        `MPS ${mpsRange.min} MPS ${mpsRange.max} ${domainName}`,
+        `"MPS ${mpsRange.min}" "${mpsRange.max}" Mini Performance Standards`,
+        `${domainName} domain MPS numbers ${mpsRange.min} to ${mpsRange.max}`,
+        `Leadership MPS 1 MPS 2 MPS 3 MPS 4 MPS 5` // Specific for Leadership & Governance
       ];
 
       let knowledgeBaseResults: any[] = [];
@@ -140,37 +155,46 @@ export const useAIMPSGeneration = () => {
         knowledgeContext += '\n---\n\n';
       }
 
-      // STEP 3: Create AI prompt with knowledge base priority
+      // STEP 3: Create AI prompt with knowledge base priority and strict domain filtering
       const hasKnowledgeBase = uniqueResults.length > 0;
       
       const prompt = hasKnowledgeBase 
         ? `${knowledgeContext}
 
-CRITICAL: Extract ALL Mini Performance Standards (MPSs) for "${domainName}" domain from the KNOWLEDGE BASE CONTEXT above.
+CRITICAL: Extract ONLY the Mini Performance Standards (MPSs) for "${domainName}" domain from the KNOWLEDGE BASE CONTEXT above.
+
+STRICT DOMAIN FILTERING RULES:
+- "${domainName}" domain should ONLY contain MPS numbers ${mpsRange.min} through ${mpsRange.max}
+- Do NOT include MPSs outside this range (e.g., if MPS 13 or 14 appear, they belong to People & Culture, not Leadership & Governance)
+- Leadership & Governance = MPS 1-5 ONLY
+- Process Integrity = MPS 6-10 ONLY  
+- People & Culture = MPS 11-14 ONLY
+- Protection = MPS 15-20 ONLY
+- Proof it Works = MPS 21-25 ONLY
 
 PRIORITY INSTRUCTIONS:
-1. Find and extract ALL MPSs that belong to the "${domainName}" domain from the uploaded documents above
+1. Find and extract ONLY MPSs numbered ${mpsRange.min} to ${mpsRange.max} from the knowledge base context
 2. Use ONLY the exact MPS titles, numbers, and content from the knowledge base - DO NOT create new ones
 3. Maintain exact wording and numbering from source documents
-4. Look for numbered MPS lists (e.g., MPS 1, MPS 2, MPS 3, etc.) within the domain sections
+4. If an MPS number is outside the range ${mpsRange.min}-${mpsRange.max}, EXCLUDE it (it belongs to a different domain)
 5. Reference the source document name for each MPS
-6. Return ALL MPSs found for this domain, not just one or a few
+6. Return ALL valid MPSs found for this domain within the number range
 
-For ALL MPSs found in the knowledge base for "${domainName}", provide:
-- Exact MPS number (as stated in documents)
+For ONLY the valid MPSs numbered ${mpsRange.min}-${mpsRange.max} found in the knowledge base for "${domainName}", provide:
+- Exact MPS number (as stated in documents, must be ${mpsRange.min}-${mpsRange.max})
 - Exact title (as stated in documents) 
 - Intent statement (from documents or derived from document context)
 - Source document name
 - Rationale explaining why this MPS appears in the uploaded documentation
 
 Organization: ${currentOrganization.name}
-Domain: ${domainName}
+Domain: ${domainName} (MPS ${mpsRange.min}-${mpsRange.max} ONLY)
 Source Documents: ${sourceDocuments.join(', ')}
 
 Return JSON format:
 [
   {
-    "number": "exact number from documents",
+    "number": "exact number from documents (must be MPS ${mpsRange.min}-${mpsRange.max})",
     "title": "exact title from documents", 
     "intent": "from documents or derived from context",
     "source_document": "document name",
