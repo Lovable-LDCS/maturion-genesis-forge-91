@@ -30,6 +30,21 @@ export const useAIMPSGeneration = () => {
     setError(null);
 
     try {
+      // STEP 0: Debug - Check what documents exist in the knowledge base
+      console.log(`Checking knowledge base status for organization ${currentOrganization.id}...`);
+      const { data: allDocs, error: docsError } = await supabase
+        .from('ai_documents')
+        .select('id, title, file_name, document_type, processing_status')
+        .eq('organization_id', currentOrganization.id);
+      
+      if (docsError) {
+        console.error('Error checking documents:', docsError);
+      } else {
+        console.log(`Found ${allDocs?.length || 0} total documents in knowledge base:`, allDocs);
+        const completedDocs = allDocs?.filter(doc => doc.processing_status === 'completed') || [];
+        console.log(`${completedDocs.length} documents are completed and ready for search`);
+      }
+      
       // STEP 1: Search AI Knowledge Base for relevant MPS documents
       console.log(`Searching knowledge base for ${domainName} MPSs...`);
       
@@ -45,19 +60,27 @@ export const useAIMPSGeneration = () => {
       // Search with multiple queries to find relevant documents
       for (const searchQuery of searchQueries) {
         try {
+          console.log(`Executing search query: "${searchQuery}"`);
           const { data: searchData, error: searchError } = await supabase.functions.invoke('search-ai-context', {
             body: {
               query: searchQuery,
               organizationId: currentOrganization.id,
-              documentTypes: ['mps', 'standard', 'audit', 'criteria'],
-              limit: 10,
-              threshold: 0.6 // Lower threshold to catch more relevant content
+              documentTypes: [], // Remove document type filter initially
+              limit: 15,
+              threshold: 0.3 // Lower threshold to catch more results
             }
           });
 
-          if (!searchError && searchData?.success && searchData.results?.length > 0) {
-            knowledgeBaseResults = [...knowledgeBaseResults, ...searchData.results];
-            console.log(`Found ${searchData.results.length} results for query: ${searchQuery}`);
+          if (searchError) {
+            console.error(`Search error for "${searchQuery}":`, searchError);
+          } else if (searchData?.success) {
+            console.log(`Search results for "${searchQuery}":`, searchData.results?.length || 0, 'results');
+            if (searchData.results?.length > 0) {
+              knowledgeBaseResults = [...knowledgeBaseResults, ...searchData.results];
+              console.log(`Added ${searchData.results.length} results from query: ${searchQuery}`);
+            }
+          } else {
+            console.log(`No success flag for "${searchQuery}":`, searchData);
           }
         } catch (searchErr) {
           console.error(`Search failed for query "${searchQuery}":`, searchErr);
@@ -72,7 +95,35 @@ export const useAIMPSGeneration = () => {
         .sort((a, b) => b.similarity - a.similarity)
         .slice(0, 20); // Top 20 most relevant chunks
 
-      console.log(`Found ${uniqueResults.length} unique knowledge base results for ${domainName}`);
+      console.log(`After deduplication: ${uniqueResults.length} unique knowledge base results for ${domainName}`);
+      
+      // Debug: Let's also try a simple text search if semantic search fails
+      if (uniqueResults.length === 0) {
+        console.log('No semantic search results, trying simple text search as backup...');
+        try {
+          const { data: docs, error: docsError } = await supabase
+            .from('ai_document_chunks')
+            .select('content, ai_documents!inner(file_name)')
+            .eq('organization_id', currentOrganization.id)
+            .ilike('content', `%${domainName}%`)
+            .limit(10);
+          
+          if (!docsError && docs?.length > 0) {
+            console.log(`Found ${docs.length} chunks via simple text search for "${domainName}"`);
+            // Convert to search result format
+            docs.forEach((doc, index) => {
+              uniqueResults.push({
+                chunk_id: `text-search-${index}`,
+                document_name: doc.ai_documents.file_name,
+                content: doc.content,
+                similarity: 0.5 // Default similarity for text search
+              });
+            });
+          }
+        } catch (textSearchErr) {
+          console.error('Text search backup failed:', textSearchErr);
+        }
+      }
 
       // STEP 2: Build context from knowledge base
       let knowledgeContext = '';

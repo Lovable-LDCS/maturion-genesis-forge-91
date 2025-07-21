@@ -66,16 +66,20 @@ serve(async (req) => {
 
     // Filter by document types if specified
     if (documentTypes.length > 0) {
+      console.log('Filtering by document types:', documentTypes);
       searchQuery = searchQuery.in('ai_documents.document_type', documentTypes);
     }
 
     // For now, we'll do a simple text search since vector similarity search 
     // requires custom SQL with the vector extension
+    console.log('Executing text search for:', query);
     searchQuery = searchQuery
       .textSearch('content', query, { type: 'websearch' })
       .limit(limit);
 
     const { data: chunks, error: searchError } = await searchQuery;
+
+    console.log('Text search completed. Results:', chunks?.length || 0);
 
     if (searchError) {
       console.error('Search error:', searchError);
@@ -83,6 +87,30 @@ serve(async (req) => {
     }
 
     console.log(`Found ${chunks?.length || 0} matching chunks`);
+    
+    // If text search failed, try a broader content search
+    if (!chunks || chunks.length === 0) {
+      console.log('Text search returned no results, trying broader content search...');
+      const broadSearchQuery = supabase
+        .from('ai_document_chunks')
+        .select(`
+          id,
+          document_id,
+          content,
+          metadata,
+          ai_documents!inner(file_name, document_type)
+        `)
+        .eq('organization_id', organizationId)
+        .ilike('content', `%${query.split(' ')[0]}%`) // Search for first word
+        .limit(limit);
+        
+      const { data: broadChunks, error: broadError } = await broadSearchQuery;
+      
+      if (!broadError && broadChunks?.length > 0) {
+        console.log(`Broad search found ${broadChunks.length} chunks`);
+        chunks = broadChunks;
+      }
+    }
 
     // For each chunk, calculate similarity using OpenAI embeddings
     const results: SearchResult[] = [];
