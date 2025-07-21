@@ -1,13 +1,17 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Target, ArrowLeft } from 'lucide-react';
+import { Target, ArrowLeft, Play } from 'lucide-react';
+import { MaturityAssessment } from '@/components/assessment/MaturityAssessment';
+import { type DomainScore } from '@/lib/maturityScoring';
 
 const Assessment = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [showAssessment, setShowAssessment] = useState(false);
+  const [assessmentComplete, setAssessmentComplete] = useState(false);
 
   useEffect(() => {
     // Console debug log for assessment page entry
@@ -17,17 +21,19 @@ const Assessment = () => {
     });
 
     // Toast notification for page load
-    toast({
-      title: "Assessment Ready",
-      description: "Free operational maturity assessment will be implemented in Phase 1B-A Priority 2",
-    });
+    if (!showAssessment) {
+      toast({
+        title: "Assessment Ready",
+        description: "Take our free operational maturity assessment to understand your organization's current state",
+      });
+    }
 
     return () => {
       console.log('Assessment Page - Exit:', {
         timestamp: new Date().toISOString()
       });
     };
-  }, [toast]);
+  }, [toast, showAssessment]);
 
   const handleBackToHome = () => {
     console.log('Assessment Page - Back to Home:', {
@@ -35,6 +41,31 @@ const Assessment = () => {
       action: 'Navigate back to landing page'
     });
     navigate('/');
+  };
+
+  const handleStartAssessment = () => {
+    console.log('Assessment Page - Start Assessment:', {
+      timestamp: new Date().toISOString(),
+      action: 'Start free maturity assessment'
+    });
+    setShowAssessment(true);
+  };
+
+  const handleAssessmentComplete = (results: DomainScore[]) => {
+    console.log('Assessment Page - Assessment Complete:', {
+      timestamp: new Date().toISOString(),
+      results: results.map(d => ({
+        domain: d.domainName,
+        level: d.calculatedLevel,
+        meetsThreshold: d.meetsThreshold
+      }))
+    });
+    setAssessmentComplete(true);
+    
+    toast({
+      title: "Assessment Complete!",
+      description: "Your maturity assessment results are ready. Consider upgrading to our full platform for detailed action plans.",
+    });
   };
 
   return (
@@ -60,36 +91,60 @@ const Assessment = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-16">
-        <div className="max-w-4xl mx-auto text-center">
-          <Card className="p-8">
-            <CardHeader>
-              <CardTitle className="text-3xl mb-4">
-                Free Operational Maturity Assessment
-              </CardTitle>
-              <CardDescription className="text-lg">
-                Coming in Phase 1B-A Priority 2
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="text-left space-y-4">
-                <h3 className="text-xl font-semibold">What to Expect:</h3>
-                <ul className="space-y-2 text-muted-foreground">
-                  <li>• 5 questions per pillar (6 LDCS domains)</li>
-                  <li>• Psychometric format with indirect maturity mapping</li>
-                  <li>• Instant results showing your maturity level</li>
-                  <li>• Personalized recommendations for improvement</li>
-                  <li>• Option to subscribe for the full ISMS journey</li>
-                </ul>
-              </div>
-              
-              <div className="pt-6">
-                <Button onClick={handleBackToHome} size="lg">
-                  Return to Landing Page
-                  <ArrowLeft className="ml-2 h-5 w-5 rotate-180" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        <div className="max-w-4xl mx-auto">
+          {!showAssessment ? (
+            <div className="text-center">
+              <Card className="p-8">
+                <CardHeader>
+                  <CardTitle className="text-3xl mb-4">
+                    Free Operational Maturity Assessment
+                  </CardTitle>
+                  <CardDescription className="text-lg">
+                    Discover your organization's current maturity level across key domains
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="text-left space-y-4">
+                    <h3 className="text-xl font-semibold">What to Expect:</h3>
+                    <ul className="space-y-2 text-muted-foreground">
+                      <li>• 5 questions per domain (randomized for integrity)</li>
+                      <li>• Evidence-based maturity level assessment</li>
+                      <li>• Instant results with detailed scoring breakdown</li>
+                      <li>• Domain-specific maturity recommendations</li>
+                      <li>• Advanced scoring algorithm with penalty system</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-muted/30 p-4 rounded-lg text-left">
+                    <h4 className="font-medium mb-2">Scoring Algorithm</h4>
+                    <ul className="text-sm text-muted-foreground space-y-1">
+                      <li>• 80% threshold: At least 80% of criteria must meet target level</li>
+                      <li>• Allowable variance: Up to 20% can be one level below target</li>
+                      <li>• Penalty system: Any criteria two levels below target triggers downgrade</li>
+                      <li>• Domain-based calculation for comprehensive evaluation</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="pt-6 space-y-4">
+                    <Button onClick={handleStartAssessment} size="lg" className="w-full">
+                      <Play className="mr-2 h-5 w-5" />
+                      Start Free Assessment
+                    </Button>
+                    
+                    <Button onClick={handleBackToHome} variant="outline" size="lg">
+                      <ArrowLeft className="mr-2 h-5 w-5" />
+                      Return to Landing Page
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          ) : (
+            <MaturityAssessment 
+              assessmentType="free" 
+              onComplete={handleAssessmentComplete}
+            />
+          )}
         </div>
       </main>
     </div>
