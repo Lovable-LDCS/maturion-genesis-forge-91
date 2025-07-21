@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentVersionDialog } from './DocumentVersionDialog';
+import { DocumentProcessingVerificationBlock } from './DocumentProcessingVerificationBlock';
 
 const documentTypeLabels: Record<AIDocument['document_type'], string> = {
   maturity_model: 'Maturity Model',
@@ -413,78 +414,87 @@ export const AIAdminUploadZone: React.FC = () => {
               <p className="text-sm mt-2">Upload your first document to get started.</p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-6">
               {documents.map((doc) => (
-                <div
-                  key={doc.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <FileText className="h-5 w-5 text-muted-foreground" />
-                      <span className="font-medium">{doc.title || doc.file_name}</span>
-                      <Badge variant="secondary">
-                        {documentTypeLabels[doc.document_type]}
-                      </Badge>
-                      <div className="flex items-center gap-1">
-                        {statusIcons[doc.processing_status]}
-                        <span className="text-sm capitalize">{doc.processing_status}</span>
+                <div key={doc.id} className="space-y-3">
+                  {/* Main Document Info Card */}
+                  <div className="flex items-center justify-between p-4 border rounded-lg bg-card">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <FileText className="h-5 w-5 text-muted-foreground" />
+                        <span className="font-medium">{doc.title || doc.file_name}</span>
+                        <Badge variant="secondary">
+                          {documentTypeLabels[doc.document_type]}
+                        </Badge>
+                        <div className="flex items-center gap-1">
+                          {statusIcons[doc.processing_status]}
+                          <span className="text-sm capitalize">{doc.processing_status}</span>
+                        </div>
+                      </div>
+                      <div className="text-sm text-muted-foreground space-y-1">
+                        <p>File: {doc.file_name} • Size: {formatFileSize(doc.file_size)} • Type: {doc.mime_type}</p>
+                        {doc.domain && (
+                          <p className="flex items-center gap-1">
+                            <FolderOpen className="h-3 w-3" />
+                            Domain: <span className="font-medium">{doc.domain}</span>
+                          </p>
+                        )}
+                        {doc.tags && (
+                          <p className="flex items-center gap-1">
+                            <Tag className="h-3 w-3" />
+                            Tags: <span className="font-medium">{doc.tags}</span>
+                          </p>
+                        )}
+                        <p>Uploaded: {formatDate(doc.created_at)}</p>
+                        {doc.total_chunks > 0 && (
+                          <p>Processed into {doc.total_chunks} searchable chunks</p>
+                        )}
+                        {doc.upload_notes && (
+                          <p className="text-xs italic border-l-2 border-muted pl-2 mt-2">
+                            Notes: {doc.upload_notes}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <p>File: {doc.file_name} • Size: {formatFileSize(doc.file_size)} • Type: {doc.mime_type}</p>
-                      {doc.domain && (
-                        <p className="flex items-center gap-1">
-                          <FolderOpen className="h-3 w-3" />
-                          Domain: <span className="font-medium">{doc.domain}</span>
-                        </p>
-                      )}
-                      {doc.tags && (
-                        <p className="flex items-center gap-1">
-                          <Tag className="h-3 w-3" />
-                          Tags: <span className="font-medium">{doc.tags}</span>
-                        </p>
-                      )}
-                      <p>Uploaded: {formatDate(doc.created_at)}</p>
-                      {doc.total_chunks > 0 && (
-                        <p>Processed into {doc.total_chunks} searchable chunks</p>
-                      )}
-                      {doc.upload_notes && (
-                        <p className="text-xs italic border-l-2 border-muted pl-2 mt-2">
-                          Notes: {doc.upload_notes}
-                        </p>
-                      )}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleShowVersionHistory(doc)}
+                        className="text-blue-600 hover:text-blue-600"
+                        title="View version history"
+                      >
+                        <History className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditDocument(doc)}
+                        className="text-primary hover:text-primary"
+                        title="Edit document"
+                      >
+                        <Edit3 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteDocument(doc.id)}
+                        className="text-destructive hover:text-destructive"
+                        title="Delete document"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleShowVersionHistory(doc)}
-                      className="text-blue-600 hover:text-blue-600"
-                      title="View version history"
-                    >
-                      <History className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditDocument(doc)}
-                      className="text-primary hover:text-primary"
-                      title="Edit document"
-                    >
-                      <Edit3 className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteDocument(doc.id)}
-                      className="text-destructive hover:text-destructive"
-                      title="Delete document"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+
+                  {/* Document Processing Verification Block */}
+                  <DocumentProcessingVerificationBlock 
+                    document={doc}
+                    onReprocess={() => {
+                      // Refresh the documents list after reprocessing
+                      window.location.reload();
+                    }}
+                  />
                 </div>
               ))}
             </div>
