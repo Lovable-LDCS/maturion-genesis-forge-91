@@ -195,9 +195,17 @@ serve(async (req) => {
     console.error('Error processing document:', error);
     
     // Try to update document status to failed if we have the documentId
+    let documentId: string | undefined;
     try {
-      const { documentId } = await req.json();
-      if (documentId) {
+      // Re-read the request body for documentId (create a clone since body can only be read once)
+      const requestBody = await req.clone().json();
+      documentId = requestBody.documentId;
+    } catch (parseError) {
+      console.error('Failed to parse request for documentId:', parseError);
+    }
+    
+    if (documentId) {
+      try {
         const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
         const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
         const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
@@ -206,15 +214,18 @@ serve(async (req) => {
           .from('ai_documents')
           .update({ processing_status: 'failed' })
           .eq('id', documentId);
+        
+        console.log(`Updated document ${documentId} status to failed`);
+      } catch (updateError) {
+        console.error('Failed to update document status to failed:', updateError);
       }
-    } catch (updateError) {
-      console.error('Failed to update document status to failed:', updateError);
     }
 
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: error.message || 'Unknown error occurred' 
+        error: error.message || 'Unknown error occurred',
+        documentId: documentId 
       }),
       { 
         status: 500,
