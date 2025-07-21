@@ -1,18 +1,17 @@
 import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { ArrowLeft, FileText, Target, CheckSquare, BarChart3, ClipboardCheck, Sparkles } from 'lucide-react';
+import { ArrowLeft, FileText, Target, CheckSquare, BarChart3, ClipboardCheck, Sparkles, Shield } from 'lucide-react';
 import { MPSSelectionModal } from '@/components/assessment/MPSSelectionModal';
 import { IntentCreator } from '@/components/assessment/IntentCreator';
 import { useDomainAuditBuilder } from '@/hooks/useDomainAuditBuilder';
 
-const DomainAuditBuilder = () => {
+const ProtectionAuditBuilder = () => {
   const navigate = useNavigate();
-  const { domainId } = useParams();
   
   const {
     isMPSModalOpen,
@@ -30,22 +29,13 @@ const DomainAuditBuilder = () => {
     getStepStatus
   } = useDomainAuditBuilder();
 
-  // Mock domain data - in real app this would come from API
-  const domainNames: Record<string, string> = {
-    'process-integrity': 'Process Integrity',
-    'people-culture': 'People & Culture',
-    'protection': 'Protection',
-    'proof-it-works': 'Proof it Works',
-    'leadership-governance': 'Leadership & Governance'
-  };
-
-  const domainName = domainNames[domainId || ''] || 'Unknown Domain';
+  const domainName = 'Protection';
 
   const auditSteps = [
     {
       id: 1,
       title: 'List MPSs',
-      description: 'Define your Minimum Performance Standards',
+      description: 'Define your Security & Protection Standards (MPS 15-20)',
       timeEstimate: '30 minutes',
       status: mpsCompleted ? 'completed' as const : 'active' as const,
       icon: FileText
@@ -53,7 +43,7 @@ const DomainAuditBuilder = () => {
     {
       id: 2,
       title: 'Formulate Intent',
-      description: 'Create clear intent statements for each MPS',
+      description: 'Create security-focused intent statements for each MPS',
       timeEstimate: '45 minutes',
       status: intentCompleted ? 'completed' as const : (mpsCompleted ? 'active' as const : 'locked' as const),
       icon: Target
@@ -61,7 +51,7 @@ const DomainAuditBuilder = () => {
     {
       id: 3,
       title: 'Create Criteria',
-      description: 'Develop detailed criteria for each MPS',
+      description: 'Develop detailed security criteria for each MPS',
       timeEstimate: '1-2 hours',
       status: intentCompleted ? 'active' as const : 'locked' as const,
       icon: CheckSquare
@@ -69,7 +59,7 @@ const DomainAuditBuilder = () => {
     {
       id: 4,
       title: 'Maturity Descriptors',
-      description: 'Define what each maturity level looks like',
+      description: 'Define security maturity levels',
       timeEstimate: '1 hour',
       status: 'locked' as const,
       icon: BarChart3
@@ -77,7 +67,7 @@ const DomainAuditBuilder = () => {
     {
       id: 5,
       title: 'Audit Review',
-      description: 'Review and validate your audit framework',
+      description: 'Review and validate your security audit framework',
       timeEstimate: '1-2 hours',
       status: 'locked' as const,
       icon: ClipboardCheck
@@ -89,7 +79,6 @@ const DomainAuditBuilder = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
-      {/* Header */}
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
@@ -101,25 +90,25 @@ const DomainAuditBuilder = () => {
               <ArrowLeft className="h-4 w-4" />
               Back to Audit Journey
             </Button>
-            
-            <Badge variant="outline">Audit Configuration Workflow</Badge>
+            <Badge variant="outline" className="flex items-center gap-1">
+              <Shield className="h-4 w-4" />
+              Protection Domain (MPS 15-20)
+            </Badge>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Title Section */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-4">
+            <h1 className="text-3xl font-bold mb-4 flex items-center justify-center gap-2">
+              <Shield className="h-8 w-8 text-blue-600" />
               {domainName} – Audit Configuration
             </h1>
             <p className="text-lg text-muted-foreground max-w-3xl mx-auto mb-6">
-              Complete these steps to configure your audit structure for the {domainName} domain
+              Configure audit structure for security controls, access management, and data protection standards
             </p>
             
-            {/* Progress Section */}
             <div className="bg-background border rounded-lg p-4 mb-8">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium">Overall Progress</span>
@@ -129,9 +118,8 @@ const DomainAuditBuilder = () => {
             </div>
           </div>
 
-          {/* Workflow Steps */}
           <div className="grid gap-6">
-            {auditSteps.map((step, index) => {
+            {auditSteps.map((step) => {
               const stepStyle = getStepStatus(step);
               const isClickable = isStepClickable(step);
               
@@ -152,11 +140,9 @@ const DomainAuditBuilder = () => {
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        {/* Step Number Circle */}
                         <div className={`w-12 h-12 rounded-full flex items-center justify-center ${stepStyle.bgColor} ${stepStyle.textColor} font-bold text-lg`}>
                           {step.id}
                         </div>
-                        
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-1">
                             <step.icon className={`h-5 w-5 ${stepStyle.textColor}`} />
@@ -172,30 +158,23 @@ const DomainAuditBuilder = () => {
                         </div>
                       </div>
                       
-                      {/* Status Indicator */}
                       <div className="flex items-center gap-2">
                         {step.status === 'completed' && (
                           <div className="flex items-center gap-1">
                             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span className="text-xs text-green-600 font-medium">
-                              ✅ Completed {step.id === 1 ? '– editable until Intent is accepted' : ''}
-                            </span>
+                            <span className="text-xs text-green-600 font-medium">✅ Completed</span>
                           </div>
                         )}
                         {step.status === 'active' && (
                           <div className="flex items-center gap-1">
                             <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                            <span className="text-xs text-blue-600 font-medium">
-                              {step.id === 2 ? 'Start Intent Creation' : 'Active (clickable)'}
-                            </span>
+                            <span className="text-xs text-blue-600 font-medium">Active</span>
                           </div>
                         )}
                         {step.status === 'locked' && (
                           <div className="flex items-center gap-1">
                             <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                            <span className="text-xs text-gray-500 font-medium">
-                              Locked {step.id === 2 ? '– Please complete MPS selection first' : ''}
-                            </span>
+                            <span className="text-xs text-gray-500 font-medium">Locked</span>
                           </div>
                         )}
                       </div>
@@ -205,37 +184,16 @@ const DomainAuditBuilder = () => {
               );
             })}
           </div>
-
-          {/* Workflow Status Legend */}
-          <div className="mt-8 p-4 bg-muted/50 rounded-lg">
-            <h3 className="font-medium mb-3">Workflow Status</h3>
-            <div className="flex gap-6 text-sm">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span>Completed</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                <span>Active (clickable)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                <span>Locked</span>
-              </div>
-            </div>
-          </div>
         </div>
       </main>
 
-      {/* MPS Generation Loading Dialog */}
       <Dialog open={isGeneratingMPSs} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <div className="flex flex-col items-center justify-center py-8 text-center">
-            <Sparkles className="h-12 w-12 text-blue-500 animate-pulse mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Generating Your MPSs</h3>
+            <Shield className="h-12 w-12 text-blue-500 animate-pulse mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Generating Protection MPSs</h3>
             <p className="text-muted-foreground mb-4">
-              ✨ Creating your Mini Performance Standards for {domainName} based on LDCS principles and best practices. 
-              You'll be able to review and edit each one.
+              Creating MPS 15-20 for security controls, access management, and data protection standards
             </p>
             <div className="w-full max-w-xs">
               <Progress value={66} className="h-2" />
@@ -244,7 +202,6 @@ const DomainAuditBuilder = () => {
         </DialogContent>
       </Dialog>
 
-      {/* MPS Selection Modal */}
       <MPSSelectionModal
         isOpen={isMPSModalOpen}
         onClose={() => setIsMPSModalOpen(false)}
@@ -252,7 +209,6 @@ const DomainAuditBuilder = () => {
         onAcceptMPSs={handleAcceptMPSs}
       />
 
-      {/* Intent Creator */}
       <IntentCreator
         isOpen={isIntentCreatorOpen}
         onClose={() => setIsIntentCreatorOpen(false)}
@@ -264,4 +220,4 @@ const DomainAuditBuilder = () => {
   );
 };
 
-export default DomainAuditBuilder;
+export default ProtectionAuditBuilder;

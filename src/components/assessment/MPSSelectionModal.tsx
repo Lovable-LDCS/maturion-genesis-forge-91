@@ -92,9 +92,6 @@ export const MPSSelectionModal: React.FC<MPSSelectionModalProps> = ({
 
   const handleConfirmSelection = () => {
     const selectedMPSs = mpsList.filter(mps => mps.selected);
-    console.log('🔍 MPSSelectionModal - Selected MPSs:', selectedMPSs);
-    console.log('🔍 MPSSelectionModal - MPS 5 in selection:', selectedMPSs.find(mps => mps.number === '5'));
-    console.log('🔍 MPSSelectionModal - All MPS numbers:', selectedMPSs.map(mps => mps.number));
     onAcceptMPSs(selectedMPSs);
     onClose();
   };
