@@ -82,6 +82,15 @@ serve(async (req) => {
     try {
       textContent = await extractTextContent(fileData, document.mime_type, document.file_name);
       console.log(`Extracted text: ${textContent.length} characters`);
+      
+      // CRITICAL FIX: Remove null bytes and other problematic characters that PostgreSQL can't handle
+      textContent = textContent
+        .replace(/\u0000/g, '') // Remove null bytes - this was causing the 546 errors!
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '') // Remove other control characters
+        .trim();
+      
+      console.log(`Sanitized text: ${textContent.length} characters`);
+      
     } catch (extractError) {
       console.error('Text extraction failed:', extractError);
       throw new Error(`Failed to extract text: ${extractError.message}`);
