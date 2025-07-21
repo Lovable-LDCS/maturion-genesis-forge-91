@@ -7,12 +7,17 @@ import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, FileText, Target, CheckSquare, BarChart3, ClipboardCheck } from 'lucide-react';
 import { MPSSelectionModal } from '@/components/assessment/MPSSelectionModal';
 import { MPSGeneratorSelector } from '@/components/assessment/MPSGeneratorSelector';
+import { IntentCreator } from '@/components/assessment/IntentCreator';
 
 const DomainAuditBuilder = () => {
   const navigate = useNavigate();
   const { domainId } = useParams();
   const [isMPSModalOpen, setIsMPSModalOpen] = useState(false);
   const [isMPSGeneratorOpen, setIsMPSGeneratorOpen] = useState(false);
+  const [isIntentCreatorOpen, setIsIntentCreatorOpen] = useState(false);
+  const [acceptedMPSs, setAcceptedMPSs] = useState<any[]>([]);
+  const [mpsCompleted, setMpsCompleted] = useState(false);
+  const [intentCompleted, setIntentCompleted] = useState(false);
 
   // Mock domain data - in real app this would come from API
   const domainNames: Record<string, string> = {
@@ -31,7 +36,7 @@ const DomainAuditBuilder = () => {
       title: 'List MPSs',
       description: 'Define your Minimum Performance Standards',
       timeEstimate: '30 minutes',
-      status: 'completed' as const,
+      status: mpsCompleted ? 'completed' as const : 'active' as const,
       icon: FileText
     },
     {
@@ -39,7 +44,7 @@ const DomainAuditBuilder = () => {
       title: 'Formulate Intent',
       description: 'Create clear intent statements for each MPS',
       timeEstimate: '45 minutes',
-      status: 'completed' as const,
+      status: intentCompleted ? 'completed' as const : (mpsCompleted ? 'active' as const : 'locked' as const),
       icon: Target
     },
     {
@@ -47,7 +52,7 @@ const DomainAuditBuilder = () => {
       title: 'Create Criteria',
       description: 'Develop detailed criteria for each MPS',
       timeEstimate: '1-2 hours',
-      status: 'completed' as const,
+      status: intentCompleted ? 'active' as const : 'locked' as const,
       icon: CheckSquare
     },
     {
@@ -55,7 +60,7 @@ const DomainAuditBuilder = () => {
       title: 'Maturity Descriptors',
       description: 'Define what each maturity level looks like',
       timeEstimate: '1 hour',
-      status: 'completed' as const,
+      status: 'locked' as const,
       icon: BarChart3
     },
     {
@@ -63,7 +68,7 @@ const DomainAuditBuilder = () => {
       title: 'Audit Review',
       description: 'Review and validate your audit framework',
       timeEstimate: '1-2 hours',
-      status: 'active' as const,
+      status: 'locked' as const,
       icon: ClipboardCheck
     }
   ];
@@ -82,16 +87,17 @@ const DomainAuditBuilder = () => {
   };
 
   const isStepClickable = (stepIndex: number) => {
-    // Steps are sequential - can only click if previous steps are completed or if it's the active step
     const step = auditSteps[stepIndex];
-    if (step.status === 'completed' || step.status === 'active') return true;
-    if (stepIndex === 0) return true;
-    return auditSteps[stepIndex - 1].status === 'completed';
+    return step.status === 'completed' || step.status === 'active';
   };
 
   const handleStepClick = (stepId: number) => {
     if (stepId === 1) {
       setIsMPSGeneratorOpen(true);
+    } else if (stepId === 2) {
+      if (mpsCompleted) {
+        setIsIntentCreatorOpen(true);
+      }
     } else {
       console.log(`Navigate to step ${stepId} interface`);
     }
@@ -110,8 +116,15 @@ const DomainAuditBuilder = () => {
 
   const handleAcceptMPSs = (selectedMPSs: any[]) => {
     console.log('Accepted MPSs:', selectedMPSs);
-    // Here you would typically save the selected MPSs to your backend
-    // and update the domain's progress status
+    setAcceptedMPSs(selectedMPSs);
+    setMpsCompleted(true);
+    setIsMPSModalOpen(false);
+  };
+
+  const handleIntentsFinalized = (mpssWithIntents: any[]) => {
+    console.log('Intents finalized:', mpssWithIntents);
+    setIntentCompleted(true);
+    setIsIntentCreatorOpen(false);
   };
 
   return (
@@ -164,8 +177,10 @@ const DomainAuditBuilder = () => {
                 <Card 
                   key={step.id}
                   className={`transition-all ${stepStyle.border} ${
-                    step.status === 'active' ? 'shadow-lg' : ''
-                  } ${isClickable ? 'cursor-pointer hover:shadow-md' : 'opacity-60'}`}
+                    step.status === 'active' ? 'shadow-lg ring-2 ring-blue-200' : ''
+                  } ${step.status === 'completed' ? 'shadow-sm ring-1 ring-green-200' : ''} ${
+                    isClickable ? 'cursor-pointer hover:shadow-md' : 'opacity-60'
+                  } ${step.status === 'locked' ? 'opacity-40' : ''}`}
                   onClick={() => {
                     if (isClickable) {
                       handleStepClick(step.id);
@@ -200,19 +215,25 @@ const DomainAuditBuilder = () => {
                         {step.status === 'completed' && (
                           <div className="flex items-center gap-1">
                             <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                            <span className="text-xs text-green-600 font-medium">Completed</span>
+                            <span className="text-xs text-green-600 font-medium">
+                              ✅ Completed {step.id === 1 ? '– editable until Intent is accepted' : ''}
+                            </span>
                           </div>
                         )}
                         {step.status === 'active' && (
                           <div className="flex items-center gap-1">
                             <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                            <span className="text-xs text-blue-600 font-medium">Active (clickable)</span>
+                            <span className="text-xs text-blue-600 font-medium">
+                              {step.id === 2 ? 'Start Intent Creation' : 'Active (clickable)'}
+                            </span>
                           </div>
                         )}
-                        {step.status !== 'completed' && step.status !== 'active' && (
+                        {step.status === 'locked' && (
                           <div className="flex items-center gap-1">
                             <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                            <span className="text-xs text-gray-500 font-medium">Locked</span>
+                            <span className="text-xs text-gray-500 font-medium">
+                              Locked {step.id === 2 ? '– Please complete MPS selection first' : ''}
+                            </span>
                           </div>
                         )}
                       </div>
@@ -259,6 +280,15 @@ const DomainAuditBuilder = () => {
         onClose={() => setIsMPSModalOpen(false)}
         domainName={domainName}
         onAcceptMPSs={handleAcceptMPSs}
+      />
+
+      {/* Intent Creator */}
+      <IntentCreator
+        isOpen={isIntentCreatorOpen}
+        onClose={() => setIsIntentCreatorOpen(false)}
+        domainName={domainName}
+        acceptedMPSs={acceptedMPSs}
+        onIntentsFinalized={handleIntentsFinalized}
       />
     </div>
   );
