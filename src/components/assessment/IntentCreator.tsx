@@ -12,6 +12,7 @@ import { useIntentGeneration } from '@/hooks/useIntentGeneration';
 interface MPS {
   id: string;
   name: string;
+  title?: string;
   intent?: string;
   description?: string;
   rationale?: string;
@@ -243,8 +244,7 @@ Respond with only the intent statement, no additional text.`;
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <Badge variant="outline" className="text-xs">MPS {index + 1}</Badge>
-                      <CardTitle className="text-base">{mps.name}</CardTitle>
+                      <CardTitle className="text-base">MPS {index + 1} – {mps.title || mps.name}</CardTitle>
                     </div>
                     {mps.description && (
                       <CardDescription className="text-sm text-muted-foreground">
