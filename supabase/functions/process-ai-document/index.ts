@@ -135,19 +135,22 @@ serve(async (req) => {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
+        // Create safe metadata object
+        const safeChunkMetadata = {
+          chunk_length: chunk?.length || 0,
+          position_in_document: Number((chunkIndex / chunks.length).toFixed(4)),
+          document_type: document.document_type || 'unknown',
+          file_type: document.mime_type || 'unknown'
+        };
+
         processedChunks.push({
           document_id: documentId,
           organization_id: document.organization_id,
           chunk_index: chunkIndex,
-          content: chunk,
+          content: chunk || '',
           content_hash: hashHex,
           embedding: null, // No embeddings for now
-          metadata: {
-            chunk_length: chunk.length,
-            position_in_document: chunkIndex / chunks.length,
-            document_type: document.document_type,
-            file_type: document.mime_type
-          }
+          metadata: safeChunkMetadata
         });
       }
       
@@ -179,21 +182,28 @@ serve(async (req) => {
       })
       .eq('id', documentId);
 
-    // Create audit log
-    await supabase
-      .from('ai_upload_audit')
-      .insert({
-        organization_id: document.organization_id,
-        document_id: documentId,
-        action: 'process',
-        user_id: document.uploaded_by,
-        metadata: {
-          chunks_created: totalProcessed,
-          text_length: textContent.length,
-          file_type: document.mime_type,
-          processing_completed_at: new Date().toISOString()
-        }
-      });
+    // Create audit log with safe JSON metadata
+    try {
+      const safeMetadata = {
+        chunks_created: totalProcessed || 0,
+        text_length: textContent?.length || 0,
+        file_type: document.mime_type || 'unknown',
+        processing_completed_at: new Date().toISOString()
+      };
+      
+      await supabase
+        .from('ai_upload_audit')
+        .insert({
+          organization_id: document.organization_id,
+          document_id: documentId,
+          action: 'process',
+          user_id: document.uploaded_by,
+          metadata: safeMetadata
+        });
+    } catch (auditError) {
+      console.error('Failed to create audit log (non-critical):', auditError);
+      // Don't fail the entire process for audit log issues
+    }
 
     console.log(`=== Processing completed successfully: ${totalProcessed} chunks created ===`);
 
