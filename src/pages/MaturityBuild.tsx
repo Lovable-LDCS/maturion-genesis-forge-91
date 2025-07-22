@@ -15,6 +15,7 @@ import {
   Unlock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { MaturionChat } from '@/components/ai/MaturionChat';
 
 const MaturityBuild = () => {
   const navigate = useNavigate();
@@ -304,6 +305,12 @@ const MaturityBuild = () => {
           </div>
         </div>
       </main>
+
+      {/* Maturion AI Chat Assistant */}
+      <MaturionChat 
+        context="Maturity model building - comprehensive SCS development, audit configuration, and model approval guidance"
+        currentDomain="Model Building"
+      />
     </div>
   );
 };
