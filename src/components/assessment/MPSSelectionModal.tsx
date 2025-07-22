@@ -92,12 +92,6 @@ export const MPSSelectionModal: React.FC<MPSSelectionModalProps> = ({
 
   const handleConfirmSelection = () => {
     const selectedMPSs = mpsList.filter(mps => mps.selected);
-    console.log('Confirming selection of MPSs:', selectedMPSs.map(mps => ({ 
-      id: mps.id, 
-      title: mps.title, 
-      number: mps.number,
-      selected: mps.selected 
-    })));
     onAcceptMPSs(selectedMPSs);
     onClose();
   };

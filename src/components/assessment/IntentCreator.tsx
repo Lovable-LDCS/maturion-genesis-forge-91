@@ -89,9 +89,6 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
     if (!currentOrganization?.id) return;
 
     try {
-      console.log('Fetching MPSs for domain:', domainName, 'org:', currentOrganization.id);
-      
-      // Fetch MPSs from database for this domain
       const { data: domainData, error } = await supabase
         .from('domains')
         .select(`
@@ -112,8 +109,6 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
         return;
       }
 
-      console.log('Fetched domain data:', domainData);
-
       if (domainData?.maturity_practice_statements && domainData.maturity_practice_statements.length > 0) {
         const acceptedMPSs = domainData.maturity_practice_statements.map((mps: any) => ({
           id: mps.id,
@@ -122,15 +117,12 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
           intent: mps.intent_statement || ''
         }));
 
-        console.log('Found accepted MPSs:', acceptedMPSs.length, acceptedMPSs);
-
         // Always refresh the list when fetching
         setMpssWithIntents([]);
         if (acceptedMPSs.length > 0) {
           generateIntentsForMPSs(acceptedMPSs);
         }
       } else {
-        console.log('No MPSs found for domain:', domainName);
         setMpssWithIntents([]);
       }
     } catch (error) {

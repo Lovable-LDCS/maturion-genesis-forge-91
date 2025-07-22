@@ -26,7 +26,7 @@ const ProcessIntegrityAuditBuilder = () => {
     handleIntentsFinalized,
     handleStepClick,
     getStepStatus,
-    getDatabaseStepStatus
+    fetchStepStatus
   } = useDomainAuditBuilder(domainId);
 
   const [auditSteps, setAuditSteps] = useState<AuditStep[]>([
@@ -62,7 +62,7 @@ const ProcessIntegrityAuditBuilder = () => {
       const updatedSteps = await Promise.all(
         auditSteps.map(async (step) => ({
           ...step,
-          status: await getDatabaseStepStatus(step.id)
+          status: await fetchStepStatus(step.id)
         }))
       );
       setAuditSteps(updatedSteps);
@@ -119,7 +119,7 @@ const ProcessIntegrityAuditBuilder = () => {
                 <Card 
                   key={step.id}
                   onClick={async () => {
-                    const stepStatus = await getDatabaseStepStatus(step.id);
+                    const stepStatus = await fetchStepStatus(step.id);
                     const canClick = stepStatus === 'active' || stepStatus === 'completed';
                     if (canClick) {
                       handleStepClick(step.id);
