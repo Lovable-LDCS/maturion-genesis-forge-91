@@ -412,13 +412,28 @@ serve(async (req) => {
       organizationId, 
       allowExternalContext = false,
       knowledgeBaseUsed = false,
-      sourceDocuments = []
+      sourceDocuments = [],
+      organizationProfile = null
     } = await req.json();
+
+    console.log('📥 Request details:', {
+      hasPrompt: !!prompt,
+      context: context,
+      domain: currentDomain,
+      orgId: organizationId,
+      hasOrgProfile: !!organizationProfile,
+      sourceDocCount: sourceDocuments.length
+    });
 
     // Validate required fields
     if (!prompt || typeof prompt !== 'string') {
       console.error('Invalid or missing prompt in request');
       throw new Error('Prompt is required and must be a string');
+    }
+
+    if (!organizationId) {
+      console.error('Organization ID is required for intent generation');
+      throw new Error('Organization ID is required');
     }
 
     // Determine knowledge tier requirements per AI Behavior & Knowledge Source Policy v2.0
@@ -455,45 +470,58 @@ serve(async (req) => {
     }
     
     // Get comprehensive organizational context for intent generation
-    let organizationalProfile = null;
     let websiteMetadata = '';
     let organizationalContext = '';
     
     if (organizationId && prompt.toLowerCase().includes('intent')) {
       console.log('🎯 INTENT GENERATION MODE: Fetching comprehensive knowledge sources');
       
-      // Fetch organizational profile data
-      organizationalProfile = await getOrganizationalProfile(organizationId);
+      // Use provided organizational profile or fetch if not provided
+      let profileData = organizationProfile;
+      if (!profileData) {
+        profileData = await getOrganizationalProfile(organizationId);
+      }
       
-      if (organizationalProfile) {
-        console.log('✅ Organizational profile retrieved');
+      if (profileData) {
+        console.log('✅ Organizational profile available:', {
+          name: profileData.name,
+          hasWebsite: !!profileData.primary_website_url,
+          industryTags: profileData.industry_tags?.length || 0,
+          customIndustry: profileData.custom_industry
+        });
         
         // Get website metadata if available
-        if (organizationalProfile.primary_website_url) {
-          websiteMetadata = await getWebsiteMetadata(organizationalProfile.primary_website_url);
+        if (profileData.primary_website_url) {
+          websiteMetadata = await getWebsiteMetadata(profileData.primary_website_url);
           console.log('✅ Website metadata processed');
         }
         
         // Build comprehensive organizational context
         organizationalContext = `
 === ORGANIZATIONAL PROFILE CONTEXT ===
-Organization Name: ${organizationalProfile.name}
-Description: ${organizationalProfile.description || 'Not specified'}
-Primary Website: ${organizationalProfile.primary_website_url || 'Not specified'}
-Industry Sectors: ${organizationalProfile.industry_tags?.join(', ') || 'Not specified'}
-Custom Industry: ${organizationalProfile.custom_industry || 'Not specified'}
-Operating Region: ${organizationalProfile.region_operating || 'Not specified'}
-Risk Concerns: ${organizationalProfile.risk_concerns?.join(', ') || 'Not specified'}
-Compliance Commitments: ${organizationalProfile.compliance_commitments?.join(', ') || 'Not specified'}
-Threat Sensitivity Level: ${organizationalProfile.threat_sensitivity_level || 'Basic'}
-Linked Domains: ${organizationalProfile.linked_domains?.join(', ') || 'None specified'}
+Organization Name: ${profileData.name}
+Description: ${profileData.description || 'Not specified'}
+Primary Website: ${profileData.primary_website_url || 'Not specified'}
+Industry Sectors: ${profileData.industry_tags?.join(', ') || 'Not specified'}
+Custom Industry: ${profileData.custom_industry || 'Not specified'}
+Operating Region: ${profileData.region_operating || 'Not specified'}
+Risk Concerns: ${profileData.risk_concerns?.join(', ') || 'Not specified'}
+Compliance Commitments: ${profileData.compliance_commitments?.join(', ') || 'Not specified'}
+Threat Sensitivity Level: ${profileData.threat_sensitivity_level || 'Basic'}
+Linked Domains: ${profileData.linked_domains?.join(', ') || 'None specified'}
 
 ${websiteMetadata ? `
 === WEBSITE METADATA CONTEXT ===
 ${websiteMetadata}
 ` : ''}`;
         
-        console.log('✅ Comprehensive organizational context built');
+        console.log('✅ Comprehensive organizational context built with', {
+          hasDescription: !!profileData.description,
+          hasWebsite: !!profileData.primary_website_url,
+          industryCount: profileData.industry_tags?.length || 0
+        });
+      } else {
+        console.log('⚠️ No organizational profile available for intent generation');
       }
     }
 
@@ -607,12 +635,24 @@ When generating MPS Intent & Objective Statements, you MUST:
    - Public Website Metadata (when available)
 2. Generate intent statements that reflect:
    - Industry relevance based on specific sector/custom industry
-   - Risk context from organizational risk concerns
+   - Risk context from organizational risk concerns  
    - Maturity drivers specific to the organization's operating environment
    - Strategic positioning from website and organizational description
 3. MANDATORY: End each intent generation response with knowledge source confirmation:
-   "✅ Knowledge source used: Profile Upload + Org Setup + Website"
+   ${organizationalContext && documentContext ? 
+     '"✅ Knowledge source used: Profile Upload + Org Setup + Website"' :
+     organizationalContext ? 
+       '"✅ Knowledge source used: Org Setup + Limited internal docs"' :
+       '"⚠️ Limited knowledge sources - recommend uploading organizational documents"'
+   }
 4. NO GENERIC STATEMENTS: Intent must be specific to the organization's context, not boilerplate phrases
+5. INDUSTRY-SPECIFIC LANGUAGE: Use terminology and focus areas relevant to the organization's industry
+6. RISK-AWARE INTENTS: Incorporate the organization's specific risk concerns into intent statements
+
+CONTEXT DEBUG INFO (for transparency):
+- Document context length: ${documentContext.length} characters
+- Organizational profile: ${organizationalContext ? 'Available' : 'Missing'}
+- Website metadata: ${websiteMetadata ? 'Available' : 'Missing'}
 ` : isExternalAwarenessContext ? `
 🌐 TIER 3: EXTERNAL AWARENESS MODE - AI Behavior & Knowledge Source Policy v2.0
 - You may use real-time external sources for: threat detection, risk horizon scanning, industry-specific situational awareness
