@@ -42,6 +42,11 @@ interface MPS {
   accepted?: boolean;
   aiSourceType?: 'internal' | 'external';
   hasDocumentContext?: boolean;
+  aiSources?: {
+    hasDocuments: boolean;
+    hasOrgProfile: boolean;
+    hasWebsite: boolean;
+  };
 }
 
 interface IntentCreatorProps {
@@ -378,6 +383,23 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
               </ul>
             </div>
           )}
+
+          {/* AI Transparency Banner */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-2">
+            <div className="flex items-center gap-2 text-blue-800">
+              <Sparkles className="h-4 w-4" />
+              <span className="text-sm font-medium">AI Knowledge Sources:</span>
+            </div>
+            <div className="text-sm text-blue-700 mt-1">
+              {currentOrganization?.industry_tags?.length || 
+               currentOrganization?.primary_website_url || 
+               currentOrganization?.region_operating ? (
+                <span>✅ Generated using uploaded documents + organizational profile + website data</span>
+              ) : (
+                <span>⚠️ Generated using default AI context only (limited organizational data available)</span>
+              )}
+            </div>
+          </div>
         </DialogHeader>
 
         {/* Progress Section */}

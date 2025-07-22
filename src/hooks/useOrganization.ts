@@ -14,6 +14,14 @@ interface OrganizationWithRole {
   slack_webhook_url?: string | null
   email_webhook_url?: string | null
   zapier_webhook_url?: string | null
+  primary_website_url?: string | null
+  linked_domains?: string[] | null
+  industry_tags?: string[] | null
+  custom_industry?: string | null
+  region_operating?: string | null
+  risk_concerns?: string[] | null
+  compliance_commitments?: string[] | null
+  threat_sensitivity_level?: string | null
 }
 
 export const useOrganization = () => {
@@ -85,6 +93,14 @@ export const useOrganization = () => {
         slack_webhook_url: org.slack_webhook_url,
         email_webhook_url: org.email_webhook_url,
         zapier_webhook_url: org.zapier_webhook_url,
+        primary_website_url: org.primary_website_url,
+        linked_domains: org.linked_domains,
+        industry_tags: org.industry_tags,
+        custom_industry: org.custom_industry,
+        region_operating: org.region_operating,
+        risk_concerns: org.risk_concerns,
+        compliance_commitments: org.compliance_commitments,
+        threat_sensitivity_level: org.threat_sensitivity_level,
       })) || []
 
       setOrganizations(orgsWithRoles)

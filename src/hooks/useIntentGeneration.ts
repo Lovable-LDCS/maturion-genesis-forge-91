@@ -16,9 +16,11 @@ export const useIntentGeneration = () => {
       console.log('Organization ID:', currentOrganization?.id);
       console.log('Organization Profile:', {
         name: currentOrganization?.name,
-        industry_tags: (currentOrganization as any)?.industry_tags,
-        region_operating: (currentOrganization as any)?.region_operating,
-        primary_website_url: (currentOrganization as any)?.primary_website_url
+        industry_tags: currentOrganization?.industry_tags,
+        region_operating: currentOrganization?.region_operating,
+        primary_website_url: currentOrganization?.primary_website_url,
+        custom_industry: currentOrganization?.custom_industry,
+        risk_concerns: currentOrganization?.risk_concerns
       });
 
       // Get uploaded document IDs for this organization
@@ -42,13 +44,13 @@ export const useIntentGeneration = () => {
           organizationProfile: {
             name: currentOrganization?.name,
             description: currentOrganization?.description,
-            industry_tags: (currentOrganization as any)?.industry_tags,
-            custom_industry: (currentOrganization as any)?.custom_industry,
-            region_operating: (currentOrganization as any)?.region_operating,
-            risk_concerns: (currentOrganization as any)?.risk_concerns,
-            compliance_commitments: (currentOrganization as any)?.compliance_commitments,
-            primary_website_url: (currentOrganization as any)?.primary_website_url,
-            linked_domains: (currentOrganization as any)?.linked_domains
+            industry_tags: currentOrganization?.industry_tags,
+            custom_industry: currentOrganization?.custom_industry,
+            region_operating: currentOrganization?.region_operating,
+            risk_concerns: currentOrganization?.risk_concerns,
+            compliance_commitments: currentOrganization?.compliance_commitments,
+            primary_website_url: currentOrganization?.primary_website_url,
+            linked_domains: currentOrganization?.linked_domains
           }
         }
       });
