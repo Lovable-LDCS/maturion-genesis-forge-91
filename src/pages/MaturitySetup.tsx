@@ -159,35 +159,33 @@ const MaturitySetup = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // Enhanced auto-save function with fallback mechanism
+  // Enhanced auto-save function that works independently of organization hook
   const autoSave = async () => {
     if (!user?.id) {
       console.log('No user ID available for save');
-      return;
+      throw new Error('User authentication required');
     }
     
-    // Only auto-save if we have some basic required data
+    // Only auto-save if we have meaningful data
     if (!formData.companyName && !formData.regionOperating && formData.industryTags.length === 0) {
       console.log('No meaningful data to save yet');
       return;
     }
 
-    setIsSaving(true);
-    console.log('Starting auto-save process...');
+    console.log('Starting robust save process...');
+    
+    const cleanDomains = formData.linkedDomains.filter(d => d && d.trim());
+    let orgId = currentOrganization?.id || localOrgData?.id;
     
     try {
-      const cleanDomains = formData.linkedDomains.filter(d => d && d.trim());
-      let orgId = currentOrganization?.id;
-      
-      // First attempt to get or create organization
+      // Step 1: Handle organization creation/update with robust error handling
       if (!orgId) {
-        console.log('No current organization, attempting to create one...');
+        console.log('Creating new organization...');
         
-        // Try to create new organization
         const { data: newOrg, error: createError } = await supabase
           .from('organizations')
           .insert({
-            name: formData.companyName,
+            name: formData.companyName || 'My Company',
             owner_id: user.id,
             created_by: user.id,
             updated_by: user.id,
@@ -205,20 +203,19 @@ const MaturitySetup = () => {
           
         if (createError) {
           console.error('Failed to create organization:', createError);
-          throw createError;
+          throw new Error(`Organization creation failed: ${createError.message}`);
         }
         
         orgId = newOrg.id;
         setLocalOrgData(newOrg);
-        console.log('Organization created successfully:', orgId);
+        console.log('✅ Organization created:', orgId);
       } else {
-        console.log('Updating existing organization:', orgId);
+        console.log('Updating organization:', orgId);
         
-        // Update existing organization
         const { error: orgError } = await supabase
           .from('organizations')
           .update({
-            name: formData.companyName,
+            name: formData.companyName || 'My Company',
             primary_website_url: formData.primaryWebsiteUrl || null,
             linked_domains: cleanDomains,
             industry_tags: formData.industryTags,
@@ -233,11 +230,12 @@ const MaturitySetup = () => {
           
         if (orgError) {
           console.error('Organization update error:', orgError);
-          throw orgError;
+          throw new Error(`Organization update failed: ${orgError.message}`);
         }
+        console.log('✅ Organization updated');
       }
 
-      // Save/update profile data (personal information)
+      // Step 2: Handle profile data
       if (formData.fullName || formData.title || formData.bio) {
         console.log('Saving profile data...');
         const { error: profileError } = await supabase
@@ -250,55 +248,73 @@ const MaturitySetup = () => {
           });
           
         if (profileError) {
-          console.error('Profile save error:', profileError);
-          // Don't throw here, continue with other saves
+          console.warn('Profile save error (non-critical):', profileError);
+        } else {
+          console.log('✅ Profile saved');
         }
       }
 
-      // Upload company logo if provided
+      // Step 3: Handle company logo upload
       if (formData.companyLogo && orgId) {
         console.log('Uploading company logo...');
-        const fileExt = formData.companyLogo.name.split('.').pop();
-        const fileName = `${orgId}-logo.${fileExt}`;
-        
-        const { error: uploadError } = await supabase.storage
-          .from('organization-logos')
-          .upload(fileName, formData.companyLogo, {
-            upsert: true
-          });
+        try {
+          const fileExt = formData.companyLogo.name.split('.').pop();
+          const fileName = `${orgId}-logo.${fileExt}`;
           
-        if (uploadError) {
-          console.error('Logo upload error:', uploadError);
-        } else {
+          const { error: uploadError } = await supabase.storage
+            .from('organization-logos')
+            .upload(fileName, formData.companyLogo, {
+              upsert: true
+            });
+            
+          if (uploadError) {
+            console.error('Logo upload error:', uploadError);
+            throw new Error(`Logo upload failed: ${uploadError.message}`);
+          }
+          
           // Update organization with logo URL
           const { data: { publicUrl } } = supabase.storage
             .from('organization-logos')
             .getPublicUrl(fileName);
             
-          await supabase
+          const { error: logoUrlError } = await supabase
             .from('organizations')
             .update({ logo_url: publicUrl })
             .eq('id', orgId);
+            
+          if (logoUrlError) {
+            console.warn('Logo URL update error:', logoUrlError);
+          } else {
+            console.log('✅ Company logo uploaded and linked');
+          }
+        } catch (logoError) {
+          console.error('Logo upload process failed:', logoError);
+          throw new Error(`Logo upload process failed: ${logoError.message}`);
         }
       }
 
-      // Upload optional documents if any
+      // Step 4: Handle document uploads
       if (formData.optionalDocuments.length > 0 && orgId) {
-        console.log('Uploading optional documents...');
+        console.log(`Uploading ${formData.optionalDocuments.length} documents...`);
+        
         for (const doc of formData.optionalDocuments) {
-          const fileExt = doc.file.name.split('.').pop();
-          const fileName = `${orgId}/${doc.id}.${fileExt}`;
-          
-          const { error: docUploadError } = await supabase.storage
-            .from('ai-documents')
-            .upload(fileName, doc.file, {
-              upsert: true
-            });
+          try {
+            const fileExt = doc.file.name.split('.').pop();
+            const fileName = `${orgId}/${doc.id}.${fileExt}`;
             
-          if (docUploadError) {
-            console.error('Document upload error:', docUploadError);
-          } else {
-            // Create document record
+            // Upload file to storage
+            const { error: docUploadError } = await supabase.storage
+              .from('ai-documents')
+              .upload(fileName, doc.file, {
+                upsert: true
+              });
+              
+            if (docUploadError) {
+              console.error(`Document upload error for ${doc.file.name}:`, docUploadError);
+              throw new Error(`Document upload failed for ${doc.file.name}: ${docUploadError.message}`);
+            }
+            
+            // Create document record in database
             const { error: docRecordError } = await supabase
               .from('ai_documents')
               .insert({
@@ -315,34 +331,53 @@ const MaturitySetup = () => {
               });
               
             if (docRecordError) {
-              console.error('Document record error:', docRecordError);
+              console.error(`Document record error for ${doc.file.name}:`, docRecordError);
+              throw new Error(`Document record creation failed for ${doc.file.name}: ${docRecordError.message}`);
             }
+            
+            console.log(`✅ Document processed: ${doc.file.name}`);
+          } catch (docError) {
+            console.error(`Failed to process document ${doc.file.name}:`, docError);
+            throw docError;
           }
         }
+        
+        console.log('✅ All documents uploaded successfully');
       }
 
+      // Step 5: Persist to localStorage and update state
       setLastSaved(new Date());
       setOrgFetchFailed(false);
       
-      // Store the setup data in localStorage for persistence
-      localStorage.setItem('maturion_setup_data', JSON.stringify(formData));
+      const dataToStore = {
+        ...formData,
+        // Don't store files in localStorage
+        companyLogo: undefined,
+        optionalDocuments: formData.optionalDocuments.map(doc => ({
+          id: doc.id,
+          fileName: doc.file.name,
+          fileSize: doc.file.size,
+          uploadedAt: doc.uploadedAt
+        }))
+      };
+      localStorage.setItem('maturion_setup_data', JSON.stringify(dataToStore));
       
       // Try to refresh organization data, but don't fail if it doesn't work
       try {
         await refetchOrganization();
+        console.log('✅ Organization data refreshed');
       } catch (error) {
-        console.warn('Failed to refetch organization data, but save was successful:', error);
+        console.warn('Organization refresh failed (non-critical):', error);
         setOrgFetchFailed(true);
       }
       
-      console.log('Auto-save completed successfully');
+      console.log('🎉 Auto-save completed successfully');
+      return { success: true, organizationId: orgId };
       
     } catch (error) {
-      console.error('Auto-save failed:', error);
+      console.error('💥 Auto-save failed:', error);
       setOrgFetchFailed(true);
       throw error;
-    } finally {
-      setIsSaving(false);
     }
   };
 
@@ -545,11 +580,53 @@ const MaturitySetup = () => {
   };
 
   const handleStartBuilding = async () => {
-    // Auto-save before proceeding
-    await autoSave();
+    setIsSubmitting(true);
     
-    // Then proceed with validation and submission
-    handleSubmit();
+    try {
+      // Save all data first with proper error handling
+      await autoSave();
+      
+      // Validate required fields
+      const isOtherSelected = formData.industryTags.includes('Other');
+      const customIndustryRequired = isOtherSelected && !formData.customIndustry.trim();
+      
+      if (!formData.fullName || !formData.title || !formData.companyName || !formData.modelName || 
+          !formData.regionOperating || formData.industryTags.length === 0 || formData.riskConcerns.length === 0 ||
+          customIndustryRequired) {
+        
+        let errorMessage = "Please fill in all required fields including Risk & Awareness Profile before proceeding.";
+        if (customIndustryRequired) {
+          errorMessage = "Please specify your industry when 'Other' is selected.";
+        }
+        
+        toast({
+          title: "Required Fields Missing",
+          description: errorMessage,
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Mark setup as completed and navigate
+      localStorage.setItem('maturion_setup_completed', 'true');
+      
+      toast({
+        title: "✅ Setup Complete",
+        description: "All data saved successfully! Starting maturity model builder...",
+      });
+      
+      navigate('/maturity/build');
+      
+    } catch (error: any) {
+      console.error('Start building failed:', error);
+      toast({
+        title: "❌ Setup Failed",
+        description: error.message || "There was an issue saving your data. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handleSubmit = async () => {
