@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-export interface AIDocument {
+export interface MaturionDocument {
   id: string;
   organization_id: string;
   file_name: string;
@@ -24,8 +24,8 @@ export interface AIDocument {
   upload_notes?: string;
 }
 
-export const useAIDocuments = () => {
-  const [documents, setDocuments] = useState<AIDocument[]>([]);
+export const useMaturionDocuments = () => {
+  const [documents, setDocuments] = useState<MaturionDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
@@ -38,9 +38,9 @@ export const useAIDocuments = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDocuments((data || []) as AIDocument[]);
+      setDocuments((data || []) as MaturionDocument[]);
     } catch (error: any) {
-      console.error('Error fetching AI documents:', error);
+      console.error('Error fetching Maturion documents:', error);
       toast({
         title: "Error",
         description: "Failed to fetch documents",
@@ -53,7 +53,7 @@ export const useAIDocuments = () => {
 
   const uploadDocument = async (
     file: File,
-    documentType: AIDocument['document_type'],
+    documentType: MaturionDocument['document_type'],
     organizationId: string,
     userId: string,
     title?: string,
@@ -165,7 +165,7 @@ export const useAIDocuments = () => {
       domain?: string;
       tags?: string;
       upload_notes?: string;
-      document_type?: AIDocument['document_type'];
+      document_type?: MaturionDocument['document_type'];
       change_reason?: string;
     }
   ): Promise<boolean> => {

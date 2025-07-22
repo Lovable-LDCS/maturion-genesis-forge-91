@@ -112,9 +112,9 @@ const Dashboard = () => {
                   <Settings className="mr-2 h-4 w-4" />
                   Organization Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate('/ai/knowledge-base')}>
+                <DropdownMenuItem onClick={() => navigate('/maturion/knowledge-base')}>
                   <Brain className="mr-2 h-4 w-4" />
-                  AI Knowledge Base
+                  Maturion Knowledge Base
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate('/qa-signoff')}>
                   <FileText className="mr-2 h-4 w-4" />

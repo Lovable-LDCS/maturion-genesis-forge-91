@@ -11,14 +11,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button as ClearButton } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
 import { Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock, Tag, FolderOpen, X, Edit3, Save, XCircle, History } from 'lucide-react';
-import { useAIDocuments, AIDocument } from '@/hooks/useAIDocuments';
+import { useMaturionDocuments, MaturionDocument } from '@/hooks/useMaturionDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
 import { DocumentVersionDialog } from './DocumentVersionDialog';
 import { DocumentProcessingVerificationBlock } from './DocumentProcessingVerificationBlock';
 
-const documentTypeLabels: Record<AIDocument['document_type'], string> = {
+const documentTypeLabels: Record<MaturionDocument['document_type'], string> = {
   maturity_model: 'Maturity Model',
   sector_context: 'Sector Context',
   scoring_logic: 'Scoring Logic',
@@ -45,38 +45,38 @@ const statusIcons = {
   failed: <AlertCircle className="h-4 w-4 text-red-500" />
 };
 
-interface AIAdminUploadZoneProps {
-  filteredDocuments?: AIDocument[];
+interface MaturionKnowledgeUploadZoneProps {
+  filteredDocuments?: MaturionDocument[];
   onDocumentChange?: () => Promise<void>;
 }
 
-export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDocuments, onDocumentChange }) => {
+export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZoneProps> = ({ filteredDocuments, onDocumentChange }) => {
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
-  const { documents, loading, uploading, uploadDocument, updateDocument, deleteDocument } = useAIDocuments();
+  const { documents, loading, uploading, uploadDocument, updateDocument, deleteDocument } = useMaturionDocuments();
   const { toast } = useToast();
 
   // Use filtered documents if provided, otherwise use all documents
   const displayDocuments = filteredDocuments || documents;
   
-  const [selectedDocumentType, setSelectedDocumentType] = useState<AIDocument['document_type']>('mps_document');
+  const [selectedDocumentType, setSelectedDocumentType] = useState<MaturionDocument['document_type']>('mps_document');
   const [title, setTitle] = useState<string>('');
   const [selectedDomain, setSelectedDomain] = useState<string>('');
   const [tags, setTags] = useState<string>('');
   const [uploadNotes, setUploadNotes] = useState<string>('');
   
   // Edit dialog state
-  const [editingDocument, setEditingDocument] = useState<AIDocument | null>(null);
+  const [editingDocument, setEditingDocument] = useState<MaturionDocument | null>(null);
   const [editTitle, setEditTitle] = useState<string>('');
   const [editDomain, setEditDomain] = useState<string>('');
   const [editTags, setEditTags] = useState<string>('');
   const [editNotes, setEditNotes] = useState<string>('');
-  const [editDocumentType, setEditDocumentType] = useState<AIDocument['document_type']>('mps_document');
+  const [editDocumentType, setEditDocumentType] = useState<MaturionDocument['document_type']>('mps_document');
   const [isSaving, setIsSaving] = useState(false);
   const [editChangeReason, setEditChangeReason] = useState<string>('');
   
   // Version history dialog state
-  const [versionDialogDocument, setVersionDialogDocument] = useState<AIDocument | null>(null);
+  const [versionDialogDocument, setVersionDialogDocument] = useState<MaturionDocument | null>(null);
   const [showVersionDialog, setShowVersionDialog] = useState(false);
 
   // Check if user is admin
@@ -86,7 +86,7 @@ export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDo
     if (!user || !currentOrganization || !isAdmin) {
       toast({
         title: "Access denied",
-        description: "Only administrators can upload AI documents",
+        description: "Only administrators can upload Maturion documents",
         variant: "destructive",
       });
       return;
@@ -172,7 +172,7 @@ export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDo
     });
   };
 
-  const handleEditDocument = (doc: AIDocument) => {
+  const handleEditDocument = (doc: MaturionDocument) => {
     setEditingDocument(doc);
     setEditTitle(doc.title || doc.file_name);
     setEditDomain(doc.domain || '');
@@ -219,7 +219,7 @@ export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDo
     }
   };
 
-  const handleShowVersionHistory = (doc: AIDocument) => {
+  const handleShowVersionHistory = (doc: MaturionDocument) => {
     setVersionDialogDocument(doc);
     setShowVersionDialog(true);
   };
@@ -233,13 +233,13 @@ export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDo
     return (
       <Card>
         <CardHeader>
-          <CardTitle>AI Knowledge Base</CardTitle>
+          <CardTitle>Maturion Knowledge Base</CardTitle>
           <CardDescription>Access restricted to administrators</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">
             <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <p>You don't have permission to access the AI Knowledge Base.</p>
+            <p>You don't have permission to access the Maturion Knowledge Base.</p>
             <p className="text-sm mt-2">Contact your organization administrator for access.</p>
           </div>
         </CardContent>
@@ -251,9 +251,9 @@ export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDo
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>AI Knowledge Base Upload</CardTitle>
+          <CardTitle>Maturion Knowledge Base Upload</CardTitle>
           <CardDescription>
-            Upload documents to train the AI assistant with your organization's specific knowledge, 
+            Upload documents to train Maturion with your organization's specific knowledge, 
             maturity models, and sector context.
           </CardDescription>
         </CardHeader>
@@ -263,7 +263,7 @@ export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDo
             <Label htmlFor="document-type" className="text-sm font-medium">Document Type</Label>
             <Select
               value={selectedDocumentType}
-              onValueChange={(value: AIDocument['document_type']) => setSelectedDocumentType(value)}
+              onValueChange={(value: MaturionDocument['document_type']) => setSelectedDocumentType(value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -419,7 +419,7 @@ export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDo
         <CardHeader>
           <CardTitle>Uploaded Documents</CardTitle>
           <CardDescription>
-            Manage your organization's AI knowledge base documents
+            Manage your organization's Maturion knowledge base documents
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -539,7 +539,7 @@ export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDo
               <Label htmlFor="edit-document-type">Document Type</Label>
               <Select
                 value={editDocumentType}
-                onValueChange={(value: AIDocument['document_type']) => setEditDocumentType(value)}
+                onValueChange={(value: MaturionDocument['document_type']) => setEditDocumentType(value)}
               >
                 <SelectTrigger>
                   <SelectValue />

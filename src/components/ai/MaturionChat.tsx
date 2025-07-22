@@ -38,7 +38,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
         return parsed.length > 0 ? parsed : [
           {
             id: '1',
-            content: "Hello! I'm Maturion, your AI assistant for operational maturity. I'm here to help you navigate your journey from reactive to resilient. How can I assist you today?",
+            content: "Hello! I'm Maturion, your operational maturity specialist. I help organizations navigate their journey from reactive to resilient. How can I assist with your maturity assessment today?",
             sender: 'maturion',
             timestamp: new Date()
           }
@@ -51,7 +51,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
     return [
       {
         id: '1',
-        content: "Hello! I'm Maturion, your AI assistant for operational maturity. I'm here to help you navigate your journey from reactive to resilient. How can I assist you today?",
+        content: "Hello! I'm Maturion, your operational maturity specialist. I help organizations navigate their journey from reactive to resilient. How can I assist with your maturity assessment today?",
         sender: 'maturion',
         timestamp: new Date()
       }

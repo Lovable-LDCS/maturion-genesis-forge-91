@@ -21,7 +21,7 @@ import TeamPage from "./pages/TeamPage";
 import InvitationAcceptance from "./pages/InvitationAcceptance";
 import OrganizationSettings from "./pages/OrganizationSettings";
 import MilestoneDetail from "./pages/MilestoneDetail";
-import AIKnowledgeBase from "./pages/AIKnowledgeBase";
+import MaturionKnowledgeBase from "./pages/MaturionKnowledgeBase";
 import Journey from "./pages/Journey";
 import Subscribe from "./pages/Subscribe";
 import AdminConfig from "./pages/AdminConfig";
@@ -64,7 +64,7 @@ const App = () => (
               <Route path="/domain-management" element={<AssessmentFramework />} />
               <Route path="/team" element={<TeamPage />} />
               <Route path="/organization/settings" element={<OrganizationSettings />} />
-              <Route path="/ai/knowledge-base" element={<AIKnowledgeBase />} />
+              <Route path="/maturion/knowledge-base" element={<MaturionKnowledgeBase />} />
               <Route path="/accept-invitation" element={<InvitationAcceptance />} />
               <Route path="/journey" element={<Journey />} />
               <Route path="/subscribe" element={<Subscribe />} />

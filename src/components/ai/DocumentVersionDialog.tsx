@@ -7,10 +7,10 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { History, RotateCcw, User, Calendar, Tag, FolderOpen, FileText, AlertTriangle } from 'lucide-react';
 import { useDocumentVersions, DocumentVersion } from '@/hooks/useDocumentVersions';
-import { AIDocument } from '@/hooks/useAIDocuments';
+import { MaturionDocument } from '@/hooks/useMaturionDocuments';
 
 interface DocumentVersionDialogProps {
-  document: AIDocument | null;
+  document: MaturionDocument | null;
   open: boolean;
   onClose: () => void;
   onDocumentUpdated: () => void;

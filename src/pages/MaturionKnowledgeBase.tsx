@@ -4,13 +4,13 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter } from 'lucide-react';
-import { AIAdminUploadZone } from '@/components/ai/AIAdminUploadZone';
+import { MaturionKnowledgeUploadZone } from '@/components/ai/MaturionKnowledgeUploadZone';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
 
-import { useAIDocuments } from '@/hooks/useAIDocuments';
+import { useMaturionDocuments } from '@/hooks/useMaturionDocuments';
 
-const AIKnowledgeBase: React.FC = () => {
-  const { documents, loading, refreshDocuments } = useAIDocuments();
+const MaturionKnowledgeBase: React.FC = () => {
+  const { documents, loading, refreshDocuments } = useMaturionDocuments();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
   // Filter documents based on status
@@ -55,9 +55,9 @@ const AIKnowledgeBase: React.FC = () => {
     <div className="container mx-auto py-8 px-4">
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight mb-2">AI Knowledge Base</h1>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">Maturion Knowledge Base</h1>
           <p className="text-muted-foreground">
-            Manage your organization's AI training documents, semantic context, and vector embeddings for Maturion AI
+            Manage your organization's knowledge documents, semantic context, and vector embeddings for Maturion
           </p>
         </div>
 
@@ -98,7 +98,7 @@ const AIKnowledgeBase: React.FC = () => {
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalChunks.toLocaleString()}</div>
               <p className="text-xs text-muted-foreground">
-                Searchable AI embeddings
+                Searchable Maturion embeddings
               </p>
             </CardContent>
           </Card>
@@ -157,7 +157,7 @@ const AIKnowledgeBase: React.FC = () => {
           </CardHeader>
           <CardContent className="text-sm text-muted-foreground">
             <p>
-              This AI Knowledge Base maintains full compliance with <strong>ISO 9001</strong> (quality documentation), 
+              This Maturion Knowledge Base maintains full compliance with <strong>ISO 9001</strong> (quality documentation), 
               <strong>ISO 27001</strong> (information security), and <strong>ISO 37301</strong> (compliance management). 
               All document uploads, edits, and deletions are logged with complete audit trails including timestamps, 
               user attribution, and change reasons for regulatory requirements.
@@ -197,7 +197,7 @@ const AIKnowledgeBase: React.FC = () => {
         {/* Admin Tools */}
         <div className="space-y-6">
           <DocumentProcessingDebugger />
-          <AIAdminUploadZone 
+          <MaturionKnowledgeUploadZone 
             filteredDocuments={filteredDocuments} 
             onDocumentChange={refreshDocuments}
           />
@@ -208,4 +208,4 @@ const AIKnowledgeBase: React.FC = () => {
   );
 };
 
-export default AIKnowledgeBase;
+export default MaturionKnowledgeBase;

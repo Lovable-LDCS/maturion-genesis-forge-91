@@ -64,11 +64,11 @@ export const useMaturionContext = (): MaturionContext => {
       };
     }
     
-    // AI Knowledge Base
-    if (path === '/ai/knowledge-base') {
+    // Maturion Knowledge Base
+    if (path === '/maturion/knowledge-base') {
       return {
-        context: "AI Knowledge Base management - document processing, chunking, and knowledge enhancement guidance",
-        currentDomain: "AI Knowledge Base"
+        context: "Maturion Knowledge Base management - document processing, chunking, and knowledge enhancement guidance",
+        currentDomain: "Maturion Knowledge Base"
       };
     }
     

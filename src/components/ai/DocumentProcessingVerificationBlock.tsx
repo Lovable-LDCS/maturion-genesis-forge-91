@@ -21,13 +21,13 @@ import {
   HelpCircle,
   Timer
 } from 'lucide-react';
-import { AIDocument } from '@/hooks/useAIDocuments';
+import { MaturionDocument } from '@/hooks/useMaturionDocuments';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 
 interface DocumentProcessingVerificationBlockProps {
-  document: AIDocument;
+  document: MaturionDocument;
   onReprocess?: (documentId: string) => void;
 }
 
