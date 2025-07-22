@@ -10,7 +10,7 @@ import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDe
 import { useAIDocuments } from '@/hooks/useAIDocuments';
 
 const AIKnowledgeBase: React.FC = () => {
-  const { documents, loading } = useAIDocuments();
+  const { documents, loading, refreshDocuments } = useAIDocuments();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   
   // Filter documents based on status
@@ -197,7 +197,10 @@ const AIKnowledgeBase: React.FC = () => {
         {/* Admin Tools */}
         <div className="space-y-6">
           <DocumentProcessingDebugger />
-          <AIAdminUploadZone filteredDocuments={filteredDocuments} />
+          <AIAdminUploadZone 
+            filteredDocuments={filteredDocuments} 
+            onDocumentChange={refreshDocuments}
+          />
         </div>
       </div>
 

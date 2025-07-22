@@ -47,9 +47,10 @@ const statusIcons = {
 
 interface AIAdminUploadZoneProps {
   filteredDocuments?: AIDocument[];
+  onDocumentChange?: () => Promise<void>;
 }
 
-export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDocuments }) => {
+export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDocuments, onDocumentChange }) => {
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const { documents, loading, uploading, uploadDocument, updateDocument, deleteDocument } = useAIDocuments();
@@ -111,7 +112,12 @@ export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDo
         setTitle(fileTitle);
       }
     }
-  }, [user, currentOrganization, isAdmin, selectedDocumentType, selectedDomain, tags, uploadNotes, uploadDocument, toast]);
+    
+    // Trigger parent refresh if callback provided
+    if (onDocumentChange) {
+      await onDocumentChange();
+    }
+  }, [user, currentOrganization, isAdmin, selectedDocumentType, selectedDomain, tags, uploadNotes, uploadDocument, toast, onDocumentChange]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -191,6 +197,10 @@ export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDo
     
     if (success) {
       setEditingDocument(null);
+      // Trigger parent refresh if callback provided
+      if (onDocumentChange) {
+        await onDocumentChange();
+      }
     }
     setIsSaving(false);
   };
@@ -202,6 +212,10 @@ export const AIAdminUploadZone: React.FC<AIAdminUploadZoneProps> = ({ filteredDo
   const handleDeleteDocument = async (documentId: string) => {
     if (window.confirm('Are you sure you want to delete this document? This action cannot be undone.')) {
       await deleteDocument(documentId);
+      // Trigger parent refresh if callback provided
+      if (onDocumentChange) {
+        await onDocumentChange();
+      }
     }
   };
 
