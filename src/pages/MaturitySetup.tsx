@@ -87,7 +87,7 @@ interface FormData {
 const MaturitySetup = () => {
   const navigate = useNavigate();
   const { profile, user } = useAuth();
-  const { currentOrganization } = useOrganization();
+  const { currentOrganization, refetch: refetchOrganization } = useOrganization();
   const { toast } = useToast();
   
   const [formData, setFormData] = useState<FormData>({
@@ -127,6 +127,66 @@ const MaturitySetup = () => {
   }, [currentOrganization]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // Auto-save function
+  const autoSave = async () => {
+    if (!currentOrganization || !user?.id) return;
+    
+    // Only auto-save if we have some basic required data
+    if (!formData.companyName && !formData.regionOperating && formData.industryTags.length === 0) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const cleanDomains = formData.linkedDomains.filter(d => d && d.trim());
+      
+      const { error } = await supabase
+        .from('organizations')
+        .update({
+          name: formData.companyName || currentOrganization.name,
+          primary_website_url: formData.primaryWebsiteUrl || null,
+          linked_domains: cleanDomains,
+          industry_tags: formData.industryTags,
+          custom_industry: formData.customIndustry || null,
+          region_operating: formData.regionOperating || null,
+          risk_concerns: formData.riskConcerns,
+          compliance_commitments: formData.complianceCommitments,
+          threat_sensitivity_level: formData.threatSensitivityLevel,
+          updated_by: user.id
+        })
+        .eq('id', currentOrganization.id);
+        
+      if (error) {
+        console.error('Auto-save error:', error);
+      } else {
+        setLastSaved(new Date());
+        // Refresh organization data to pick up changes
+        await refetchOrganization();
+        // Store the setup data in localStorage for persistence
+        localStorage.setItem('maturion_setup_data', JSON.stringify(formData));
+      }
+    } catch (error) {
+      console.error('Auto-save failed:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Auto-save when form data changes (with debounce)
+  useEffect(() => {
+    if (!currentOrganization) return;
+    
+    const timeoutId = setTimeout(() => {
+      autoSave();
+    }, 2000); // Auto-save 2 seconds after user stops typing
+
+    return () => clearTimeout(timeoutId);
+  }, [formData.companyName, formData.primaryWebsiteUrl, formData.linkedDomains, 
+      formData.industryTags, formData.customIndustry, formData.regionOperating, 
+      formData.riskConcerns, formData.complianceCommitments, formData.threatSensitivityLevel]);
 
   // Generate AI-suggested model name based on company name
   const generateModelName = () => {
@@ -395,6 +455,16 @@ const MaturitySetup = () => {
             <div className="flex items-center space-x-2">
               <Badge variant="outline">Maturity Development</Badge>
               <Badge>Setup Phase</Badge>
+              {isSaving && (
+                <Badge variant="secondary" className="animate-pulse">
+                  Saving...
+                </Badge>
+              )}
+              {lastSaved && !isSaving && (
+                <Badge variant="outline" className="text-green-600">
+                  Saved {lastSaved.toLocaleTimeString()}
+                </Badge>
+              )}
             </div>
           </div>
         </div>
@@ -814,26 +884,44 @@ const MaturitySetup = () => {
                   maturity practice statements, and criteria specific to your organization.
                 </p>
                 
-                <Button 
-                  size="lg" 
-                  onClick={handleSubmit}
-                  disabled={isSubmitting || !formData.fullName || !formData.title || !formData.companyName || 
-                           !formData.modelName || !formData.regionOperating || formData.industryTags.length === 0 || 
-                           formData.riskConcerns.length === 0}
-                  className="min-w-[200px]"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Setting Up...
-                    </>
-                  ) : (
-                    <>
-                      Start Building Your Maturity Model
-                      <ChevronRight className="h-4 w-4 ml-2" />
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-4 justify-center">
+                  <Button 
+                    variant="outline"
+                    onClick={autoSave}
+                    disabled={isSaving}
+                    className="min-w-[150px]"
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
+                        Saving...
+                      </>
+                    ) : (
+                      'Save Progress'
+                    )}
+                  </Button>
+                  
+                  <Button 
+                    size="lg" 
+                    onClick={handleSubmit}
+                    disabled={isSubmitting || !formData.fullName || !formData.title || !formData.companyName || 
+                             !formData.modelName || !formData.regionOperating || formData.industryTags.length === 0 || 
+                             formData.riskConcerns.length === 0}
+                    className="min-w-[200px]"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Setting Up...
+                      </>
+                    ) : (
+                      <>
+                        Start Building Your Maturity Model
+                        <ChevronRight className="h-4 w-4 ml-2" />
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </div>
