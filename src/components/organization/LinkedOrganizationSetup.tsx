@@ -39,7 +39,7 @@ const organizationSchema = z.object({
 
 type OrganizationData = z.infer<typeof organizationSchema>
 
-interface UnifiedOrganizationSetupProps {
+interface LinkedOrganizationSetupProps {
   onComplete: () => void
   variant?: 'dashboard' | 'maturity' // Controls flow and messaging
 }
@@ -64,7 +64,7 @@ const COMPLIANCE_OPTIONS = [
   'ISO 27001', 'NIST', 'SOC 2', 'PCI DSS', 'GDPR', 'HIPAA', 'SOX', 'COBIT'
 ]
 
-export const UnifiedOrganizationSetup: React.FC<UnifiedOrganizationSetupProps> = ({ 
+export const LinkedOrganizationSetup: React.FC<LinkedOrganizationSetupProps> = ({ 
   onComplete, 
   variant = 'dashboard' 
 }) => {

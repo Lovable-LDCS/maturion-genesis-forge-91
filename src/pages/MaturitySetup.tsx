@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
-import { UnifiedOrganizationSetup } from '@/components/organization/UnifiedOrganizationSetup';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   ArrowLeft, 
   Upload, 
@@ -21,9 +22,32 @@ import {
   ChevronRight,
   Shield,
   Globe,
-  AlertTriangle
+  AlertTriangle,
+  Plus,
+  Trash2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+
+// Standardized options for Risk & Awareness Profile
+const INDUSTRY_OPTIONS = [
+  'Mining', 'Energy', 'Finance', 'Healthcare', 'Manufacturing', 
+  'Technology', 'Government', 'Construction', 'Retail', 'Transportation', 'Other'
+];
+
+const REGION_OPTIONS = [
+  'North America', 'Europe', 'Asia Pacific', 'Latin America', 
+  'Middle East & Africa', 'Southern Africa', 'Global'
+];
+
+const RISK_CONCERN_OPTIONS = [
+  'Cyber Attacks', 'Insider Threats', 'Data Breaches', 'Supply Chain Risks',
+  'Regulatory Compliance', 'Physical Security', 'Business Continuity', 'Third-party Risks'
+];
+
+const COMPLIANCE_OPTIONS = [
+  'ISO 27001', 'NIST', 'SOC 2', 'PCI DSS', 'GDPR', 'HIPAA', 'SOX', 'COBIT'
+];
 
 interface FormData {
   // User Information
@@ -39,41 +63,40 @@ interface FormData {
   
   // AI-Assisted Model Naming
   modelName: string;
+  
+  // Risk & Awareness Profile
+  primaryWebsiteUrl: string;
+  linkedDomains: string[];
+  industryTags: string[];
+  regionOperating: string;
+  riskConcerns: string[];
+  complianceCommitments: string[];
+  threatSensitivityLevel: 'Basic' | 'Moderate' | 'Advanced';
 }
 
 const MaturitySetup = () => {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { currentOrganization } = useOrganization();
   const { toast } = useToast();
   
-  const [showOrgSetup, setShowOrgSetup] = useState(!currentOrganization);
   const [formData, setFormData] = useState<FormData>({
     fullName: profile?.full_name || '',
     title: '',
     bio: '',
     companyName: currentOrganization?.name || '',
     primaryColor: '#0066cc',
-    modelName: ''
+    modelName: '',
+    primaryWebsiteUrl: '',
+    linkedDomains: [],
+    industryTags: [],
+    regionOperating: '',
+    riskConcerns: [],
+    complianceCommitments: [],
+    threatSensitivityLevel: 'Basic'
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // If no organization exists, show unified setup first
-  if (showOrgSetup) {
-    return (
-      <UnifiedOrganizationSetup 
-        variant="maturity"
-        onComplete={() => {
-          setShowOrgSetup(false);
-          toast({
-            title: "Organization Created",
-            description: "Your organization profile is complete. Now let's set up your maturity model.",
-          });
-        }}
-      />
-    );
-  }
 
   // Generate AI-suggested model name based on company name
   const generateModelName = () => {
@@ -123,12 +146,49 @@ const MaturitySetup = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
+  const handleArrayToggle = (field: 'industryTags' | 'riskConcerns' | 'complianceCommitments', value: string) => {
+    const currentArray = formData[field];
+    if (currentArray.includes(value)) {
+      setFormData(prev => ({ 
+        ...prev, 
+        [field]: currentArray.filter(item => item !== value) 
+      }));
+    } else {
+      setFormData(prev => ({ 
+        ...prev, 
+        [field]: [...currentArray, value] 
+      }));
+    }
+  };
+
+  const addLinkedDomain = () => {
+    setFormData(prev => ({ 
+      ...prev, 
+      linkedDomains: [...prev.linkedDomains, ''] 
+    }));
+  };
+
+  const removeLinkedDomain = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      linkedDomains: prev.linkedDomains.filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateLinkedDomain = (index: number, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      linkedDomains: prev.linkedDomains.map((domain, i) => i === index ? value : domain)
+    }));
+  };
+
   const handleSubmit = async () => {
     // Validation
-    if (!formData.fullName || !formData.title || !formData.companyName || !formData.modelName) {
+    if (!formData.fullName || !formData.title || !formData.companyName || !formData.modelName || 
+        !formData.regionOperating || formData.industryTags.length === 0 || formData.riskConcerns.length === 0) {
       toast({
         title: "Required Fields Missing",
-        description: "Please fill in all required fields before proceeding.",
+        description: "Please fill in all required fields including Risk & Awareness Profile before proceeding.",
         variant: "destructive"
       });
       return;
@@ -137,28 +197,72 @@ const MaturitySetup = () => {
     setIsSubmitting(true);
     
     try {
-      // Here you would typically save the data to your backend
-      // For now, we'll simulate the process
+      // Create or update organization with enhanced profile
+      const cleanDomains = formData.linkedDomains.filter(d => d && d.trim());
+      
+      let orgData;
+      if (currentOrganization) {
+        // Update existing organization
+        const { data, error } = await supabase
+          .from('organizations')
+          .update({
+            name: formData.companyName,
+            primary_website_url: formData.primaryWebsiteUrl || null,
+            linked_domains: cleanDomains,
+            industry_tags: formData.industryTags,
+            region_operating: formData.regionOperating,
+            risk_concerns: formData.riskConcerns,
+            compliance_commitments: formData.complianceCommitments,
+            threat_sensitivity_level: formData.threatSensitivityLevel,
+            updated_by: user?.id
+          })
+          .eq('id', currentOrganization.id)
+          .select()
+          .single();
+          
+        if (error) throw error;
+        orgData = data;
+      } else {
+        // Create new organization
+        const { data, error } = await supabase
+          .from('organizations')
+          .insert({
+            name: formData.companyName,
+            owner_id: user?.id,
+            created_by: user?.id,
+            updated_by: user?.id,
+            primary_website_url: formData.primaryWebsiteUrl || null,
+            linked_domains: cleanDomains,
+            industry_tags: formData.industryTags,
+            region_operating: formData.regionOperating,
+            risk_concerns: formData.riskConcerns,
+            compliance_commitments: formData.complianceCommitments,
+            threat_sensitivity_level: formData.threatSensitivityLevel,
+          })
+          .select()
+          .single();
+          
+        if (error) throw error;
+        orgData = data;
+      }
       
       // Store the setup data in localStorage for persistence
       localStorage.setItem('maturion_setup_data', JSON.stringify(formData));
       localStorage.setItem('maturion_setup_completed', 'true');
       
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
       toast({
         title: "Setup Complete",
-        description: "Your organization profile has been saved. You can now build your maturity model.",
+        description: "Your organization profile and maturity model setup is complete. AI threat intelligence is now personalized to your profile.",
       });
       
       // Navigate to the assessment framework
       navigate('/assessment/framework');
       
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Setup error:', error);
       toast({
         title: "Setup Failed",
-        description: "There was an error saving your setup. Please try again.",
+        description: error.message || "There was an error saving your setup. Please try again.",
         variant: "destructive"
       });
     } finally {
@@ -313,6 +417,162 @@ const MaturitySetup = () => {
               </CardContent>
             </Card>
 
+            {/* Risk & Awareness Profile - NEW SECTION */}
+            <Card className="lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5" />
+                  Risk & Awareness Profile
+                </CardTitle>
+                <CardDescription>
+                  Configure your organization's risk profile for personalized AI threat intelligence.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid lg:grid-cols-2 gap-6">
+                  {/* Website & Domains */}
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="primaryWebsiteUrl">Primary Website URL</Label>
+                      <Input
+                        id="primaryWebsiteUrl"
+                        type="url"
+                        value={formData.primaryWebsiteUrl}
+                        onChange={(e) => handleInputChange('primaryWebsiteUrl', e.target.value)}
+                        placeholder="https://www.yourcompany.com"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label>Additional Domains (Optional)</Label>
+                      <p className="text-xs text-muted-foreground mb-2">ESG portals, security sites, etc.</p>
+                      {formData.linkedDomains.map((domain, index) => (
+                        <div key={index} className="flex gap-2 mb-2">
+                          <Input
+                            placeholder="https://portal.example.com"
+                            value={domain}
+                            onChange={(e) => updateLinkedDomain(index, e.target.value)}
+                          />
+                          <Button type="button" variant="outline" size="sm" onClick={() => removeLinkedDomain(index)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                      <Button type="button" variant="outline" size="sm" onClick={addLinkedDomain}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Domain
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Industry & Region */}
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Industry Sectors *</Label>
+                      <p className="text-xs text-muted-foreground mb-2">Select 1-5 industries for targeted threat intelligence</p>
+                      <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto border rounded p-2">
+                        {INDUSTRY_OPTIONS.map((industry) => (
+                          <div key={industry} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`industry-${industry}`}
+                              checked={formData.industryTags.includes(industry)}
+                              onCheckedChange={() => handleArrayToggle('industryTags', industry)}
+                            />
+                            <Label htmlFor={`industry-${industry}`} className="text-sm">{industry}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Primary Operating Region *</Label>
+                      <Select
+                        value={formData.regionOperating}
+                        onValueChange={(value) => handleInputChange('regionOperating', value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select your primary region" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {REGION_OPTIONS.map((region) => (
+                            <SelectItem key={region} value={region}>{region}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid lg:grid-cols-2 gap-6">
+                  {/* Risk Concerns */}
+                  <div>
+                    <Label>Primary Risk Concerns *</Label>
+                    <p className="text-xs text-muted-foreground mb-2">Select 1-8 key risk areas</p>
+                    <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto border rounded p-2">
+                      {RISK_CONCERN_OPTIONS.map((risk) => (
+                        <div key={risk} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`risk-${risk}`}
+                            checked={formData.riskConcerns.includes(risk)}
+                            onCheckedChange={() => handleArrayToggle('riskConcerns', risk)}
+                          />
+                          <Label htmlFor={`risk-${risk}`} className="text-sm">{risk}</Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Compliance & Sensitivity */}
+                  <div className="space-y-4">
+                    <div>
+                      <Label>Compliance Frameworks (Optional)</Label>
+                      <div className="grid grid-cols-1 gap-2 max-h-20 overflow-y-auto border rounded p-2">
+                        {COMPLIANCE_OPTIONS.map((framework) => (
+                          <div key={framework} className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`compliance-${framework}`}
+                              checked={formData.complianceCommitments.includes(framework)}
+                              onCheckedChange={() => handleArrayToggle('complianceCommitments', framework)}
+                            />
+                            <Label htmlFor={`compliance-${framework}`} className="text-sm">{framework}</Label>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label>Threat Sensitivity Level</Label>
+                      <Select
+                        value={formData.threatSensitivityLevel}
+                        onValueChange={(value: 'Basic' | 'Moderate' | 'Advanced') => 
+                          handleInputChange('threatSensitivityLevel', value)
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Basic">Basic - Standard threat awareness</SelectItem>
+                          <SelectItem value="Moderate">Moderate - Enhanced threat monitoring</SelectItem>
+                          <SelectItem value="Advanced">Advanced - Comprehensive threat intelligence</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Controls the depth and frequency of external threat intelligence integration
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                  <h4 className="font-medium text-sm mb-2">🧠 AI Enhancement Active</h4>
+                  <p className="text-xs text-muted-foreground">
+                    External threat intelligence will be tagged "ADVISORY ONLY" and never impact maturity scores.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
             {/* Optional Uploads */}
             <Card>
               <CardHeader>
@@ -382,13 +642,6 @@ const MaturitySetup = () => {
                     generated by your maturity model.
                   </p>
                 </div>
-
-                <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                  <h4 className="font-medium text-sm mb-2">✅ Risk & Awareness Profile Complete</h4>
-                  <p className="text-xs text-muted-foreground">
-                    Your organization's risk profile has been configured. AI threat intelligence is now personalized to your industry, region, and risk concerns.
-                  </p>
-                </div>
               </CardContent>
             </Card>
           </div>
@@ -408,7 +661,9 @@ const MaturitySetup = () => {
                 <Button 
                   size="lg" 
                   onClick={handleSubmit}
-                  disabled={isSubmitting || !formData.fullName || !formData.title || !formData.companyName || !formData.modelName}
+                  disabled={isSubmitting || !formData.fullName || !formData.title || !formData.companyName || 
+                           !formData.modelName || !formData.regionOperating || formData.industryTags.length === 0 || 
+                           formData.riskConcerns.length === 0}
                   className="min-w-[200px]"
                 >
                   {isSubmitting ? (
