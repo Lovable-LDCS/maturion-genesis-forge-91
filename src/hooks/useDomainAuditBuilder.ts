@@ -92,16 +92,27 @@ export const useDomainAuditBuilder = (domainId: string) => {
       }
 
       // Insert MPSs with proper numbering
-      const mpsData = mpsList.map((mps, index) => ({
-        domain_id: domainDbId,
-        organization_id: currentOrganization.id,
-        name: mps.name || mps.title || 'Untitled MPS',
-        summary: mps.description || '',
-        mps_number: parseInt(mps.number || (index + 1).toString()),
-        status: 'not_started' as const,
-        created_by: user.id,
-        updated_by: user.id
-      }));
+      const mpsData = mpsList.map((mps, index) => {
+        // Ensure mps_number is always a valid integer
+        let mpsNumber = index + 1; // Default fallback
+        if (mps.number) {
+          const parsed = parseInt(mps.number.toString());
+          if (!isNaN(parsed) && parsed > 0) {
+            mpsNumber = parsed;
+          }
+        }
+        
+        return {
+          domain_id: domainDbId,
+          organization_id: currentOrganization.id,
+          name: mps.name || mps.title || 'Untitled MPS',
+          summary: mps.description || '',
+          mps_number: mpsNumber,
+          status: 'not_started' as const,
+          created_by: user.id,
+          updated_by: user.id
+        };
+      });
 
       const { error: mpsError } = await supabase
         .from('maturity_practice_statements')
@@ -129,7 +140,7 @@ export const useDomainAuditBuilder = (domainId: string) => {
       // Save MPSs directly to database
       await saveMPSsToDatabase(selectedMPSs);
       setIsMPSModalOpen(false);
-      setIsIntentCreatorOpen(true);
+      // Don't automatically open Intent Creator - let user manually proceed to Step 2
     } catch (error) {
       console.error('Error saving MPSs:', error);
     }
