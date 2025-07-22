@@ -9,6 +9,8 @@ import { Edit3, Check, X, ChevronDown, ChevronUp, Sparkles } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useIntentGeneration } from '@/hooks/useIntentGeneration';
 import { AISourceIndicator } from '@/components/ai/AISourceIndicator';
+import { useOrganization } from '@/hooks/useOrganization';
+import { supabase } from '@/integrations/supabase/client';
 
 // Helper function to get MPS range for a domain
 const getDomainMPSRange = (domainName: string): string => {
@@ -45,7 +47,6 @@ interface IntentCreatorProps {
   isOpen: boolean;
   onClose: () => void;
   domainName: string;
-  acceptedMPSs: MPS[];
   onIntentsFinalized: (mpssWithIntents: MPS[]) => void;
 }
 
@@ -53,9 +54,9 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
   isOpen,
   onClose,
   domainName,
-  acceptedMPSs,
   onIntentsFinalized
 }) => {
+  const { currentOrganization } = useOrganization();
   const [mpssWithIntents, setMpssWithIntents] = useState<MPS[]>([]);
   const [editingMPS, setEditingMPS] = useState<string | null>(null);
   const [editedIntent, setEditedIntent] = useState('');
@@ -65,14 +66,51 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
 
   const { generateIntent, isLoading } = useIntentGeneration();
 
-  // Initialize MPSs with AI-generated intents when modal opens
+  // Fetch MPSs from database and generate intents when modal opens
   useEffect(() => {
-    if (isOpen && acceptedMPSs.length > 0 && mpssWithIntents.length === 0) {
-      generateIntentsForMPSs();
+    if (isOpen && currentOrganization?.id) {
+      fetchMPSsAndGenerateIntents();
     }
-  }, [isOpen, acceptedMPSs]);
+  }, [isOpen, currentOrganization?.id]);
 
-  const generateIntentsForMPSs = async () => {
+  const fetchMPSsAndGenerateIntents = async () => {
+    if (!currentOrganization?.id) return;
+
+    try {
+      // Fetch MPSs from database for this domain
+      const { data: domainData } = await supabase
+        .from('domains')
+        .select(`
+          maturity_practice_statements (
+            id,
+            name,
+            mps_number,
+            intent_statement,
+            status
+          )
+        `)
+        .eq('organization_id', currentOrganization.id)
+        .eq('name', domainName)
+        .single();
+
+      if (domainData?.maturity_practice_statements) {
+        const acceptedMPSs = domainData.maturity_practice_statements.map((mps: any) => ({
+          id: mps.id,
+          name: mps.name,
+          number: mps.mps_number.toString(),
+          intent: mps.intent_statement || ''
+        }));
+
+        if (acceptedMPSs.length > 0 && mpssWithIntents.length === 0) {
+          generateIntentsForMPSs(acceptedMPSs);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching MPSs:', error);
+    }
+  };
+
+  const generateIntentsForMPSs = async (acceptedMPSs: MPS[]) => {
     setIsGeneratingIntents(true);
     
     try {

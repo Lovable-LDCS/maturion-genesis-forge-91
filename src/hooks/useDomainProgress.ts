@@ -184,7 +184,7 @@ export const useDomainProgress = () => {
             prevDomainData.maturity_practice_statements.forEach((mps: any) => {
               if (mps.criteria) {
                 prevCriteriaCount += mps.criteria.length;
-                prevCriteriaCompleted += mps.criteria.filter((c: any) => c.status === 'approved').length;
+                prevCriteriaCompleted += mps.criteria.filter((c: any) => c.status === 'approved_locked').length;
               }
             });
 

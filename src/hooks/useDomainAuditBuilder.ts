@@ -35,9 +35,6 @@ export const useDomainAuditBuilder = (domainId: string) => {
   const [isMPSModalOpen, setIsMPSModalOpen] = useState(false);
   const [isGeneratingMPSs, setIsGeneratingMPSs] = useState(false);
   const [isIntentCreatorOpen, setIsIntentCreatorOpen] = useState(false);
-  const [acceptedMPSs, setAcceptedMPSs] = useState<MPS[]>([]);
-  const [mpsCompleted, setMpsCompleted] = useState(false);
-  const [intentCompleted, setIntentCompleted] = useState(false);
 
   const getDomainNameFromId = (id: string): string => {
     const nameMap: Record<string, string> = {
@@ -61,7 +58,7 @@ export const useDomainAuditBuilder = (domainId: string) => {
     return orderMap[id] || 99;
   };
 
-  const persistMPSsToDatabase = async (mpsList: MPS[]) => {
+  const saveMPSsToDatabase = async (mpsList: MPS[]) => {
     if (!currentOrganization?.id || !user?.id) return;
 
     try {
@@ -128,83 +125,104 @@ export const useDomainAuditBuilder = (domainId: string) => {
   };
 
   const handleAcceptMPSs = async (selectedMPSs: MPS[]) => {
-    setAcceptedMPSs(selectedMPSs);
-    setMpsCompleted(true);
-    setIsMPSModalOpen(false);
-    
-    // Persist MPSs to database
-    await persistMPSsToDatabase(selectedMPSs);
+    try {
+      // Save MPSs directly to database
+      await saveMPSsToDatabase(selectedMPSs);
+      setIsMPSModalOpen(false);
+      setIsIntentCreatorOpen(true);
+    } catch (error) {
+      console.error('Error saving MPSs:', error);
+    }
   };
 
   const handleIntentsFinalized = async (mpssWithIntents: MPS[]) => {
-    if (!currentOrganization?.id || !user?.id) return;
-
     try {
-      // Update the MPSs in the database with intent statements
+      // Save intents to database 
       for (const mps of mpssWithIntents) {
-        if (mps.intent) {
+        if (mps.intent && mps.id) {
           await supabase
             .from('maturity_practice_statements')
             .update({ 
               intent_statement: mps.intent,
-              status: 'submitted_for_approval' as const,
-              updated_by: user.id
+              status: 'approved_locked'
             })
-            .eq('organization_id', currentOrganization.id)
-            .eq('mps_number', parseInt(mps.number || '0'));
+            .eq('id', mps.id);
         }
       }
-
-      setAcceptedMPSs(mpssWithIntents);
-      setIntentCompleted(true);
+      
       setIsIntentCreatorOpen(false);
-
-      toast({
-        title: "Intents Finalized",
-        description: "Intent statements have been saved successfully.",
-      });
-
     } catch (error) {
-      console.error('Error finalizing intents:', error);
-      toast({
-        title: "Error Saving Intents",
-        description: "There was an error saving the intent statements.",
-        variant: "destructive"
-      });
+      console.error('Error saving intents:', error);
+    }
+  };
+
+  // Get database-driven step status
+  const getDatabaseStepStatus = async (stepId: number): Promise<'completed' | 'active' | 'locked'> => {
+    if (!currentOrganization?.id) return 'locked';
+
+    try {
+      const { data: domainData } = await supabase
+        .from('domains')
+        .select(`
+          id,
+          status,
+          maturity_practice_statements (
+            id,
+            status,
+            intent_statement
+          )
+        `)
+        .eq('organization_id', currentOrganization.id)
+        .eq('name', getDomainNameFromId(domainId))
+        .single();
+
+      if (!domainData) return stepId === 1 ? 'active' : 'locked';
+
+      const mpsCount = domainData.maturity_practice_statements?.length || 0;
+      const mpsWithIntent = domainData.maturity_practice_statements?.filter(
+        (mps: any) => mps.intent_statement && mps.intent_statement.trim() !== ''
+      ).length || 0;
+
+      if (stepId === 1) {
+        return mpsCount > 0 ? 'completed' : 'active';
+      } else if (stepId === 2) {
+        if (mpsCount === 0) return 'locked';
+        return mpsWithIntent === mpsCount ? 'completed' : 'active';
+      } else if (stepId === 3) {
+        return mpsCount > 0 && mpsWithIntent === mpsCount ? 'active' : 'locked';
+      }
+
+      return 'locked';
+    } catch (error) {
+      console.error('Error getting step status:', error);
+      return stepId === 1 ? 'active' : 'locked';
     }
   };
 
   const handleStepClick = async (stepId: number) => {
-    if (stepId === 1) {
-      if (mpsCompleted) {
-        // If already completed, allow editing
+    const stepStatus = await getDatabaseStepStatus(stepId);
+    
+    if (stepId === 1 && (stepStatus === 'active' || stepStatus === 'completed')) {
+      setIsGeneratingMPSs(true);
+      // Simulate brief loading period for better UX
+      setTimeout(() => {
+        setIsGeneratingMPSs(false);
         setIsMPSModalOpen(true);
-      } else {
-        // Show loading state and auto-generate MPSs
-        setIsGeneratingMPSs(true);
-        // Simulate brief loading period for better UX
-        setTimeout(() => {
-          setIsGeneratingMPSs(false);
-          setIsMPSModalOpen(true);
-        }, 2000);
-      }
-    } else if (stepId === 2) {
-      if (mpsCompleted) {
-        setIsIntentCreatorOpen(true);
-      }
-    } else {
-      // Future step - not yet implemented
+      }, 2000);
+    } else if (stepId === 2 && (stepStatus === 'active' || stepStatus === 'completed')) {
+      setIsIntentCreatorOpen(true);
     }
   };
 
-  const isStepClickable = (step: AuditStep) => {
-    return step.status === 'completed' || step.status === 'active';
+  const isStepClickable = async (step: AuditStep): Promise<boolean> => {
+    const status = await getDatabaseStepStatus(step.id);
+    return status === 'completed' || status === 'active';
   };
 
-  const getStepStatus = (step: AuditStep) => {
-    if (step.status === 'completed') {
+  const getStepStatus = (status: 'completed' | 'active' | 'locked') => {
+    if (status === 'completed') {
       return { bgColor: 'bg-green-100', textColor: 'text-green-600', border: 'border-green-200' };
-    } else if (step.status === 'active') {
+    } else if (status === 'active') {
       return { bgColor: 'bg-blue-100', textColor: 'text-blue-600', border: 'border-blue-200' };
     } else {
       return { bgColor: 'bg-muted', textColor: 'text-muted-foreground', border: 'border-muted' };
@@ -219,15 +237,13 @@ export const useDomainAuditBuilder = (domainId: string) => {
     setIsGeneratingMPSs,
     isIntentCreatorOpen,
     setIsIntentCreatorOpen,
-    acceptedMPSs,
-    mpsCompleted,
-    intentCompleted,
     
     // Actions
     handleAcceptMPSs,
     handleIntentsFinalized,
     handleStepClick,
     isStepClickable,
-    getStepStatus
+    getStepStatus,
+    getDatabaseStepStatus
   };
 };
