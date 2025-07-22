@@ -327,6 +327,7 @@ export default function AssessmentFramework() {
       <MaturionChat 
         context="Assessment framework configuration - domain setup, MPS management, and audit structure guidance"
         currentDomain="Assessment Framework"
+        className="z-[60]"
       />
     </div>
   );
