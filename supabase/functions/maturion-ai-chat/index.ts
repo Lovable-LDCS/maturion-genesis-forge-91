@@ -311,6 +311,10 @@ Source mode: ${sourceType}
 
 Respond in a helpful, professional tone that builds confidence while being realistic about improvement timelines.`;
 
+    console.log('Making OpenAI API call with model: gpt-4.1-2025-04-14');
+    console.log('System prompt length:', systemPrompt.length);
+    console.log('User prompt length:', prompt.length);
+
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -328,11 +332,34 @@ Respond in a helpful, professional tone that builds confidence while being reali
       }),
     });
 
+    console.log('OpenAI API response status:', response.status);
+    console.log('OpenAI API response headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('OpenAI API error response:', errorText);
+      throw new Error(`OpenAI API error (${response.status}): ${errorText}`);
+    }
+
     const data = await response.json();
+    console.log('OpenAI API response data structure:', Object.keys(data));
+    
+    if (!data.choices || !Array.isArray(data.choices) || data.choices.length === 0) {
+      console.error('Invalid OpenAI response structure:', data);
+      throw new Error('OpenAI API returned invalid response structure - no choices array');
+    }
+
+    if (!data.choices[0].message || !data.choices[0].message.content) {
+      console.error('Invalid OpenAI choice structure:', data.choices[0]);
+      throw new Error('OpenAI API returned invalid choice structure - no message content');
+    }
+
     const aiResponse = data.choices[0].message.content;
+    console.log('AI response length:', aiResponse.length);
+    console.log('AI response preview:', aiResponse.substring(0, 200));
 
     return new Response(JSON.stringify({ 
-      response: aiResponse,
+      content: aiResponse, // Changed from 'response' to 'content' to match expected structure
       success: true,
       sourceType: sourceType,
       isInternalOnlyContext: isInternalOnlyContext,
