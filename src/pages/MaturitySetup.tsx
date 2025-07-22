@@ -26,7 +26,11 @@ import {
   Plus,
   Trash2,
   X,
-  Clock
+  Clock,
+  CheckCircle,
+  Loader2,
+  RotateCcw,
+  XCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -217,6 +221,13 @@ export const MaturitySetup = () => {
         if (documents && documents.length > 0) {
           console.log('Found existing documents:', documents);
           
+          // Track processing statuses
+          const statusMap: Record<string, 'pending' | 'processing' | 'completed' | 'failed'> = {};
+          documents.forEach(doc => {
+            statusMap[doc.id] = doc.processing_status as 'pending' | 'processing' | 'completed' | 'failed';
+          });
+          setProcessingStatuses(statusMap);
+          
           // Transform database documents to match our local UploadedFile format
           const existingDocs: UploadedFile[] = documents.map(doc => ({
             id: doc.id,
@@ -255,6 +266,87 @@ export const MaturitySetup = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
+  const [processingStatuses, setProcessingStatuses] = useState<Record<string, 'pending' | 'processing' | 'completed' | 'failed'>>({});
+  const [reprocessingDocs, setReprocessingDocs] = useState<Set<string>>(new Set());
+
+  // Function to reprocess a failed document
+  const reprocessDocument = async (documentId: string) => {
+    if (!user?.id || !localOrgData?.id) {
+      toast({
+        title: "Error",
+        description: "Authentication or organization data not available",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setReprocessingDocs(prev => new Set([...prev, documentId]));
+    
+    try {
+      console.log(`Reprocessing document: ${documentId}`);
+      
+      // First reset the document status to pending
+      const { error: resetError } = await supabase.functions.invoke('reset-failed-document', {
+        body: { documentId }
+      });
+      
+      if (resetError) {
+        console.warn('Reset function failed, trying direct update:', resetError);
+        // Fallback: try direct status update
+        await supabase
+          .from('ai_documents')
+          .update({ processing_status: 'pending' })
+          .eq('id', documentId);
+      }
+      
+      // Update local status
+      setProcessingStatuses(prev => ({
+        ...prev,
+        [documentId]: 'pending'
+      }));
+      
+      // Trigger processing
+      const { error: processingError } = await supabase.functions.invoke('process-ai-document', {
+        body: { 
+          documentId,
+          organizationId: localOrgData.id
+        }
+      });
+      
+      if (processingError) {
+        throw new Error(`Processing failed: ${processingError.message}`);
+      }
+      
+      setProcessingStatuses(prev => ({
+        ...prev,
+        [documentId]: 'processing'
+      }));
+      
+      toast({
+        title: "Reprocessing Started",
+        description: "Document reprocessing has been initiated. Check back in a few moments.",
+      });
+      
+    } catch (error: any) {
+      console.error('Reprocessing failed:', error);
+      toast({
+        title: "Reprocessing Failed",
+        description: error.message || "Failed to start document reprocessing",
+        variant: "destructive",
+      });
+      
+      setProcessingStatuses(prev => ({
+        ...prev,
+        [documentId]: 'failed'
+      }));
+    } finally {
+      setReprocessingDocs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(documentId);
+        return newSet;
+      });
+    }
+  };
 
   // Enhanced auto-save function that works independently of organization hook
   const autoSave = async () => {
@@ -414,16 +506,21 @@ export const MaturitySetup = () => {
             const fileName = `${user.id}/${doc.id}.${fileExt}`;
             
             // Upload file to storage
-            const { error: docUploadError } = await supabase.storage
+            const { data: uploadData, error: docUploadError } = await supabase.storage
               .from('ai-documents')
               .upload(fileName, doc.file, {
-                upsert: true
+                upsert: true,
+                cacheControl: '3600'
               });
               
             if (docUploadError) {
               console.error(`Document upload error for ${doc.file.name}:`, docUploadError);
               throw new Error(`Document upload failed for ${doc.file.name}: ${docUploadError.message}`);
             }
+            
+            // Use the actual path returned from upload for consistency
+            const actualFilePath = uploadData?.path || fileName;
+            console.log(`✅ File uploaded successfully to: ${actualFilePath}`);
             
             // Create document record in database
             console.log(`Creating document record for ${doc.file.name} with type: general`);
@@ -432,7 +529,7 @@ export const MaturitySetup = () => {
               .insert({
                 organization_id: orgId,
                 file_name: doc.file.name,
-                file_path: fileName,
+                file_path: actualFilePath,
                 file_size: doc.file.size,
                 mime_type: doc.file.type,
                 document_type: 'general',
@@ -452,6 +549,13 @@ export const MaturitySetup = () => {
             // Trigger AI document processing
             if (documentRecord) {
               console.log(`Triggering AI processing for document: ${doc.file.name}`);
+              
+              // Update processing status to pending initially
+              setProcessingStatuses(prev => ({
+                ...prev,
+                [documentRecord.id]: 'pending'
+              }));
+              
               try {
                 const { error: processingError } = await supabase.functions.invoke('process-ai-document', {
                   body: { 
@@ -462,13 +566,23 @@ export const MaturitySetup = () => {
                 
                 if (processingError) {
                   console.warn(`AI processing failed for ${doc.file.name}:`, processingError);
-                  // Don't throw error - document is uploaded, just not AI-processed yet
+                  setProcessingStatuses(prev => ({
+                    ...prev,
+                    [documentRecord.id]: 'failed'
+                  }));
                 } else {
                   console.log(`✅ AI processing initiated for: ${doc.file.name}`);
+                  setProcessingStatuses(prev => ({
+                    ...prev,
+                    [documentRecord.id]: 'processing'
+                  }));
                 }
               } catch (processingErr) {
                 console.warn(`AI processing request failed for ${doc.file.name}:`, processingErr);
-                // Don't throw error - document is uploaded, just not AI-processed yet
+                setProcessingStatuses(prev => ({
+                  ...prev,
+                  [documentRecord.id]: 'failed'
+                }));
               }
             }
             
@@ -1250,37 +1364,106 @@ export const MaturitySetup = () => {
                           <FileText className="h-3 w-3 text-green-600" />
                         </div>
                          <Label className="text-sm font-medium text-green-800">
-                           ✅ Documents Ready for AI Processing ({formData.optionalDocuments.length} file{formData.optionalDocuments.length !== 1 ? 's' : ''})
-                         </Label>
+                            📄 Uploaded Documents ({formData.optionalDocuments.length} file{formData.optionalDocuments.length !== 1 ? 's' : ''})
+                            {(() => {
+                              const statuses = formData.optionalDocuments.map(doc => processingStatuses[doc.id] || 'pending');
+                              const completed = statuses.filter(s => s === 'completed').length;
+                              const failed = statuses.filter(s => s === 'failed').length;
+                              const processing = statuses.filter(s => s === 'processing').length;
+                              
+                              if (completed === formData.optionalDocuments.length) {
+                                return ' - All AI Ready ✅';
+                              } else if (failed > 0) {
+                                return ` - ${completed} Ready, ${failed} Failed, ${processing} Processing`;
+                              } else if (processing > 0) {
+                                return ` - ${completed} Ready, ${processing} Processing`;
+                              } else {
+                                return ` - ${completed} Ready, ${formData.optionalDocuments.length - completed} Pending`;
+                              }
+                            })()}
+                          </Label>
                       </div>
                     </div>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {formData.optionalDocuments.map((doc) => (
-                        <div key={doc.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium truncate" title={doc.file.name}>
-                                {doc.file.name}
-                              </p>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <Clock className="h-3 w-3" />
-                                <span>{formatUploadTime(doc.uploadedAt)}</span>
-                                <span>•</span>
-                                <span>{formatFileSize(doc.file.size)}</span>
-                              </div>
-                            </div>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeOptionalDocument(doc.id)}
-                            className="text-muted-foreground hover:text-destructive flex-shrink-0"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
+                       {formData.optionalDocuments.map((doc) => {
+                         const status = processingStatuses[doc.id] || 'pending';
+                         const isReprocessing = reprocessingDocs.has(doc.id);
+                         
+                         return (
+                           <div key={doc.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                             <div className="flex items-center gap-3 flex-1 min-w-0">
+                               <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                               <div className="flex-1 min-w-0">
+                                 <div className="flex items-center gap-2 mb-1">
+                                   <p className="text-sm font-medium truncate" title={doc.file.name}>
+                                     {doc.file.name}
+                                   </p>
+                                   {/* Processing Status Badge */}
+                                   {status === 'completed' && (
+                                     <Badge variant="secondary" className="bg-green-100 text-green-800 border-green-200">
+                                       <CheckCircle className="h-3 w-3 mr-1" />
+                                       AI Ready
+                                     </Badge>
+                                   )}
+                                   {status === 'processing' && (
+                                     <Badge variant="secondary" className="bg-blue-100 text-blue-800 border-blue-200">
+                                       <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                       Processing
+                                     </Badge>
+                                   )}
+                                   {status === 'pending' && (
+                                     <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                                       <Clock className="h-3 w-3 mr-1" />
+                                       Pending
+                                     </Badge>
+                                   )}
+                                   {status === 'failed' && (
+                                     <Badge variant="destructive" className="bg-red-100 text-red-800 border-red-200">
+                                       <XCircle className="h-3 w-3 mr-1" />
+                                       Failed
+                                     </Badge>
+                                   )}
+                                 </div>
+                                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                   <Clock className="h-3 w-3" />
+                                   <span>{formatUploadTime(doc.uploadedAt)}</span>
+                                   <span>•</span>
+                                   <span>{formatFileSize(doc.file.size)}</span>
+                                 </div>
+                               </div>
+                             </div>
+                             <div className="flex items-center gap-2 flex-shrink-0">
+                               {/* Reprocess button for failed documents */}
+                               {status === 'failed' && (
+                                 <Button
+                                   variant="outline"
+                                   size="sm"
+                                   onClick={() => reprocessDocument(doc.id)}
+                                   disabled={isReprocessing}
+                                   className="text-orange-600 border-orange-200 hover:bg-orange-50"
+                                 >
+                                   {isReprocessing ? (
+                                     <Loader2 className="h-3 w-3 animate-spin" />
+                                   ) : (
+                                     <RotateCcw className="h-3 w-3" />
+                                   )}
+                                   <span className="ml-1 text-xs">
+                                     {isReprocessing ? 'Processing...' : 'Retry'}
+                                   </span>
+                                 </Button>
+                               )}
+                               <Button
+                                 variant="ghost"
+                                 size="sm"
+                                 onClick={() => removeOptionalDocument(doc.id)}
+                                 className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                               >
+                                 <X className="h-4 w-4" />
+                               </Button>
+                             </div>
+                           </div>
+                         );
+                       })}
                     </div>
                   </div>
                 )}
