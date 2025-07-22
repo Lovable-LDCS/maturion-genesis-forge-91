@@ -25,6 +25,8 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
   currentDomain, 
   className 
 }) => {
+  // Debug log to ensure component is rendering
+  console.log('MaturionChat rendering with context:', context, 'domain:', currentDomain);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
@@ -113,8 +115,9 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
   };
 
   if (!isOpen) {
+    console.log('MaturionChat: Rendering closed state');
     return (
-      <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
+      <div className={`fixed bottom-6 right-6 z-[100] ${className}`} style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
         <Button
           onClick={toggleChat}
           className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 shadow-lg hover:shadow-xl transition-all duration-300"
@@ -128,8 +131,9 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
     );
   }
 
+  console.log('MaturionChat: Rendering open state');
   return (
-    <div className={`fixed bottom-6 right-6 z-50 ${className}`}>
+    <div className={`fixed bottom-6 right-6 z-[100] ${className}`} style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
       <Card className={`w-96 shadow-2xl border-0 bg-white/95 backdrop-blur transition-all duration-300 ${
         isMinimized ? 'h-16' : 'h-96'
       }`}>
