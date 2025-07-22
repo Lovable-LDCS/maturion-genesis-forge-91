@@ -13,18 +13,29 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Core audit-related contexts that must use internal documents only - enforced by AI Behavior & Knowledge Source Policy
-const INTERNAL_ONLY_CONTEXTS = [
-  'MPS generation',
-  'Intent statement generation', 
-  'Criteria development',
-  'Audit structure',
-  'Maturity level assessment',
-  'Compliance scoring',
-  'Roadmap progression',
-  'Domain content creation',
-  'Maturity framework development'
-];
+// Three-tiered knowledge model per AI Behavior & Knowledge Source Policy v2.0
+const KNOWLEDGE_TIERS = {
+  // Tier 1: Internal Secure Knowledge Base - STRICT enforcement for audit/compliance
+  INTERNAL_SECURE: [
+    'MPS generation', 'Intent statement generation', 'Criteria development',
+    'Audit structure', 'Maturity level assessment', 'Compliance scoring',
+    'Roadmap progression', 'Domain content creation', 'Maturity framework development',
+    'evidence', 'scoring', 'compliance'
+  ],
+  
+  // Tier 2: Organizational Context Layer - For tailoring to user context
+  ORGANIZATIONAL_CONTEXT: [
+    'organization', 'structure', 'size', 'roles', 'departments', 'team',
+    'onboarding', 'metadata', 'context', 'tailoring'
+  ],
+  
+  // Tier 3: External Awareness Layer - NEW: For threat detection and situational awareness
+  EXTERNAL_AWARENESS: [
+    'threat', 'risk horizon', 'industry threat', 'surveillance', 'awareness',
+    'threat detection', 'emerging threat', 'situational awareness', 'risk intelligence',
+    'threat trend', 'insider threat', 'diamond sector', 'threat alert'
+  ]
+};
 
 // Function to get the AI Behavior & Knowledge Source Policy for enforcement
 async function getAIBehaviorPolicy(organizationId: string) {
@@ -274,19 +285,41 @@ serve(async (req) => {
       throw new Error('Prompt is required and must be a string');
     }
 
-    // Determine if this is an internal-only context
-    const isInternalOnlyContext = INTERNAL_ONLY_CONTEXTS.some(internalContext => 
-      context?.toLowerCase().includes(internalContext.toLowerCase())
+    // Determine knowledge tier requirements per AI Behavior & Knowledge Source Policy v2.0
+    const requiresInternalSecure = KNOWLEDGE_TIERS.INTERNAL_SECURE.some(keyword => 
+      prompt.toLowerCase().includes(keyword) || 
+      context?.toLowerCase().includes(keyword) ||
+      (currentDomain && keyword.includes('MPS'))
+    );
+    
+    const isExternalAwarenessContext = KNOWLEDGE_TIERS.EXTERNAL_AWARENESS.some(keyword =>
+      prompt.toLowerCase().includes(keyword) || 
+      context?.toLowerCase().includes(keyword)
+    );
+    
+    const isOrganizationalContext = KNOWLEDGE_TIERS.ORGANIZATIONAL_CONTEXT.some(keyword =>
+      prompt.toLowerCase().includes(keyword) || 
+      context?.toLowerCase().includes(keyword)
     );
     
     let documentContext = '';
     let sourceType = 'external';
     let behaviorPolicy = '';
     let intentPromptLogic = '';
-    let sourceDocuments: string[] = [];
+    let detectedSourceDocuments: string[] = [];
+    let knowledgeTier = 'external';
     
-    // For internal contexts, enforce AI Behavior & Knowledge Source Policy
-    if (isInternalOnlyContext && organizationId) {
+    // Determine appropriate knowledge tier
+    if (requiresInternalSecure) {
+      knowledgeTier = 'internal_secure';
+    } else if (isExternalAwarenessContext) {
+      knowledgeTier = 'external_awareness';
+    } else if (isOrganizationalContext) {
+      knowledgeTier = 'organizational_context';
+    }
+    
+    // For Tier 1 (Internal Secure) contexts, enforce strict policy
+    if (requiresInternalSecure && organizationId) {
       console.log('🔒 INTERNAL MODE: Enforcing AI Behavior & Knowledge Source Policy');
       
       // Get the policy documents first
@@ -334,9 +367,11 @@ ${intentPromptLogic}
 Apply this reasoning structure for all intent statement generation.
 ` : ''}
 
+KNOWLEDGE TIER: ${knowledgeTier.toUpperCase().replace('_', ' ')}
+
 CRITICAL BEHAVIOR RULES:
-${isInternalOnlyContext ? `
-🔒 INTERNAL MODE ACTIVE - AI Behavior & Knowledge Source Policy ENFORCED
+${requiresInternalSecure ? `
+🔒 TIER 1: INTERNAL SECURE MODE - AI Behavior & Knowledge Source Policy v2.0 ENFORCED
 - You MUST STRICTLY use ONLY information from the provided internal documents below
 - NO external LLM knowledge permitted - all content must be grounded in uploaded documentation
 - For MPS generation: Extract EXACTLY ALL MPS titles, numbers, and information as listed in the uploaded documents
@@ -346,6 +381,9 @@ ${isInternalOnlyContext ? `
 - STRICT DOMAIN FILTERING: Extract only MPSs within correct number ranges for "${currentDomain}"
 - TRACEABILITY: Reference specific source documents (e.g., "From [Document Name]:")
 - SOURCE VALIDATION: Only use content explicitly found in internal documentation
+
+RUNTIME DETECTION REQUIREMENT: Begin responses with appropriate source indicator:
+${documentContext ? `✅ "Internal evidence source found: [filename]"` : `⚠️ "External insight used. Please validate before applying."`}
 
 ${documentContext ? `
 INTERNAL DOCUMENT CONTEXT (AUTHORITATIVE SOURCE - USE ONLY THIS):
@@ -363,11 +401,26 @@ POLICY RECOMMENDATION: Please upload relevant documents to your AI Knowledge Bas
 
 I will generate the requested content using available context and industry best practices, but optimal results require proper internal documentation.
 `}
+` : isExternalAwarenessContext ? `
+🌐 TIER 3: EXTERNAL AWARENESS MODE - AI Behavior & Knowledge Source Policy v2.0
+- You may use real-time external sources for: threat detection, risk horizon scanning, industry-specific situational awareness
+- ALL external content must be tagged as "ADVISORY ONLY" and NOT used for maturity scoring or evidence decisions
+- ALWAYS begin responses with: ⚠️ "External insight used. Please validate before applying."
+- Example insights: "New insider threat trend detected in the diamond sector. Consider updating MPS 4 controls in recovery areas."
+- Tag all externally sourced intelligence as "External Insight"
+- Do NOT mix external sources with scoring/evidence workflows
+` : isOrganizationalContext ? `
+🏢 TIER 2: ORGANIZATIONAL CONTEXT MODE - AI Behavior & Knowledge Source Policy v2.0
+- Draw from onboarding data and uploaded organizational metadata
+- Tailor criteria to user context (org size, structure, risk roles)
+- Begin responses with: ✅ "Using organizational context for tailored recommendations"
+- Combine internal documentation with organizational specifics when available
 ` : `
-🌐 ADVISORY MODE ACTIVE - External context permitted for general guidance.
-- You may use both internal documentation and external knowledge for advisory content
+🌐 GENERAL ADVISORY MODE - AI Behavior & Knowledge Source Policy v2.0
+- External context permitted for general guidance
 - Clearly label external insights as "Based on industry best practices"
 - Prioritize internal documentation when available
+- Begin responses with: ℹ️ "General guidance mode - recommend uploading specific documentation for audit contexts"
 ${allowExternalContext && documentContext ? `
 INTERNAL DOCUMENT CONTEXT:
 ${documentContext}
@@ -443,13 +496,17 @@ Respond in a helpful, professional tone that builds confidence while being reali
     console.log('AI response preview:', aiResponse.substring(0, 200));
 
     return new Response(JSON.stringify({ 
-      content: aiResponse, // Changed from 'response' to 'content' to match expected structure
+      content: aiResponse,
       success: true,
       sourceType: sourceType,
-      isInternalOnlyContext: isInternalOnlyContext,
+      knowledgeTier: knowledgeTier,
+      requiresInternalSecure: requiresInternalSecure,
+      isExternalAwarenessContext: isExternalAwarenessContext,
+      isOrganizationalContext: isOrganizationalContext,
       hasDocumentContext: documentContext.length > 0,
       documentContextLength: documentContext.length,
-      knowledgeBaseEnforced: isInternalOnlyContext && documentContext.length > 0
+      knowledgeBaseEnforced: requiresInternalSecure && documentContext.length > 0,
+      sourceDocuments: detectedSourceDocuments
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
