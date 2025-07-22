@@ -186,15 +186,28 @@ export const MaturitySetup = () => {
     const loadExistingDocuments = async () => {
       if (!user?.id) return;
       
+      // Wait for organization data to be loaded
+      if (!localOrgData && !orgFetchFailed) return;
+      
       setIsLoadingDocuments(true);
       try {
-        // Query ai_documents table for user's uploaded documents during setup
-        const { data: documents, error } = await supabase
+        // Query ai_documents table for documents in this organization
+        const orgId = localOrgData?.id;
+        
+        let query = supabase
           .from('ai_documents')
           .select('*')
-          .eq('uploaded_by', user.id)
           .eq('document_type', 'general')
           .order('created_at', { ascending: false });
+          
+        // If we have an organization, filter by organization_id, otherwise by uploaded_by
+        if (orgId) {
+          query = query.eq('organization_id', orgId);
+        } else {
+          query = query.eq('uploaded_by', user.id);
+        }
+        
+        const { data: documents, error } = await query;
           
         if (error) {
           console.warn('Could not fetch existing documents:', error);
@@ -236,7 +249,7 @@ export const MaturitySetup = () => {
     };
     
     loadExistingDocuments();
-  }, [user?.id]);
+  }, [user?.id, localOrgData, orgFetchFailed]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -414,7 +427,7 @@ export const MaturitySetup = () => {
             
             // Create document record in database
             console.log(`Creating document record for ${doc.file.name} with type: general`);
-            const { error: docRecordError } = await supabase
+            const { data: documentRecord, error: docRecordError } = await supabase
               .from('ai_documents')
               .insert({
                 organization_id: orgId,
@@ -427,11 +440,36 @@ export const MaturitySetup = () => {
                 uploaded_by: user.id,
                 updated_by: user.id,
                 processing_status: 'pending'
-              });
+              })
+              .select()
+              .single();
               
             if (docRecordError) {
               console.error(`Document record error for ${doc.file.name}:`, docRecordError);
               throw new Error(`Document record creation failed for ${doc.file.name}: ${docRecordError.message}`);
+            }
+            
+            // Trigger AI document processing
+            if (documentRecord) {
+              console.log(`Triggering AI processing for document: ${doc.file.name}`);
+              try {
+                const { error: processingError } = await supabase.functions.invoke('process-ai-document', {
+                  body: { 
+                    documentId: documentRecord.id,
+                    organizationId: orgId
+                  }
+                });
+                
+                if (processingError) {
+                  console.warn(`AI processing failed for ${doc.file.name}:`, processingError);
+                  // Don't throw error - document is uploaded, just not AI-processed yet
+                } else {
+                  console.log(`✅ AI processing initiated for: ${doc.file.name}`);
+                }
+              } catch (processingErr) {
+                console.warn(`AI processing request failed for ${doc.file.name}:`, processingErr);
+                // Don't throw error - document is uploaded, just not AI-processed yet
+              }
             }
             
             console.log(`✅ Document processed: ${doc.file.name}`);
@@ -441,7 +479,7 @@ export const MaturitySetup = () => {
           }
         }
         
-        console.log('✅ All documents uploaded successfully');
+        console.log('✅ All documents uploaded and processing initiated');
       }
 
       // Step 5: Persist to localStorage and update state
