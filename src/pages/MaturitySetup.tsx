@@ -521,18 +521,26 @@ const MaturitySetup = () => {
   };
 
   const handleSaveProgress = async () => {
+    setIsSaving(true);
     try {
       await autoSave();
+      
+      // Show detailed success feedback
+      const hasLogo = formData.companyLogo ? "✅" : "⚠️";
+      const hasDocs = formData.optionalDocuments.length > 0 ? "✅" : "⚠️";
+      
       toast({
-        title: "Progress Saved",
-        description: "Your setup progress has been saved successfully.",
+        title: "✅ Progress Saved Successfully",
+        description: `All data saved! Logo: ${hasLogo} | Documents: ${hasDocs} (${formData.optionalDocuments.length} files)`,
       });
     } catch (error: any) {
       toast({
-        title: "Save Failed",
+        title: "❌ Save Failed",
         description: error.message || "There was an error saving your progress. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -784,19 +792,43 @@ const MaturitySetup = () => {
                 
                 <div>
                   <Label>Company Logo</Label>
-                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                    <p className="text-sm text-muted-foreground mb-2">
-                      {formData.companyLogo ? formData.companyLogo.name : 'Upload your company logo'}
-                    </p>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => triggerFileUpload('companyLogo')}
-                    >
-                      Choose File
-                    </Button>
-                  </div>
+                   {formData.companyLogo ? (
+                     <div className="space-y-3">
+                       <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                         <div className="flex items-center gap-3">
+                           <div className="bg-green-100 p-2 rounded-full">
+                             <Upload className="h-4 w-4 text-green-600" />
+                           </div>
+                           <div className="flex-1">
+                             <p className="text-sm font-medium text-green-800">✅ Logo Uploaded</p>
+                             <p className="text-xs text-green-600">{formData.companyLogo.name}</p>
+                           </div>
+                         </div>
+                       </div>
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => triggerFileUpload('companyLogo')}
+                         className="w-full"
+                       >
+                         Replace Logo
+                       </Button>
+                     </div>
+                   ) : (
+                     <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                       <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                       <p className="text-sm text-muted-foreground mb-2">
+                         Upload your company logo
+                       </p>
+                       <Button 
+                         variant="outline" 
+                         size="sm"
+                         onClick={() => triggerFileUpload('companyLogo')}
+                       >
+                         Choose File
+                       </Button>
+                     </div>
+                   )}
                 </div>
               </CardContent>
             </Card>
@@ -1003,7 +1035,16 @@ const MaturitySetup = () => {
                 {/* Uploaded Files List */}
                 {formData.optionalDocuments.length > 0 && (
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Uploaded Documents ({formData.optionalDocuments.length})</Label>
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg mb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="bg-green-100 p-1 rounded-full">
+                          <FileText className="h-3 w-3 text-green-600" />
+                        </div>
+                        <Label className="text-sm font-medium text-green-800">
+                          ✅ Documents Ready for AI Processing ({formData.optionalDocuments.length} files)
+                        </Label>
+                      </div>
+                    </div>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {formData.optionalDocuments.map((doc) => (
                         <div key={doc.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
@@ -1113,7 +1154,7 @@ const MaturitySetup = () => {
                       size="lg" 
                       onClick={handleStartBuilding}
                       disabled={isSubmitting || isSaving}
-                      className="min-w-[200px]"
+                      className="min-w-[200px] disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       {isSubmitting || isSaving ? (
                         <>
@@ -1127,9 +1168,9 @@ const MaturitySetup = () => {
                         </>
                       )}
                     </Button>
-                    {isSaving && (
-                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-popover text-popover-foreground px-3 py-1 rounded text-xs whitespace-nowrap border shadow-md z-10">
-                        Please wait while saving...
+                    {(isSaving || isSubmitting) && (
+                      <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 bg-yellow-100 text-yellow-800 px-3 py-1 rounded text-xs whitespace-nowrap border border-yellow-200 shadow-md z-10">
+                        ⚠️ {isSaving ? 'Saving in progress - please wait...' : 'Setting up maturity model...'}
                       </div>
                     )}
                   </div>
