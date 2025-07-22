@@ -140,7 +140,8 @@ export const useDomainAuditBuilder = (domainId: string) => {
       // Save MPSs directly to database
       await saveMPSsToDatabase(selectedMPSs);
       setIsMPSModalOpen(false);
-      // Don't automatically open Intent Creator - let user manually proceed to Step 2
+      // Force a refresh of step statuses after successful save
+      window.location.reload();
     } catch (error) {
       console.error('Error saving MPSs:', error);
     }

@@ -385,29 +385,31 @@ export const MPSSelectionModal: React.FC<MPSSelectionModalProps> = ({
             )}
           </div>
 
-          {/* Selection Summary */}
-          <Card className="bg-muted/50">
-            <CardContent className="p-4">
-              <h3 className="font-semibold mb-2">Selection Summary</h3>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  <span className="font-medium">{selectedCount}</span> of {mpsList.length} MPSs selected
+          {/* Selection Summary - Only show when MPSs are loaded */}
+          {!isLoading && mpsList.length > 0 && (
+            <Card className="bg-muted/50">
+              <CardContent className="p-4">
+                <h3 className="font-semibold mb-2">Selection Summary</h3>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm text-muted-foreground">
+                    <span className="font-medium">{selectedCount}</span> of {mpsList.length} MPSs selected
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={onClose}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleConfirmSelection}
+                      disabled={selectedCount === 0}
+                      className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      Confirm Selection ({selectedCount})
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button variant="outline" onClick={onClose}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleConfirmSelection}
-                    disabled={selectedCount === 0}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90"
-                  >
-                    Confirm Selection ({selectedCount})
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </DialogContent>
     </Dialog>
