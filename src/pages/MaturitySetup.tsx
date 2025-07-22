@@ -87,24 +87,28 @@ interface FormData {
 const MaturitySetup = () => {
   const navigate = useNavigate();
   const { profile, user } = useAuth();
-  const { currentOrganization, refetch: refetchOrganization } = useOrganization();
+  const { currentOrganization, refetch: refetchOrganization, loading: orgLoading } = useOrganization();
   const { toast } = useToast();
+  
+  // State for local organization data if remote fetch fails
+  const [localOrgData, setLocalOrgData] = useState<any>(null);
+  const [orgFetchFailed, setOrgFetchFailed] = useState(false);
   
   const [formData, setFormData] = useState<FormData>({
     fullName: profile?.full_name || '',
     title: '',
     bio: '',
-    companyName: currentOrganization?.name || '',
+    companyName: '',
     primaryColor: '#0066cc',
     modelName: '',
-    primaryWebsiteUrl: currentOrganization?.primary_website_url || '',
-    linkedDomains: currentOrganization?.linked_domains || [],
-    industryTags: currentOrganization?.industry_tags || [],
-    customIndustry: currentOrganization?.custom_industry || '',
-    regionOperating: currentOrganization?.region_operating || '',
-    riskConcerns: currentOrganization?.risk_concerns || [],
-    complianceCommitments: currentOrganization?.compliance_commitments || [],
-    threatSensitivityLevel: (currentOrganization?.threat_sensitivity_level as 'Basic' | 'Moderate' | 'Advanced') || 'Basic',
+    primaryWebsiteUrl: '',
+    linkedDomains: [],
+    industryTags: [],
+    customIndustry: '',
+    regionOperating: '',
+    riskConcerns: [],
+    complianceCommitments: [],
+    threatSensitivityLevel: 'Basic',
     optionalDocuments: []
   });
   
@@ -155,43 +159,87 @@ const MaturitySetup = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
-  // Auto-save function
+  // Enhanced auto-save function with fallback mechanism
   const autoSave = async () => {
-    if (!currentOrganization || !user?.id) return;
+    if (!user?.id) {
+      console.log('No user ID available for save');
+      return;
+    }
     
     // Only auto-save if we have some basic required data
     if (!formData.companyName && !formData.regionOperating && formData.industryTags.length === 0) {
+      console.log('No meaningful data to save yet');
       return;
     }
 
     setIsSaving(true);
+    console.log('Starting auto-save process...');
+    
     try {
       const cleanDomains = formData.linkedDomains.filter(d => d && d.trim());
+      let orgId = currentOrganization?.id;
       
-      // Save organization data
-      const { error: orgError } = await supabase
-        .from('organizations')
-        .update({
-          name: formData.companyName || currentOrganization.name,
-          primary_website_url: formData.primaryWebsiteUrl || null,
-          linked_domains: cleanDomains,
-          industry_tags: formData.industryTags,
-          custom_industry: formData.customIndustry || null,
-          region_operating: formData.regionOperating || null,
-          risk_concerns: formData.riskConcerns,
-          compliance_commitments: formData.complianceCommitments,
-          threat_sensitivity_level: formData.threatSensitivityLevel,
-          updated_by: user.id
-        })
-        .eq('id', currentOrganization.id);
+      // First attempt to get or create organization
+      if (!orgId) {
+        console.log('No current organization, attempting to create one...');
         
-      if (orgError) {
-        console.error('Organization save error:', orgError);
-        throw orgError;
+        // Try to create new organization
+        const { data: newOrg, error: createError } = await supabase
+          .from('organizations')
+          .insert({
+            name: formData.companyName,
+            owner_id: user.id,
+            created_by: user.id,
+            updated_by: user.id,
+            primary_website_url: formData.primaryWebsiteUrl || null,
+            linked_domains: cleanDomains,
+            industry_tags: formData.industryTags,
+            custom_industry: formData.customIndustry || null,
+            region_operating: formData.regionOperating || null,
+            risk_concerns: formData.riskConcerns,
+            compliance_commitments: formData.complianceCommitments,
+            threat_sensitivity_level: formData.threatSensitivityLevel,
+          })
+          .select()
+          .single();
+          
+        if (createError) {
+          console.error('Failed to create organization:', createError);
+          throw createError;
+        }
+        
+        orgId = newOrg.id;
+        setLocalOrgData(newOrg);
+        console.log('Organization created successfully:', orgId);
+      } else {
+        console.log('Updating existing organization:', orgId);
+        
+        // Update existing organization
+        const { error: orgError } = await supabase
+          .from('organizations')
+          .update({
+            name: formData.companyName,
+            primary_website_url: formData.primaryWebsiteUrl || null,
+            linked_domains: cleanDomains,
+            industry_tags: formData.industryTags,
+            custom_industry: formData.customIndustry || null,
+            region_operating: formData.regionOperating || null,
+            risk_concerns: formData.riskConcerns,
+            compliance_commitments: formData.complianceCommitments,
+            threat_sensitivity_level: formData.threatSensitivityLevel,
+            updated_by: user.id
+          })
+          .eq('id', orgId);
+          
+        if (orgError) {
+          console.error('Organization update error:', orgError);
+          throw orgError;
+        }
       }
 
       // Save/update profile data (personal information)
       if (formData.fullName || formData.title || formData.bio) {
+        console.log('Saving profile data...');
         const { error: profileError } = await supabase
           .from('profiles')
           .upsert({
@@ -203,13 +251,15 @@ const MaturitySetup = () => {
           
         if (profileError) {
           console.error('Profile save error:', profileError);
+          // Don't throw here, continue with other saves
         }
       }
 
       // Upload company logo if provided
-      if (formData.companyLogo) {
+      if (formData.companyLogo && orgId) {
+        console.log('Uploading company logo...');
         const fileExt = formData.companyLogo.name.split('.').pop();
-        const fileName = `${currentOrganization.id}-logo.${fileExt}`;
+        const fileName = `${orgId}-logo.${fileExt}`;
         
         const { error: uploadError } = await supabase.storage
           .from('organization-logos')
@@ -228,54 +278,68 @@ const MaturitySetup = () => {
           await supabase
             .from('organizations')
             .update({ logo_url: publicUrl })
-            .eq('id', currentOrganization.id);
+            .eq('id', orgId);
         }
       }
 
       // Upload optional documents if any
-      for (const doc of formData.optionalDocuments) {
-        const fileExt = doc.file.name.split('.').pop();
-        const fileName = `${currentOrganization.id}/${doc.id}.${fileExt}`;
-        
-        const { error: docUploadError } = await supabase.storage
-          .from('ai-documents')
-          .upload(fileName, doc.file, {
-            upsert: true
-          });
+      if (formData.optionalDocuments.length > 0 && orgId) {
+        console.log('Uploading optional documents...');
+        for (const doc of formData.optionalDocuments) {
+          const fileExt = doc.file.name.split('.').pop();
+          const fileName = `${orgId}/${doc.id}.${fileExt}`;
           
-        if (docUploadError) {
-          console.error('Document upload error:', docUploadError);
-        } else {
-          // Create document record
-          const { error: docRecordError } = await supabase
-            .from('ai_documents')
-            .insert({
-              organization_id: currentOrganization.id,
-              file_name: doc.file.name,
-              file_path: fileName,
-              file_size: doc.file.size,
-              mime_type: doc.file.type,
-              document_type: 'organizational',
-              title: doc.file.name,
-              uploaded_by: user.id,
-              updated_by: user.id,
-              processing_status: 'pending'
+          const { error: docUploadError } = await supabase.storage
+            .from('ai-documents')
+            .upload(fileName, doc.file, {
+              upsert: true
             });
             
-          if (docRecordError) {
-            console.error('Document record error:', docRecordError);
+          if (docUploadError) {
+            console.error('Document upload error:', docUploadError);
+          } else {
+            // Create document record
+            const { error: docRecordError } = await supabase
+              .from('ai_documents')
+              .insert({
+                organization_id: orgId,
+                file_name: doc.file.name,
+                file_path: fileName,
+                file_size: doc.file.size,
+                mime_type: doc.file.type,
+                document_type: 'organizational',
+                title: doc.file.name,
+                uploaded_by: user.id,
+                updated_by: user.id,
+                processing_status: 'pending'
+              });
+              
+            if (docRecordError) {
+              console.error('Document record error:', docRecordError);
+            }
           }
         }
       }
 
       setLastSaved(new Date());
-      // Refresh organization data to pick up changes
-      await refetchOrganization();
+      setOrgFetchFailed(false);
+      
       // Store the setup data in localStorage for persistence
       localStorage.setItem('maturion_setup_data', JSON.stringify(formData));
       
+      // Try to refresh organization data, but don't fail if it doesn't work
+      try {
+        await refetchOrganization();
+      } catch (error) {
+        console.warn('Failed to refetch organization data, but save was successful:', error);
+        setOrgFetchFailed(true);
+      }
+      
+      console.log('Auto-save completed successfully');
+      
     } catch (error) {
       console.error('Auto-save failed:', error);
+      setOrgFetchFailed(true);
       throw error;
     } finally {
       setIsSaving(false);
@@ -284,7 +348,10 @@ const MaturitySetup = () => {
 
   // Auto-save when form data changes (with debounce)
   useEffect(() => {
-    if (!currentOrganization) return;
+    // Skip auto-save if we don't have user or meaningful data yet
+    if (!user?.id || (!formData.companyName && !formData.regionOperating && formData.industryTags.length === 0)) {
+      return;
+    }
     
     const timeoutId = setTimeout(() => {
       autoSave().catch(error => {
@@ -302,7 +369,7 @@ const MaturitySetup = () => {
       formData.primaryWebsiteUrl, formData.linkedDomains, formData.industryTags, 
       formData.customIndustry, formData.regionOperating, formData.riskConcerns, 
       formData.complianceCommitments, formData.threatSensitivityLevel, 
-      formData.companyLogo, formData.optionalDocuments]);
+      formData.companyLogo, formData.optionalDocuments, user?.id]);
 
   // Generate AI-suggested model name based on company name
   const generateModelName = () => {
@@ -1041,19 +1108,17 @@ const MaturitySetup = () => {
                     )}
                   </Button>
                   
-                  <div className="relative">
+                   <div className="relative">
                     <Button 
                       size="lg" 
                       onClick={handleStartBuilding}
-                      disabled={isSubmitting || isSaving || !lastSaved || !formData.fullName || !formData.title || !formData.companyName || 
-                               !formData.modelName || !formData.regionOperating || formData.industryTags.length === 0 || 
-                               formData.riskConcerns.length === 0}
+                      disabled={isSubmitting || isSaving}
                       className="min-w-[200px]"
                     >
-                      {isSubmitting ? (
+                      {isSubmitting || isSaving ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Setting Up...
+                          {isSaving ? 'Saving...' : 'Setting Up...'}
                         </>
                       ) : (
                         <>
@@ -1062,9 +1127,9 @@ const MaturitySetup = () => {
                         </>
                       )}
                     </Button>
-                    {!lastSaved && (
+                    {isSaving && (
                       <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-popover text-popover-foreground px-3 py-1 rounded text-xs whitespace-nowrap border shadow-md z-10">
-                        Please save your setup to continue
+                        Please wait while saving...
                       </div>
                     )}
                   </div>
