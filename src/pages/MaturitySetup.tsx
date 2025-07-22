@@ -162,7 +162,7 @@ const MaturitySetup = () => {
   // Enhanced auto-save function that works independently of organization hook
   const autoSave = async () => {
     if (!user?.id) {
-      console.log('No user ID available for save');
+      console.log('❌ No user ID available for save');
       throw new Error('User authentication required');
     }
     
@@ -172,10 +172,25 @@ const MaturitySetup = () => {
       return;
     }
 
-    console.log('Starting robust save process...');
+    console.log('🔍 AutoSave Debug Payload:');
+    console.log('- User ID:', user.id);
+    console.log('- User Email:', user.email);
+    console.log('- Org ID from hook:', currentOrganization?.id);
+    console.log('- Org ID from local:', localOrgData?.id);
+    console.log('- Hook loading state:', orgLoading);
+    console.log('- Form Data Summary:', {
+      companyName: formData.companyName,
+      hasLogo: !!formData.companyLogo,
+      documentsCount: formData.optionalDocuments.length,
+      industryTags: formData.industryTags,
+      regionOperating: formData.regionOperating,
+      riskConcerns: formData.riskConcerns
+    });
     
     const cleanDomains = formData.linkedDomains.filter(d => d && d.trim());
     let orgId = currentOrganization?.id || localOrgData?.id;
+    
+    console.log('- Final Org ID to use:', orgId);
     
     try {
       // Step 1: Handle organization creation/update with robust error handling
