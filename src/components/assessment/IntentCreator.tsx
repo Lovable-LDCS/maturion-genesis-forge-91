@@ -5,12 +5,13 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
-import { Edit3, Check, X, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { Edit3, Check, X, ChevronDown, ChevronUp, Sparkles, AlertTriangle } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useIntentGeneration } from '@/hooks/useIntentGeneration';
 import { AISourceIndicator } from '@/components/ai/AISourceIndicator';
 import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 // Helper function to get MPS range for a domain
 const getDomainMPSRange = (domainName: string): string => {
@@ -57,16 +58,17 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
   onIntentsFinalized
 }) => {
   const { currentOrganization } = useOrganization();
+  const { toast } = useToast();
   const [mpssWithIntents, setMpssWithIntents] = useState<MPS[]>([]);
   const [editingMPS, setEditingMPS] = useState<string | null>(null);
   const [editedIntent, setEditedIntent] = useState('');
   const [expandedReasons, setExpandedReasons] = useState<Set<string>>(new Set());
   const [isGeneratingIntents, setIsGeneratingIntents] = useState(false);
-  const [scrollToMPS, setScrollToMPS] = useState<string | null>(null);
+  const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
   const { generateIntent, isLoading } = useIntentGeneration();
 
-  // Fetch MPSs from database and generate intents when modal opens
+  // Enhanced MPS fetching with validation
   useEffect(() => {
     if (isOpen && currentOrganization?.id) {
       fetchMPSsAndGenerateIntents();
@@ -77,6 +79,7 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
   useEffect(() => {
     const handleMPSSaved = () => {
       if (isOpen && currentOrganization?.id) {
+        console.log('🔄 MPS-saved event detected, refreshing Intent Creator data');
         fetchMPSsAndGenerateIntents();
       }
     };
@@ -88,7 +91,11 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
   const fetchMPSsAndGenerateIntents = async () => {
     if (!currentOrganization?.id) return;
 
+    setValidationWarnings([]);
+    
     try {
+      console.log(`🔍 Fetching MPSs for domain: ${domainName} in organization: ${currentOrganization.id}`);
+      
       const { data: domainData, error } = await supabase
         .from('domains')
         .select(`
@@ -106,6 +113,11 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
 
       if (error) {
         console.error('Error fetching domain data:', error);
+        toast({
+          title: "Data Fetch Error",
+          description: "Failed to load MPSs from database. Please try again.",
+          variant: "destructive"
+        });
         return;
       }
 
@@ -117,16 +129,50 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
           intent: mps.intent_statement || ''
         }));
 
+        console.log(`📊 Found ${acceptedMPSs.length} accepted MPSs in database:`, acceptedMPSs.map(mps => `MPS ${mps.number}: ${mps.name}`));
+
+        // Validation: Check for expected MPS numbers in Leadership & Governance
+        if (domainName === 'Leadership & Governance') {
+          const expectedNumbers = ['1', '2', '3', '4', '5'];
+          const foundNumbers = acceptedMPSs.map(mps => mps.number);
+          const missingNumbers = expectedNumbers.filter(num => !foundNumbers.includes(num));
+          
+          if (missingNumbers.length > 0) {
+            const warning = `Missing expected MPSs: ${missingNumbers.join(', ')}`;
+            console.warn(`⚠️ ${warning}`);
+            setValidationWarnings([warning]);
+          }
+          
+          // Check for unexpected MPSs
+          const unexpectedNumbers = foundNumbers.filter(num => !expectedNumbers.includes(num));
+          if (unexpectedNumbers.length > 0) {
+            const warning = `Unexpected MPSs found: ${unexpectedNumbers.join(', ')} (should be 1-5 for Leadership & Governance)`;
+            console.warn(`⚠️ ${warning}`);
+            setValidationWarnings(prev => [...prev, warning]);
+          }
+        }
+
         // Always refresh the list when fetching
         setMpssWithIntents([]);
         if (acceptedMPSs.length > 0) {
           generateIntentsForMPSs(acceptedMPSs);
         }
       } else {
+        console.log(`📭 No MPSs found for domain: ${domainName}`);
         setMpssWithIntents([]);
+        toast({
+          title: "No MPSs Found",
+          description: `No MPSs have been saved for the ${domainName} domain yet. Please complete Step 1 first.`,
+          variant: "destructive"
+        });
       }
     } catch (error) {
       console.error('Error fetching MPSs:', error);
+      toast({
+        title: "Database Error",
+        description: "Failed to fetch MPSs from database. Please try again.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -134,6 +180,8 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
     setIsGeneratingIntents(true);
     
     try {
+      console.log(`🤖 Generating intents for ${acceptedMPSs.length} MPSs in ${domainName}`);
+      
       // Use the already accepted MPSs and generate all intents in one batch request
       const mpsDataForGeneration = acceptedMPSs.map(mps => ({
         number: mps.number || 'Unknown',
@@ -178,6 +226,7 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
         // Try to parse JSON response
         const cleanResponse = generatedResponse.replace(/```json\n?|\n?```/g, '').trim();
         generatedIntents = JSON.parse(cleanResponse);
+        console.log(`✅ Successfully parsed ${generatedIntents.length} intent statements`);
       } catch (parseError) {
         console.warn('Failed to parse JSON response, using fallback approach');
         // Fallback: create default intents for each accepted MPS
@@ -199,9 +248,17 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
         };
       });
 
+      console.log(`📝 Generated intents for MPSs:`, mpssWithGeneratedIntents.map(mps => `MPS ${mps.number}: ${mps.intent?.substring(0, 50)}...`));
       setMpssWithIntents(mpssWithGeneratedIntents);
+      
     } catch (error) {
       console.error('Error generating intents for accepted MPSs:', error);
+      toast({
+        title: "AI Generation Error",
+        description: "Failed to generate intent statements. Using fallback intents.",
+        variant: "destructive"
+      });
+      
       // Create fallback intents for all accepted MPSs
       const fallbackMpss = acceptedMPSs.map(mps => ({
         ...mps,
@@ -255,11 +312,6 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
     setMpssWithIntents(prev => 
       prev.map(mps => ({ ...mps, accepted: true }))
     );
-    // Focus on first non-finalized MPS for editing
-    const firstUnfinalized = mpssWithIntents.find(mps => !mps.accepted);
-    if (firstUnfinalized) {
-      setScrollToMPS(firstUnfinalized.id);
-    }
   };
 
   const handleFinalizeIntent = (mpsId: string) => {
@@ -272,13 +324,6 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
     );
     setEditingMPS(null);
     setEditedIntent('');
-    
-    // Move to next unaccepted MPS
-    const currentIndex = mpssWithIntents.findIndex(mps => mps.id === mpsId);
-    const nextUnaccepted = mpssWithIntents.slice(currentIndex + 1).find(mps => !mps.accepted);
-    if (nextUnaccepted) {
-      setScrollToMPS(nextUnaccepted.id);
-    }
   };
 
   const toggleReasonExpansion = (mpsId: string) => {
@@ -298,6 +343,7 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
   const progress = totalCount > 0 ? (acceptedCount / totalCount) * 100 : 0;
 
   const handleFinalizeIntents = () => {
+    console.log(`🎯 Finalizing intents for ${acceptedCount} accepted MPSs`);
     onIntentsFinalized(mpssWithIntents);
     onClose();
   };
@@ -317,6 +363,21 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
           <p className="text-sm text-muted-foreground mt-2">
             Welcome to the Intent Creator. Here you will review and refine the Intent & Objective statements for each accepted MPS in the {domainName} domain. Clear, well-defined intent statements help auditors understand the purpose, scope, and importance of each standard. Maturion will guide you with best-practice wording and suggestions.
           </p>
+
+          {/* Validation Warnings */}
+          {validationWarnings.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2">
+              <div className="flex items-center gap-2 text-amber-800">
+                <AlertTriangle className="h-4 w-4" />
+                <span className="text-sm font-medium">Validation Warnings:</span>
+              </div>
+              <ul className="text-sm text-amber-700 mt-1 space-y-1">
+                {validationWarnings.map((warning, index) => (
+                  <li key={index} className="ml-6">• {warning}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </DialogHeader>
 
         {/* Progress Section */}
