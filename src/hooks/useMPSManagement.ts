@@ -79,6 +79,15 @@ export const useMPSManagement = (domainId: string) => {
         domainDbId = newDomain.id;
       }
 
+      // Check for existing MPSs and delete them to avoid duplicates
+      const { error: deleteError } = await supabase
+        .from('maturity_practice_statements')
+        .delete()
+        .eq('domain_id', domainDbId)
+        .eq('organization_id', currentOrganization.id);
+
+      if (deleteError) console.warn('Warning deleting existing MPSs:', deleteError);
+
       // Prepare MPS data with validated numbers
       const mpsData = mpsList.map((mps, index) => {
         let mpsNumber = index + 1;
