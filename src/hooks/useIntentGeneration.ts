@@ -5,29 +5,48 @@ import { useOrganization } from './useOrganization';
 export const useIntentGeneration = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { currentOrganization } = useOrganization();
+  const { currentOrganization, refetch: refetchOrganization } = useOrganization();
 
   const generateIntent = async (prompt: string): Promise<string> => {
     setIsLoading(true);
     setError(null);
 
     try {
+      // Force refresh organization data to get latest profile
+      await refetchOrganization();
+      
+      // Wait a moment for the state to update, then fetch fresh org data directly
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Get fresh organization data directly from database
+      const { data: freshOrgData, error: orgError } = await supabase
+        .from('organizations')
+        .select('*')
+        .eq('id', currentOrganization?.id)
+        .single();
+      
+      if (orgError) {
+        console.error('Error fetching fresh org data:', orgError);
+      }
+      
+      const orgData = freshOrgData || currentOrganization;
+      
       console.log('🤖 Generating intent with full organizational context');
-      console.log('Organization ID:', currentOrganization?.id);
+      console.log('Organization ID:', orgData?.id);
       console.log('Organization Profile:', {
-        name: currentOrganization?.name,
-        industry_tags: currentOrganization?.industry_tags,
-        region_operating: currentOrganization?.region_operating,
-        primary_website_url: currentOrganization?.primary_website_url,
-        custom_industry: currentOrganization?.custom_industry,
-        risk_concerns: currentOrganization?.risk_concerns
+        name: orgData?.name,
+        industry_tags: orgData?.industry_tags,
+        region_operating: orgData?.region_operating,
+        primary_website_url: orgData?.primary_website_url,
+        custom_industry: orgData?.custom_industry,
+        risk_concerns: orgData?.risk_concerns
       });
 
       // Get uploaded document IDs for this organization
       const { data: docs, error: docsError } = await supabase
         .from('ai_documents')
         .select('id, title, processing_status')
-        .eq('organization_id', currentOrganization?.id)
+        .eq('organization_id', orgData?.id)
         .eq('processing_status', 'completed');
 
       console.log('📄 Found uploaded documents:', docs?.map(d => ({ id: d.id, title: d.title })));
@@ -36,21 +55,21 @@ export const useIntentGeneration = () => {
         body: {
           prompt,
           context: 'Intent statement generation',
-          organizationId: currentOrganization?.id,
+          organizationId: orgData?.id,
           currentDomain: 'Leadership & Governance',
           allowExternalContext: false,
           knowledgeBaseUsed: true,
           sourceDocuments: docs?.map(d => d.id) || [],
           organizationProfile: {
-            name: currentOrganization?.name,
-            description: currentOrganization?.description,
-            industry_tags: currentOrganization?.industry_tags,
-            custom_industry: currentOrganization?.custom_industry,
-            region_operating: currentOrganization?.region_operating,
-            risk_concerns: currentOrganization?.risk_concerns,
-            compliance_commitments: currentOrganization?.compliance_commitments,
-            primary_website_url: currentOrganization?.primary_website_url,
-            linked_domains: currentOrganization?.linked_domains
+            name: orgData?.name,
+            description: orgData?.description,
+            industry_tags: orgData?.industry_tags,
+            custom_industry: orgData?.custom_industry,
+            region_operating: orgData?.region_operating,
+            risk_concerns: orgData?.risk_concerns,
+            compliance_commitments: orgData?.compliance_commitments,
+            primary_website_url: orgData?.primary_website_url,
+            linked_domains: orgData?.linked_domains
           }
         }
       });

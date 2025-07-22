@@ -390,14 +390,15 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
               <Sparkles className="h-4 w-4" />
               <span className="text-sm font-medium">AI Knowledge Sources:</span>
             </div>
-            <div className="text-sm text-blue-700 mt-1">
-              {currentOrganization?.industry_tags?.length || 
-               currentOrganization?.primary_website_url || 
-               currentOrganization?.region_operating ? (
-                <span>✅ Generated using uploaded documents + organizational profile + website data</span>
-              ) : (
-                <span>⚠️ Generated using default AI context only (limited organizational data available)</span>
-              )}
+            <div className="text-sm text-blue-700 mt-1 space-y-1">
+              <div className="flex items-center gap-4">
+                <span>📄 Uploaded Docs: {mpssWithIntents.some(mps => mps.hasDocumentContext) ? '✅ Yes' : '❌ No'}</span>
+                <span>🏢 Org Profile: {currentOrganization?.industry_tags?.length || currentOrganization?.region_operating || currentOrganization?.custom_industry ? '✅ Yes' : '❌ No'}</span>
+                <span>🌐 Website: {currentOrganization?.primary_website_url ? '✅ Yes' : '❌ No'}</span>
+              </div>
+              <div className="text-xs text-blue-600 mt-1">
+                Debug: Industry={JSON.stringify(currentOrganization?.industry_tags)}, Region={JSON.stringify(currentOrganization?.region_operating)}
+              </div>
             </div>
           </div>
         </DialogHeader>
