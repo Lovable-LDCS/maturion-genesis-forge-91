@@ -42,14 +42,58 @@ export const useIntentGeneration = () => {
         risk_concerns: orgData?.risk_concerns
       });
 
-      // Get uploaded document IDs for this organization
-      const { data: docs, error: docsError } = await supabase
+      // Get uploaded document IDs for this organization - first try current org, then all user orgs
+      let docs = null;
+      let docsError = null;
+      
+      // First try the current organization
+      const { data: currentOrgDocs, error: currentOrgError } = await supabase
         .from('ai_documents')
-        .select('id, title, processing_status')
+        .select('id, title, processing_status, organization_id')
         .eq('organization_id', orgData?.id)
         .eq('processing_status', 'completed');
 
-      console.log('📄 Found uploaded documents:', docs?.map(d => ({ id: d.id, title: d.title })));
+      if (currentOrgDocs && currentOrgDocs.length > 0) {
+        docs = currentOrgDocs;
+        console.log('📄 Found documents in current organization:', orgData?.id);
+      } else {
+        console.log('📄 No documents found in current org, checking all user organizations...');
+        
+        // Get current user ID from auth
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        // Get all organizations this user has access to
+        const { data: userOrgs, error: userOrgsError } = await supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', user?.id || '');
+          
+        if (!userOrgsError && userOrgs && userOrgs.length > 0) {
+          const orgIds = userOrgs.map(org => org.organization_id);
+          console.log('📄 User has access to organizations:', orgIds);
+          
+          // Search across all user organizations
+          const { data: allUserDocs, error: allUserError } = await supabase
+            .from('ai_documents')
+            .select('id, title, processing_status, organization_id')
+            .in('organization_id', orgIds)
+            .eq('processing_status', 'completed');
+            
+          docs = allUserDocs;
+          docsError = allUserError;
+          
+          if (docs && docs.length > 0) {
+            console.log(`📄 Found ${docs.length} documents across user organizations`);
+            console.log('📄 Document organizations:', [...new Set(docs.map(d => d.organization_id))]);
+          }
+        }
+      }
+
+      console.log('📄 Final document list:', docs?.map(d => ({ 
+        id: d.id, 
+        title: d.title, 
+        org: d.organization_id 
+      })));
 
       const { data, error: functionError } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {

@@ -63,7 +63,7 @@ serve(async (req) => {
         content,
         metadata,
         embedding,
-        ai_documents!inner(file_name, document_type)
+        ai_documents!inner(file_name, document_type, organization_id)
       `)
       .eq('organization_id', organizationId)
       .not('embedding', 'is', null); // Only get chunks with embeddings
@@ -79,10 +79,47 @@ serve(async (req) => {
 
     if (fetchError) {
       console.error('Error fetching chunks:', fetchError);
-      throw new Error('Failed to fetch document chunks');
+      throw new Error(`Failed to fetch document chunks: ${fetchError.message}`);
     }
 
-    console.log(`Found ${chunks?.length || 0} chunks with embeddings`);
+    console.log(`Found ${chunks?.length || 0} chunks with embeddings for organization ${organizationId}`);
+    
+    // If no chunks found in the specified organization, check if this user has access to other organizations
+    if (!chunks || chunks.length === 0) {
+      console.log('No chunks found in specified organization, checking for user organizations...');
+      
+      // Get all organizations this user has access to
+      const { data: userOrgs, error: userOrgsError } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', organizationId); // Assuming organizationId might be the user_id in some cases
+        
+      if (!userOrgsError && userOrgs && userOrgs.length > 0) {
+        const orgIds = userOrgs.map(org => org.organization_id);
+        console.log(`User has access to organizations: ${orgIds.join(', ')}`);
+        
+        // Try to find chunks in any of these organizations
+        const { data: altChunks, error: altFetchError } = await supabase
+          .from('ai_document_chunks')
+          .select(`
+            id,
+            document_id,
+            content,
+            metadata,
+            embedding,
+            organization_id,
+            ai_documents!inner(file_name, document_type, organization_id)
+          `)
+          .in('organization_id', orgIds)
+          .not('embedding', 'is', null)
+          .limit(100);
+          
+        if (altChunks && altChunks.length > 0) {
+          console.log(`Found ${altChunks.length} chunks across user's organizations`);
+          chunks = altChunks;
+        }
+      }
+    }
     
     // If no chunks with embeddings, fall back to text search
     if (!chunks || chunks.length === 0) {

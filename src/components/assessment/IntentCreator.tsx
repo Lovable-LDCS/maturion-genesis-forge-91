@@ -72,11 +72,59 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
   const [validationWarnings, setValidationWarnings] = useState<string[]>([]);
 
   const { generateIntent, isLoading } = useIntentGeneration();
+  const [hasDocumentsAvailable, setHasDocumentsAvailable] = useState(false);
+
+  // Check for available documents across all user organizations
+  const checkDocumentAvailability = async () => {
+    if (!currentOrganization?.id) return;
+    
+    try {
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      
+      // Get all organizations this user has access to
+      const { data: userOrgs, error: userOrgsError } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id);
+        
+      if (userOrgsError || !userOrgs) {
+        console.warn('Could not fetch user organizations:', userOrgsError);
+        return;
+      }
+      
+      const orgIds = userOrgs.map(org => org.organization_id);
+      console.log('🔍 Checking for documents across organizations:', orgIds);
+      
+      // Check for completed documents across all user organizations
+      const { data: docs, error: docsError } = await supabase
+        .from('ai_documents')
+        .select('id, title, processing_status, organization_id')
+        .in('organization_id', orgIds)
+        .eq('processing_status', 'completed');
+        
+      if (!docsError && docs && docs.length > 0) {
+        console.log(`📄 Found ${docs.length} available documents:`, docs.map(d => ({ 
+          title: d.title, 
+          org: d.organization_id 
+        })));
+        setHasDocumentsAvailable(true);
+      } else {
+        console.log('📄 No completed documents found across user organizations');
+        setHasDocumentsAvailable(false);
+      }
+    } catch (error) {
+      console.error('Error checking document availability:', error);
+      setHasDocumentsAvailable(false);
+    }
+  };
 
   // Enhanced MPS fetching with validation
   useEffect(() => {
     if (isOpen && currentOrganization?.id) {
       fetchMPSsAndGenerateIntents();
+      checkDocumentAvailability(); // Check for documents when dialog opens
     }
   }, [isOpen, currentOrganization?.id]);
 
@@ -392,7 +440,7 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
             </div>
             <div className="text-sm text-blue-700 mt-1 space-y-1">
               <div className="flex items-center gap-4">
-                <span>📄 Uploaded Docs: {mpssWithIntents.some(mps => mps.hasDocumentContext) ? '✅ Yes' : '❌ No'}</span>
+                <span>📄 Uploaded Docs: {hasDocumentsAvailable ? '✅ Yes' : '❌ No'}</span>
                 <span>🏢 Org Profile: {currentOrganization?.industry_tags?.length || currentOrganization?.region_operating || currentOrganization?.custom_industry ? '✅ Yes' : '❌ No'}</span>
                 <span>🌐 Website: {currentOrganization?.primary_website_url ? '✅ Yes' : '❌ No'}</span>
               </div>
