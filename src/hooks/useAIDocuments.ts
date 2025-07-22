@@ -265,6 +265,28 @@ export const useAIDocuments = () => {
 
       console.log('Found document to delete:', doc);
 
+      // Create audit log BEFORE deleting (to avoid foreign key constraint violation)
+      const { error: auditError } = await supabase
+        .from('ai_upload_audit')
+        .insert({
+          organization_id: doc.organization_id,
+          document_id: documentId,
+          action: 'delete',
+          user_id: (await supabase.auth.getUser()).data.user?.id || '',
+          metadata: { 
+            deleted_at: new Date().toISOString(),
+            deleted_file: doc.file_name,
+            deleted_title: doc.title 
+          }
+        });
+
+      if (auditError) {
+        console.warn('Audit log creation failed:', auditError);
+        // Continue with deletion even if audit logging fails
+      } else {
+        console.log('Audit log created successfully');
+      }
+
       // Delete from storage first
       const { error: storageError } = await supabase.storage
         .from('ai-documents')
@@ -289,26 +311,6 @@ export const useAIDocuments = () => {
       }
 
       console.log('Document deleted from database successfully');
-
-      // Create audit log
-      const { error: auditError } = await supabase
-        .from('ai_upload_audit')
-        .insert({
-          organization_id: doc.organization_id,
-          document_id: documentId,
-          action: 'delete',
-          user_id: (await supabase.auth.getUser()).data.user?.id || '',
-          metadata: { 
-            deleted_at: new Date().toISOString(),
-            deleted_file: doc.file_name,
-            deleted_title: doc.title 
-          }
-        });
-
-      if (auditError) {
-        console.warn('Audit log creation failed:', auditError);
-        // Don't fail the deletion if audit logging fails
-      }
 
       toast({
         title: "Document deleted",
