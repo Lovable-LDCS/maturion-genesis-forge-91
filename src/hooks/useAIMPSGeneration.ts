@@ -62,14 +62,25 @@ export const useAIMPSGeneration = () => {
       const mpsRange = getDomainMPSRange(domainName);
       console.log(`${domainName} should contain MPS ${mpsRange.min}-${mpsRange.max}`);
       
-      // STEP 2: Search for specific MPS numbers within the domain range
+      // STEP 2: Search for specific MPS numbers within the domain range - ENHANCED for MPS 3
       const searchQueries = [
         `${domainName} MPS Mini Performance Standards`,
         `MPS ${mpsRange.min} MPS ${mpsRange.min + 1} MPS ${mpsRange.min + 2} MPS ${mpsRange.min + 3} MPS ${mpsRange.min + 4}`,
         `"MPS ${mpsRange.min}" "MPS ${mpsRange.min + 1}" "MPS ${mpsRange.min + 2}" "MPS ${mpsRange.min + 3}" "MPS ${mpsRange.min + 4}"`,
         `${domainName} domain`,
         `Leadership Governance MPS 1 MPS 2 MPS 3 MPS 4 MPS 5`, // Specific for Leadership & Governance
-        `MPS 1 Leadership MPS 2 Chain Custody MPS 3 Separation Duties MPS 4 Risk Management MPS 5 Legal Regulatory` // Very specific
+        `MPS 1 Leadership MPS 2 Chain Custody MPS 3 Separation Duties MPS 4 Risk Management MPS 5 Legal Regulatory`, // Very specific
+        // CRITICAL: Add specific MPS 3 searches
+        `MPS 3 Separation of Duties`,
+        `"MPS 3" Separation Duties`,
+        `Separation of Duties governance`,
+        `Chain of Custody MPS 3`,
+        // Individual MPS searches for comprehensive coverage
+        `MPS 1 Leadership`,
+        `MPS 2 Chain of Custody`,
+        `MPS 3 Separation`,
+        `MPS 4 Risk Management`, 
+        `MPS 5 Legal Regulatory`
       ];
 
       let knowledgeBaseResults: any[] = [];
@@ -84,7 +95,7 @@ export const useAIMPSGeneration = () => {
               organizationId: currentOrganization.id,
               documentTypes: [], // Remove document type filter initially
               limit: 15,
-              threshold: 0.3 // Lower threshold to catch more results
+              threshold: 0.2 // Even lower threshold to catch MPS 3
             }
           });
 
@@ -276,6 +287,37 @@ Return JSON format:
             sourceDocument: mps.source_document
           }));
 
+          // CRITICAL: Add MPS completeness validation for Leadership & Governance
+          if (domainName === 'Leadership & Governance') {
+            const foundMPSNumbers = formattedMPSs.map(mps => {
+              const numberMatch = mps.number.match(/(\d+)/);
+              return numberMatch ? parseInt(numberMatch[1]) : 0;
+            });
+            
+            console.log(`Leadership & Governance MPS validation - Found MPS numbers: [${foundMPSNumbers.join(', ')}]`);
+            
+            // Check for missing critical MPSs and auto-add them
+            const expectedMPSs = [1, 2, 3, 4, 5];
+            const missingMPSs = expectedMPSs.filter(num => !foundMPSNumbers.includes(num));
+            
+            if (missingMPSs.length > 0) {
+              console.warn(`Missing critical MPSs for Leadership & Governance: [${missingMPSs.join(', ')}] - Adding fallback entries`);
+              
+              // Add missing MPSs with fallback data
+              missingMPSs.forEach(mpsNum => {
+                const fallbackMPS = createFallbackMPSForNumber(mpsNum, domainName);
+                formattedMPSs.push(fallbackMPS);
+              });
+              
+              // Sort by MPS number
+              formattedMPSs.sort((a, b) => {
+                const aNum = parseInt(a.number.match(/(\d+)/)?.[1] || '0');
+                const bNum = parseInt(b.number.match(/(\d+)/)?.[1] || '0');
+                return aNum - bNum;
+              });
+            }
+          }
+
           // Log knowledge base usage
           const kbUsedCount = formattedMPSs.filter(mps => mps.knowledgeBaseUsed).length;
           console.log(`Generated ${formattedMPSs.length} MPSs for ${domainName}: ${kbUsedCount} from knowledge base, ${formattedMPSs.length - kbUsedCount} fallback`);
@@ -307,6 +349,46 @@ Return JSON format:
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Helper function to create fallback MPS for specific missing numbers
+  const createFallbackMPSForNumber = (mpsNumber: number, domainName: string): GeneratedMPS => {
+    const fallbackTemplates: Record<number, { title: string; intent: string }> = {
+      1: {
+        title: 'Leadership',
+        intent: 'Establish and maintain a governance structure that clearly defines leadership roles, responsibilities, and strategic oversight to drive security and operational objectives throughout the organization.'
+      },
+      2: {
+        title: 'Chain of Custody and Security Control Committee',
+        intent: 'Form a Security Control Committee responsible for overseeing chain of custody processes, ensuring segregation of duties, and implementing controls to prevent unauthorized access or conflicts of interest.'
+      },
+      3: {
+        title: 'Separation of Duties',
+        intent: 'Implement a comprehensive separation of duties framework to systematically identify, assess, and mitigate security and operational risks, ensuring that controls are reviewed and updated regularly.'
+      },
+      4: {
+        title: 'Risk Management',
+        intent: 'Implement a comprehensive risk management process to systematically identify, assess, and mitigate security and operational risks, ensuring that controls are reviewed and updated regularly.'
+      },
+      5: {
+        title: 'Legal and Regulatory Requirements',
+        intent: 'Develop and maintain processes to identify, interpret, and comply with all applicable legal, regulatory, and audit requirements, including relevant compliance frameworks and industry standards.'
+      }
+    };
+
+    const template = fallbackTemplates[mpsNumber] || fallbackTemplates[1];
+
+    return {
+      id: `fallback-mps-${mpsNumber}`,
+      number: `MPS ${mpsNumber}`,
+      title: template.title,
+      intent: template.intent,
+      criteriaCount: Math.floor(Math.random() * 3) + 1,
+      selected: false,
+      rationale: `⚠️ AUTO-ADDED: ${template.title} was missing from AI generation but is required for ${domainName}. This fallback ensures complete domain coverage.`,
+      knowledgeBaseUsed: false,
+      sourceDocument: 'none - auto-added for completeness'
+    };
   };
 
   const createFallbackMPSs = (aiResponse: string, domainName: string): GeneratedMPS[] => {
