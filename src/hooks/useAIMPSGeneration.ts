@@ -137,9 +137,13 @@ Return JSON format:
       console.log(`🤖 Generating MPSs with AI for ${domainName}...`);
       const { data: aiResponse, error: aiError } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
-          message: contextualPrompt,
-          organization_id: currentOrganization.id,
-          context_type: 'mps_generation'
+          prompt: contextualPrompt, // Changed from 'message' to 'prompt' to match edge function
+          context: 'MPS generation',
+          currentDomain: domainName,
+          organizationId: currentOrganization.id,
+          allowExternalContext: false,
+          knowledgeBaseUsed: uniqueResults.length > 0,
+          sourceDocuments: uniqueResults.map(r => r.document_name || r.title || 'Unknown')
         }
       });
 
