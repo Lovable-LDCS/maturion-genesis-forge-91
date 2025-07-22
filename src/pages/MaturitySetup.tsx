@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
+import { UnifiedOrganizationSetup } from '@/components/organization/UnifiedOrganizationSetup';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +47,7 @@ const MaturitySetup = () => {
   const { currentOrganization } = useOrganization();
   const { toast } = useToast();
   
+  const [showOrgSetup, setShowOrgSetup] = useState(!currentOrganization);
   const [formData, setFormData] = useState<FormData>({
     fullName: profile?.full_name || '',
     title: '',
@@ -56,6 +58,22 @@ const MaturitySetup = () => {
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // If no organization exists, show unified setup first
+  if (showOrgSetup) {
+    return (
+      <UnifiedOrganizationSetup 
+        variant="maturity"
+        onComplete={() => {
+          setShowOrgSetup(false);
+          toast({
+            title: "Organization Created",
+            description: "Your organization profile is complete. Now let's set up your maturity model.",
+          });
+        }}
+      />
+    );
+  }
 
   // Generate AI-suggested model name based on company name
   const generateModelName = () => {
@@ -366,10 +384,9 @@ const MaturitySetup = () => {
                 </div>
 
                 <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-                  <h4 className="font-medium text-sm mb-2">🔗 Organization Profile Required</h4>
+                  <h4 className="font-medium text-sm mb-2">✅ Risk & Awareness Profile Complete</h4>
                   <p className="text-xs text-muted-foreground">
-                    Risk & Awareness Profile configuration is now handled during organization setup. 
-                    Complete your organization profile first to enable full AI threat intelligence features.
+                    Your organization's risk profile has been configured. AI threat intelligence is now personalized to your industry, region, and risk concerns.
                   </p>
                 </div>
               </CardContent>
