@@ -103,7 +103,7 @@ export const useDomainProgress = () => {
       const progressData: DomainProgress[] = DOMAIN_ORDER.map((domainKey, index) => {
         const domainInfo = DOMAIN_INFO[domainKey as keyof typeof DOMAIN_INFO];
         
-        // Improved domain matching using multiple possible names
+        // Find matching domain data from database
         const domainData = domainsData?.find(d => 
           domainInfo.dbNames.some(name => 
             d.name === name || 
@@ -118,25 +118,27 @@ export const useDomainProgress = () => {
           allAvailableNames: domainsData?.map(d => d.name)
         });
 
+        // Initialize all counts to zero - NO MOCK DATA
         let mpsCount = 0;
         let criteriaCount = 0;
         let mpsWithIntent = 0;
         let mpsCompleted = 0;
         let criteriaCompleted = 0;
 
-        if (domainData?.maturity_practice_statements) {
+        // ONLY use real database data if it exists
+        if (domainData?.maturity_practice_statements && domainData.maturity_practice_statements.length > 0) {
           mpsCount = domainData.maturity_practice_statements.length;
           mpsWithIntent = domainData.maturity_practice_statements.filter(
             (mps: any) => mps.intent_statement && mps.intent_statement.trim() !== ''
           ).length;
           mpsCompleted = domainData.maturity_practice_statements.filter(
-            (mps: any) => mps.status === 'approved'
+            (mps: any) => mps.status === 'approved_locked'
           ).length;
 
           domainData.maturity_practice_statements.forEach((mps: any) => {
-            if (mps.criteria) {
+            if (mps.criteria && mps.criteria.length > 0) {
               criteriaCount += mps.criteria.length;
-              criteriaCompleted += mps.criteria.filter((c: any) => c.status === 'approved').length;
+              criteriaCompleted += mps.criteria.filter((c: any) => c.status === 'approved_locked').length;
             }
           });
         }
