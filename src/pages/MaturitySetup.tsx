@@ -111,20 +111,26 @@ const MaturitySetup = () => {
   // Re-sync organization profile when currentOrganization changes
   useEffect(() => {
     if (currentOrganization) {
+      console.log('Syncing organization data to form:', currentOrganization);
       setFormData(prev => ({
         ...prev,
-        companyName: currentOrganization.name || prev.companyName,
-        primaryWebsiteUrl: currentOrganization.primary_website_url || prev.primaryWebsiteUrl,
-        linkedDomains: currentOrganization.linked_domains || prev.linkedDomains,
-        industryTags: currentOrganization.industry_tags || prev.industryTags,
-        customIndustry: currentOrganization.custom_industry || prev.customIndustry,
-        regionOperating: currentOrganization.region_operating || prev.regionOperating,
-        riskConcerns: currentOrganization.risk_concerns || prev.riskConcerns,
-        complianceCommitments: currentOrganization.compliance_commitments || prev.complianceCommitments,
-        threatSensitivityLevel: (currentOrganization.threat_sensitivity_level as 'Basic' | 'Moderate' | 'Advanced') || prev.threatSensitivityLevel,
+        companyName: currentOrganization.name || '',
+        primaryWebsiteUrl: currentOrganization.primary_website_url || '',
+        linkedDomains: currentOrganization.linked_domains || [],
+        industryTags: currentOrganization.industry_tags || [],
+        customIndustry: currentOrganization.custom_industry || '',
+        regionOperating: currentOrganization.region_operating || '',
+        riskConcerns: currentOrganization.risk_concerns || [],
+        complianceCommitments: currentOrganization.compliance_commitments || [],
+        threatSensitivityLevel: (currentOrganization.threat_sensitivity_level as 'Basic' | 'Moderate' | 'Advanced') || 'Basic',
       }));
     }
   }, [currentOrganization]);
+
+  // Force refetch organization data when component mounts
+  useEffect(() => {
+    refetchOrganization();
+  }, [refetchOrganization]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
