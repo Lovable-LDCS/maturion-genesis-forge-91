@@ -351,6 +351,7 @@ async function getExternalInsights(organizationId: string, context: string) {
   } catch (error) {
     console.error('Error getting external insights:', error);
     return '';
+  }
 }
 
 serve(async (req) => {
