@@ -1302,6 +1302,7 @@ export type Database = {
           compliance_commitments: string[] | null
           created_at: string
           created_by: string
+          custom_industry: string | null
           description: string | null
           email_webhook_url: string | null
           id: string
@@ -1325,6 +1326,7 @@ export type Database = {
           compliance_commitments?: string[] | null
           created_at?: string
           created_by?: string
+          custom_industry?: string | null
           description?: string | null
           email_webhook_url?: string | null
           id?: string
@@ -1348,6 +1350,7 @@ export type Database = {
           compliance_commitments?: string[] | null
           created_at?: string
           created_by?: string
+          custom_industry?: string | null
           description?: string | null
           email_webhook_url?: string | null
           id?: string
