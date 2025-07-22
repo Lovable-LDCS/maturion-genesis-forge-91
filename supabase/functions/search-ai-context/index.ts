@@ -52,46 +52,43 @@ serve(async (req) => {
     const queryEmbedding = await generateEmbedding(query, openaiApiKey);
     console.log('Generated query embedding');
 
-    // Build the SQL query for semantic search
-    let searchQuery = supabase
+    // First, get all chunks with their stored embeddings for semantic search
+    console.log('Fetching chunks with embeddings for semantic search');
+    
+    let baseQuery = supabase
       .from('ai_document_chunks')
       .select(`
         id,
         document_id,
         content,
         metadata,
+        embedding,
         ai_documents!inner(file_name, document_type)
       `)
-      .eq('organization_id', organizationId);
+      .eq('organization_id', organizationId)
+      .not('embedding', 'is', null); // Only get chunks with embeddings
 
     // Filter by document types if specified
     if (documentTypes.length > 0) {
       console.log('Filtering by document types:', documentTypes);
-      searchQuery = searchQuery.in('ai_documents.document_type', documentTypes);
+      baseQuery = baseQuery.in('ai_documents.document_type', documentTypes);
     }
 
-    // For now, we'll do a simple text search since vector similarity search 
-    // requires custom SQL with the vector extension
-    console.log('Executing text search for:', query);
-    searchQuery = searchQuery
-      .textSearch('content', query, { type: 'websearch' })
-      .limit(limit);
+    // Get all relevant chunks for semantic comparison
+    const { data: chunks, error: fetchError } = await baseQuery.limit(100); // Get more chunks for better semantic search
 
-    let { data: chunks, error: searchError } = await searchQuery;
-
-    console.log('Text search completed. Results:', chunks?.length || 0);
-
-    if (searchError) {
-      console.error('Search error:', searchError);
-      throw new Error('Failed to search documents');
+    if (fetchError) {
+      console.error('Error fetching chunks:', fetchError);
+      throw new Error('Failed to fetch document chunks');
     }
 
-    console.log(`Found ${chunks?.length || 0} matching chunks`);
+    console.log(`Found ${chunks?.length || 0} chunks with embeddings`);
     
-    // If text search failed, try a broader content search
+    // If no chunks with embeddings, fall back to text search
     if (!chunks || chunks.length === 0) {
-      console.log('Text search returned no results, trying broader content search...');
-      const broadSearchQuery = supabase
+      console.log('No chunks with embeddings found, falling back to text search...');
+      
+      const textSearchQuery = supabase
         .from('ai_document_chunks')
         .select(`
           id,
@@ -101,45 +98,87 @@ serve(async (req) => {
           ai_documents!inner(file_name, document_type)
         `)
         .eq('organization_id', organizationId)
-        .ilike('content', `%${query.split(' ')[0]}%`) // Search for first word
+        .or(`content.ilike.%${query}%,content.ilike.%${query.toLowerCase()}%,content.ilike.%${query.toUpperCase()}%`)
         .limit(limit);
         
-      const { data: broadChunks, error: broadError } = await broadSearchQuery;
-      
-      if (!broadError && broadChunks?.length > 0) {
-        console.log(`Broad search found ${broadChunks.length} chunks`);
-        chunks = broadChunks;
+      if (documentTypes.length > 0) {
+        textSearchQuery.in('ai_documents.document_type', documentTypes);
       }
+        
+      const { data: textChunks, error: textError } = await textSearchQuery;
+      
+      if (textError) {
+        console.error('Text search error:', textError);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Search failed',
+            results: []
+          }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      const textResults = textChunks?.map(chunk => ({
+        chunk_id: chunk.id,
+        document_id: chunk.document_id,
+        document_name: chunk.ai_documents.file_name,
+        document_type: chunk.ai_documents.document_type,
+        content: chunk.content,
+        similarity: 0.8, // Default similarity for text search
+        metadata: chunk.metadata
+      })) || [];
+      
+      console.log(`Text search found ${textResults.length} results`);
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          results: textResults.slice(0, limit),
+          query: query,
+          total_results: textResults.length,
+          search_type: 'text'
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // For each chunk, calculate similarity using OpenAI embeddings
+    // Perform semantic search using stored embeddings
     const results: SearchResult[] = [];
     
-    if (chunks) {
-      for (const chunk of chunks) {
-        try {
-          // Generate embedding for this chunk's content
-          const chunkEmbedding = await generateEmbedding(chunk.content, openaiApiKey);
-          
-          // Calculate cosine similarity
-          const similarity = cosineSimilarity(queryEmbedding, chunkEmbedding);
-          
-          // Only include results above threshold
-          if (similarity >= threshold) {
-            results.push({
-              chunk_id: chunk.id,
-              document_id: chunk.document_id,
-              document_name: chunk.ai_documents.file_name,
-              document_type: chunk.ai_documents.document_type,
-              content: chunk.content,
-              similarity: similarity,
-              metadata: chunk.metadata
-            });
-          }
-        } catch (embeddingError) {
-          console.error('Error processing chunk embedding:', embeddingError);
-          // Continue with other chunks
+    for (const chunk of chunks) {
+      try {
+        // Parse the stored embedding
+        let chunkEmbedding: number[];
+        
+        if (typeof chunk.embedding === 'string') {
+          // Parse vector string format like "[0.1, 0.2, ...]"
+          chunkEmbedding = JSON.parse(chunk.embedding.replace(/^\[|\]$/g, '').split(',').map(n => parseFloat(n.trim())));
+        } else if (Array.isArray(chunk.embedding)) {
+          chunkEmbedding = chunk.embedding;
+        } else {
+          console.warn(`Chunk ${chunk.id} has invalid embedding format, skipping`);
+          continue;
         }
+        
+        // Calculate cosine similarity with query embedding
+        const similarity = cosineSimilarity(queryEmbedding, chunkEmbedding);
+        
+        // Only include results above threshold
+        if (similarity >= threshold) {
+          results.push({
+            chunk_id: chunk.id,
+            document_id: chunk.document_id,
+            document_name: chunk.ai_documents.file_name,
+            document_type: chunk.ai_documents.document_type,
+            content: chunk.content,
+            similarity: similarity,
+            metadata: chunk.metadata
+          });
+        }
+      } catch (embeddingError) {
+        console.error(`Error processing chunk ${chunk.id} embedding:`, embeddingError);
+        // Continue with other chunks
       }
     }
 
