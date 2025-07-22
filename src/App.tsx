@@ -5,6 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { MaturionChat } from "@/components/ai/MaturionChat";
+import { useMaturionContext } from "@/hooks/useMaturionContext";
 import Index from "./pages/Index";
 import ModulesOverview from "./pages/ModulesOverview";
 import MaturitySetup from "./pages/MaturitySetup";
@@ -27,6 +29,18 @@ import NotFound from "./pages/NotFound";
 import SubscribeCheckout from "./pages/SubscribeCheckout";
 
 const queryClient = new QueryClient();
+
+// Global Maturion Chat Component
+const GlobalMaturionChat = () => {
+  const { context, currentDomain } = useMaturionContext();
+  
+  return (
+    <MaturionChat 
+      context={context}
+      currentDomain={currentDomain}
+    />
+  );
+};
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -60,6 +74,9 @@ const App = () => (
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
+            
+            {/* Global Maturion Chat Assistant */}
+            <GlobalMaturionChat />
           </BrowserRouter>
         </AuthGuard>
       </TooltipProvider>

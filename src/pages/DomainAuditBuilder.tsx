@@ -8,7 +8,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ArrowLeft, Database, Target, CheckSquare, BarChart3, ClipboardCheck, Sparkles } from 'lucide-react';
 import { MPSSelectionModal } from '@/components/assessment/MPSSelectionModal';
 import { IntentCreator } from '@/components/assessment/IntentCreator';
-import { MaturionChat } from '@/components/ai/MaturionChat';
+
 import { useDomainAuditBuilder, type AuditStep } from '@/hooks/useDomainAuditBuilder';
 
 const DomainAuditBuilder = () => {
@@ -261,11 +261,6 @@ const DomainAuditBuilder = () => {
         onIntentsFinalized={handleIntentsFinalized}
       />
 
-      {/* Maturion AI Chat Assistant */}
-      <MaturionChat 
-        context={`${domainName} domain audit configuration - MPS creation, intent statements, and criteria development`}
-        currentDomain={domainName}
-      />
     </div>
   );
 };

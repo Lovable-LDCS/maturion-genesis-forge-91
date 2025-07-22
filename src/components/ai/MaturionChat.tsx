@@ -27,20 +27,59 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
 }) => {
   // Debug log to ensure component is rendering
   console.log('MaturionChat rendering with context:', context, 'domain:', currentDomain);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: '1',
-      content: "Hello! I'm Maturion, your AI assistant for operational maturity. I'm here to help you navigate your journey from reactive to resilient. How can I assist you today?",
-      sender: 'maturion',
-      timestamp: new Date()
+  
+  // Load messages from localStorage or use default
+  const [messages, setMessages] = useState<Message[]>(() => {
+    try {
+      const savedMessages = localStorage.getItem('maturion-chat-messages');
+      if (savedMessages) {
+        const parsed = JSON.parse(savedMessages);
+        return parsed.length > 0 ? parsed : [
+          {
+            id: '1',
+            content: "Hello! I'm Maturion, your AI assistant for operational maturity. I'm here to help you navigate your journey from reactive to resilient. How can I assist you today?",
+            sender: 'maturion',
+            timestamp: new Date()
+          }
+        ];
+      }
+    } catch (error) {
+      console.error('Error loading chat messages:', error);
     }
-  ]);
+    
+    return [
+      {
+        id: '1',
+        content: "Hello! I'm Maturion, your AI assistant for operational maturity. I'm here to help you navigate your journey from reactive to resilient. How can I assist you today?",
+        sender: 'maturion',
+        timestamp: new Date()
+      }
+    ];
+  });
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(() => {
+    // Load chat state from localStorage
+    try {
+      const savedState = localStorage.getItem('maturion-chat-open');
+      return savedState ? JSON.parse(savedState) : false;
+    } catch {
+      return false;
+    }
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  // Save messages to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('maturion-chat-messages', JSON.stringify(messages));
+  }, [messages]);
+
+  // Save chat open state to localStorage
+  useEffect(() => {
+    localStorage.setItem('maturion-chat-open', JSON.stringify(isOpen));
+  }, [isOpen]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

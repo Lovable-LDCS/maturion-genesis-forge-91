@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Target, ChevronRight, ArrowLeft, Shield, Settings, Users, Lock, BarChart, Rocket, Eye, Database, Search, Crosshair, AlertTriangle, Zap, MonitorSpeaker, HeartHandshake, Key, CalendarCheck, LifeBuoy, Wrench, Info, Ban, Clock, CheckCircle, Play, Zap as ZapIcon, BarChart2, Cog } from 'lucide-react';
-import { MaturionChat } from '@/components/ai/MaturionChat';
+
 import { TooltipPortal } from '@/components/ui/tooltip-portal';
 
 const MATURITY_DOMAINS = [
@@ -1048,11 +1048,6 @@ const Journey = () => {
         <ChevronRight className="ml-2 h-5 w-5" />
       </Button>
 
-      {/* Maturion AI Chat Assistant */}
-      <MaturionChat 
-        context="maturity journey exploration and domain-specific guidance"
-        currentDomain={lockedLevel ? `Level ${lockedLevel} focus` : "general maturity assessment"}
-      />
 
       {/* Portal Tooltips for All Domains */}
       

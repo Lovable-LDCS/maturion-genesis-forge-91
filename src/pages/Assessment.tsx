@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { Target, ArrowLeft, Play } from 'lucide-react';
 import { MaturityAssessment } from '@/components/assessment/MaturityAssessment';
-import { MaturionChat } from '@/components/ai/MaturionChat';
+
 import { type DomainScore } from '@/lib/maturityScoring';
 
 const Assessment = () => {
@@ -149,11 +149,6 @@ const Assessment = () => {
         </div>
       </main>
 
-      {/* Maturion AI Chat Assistant */}
-      <MaturionChat 
-        context={showAssessment ? "Free maturity assessment guidance and scoring explanation" : "Assessment preparation and overview"}
-        currentDomain={assessmentComplete ? "Assessment Results" : "General Assessment"}
-      />
     </div>
   );
 };
