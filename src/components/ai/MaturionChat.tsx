@@ -236,7 +236,10 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
                           <p className={`text-xs mt-1 ${
                             message.sender === 'user' ? 'text-blue-100' : 'text-gray-500'
                           }`}>
-                            {message.timestamp.toLocaleTimeString([], { 
+                            {(message.timestamp instanceof Date 
+                              ? message.timestamp 
+                              : new Date(message.timestamp)
+                            ).toLocaleTimeString([], { 
                               hour: '2-digit', 
                               minute: '2-digit' 
                             })}
