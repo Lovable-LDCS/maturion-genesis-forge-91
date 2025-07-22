@@ -276,12 +276,21 @@ Generate intents for ALL ${acceptedMPSs.length} accepted MPSs listed above.`;
       let generatedIntents: Array<{mps_number: string, intent: string}> = [];
       
       try {
-        // Try to parse JSON response
-        const cleanResponse = generatedResponse.replace(/```json\n?|\n?```/g, '').trim();
+        // Try to parse JSON response - handle AI responses with prefixes
+        let cleanResponse = generatedResponse.replace(/```json\n?|\n?```/g, '').trim();
+        
+        // Look for JSON array in the response (handles AI responses with explanatory text)
+        const jsonArrayMatch = cleanResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        if (jsonArrayMatch) {
+          cleanResponse = jsonArrayMatch[0];
+        }
+        
         generatedIntents = JSON.parse(cleanResponse);
-        console.log(`✅ Successfully parsed ${generatedIntents.length} intent statements`);
+        console.log(`✅ Successfully parsed ${generatedIntents.length} intent statements from AI response`);
+        console.log('📊 Generated intents:', generatedIntents.map(gi => `${gi.mps_number}: ${gi.intent.substring(0, 50)}...`));
       } catch (parseError) {
         console.warn('Failed to parse JSON response, using fallback approach');
+        console.log('Raw AI response:', generatedResponse.substring(0, 500) + '...');
         // Fallback: create default intents for each accepted MPS
         generatedIntents = acceptedMPSs.map((mps, index) => ({
           mps_number: (mps.number || (index + 1).toString()),
