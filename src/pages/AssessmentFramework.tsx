@@ -88,247 +88,248 @@ export default function AssessmentFramework() {
     : 0;
 
   return (
-    <div className="container mx-auto p-6 space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Assessment Framework</h1>
-        <p className="text-lg text-muted-foreground">
-          Configure and manage your organizational assessment framework
-        </p>
+    <>
+      <div className="container mx-auto p-6 space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Assessment Framework</h1>
+          <p className="text-lg text-muted-foreground">
+            Configure and manage your organizational assessment framework
+          </p>
+        </div>
+
+        <Tabs defaultValue="domains" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-5">
+            <TabsTrigger value="domains" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              Domains
+            </TabsTrigger>
+            <TabsTrigger value="mps" className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              MPS
+            </TabsTrigger>
+            <TabsTrigger value="criteria" className="flex items-center gap-2">
+              <CheckSquare className="h-4 w-4" />
+              Criteria
+            </TabsTrigger>
+            <TabsTrigger value="import-export" className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Import/Export
+            </TabsTrigger>
+            <TabsTrigger value="compliance" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              ISO Compliance
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="domains" className="space-y-6">
+            {/* Overall Progress */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  Audit Structure Setup
+                  <Badge variant="secondary" className="text-sm">
+                    {domainProgress.filter(d => d.status === 'completed').reduce((sum, d) => sum + d.mpsCount, 0)} MPSs • {domainProgress.filter(d => d.status === 'completed').reduce((sum, d) => sum + d.criteriaCount, 0)} Criteria
+                  </Badge>
+                </CardTitle>
+                <CardDescription>
+                  Configure Mini Performance Standards (MPSs) for each LDCS audit domain. Only shows completed MPSs and criteria.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium">Overall Progress</span>
+                    <span className="text-sm text-muted-foreground">{totalProgress}% complete</span>
+                  </div>
+                  <Progress value={totalProgress} className="h-3" />
+                  
+                  {nextSuggestedDomain && (
+                    <div className="text-center">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full text-sm text-primary">
+                        <span className="animate-pulse">💡</span>
+                        <span>Continue with <strong>{nextSuggestedDomain.name}</strong></span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Domain Cards */}
+            {loading ? (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-48 bg-muted rounded-lg"></div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {domainProgress.map((domain) => {
+                  const isNextSuggested = nextSuggestedDomain?.id === domain.id;
+                  return (
+                    <Card 
+                      key={domain.id}
+                      className={`transition-all duration-300 ${
+                        !domain.isUnlocked ? 
+                          'opacity-50 cursor-not-allowed bg-muted/30 border-muted' :
+                          `cursor-pointer hover:shadow-lg ${
+                            domain.status === 'completed' ? 'border-green-200 bg-green-50/30' :
+                            domain.status === 'in_progress' ? 'border-blue-200 bg-blue-50/30' :
+                            isNextSuggested ? 'border-primary/40 bg-primary/5 shadow-lg ring-2 ring-primary/20' :
+                            'hover:border-primary/50'
+                          }`
+                      }`}
+                      onClick={() => {
+                        if (domain.isUnlocked) {
+                          navigate(`/audit/domain/${domain.id}`);
+                        }
+                      }}
+                    >
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-2">
+                            <Target className="h-5 w-5 text-primary" />
+                            <CardTitle className="text-lg">{domain.name}</CardTitle>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {isNextSuggested && domain.status !== 'completed' && (
+                              <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">
+                                Next
+                              </Badge>
+                            )}
+                            {getStatusIcon(domain.status)}
+                          </div>
+                        </div>
+                        <CardDescription className="text-sm leading-relaxed">
+                          {domain.description}
+                        </CardDescription>
+                        <Badge variant="secondary" className="text-xs w-fit mt-2">
+                          {domain.mpsRange}
+                        </Badge>
+                      </CardHeader>
+                      
+                      <CardContent className="pt-0">
+                        <div className="space-y-3">
+                          {/* Progress Bar */}
+                          {domain.status === 'in_progress' && (
+                            <div className="space-y-1">
+                              <div className="flex justify-between text-xs">
+                                <span>Progress</span>
+                                <span>{domain.completionPercentage}%</span>
+                              </div>
+                              <Progress value={domain.completionPercentage} className="h-2" />
+                            </div>
+                          )}
+
+                          {/* Stats */}
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">MPSs:</span>
+                            <span className="font-medium">{domain.mpsCount}</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Criteria:</span>
+                            <span className="font-medium">{domain.criteriaCount}</span>
+                          </div>
+                          
+                          {/* Status Badge and Action */}
+                          <div className="flex justify-between items-center pt-2">
+                            {getStatusBadge(domain)}
+                            {getActionButton(domain)}
+                          </div>
+                          
+                          {/* Helper Text */}
+                          {domain.status === 'locked' && (
+                            <div className="text-xs text-center text-muted-foreground pt-1">
+                              Complete previous domain first
+                            </div>
+                          )}
+                          
+                          {isNextSuggested && domain.status === 'not_started' && (
+                            <div className="text-xs text-center text-primary pt-1 font-medium">
+                              👈 Start here
+                            </div>
+                          )}
+
+                          {domain.status === 'in_progress' && (
+                            <div className="text-xs text-center text-blue-600 pt-1">
+                              Current Step: {domain.currentStep === 'intent' ? 'Create Intent' : 
+                                           domain.currentStep === 'criteria' ? 'Create Criteria' : 'In Progress'}
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="mps" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Maturity Practice Statements (MPS)</CardTitle>
+                <CardDescription>
+                  Configure MPS with auto-numbering and AI-generated summaries
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <MPSManagement />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="criteria" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Criteria Configuration</CardTitle>
+                <CardDescription>
+                  Define assessment criteria with maturity levels and AI-generated descriptors
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <CriteriaManagement />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="import-export" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Bulk Import & Export</CardTitle>
+                <CardDescription>
+                  Import and export assessment frameworks using CSV/XLSX files
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <BulkImportExport />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="compliance" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>ISO Compliance Validation</CardTitle>
+                <CardDescription>
+                  Verify framework alignment with ISO 31000, NIST, and ISO 27001 standards
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <ISOComplianceValidation />
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
 
-      <Tabs defaultValue="domains" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="domains" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Domains
-          </TabsTrigger>
-          <TabsTrigger value="mps" className="flex items-center gap-2">
-            <Database className="h-4 w-4" />
-            MPS
-          </TabsTrigger>
-          <TabsTrigger value="criteria" className="flex items-center gap-2">
-            <CheckSquare className="h-4 w-4" />
-            Criteria
-          </TabsTrigger>
-          <TabsTrigger value="import-export" className="flex items-center gap-2">
-            <Upload className="h-4 w-4" />
-            Import/Export
-          </TabsTrigger>
-          <TabsTrigger value="compliance" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            ISO Compliance
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="domains" className="space-y-6">
-          {/* Overall Progress */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                Audit Structure Setup
-                <Badge variant="secondary" className="text-sm">
-                  {domainProgress.filter(d => d.status === 'completed').reduce((sum, d) => sum + d.mpsCount, 0)} MPSs • {domainProgress.filter(d => d.status === 'completed').reduce((sum, d) => sum + d.criteriaCount, 0)} Criteria
-                </Badge>
-              </CardTitle>
-              <CardDescription>
-                Configure Mini Performance Standards (MPSs) for each LDCS audit domain. Only shows completed MPSs and criteria.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm font-medium">Overall Progress</span>
-                  <span className="text-sm text-muted-foreground">{totalProgress}% complete</span>
-                </div>
-                <Progress value={totalProgress} className="h-3" />
-                
-                {nextSuggestedDomain && (
-                  <div className="text-center">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full text-sm text-primary">
-                      <span className="animate-pulse">💡</span>
-                      <span>Continue with <strong>{nextSuggestedDomain.name}</strong></span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Domain Cards */}
-          {loading ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="h-48 bg-muted rounded-lg"></div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {domainProgress.map((domain) => {
-                const isNextSuggested = nextSuggestedDomain?.id === domain.id;
-                return (
-                  <Card 
-                    key={domain.id}
-                    className={`transition-all duration-300 ${
-                      !domain.isUnlocked ? 
-                        'opacity-50 cursor-not-allowed bg-muted/30 border-muted' :
-                        `cursor-pointer hover:shadow-lg ${
-                          domain.status === 'completed' ? 'border-green-200 bg-green-50/30' :
-                          domain.status === 'in_progress' ? 'border-blue-200 bg-blue-50/30' :
-                          isNextSuggested ? 'border-primary/40 bg-primary/5 shadow-lg ring-2 ring-primary/20' :
-                          'hover:border-primary/50'
-                        }`
-                    }`}
-                    onClick={() => {
-                      if (domain.isUnlocked) {
-                        navigate(`/audit/domain/${domain.id}`);
-                      }
-                    }}
-                  >
-                    <CardHeader className="pb-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <Target className="h-5 w-5 text-primary" />
-                          <CardTitle className="text-lg">{domain.name}</CardTitle>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          {isNextSuggested && domain.status !== 'completed' && (
-                            <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">
-                              Next
-                            </Badge>
-                          )}
-                          {getStatusIcon(domain.status)}
-                        </div>
-                      </div>
-                      <CardDescription className="text-sm leading-relaxed">
-                        {domain.description}
-                      </CardDescription>
-                      <Badge variant="secondary" className="text-xs w-fit mt-2">
-                        {domain.mpsRange}
-                      </Badge>
-                    </CardHeader>
-                    
-                    <CardContent className="pt-0">
-                      <div className="space-y-3">
-                        {/* Progress Bar */}
-                        {domain.status === 'in_progress' && (
-                          <div className="space-y-1">
-                            <div className="flex justify-between text-xs">
-                              <span>Progress</span>
-                              <span>{domain.completionPercentage}%</span>
-                            </div>
-                            <Progress value={domain.completionPercentage} className="h-2" />
-                          </div>
-                        )}
-
-                        {/* Stats */}
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">MPSs:</span>
-                          <span className="font-medium">{domain.mpsCount}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Criteria:</span>
-                          <span className="font-medium">{domain.criteriaCount}</span>
-                        </div>
-                        
-                        {/* Status Badge and Action */}
-                        <div className="flex justify-between items-center pt-2">
-                          {getStatusBadge(domain)}
-                          {getActionButton(domain)}
-                        </div>
-                        
-                        {/* Helper Text */}
-                        {domain.status === 'locked' && (
-                          <div className="text-xs text-center text-muted-foreground pt-1">
-                            Complete previous domain first
-                          </div>
-                        )}
-                        
-                        {isNextSuggested && domain.status === 'not_started' && (
-                          <div className="text-xs text-center text-primary pt-1 font-medium">
-                            👈 Start here
-                          </div>
-                        )}
-
-                        {domain.status === 'in_progress' && (
-                          <div className="text-xs text-center text-blue-600 pt-1">
-                            Current Step: {domain.currentStep === 'intent' ? 'Create Intent' : 
-                                         domain.currentStep === 'criteria' ? 'Create Criteria' : 'In Progress'}
-                          </div>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          )}
-        </TabsContent>
-
-        <TabsContent value="mps" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Maturity Practice Statements (MPS)</CardTitle>
-              <CardDescription>
-                Configure MPS with auto-numbering and AI-generated summaries
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <MPSManagement />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="criteria" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Criteria Configuration</CardTitle>
-              <CardDescription>
-                Define assessment criteria with maturity levels and AI-generated descriptors
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CriteriaManagement />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="import-export" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Bulk Import & Export</CardTitle>
-              <CardDescription>
-                Import and export assessment frameworks using CSV/XLSX files
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <BulkImportExport />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="compliance" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>ISO Compliance Validation</CardTitle>
-              <CardDescription>
-                Verify framework alignment with ISO 31000, NIST, and ISO 27001 standards
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <ISOComplianceValidation />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Maturion AI Chat Assistant */}
+      {/* Maturion AI Chat Assistant - positioned outside container for proper floating */}
       <MaturionChat 
         context="Assessment framework configuration - domain setup, MPS management, and audit structure guidance"
         currentDomain="Assessment Framework"
-        className="z-[60]"
       />
-    </div>
+    </>
   );
 }
