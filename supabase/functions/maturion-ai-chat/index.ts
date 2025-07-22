@@ -13,7 +13,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Core audit-related contexts that must use internal documents only
+// Core audit-related contexts that must use internal documents only - enforced by AI Behavior & Knowledge Source Policy
 const INTERNAL_ONLY_CONTEXTS = [
   'MPS generation',
   'Intent statement generation', 
@@ -21,8 +21,53 @@ const INTERNAL_ONLY_CONTEXTS = [
   'Audit structure',
   'Maturity level assessment',
   'Compliance scoring',
-  'Roadmap progression'
+  'Roadmap progression',
+  'Domain content creation',
+  'Maturity framework development'
 ];
+
+// Function to get the AI Behavior & Knowledge Source Policy for enforcement
+async function getAIBehaviorPolicy(organizationId: string) {
+  try {
+    const { data: policyChunks, error } = await supabase
+      .from('ai_document_chunks')
+      .select('content, ai_documents!inner(title)')
+      .eq('organization_id', organizationId)
+      .eq('ai_documents.title', 'AI Behavior & Knowledge Source Policy')
+      .limit(5);
+    
+    if (error || !policyChunks?.length) {
+      console.log('No AI Behavior Policy found, using default enforcement');
+      return '';
+    }
+    
+    return policyChunks.map(chunk => chunk.content).join('\n\n');
+  } catch (error) {
+    console.error('Error fetching AI Behavior Policy:', error);
+    return '';
+  }
+}
+
+// Function to get Enhanced Maturion Intent Prompt Logic
+async function getIntentPromptLogic(organizationId: string) {
+  try {
+    const { data: logicChunks, error } = await supabase
+      .from('ai_document_chunks')
+      .select('content, ai_documents!inner(title)')
+      .eq('organization_id', organizationId)
+      .eq('ai_documents.title', 'Enhanced Maturion Intent Prompt Logic')
+      .limit(5);
+    
+    if (error || !logicChunks?.length) {
+      return '';
+    }
+    
+    return logicChunks.map(chunk => chunk.content).join('\n\n');
+  } catch (error) {
+    console.error('Error fetching Intent Prompt Logic:', error);
+    return '';
+  }
+}
 
 // Function to retrieve internal documents from AI knowledge base
 async function getInternalDocuments(organizationId: string, context: string) {
@@ -236,12 +281,45 @@ serve(async (req) => {
     
     let documentContext = '';
     let sourceType = 'external';
+    let behaviorPolicy = '';
+    let intentPromptLogic = '';
+    let sourceDocuments: string[] = [];
     
-    // For internal contexts, fetch and use only internal documents with enhanced search
+    // For internal contexts, enforce AI Behavior & Knowledge Source Policy
     if (isInternalOnlyContext && organizationId) {
+      console.log('🔒 INTERNAL MODE: Enforcing AI Behavior & Knowledge Source Policy');
+      
+      // Get the policy documents first
+      behaviorPolicy = await getAIBehaviorPolicy(organizationId);
+      intentPromptLogic = await getIntentPromptLogic(organizationId);
+      
+      // Get document context for the specific request
       documentContext = await getDocumentContext(organizationId, prompt, currentDomain);
       sourceType = 'internal';
+      
       console.log(`Knowledge base context length: ${documentContext.length} characters`);
+      console.log(`AI Behavior Policy found: ${behaviorPolicy.length > 0 ? 'Yes' : 'No'}`);
+      console.log(`Intent Prompt Logic found: ${intentPromptLogic.length > 0 ? 'Yes' : 'No'}`);
+      
+      // Middleware validation: Check if we have sufficient internal documentation
+      if (documentContext.length === 0) {
+        console.warn('⚠️ POLICY VIOLATION: No internal documentation found for audit/maturity context');
+        return new Response(JSON.stringify({
+          error: 'This topic lacks internal reference documentation. Please upload relevant documents to your AI Knowledge Base, or contact your administrator to approve external reasoning for this request.',
+          success: false,
+          policyViolation: true,
+          missingInternalSource: true,
+          suggestedAction: 'upload_documents',
+          requiredDocuments: [
+            `${currentDomain || 'Domain'} MPS documentation`,
+            'Audit criteria and standards', 
+            'Organizational frameworks and policies'
+          ]
+        }), {
+          status: 422, // Unprocessable Entity - policy violation
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
     
     
@@ -254,42 +332,47 @@ CRITICAL DOMAIN-MPS MAPPING RULES:
 - Protection: MPS 15-20 ONLY
 - Proof it Works: MPS 21-25 ONLY
 
+${behaviorPolicy ? `
+=== AI BEHAVIOR & KNOWLEDGE SOURCE POLICY (MANDATORY ENFORCEMENT) ===
+${behaviorPolicy}
+
+POLICY ENFORCEMENT ACTIVE: All responses must comply with the above policy requirements.
+` : ''}
+
+${intentPromptLogic ? `
+=== ENHANCED INTENT GENERATION LOGIC ===
+${intentPromptLogic}
+
+Apply this reasoning structure for all intent statement generation.
+` : ''}
+
 CRITICAL BEHAVIOR RULES:
 ${isInternalOnlyContext ? `
-🔒 INTERNAL MODE ACTIVE - This is a core audit/maturity context.
+🔒 INTERNAL MODE ACTIVE - AI Behavior & Knowledge Source Policy ENFORCED
 - You MUST STRICTLY use ONLY information from the provided internal documents below
+- NO external LLM knowledge permitted - all content must be grounded in uploaded documentation
 - For MPS generation: Extract EXACTLY ALL MPS titles, numbers, and information as listed in the uploaded documents
-- For Intent generation: SYNTHESIZE intent statements based on document content - create SPECIFIC intents for each MPS using actual document context, NOT generic templates
-- AVOID GENERIC STATEMENTS: Do not use "ensure compliance with legal and regulatory requirements" unless the MPS is specifically about legal/regulatory matters
-- USE SPECIFIC CONTENT: Base intent on the actual focus area of each MPS (e.g., Leadership focuses on governance, Risk Management focuses on risk processes, etc.)
-- STRICT DOMAIN FILTERING: If generating MPSs for "${currentDomain}", extract ALL MPSs that belong to this domain based on the MPS number ranges above
-- For Leadership & Governance: Extract ALL MPSs numbered 1, 2, 3, 4, and 5 that exist in the documents - EXCLUDE any MPS 13, 14, 15, etc.
-- For Process Integrity: Extract ALL MPSs numbered 6, 7, 8, 9, and 10 that exist in the documents - EXCLUDE any MPS outside this range
-- Never include MPSs from other domains even if they appear in the context
-- If you see MPS 13 or 14 in Leadership & Governance context, EXCLUDE them (they belong to People & Culture)
-- IMPORTANT: Include ALL available MPSs within the correct number range - do not arbitrarily skip MPS 3 or MPS 5 if they exist in the documents
-- All responses must cite the specific document sources (e.g., "From [Document Name]:")
-- For intent generation: Use available document context to create actionable intent statements even if explicit intents aren't provided
+- For Intent generation: Follow the Enhanced Intent Logic above and synthesize specific intent statements based on document content
+- AVOID BOILERPLATE: No generic phrases like "ensure compliance and effective governance" unless explicitly in source documents
+- DOMAIN-SPECIFIC RISKS: Intent must reflect actual domain risks, mechanisms, and strategic objectives from internal sources
+- STRICT DOMAIN FILTERING: Extract only MPSs within correct number ranges for "${currentDomain}"
+- TRACEABILITY: Reference specific source documents (e.g., "From [Document Name]:")
+- SOURCE VALIDATION: Only use content explicitly found in internal documentation
 
 ${documentContext ? `
-INTERNAL DOCUMENT CONTEXT (USE ONLY THIS CONTENT):
+INTERNAL DOCUMENT CONTEXT (AUTHORITATIVE SOURCE - USE ONLY THIS):
 ${documentContext}
 
-IMPORTANT: Base your response STRICTLY on the internal documents above. For intent generation, synthesize based on document content. Filter by domain MPS numbers. Do not add external knowledge or assumptions.
+COMPLIANCE REQUIREMENT: Base ALL responses strictly on the internal documents above. Document references are MANDATORY for audit trail.
 ` : `
-⚠️ LIMITED INTERNAL DOCUMENTATION AVAILABLE
-I have limited internal documentation for this ${currentDomain || 'domain'} request. I will use available context to provide the best guidance possible.
-
-For optimal results, please ensure relevant documents are uploaded to your AI Knowledge Base:
-- MPS lists or Annex documents for ${currentDomain || 'this domain'}
-- Domain-specific audit criteria
-- Organizational standards and requirements
+⚠️ CRITICAL: NO INTERNAL DOCUMENTATION AVAILABLE
+This violates the AI Behavior & Knowledge Source Policy. Cannot generate audit/maturity content without internal sources.
 `}
 ` : `
-🌐 ADVISORY MODE ACTIVE - External context permitted.
-- You may use both internal documentation (if provided) and external knowledge
-- Clearly label external insights as "Based on industry best practices" or "External context"
-- Prioritize internal documentation when available, but supplement with external knowledge as helpful
+🌐 ADVISORY MODE ACTIVE - External context permitted for general guidance.
+- You may use both internal documentation and external knowledge for advisory content
+- Clearly label external insights as "Based on industry best practices"
+- Prioritize internal documentation when available
 ${allowExternalContext && documentContext ? `
 INTERNAL DOCUMENT CONTEXT:
 ${documentContext}
