@@ -125,7 +125,13 @@ serve(async (req) => {
     if (!chunks || chunks.length === 0) {
       console.log('No chunks with embeddings found, falling back to text search...');
       
-      const textSearchQuery = supabase
+      // Escape special characters and use a simpler search approach
+      const sanitizedQuery = query.replace(/[&%']/g, '').trim();
+      const searchTerms = sanitizedQuery.split(' ').filter(term => term.length > 2).slice(0, 5); // Use first 5 meaningful terms
+      
+      console.log('Using search terms:', searchTerms);
+      
+      let textSearchQuery = supabase
         .from('ai_document_chunks')
         .select(`
           id,
@@ -134,9 +140,16 @@ serve(async (req) => {
           metadata,
           ai_documents!inner(file_name, document_type)
         `)
-        .eq('organization_id', organizationId)
-        .or(`content.ilike.%${query}%,content.ilike.%${query.toLowerCase()}%,content.ilike.%${query.toUpperCase()}%`)
-        .limit(limit);
+        .eq('organization_id', organizationId);
+        
+      // Add text search conditions for each term
+      if (searchTerms.length > 0) {
+        const searchConditions = searchTerms.map(term => `content.ilike.%${term}%`).join(',');
+        textSearchQuery = textSearchQuery.or(searchConditions);
+      } else {
+        // If no valid search terms, just get recent chunks
+        textSearchQuery = textSearchQuery.limit(limit);
+      }
         
       if (documentTypes.length > 0) {
         textSearchQuery.in('ai_documents.document_type', documentTypes);
