@@ -180,10 +180,68 @@ export const MaturitySetup = () => {
       }
     }
   }, []);
+
+  // Load existing documents from database on page load
+  useEffect(() => {
+    const loadExistingDocuments = async () => {
+      if (!user?.id) return;
+      
+      setIsLoadingDocuments(true);
+      try {
+        // Query ai_documents table for user's uploaded documents during setup
+        const { data: documents, error } = await supabase
+          .from('ai_documents')
+          .select('*')
+          .eq('uploaded_by', user.id)
+          .eq('document_type', 'general')
+          .order('created_at', { ascending: false });
+          
+        if (error) {
+          console.warn('Could not fetch existing documents:', error);
+          return;
+        }
+        
+        if (documents && documents.length > 0) {
+          console.log('Found existing documents:', documents);
+          
+          // Transform database documents to match our local UploadedFile format
+          const existingDocs: UploadedFile[] = documents.map(doc => ({
+            id: doc.id,
+            file: {
+              name: doc.file_name,
+              size: doc.file_size,
+              type: doc.mime_type
+            } as File,
+            uploadedAt: new Date(doc.created_at)
+          }));
+          
+          // Merge with any documents already in state (newly uploaded in this session)
+          setFormData(prev => ({
+            ...prev,
+            optionalDocuments: [
+              ...prev.optionalDocuments,
+              ...existingDocs.filter(existing => 
+                !prev.optionalDocuments.some(current => current.id === existing.id)
+              )
+            ]
+          }));
+          
+          console.log(`Loaded ${existingDocs.length} existing documents from database`);
+        }
+      } catch (err) {
+        console.warn('Failed to load existing documents:', err);
+      } finally {
+        setIsLoadingDocuments(false);
+      }
+    };
+    
+    loadExistingDocuments();
+  }, [user?.id]);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
 
   // Enhanced auto-save function that works independently of organization hook
   const autoSave = async () => {
@@ -1118,6 +1176,9 @@ export const MaturitySetup = () => {
                 <CardTitle className="flex items-center gap-2">
                   <FileText className="h-5 w-5" />
                   Optional Documents
+                  {isLoadingDocuments && (
+                    <div className="ml-2 text-sm text-muted-foreground">Loading...</div>
+                  )}
                 </CardTitle>
                 <CardDescription>
                   Additional context to help personalize your maturity model.
@@ -1135,6 +1196,7 @@ export const MaturitySetup = () => {
                       variant="outline" 
                       size="sm"
                       onClick={triggerOptionalDocumentUpload}
+                      disabled={isLoadingDocuments}
                     >
                       Choose File
                     </Button>
@@ -1149,9 +1211,9 @@ export const MaturitySetup = () => {
                         <div className="bg-green-100 p-1 rounded-full">
                           <FileText className="h-3 w-3 text-green-600" />
                         </div>
-                        <Label className="text-sm font-medium text-green-800">
-                          ✅ Documents Ready for AI Processing ({formData.optionalDocuments.length} files)
-                        </Label>
+                         <Label className="text-sm font-medium text-green-800">
+                           ✅ Documents Ready for AI Processing ({formData.optionalDocuments.length} file{formData.optionalDocuments.length !== 1 ? 's' : ''})
+                         </Label>
                       </div>
                     </div>
                     <div className="space-y-2 max-h-48 overflow-y-auto">
