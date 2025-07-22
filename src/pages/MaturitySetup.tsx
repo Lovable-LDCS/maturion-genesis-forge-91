@@ -334,13 +334,13 @@ export const MaturitySetup = () => {
       }
 
       // Step 4: Handle document uploads
-      if (formData.optionalDocuments.length > 0 && orgId) {
+      if (formData.optionalDocuments.length > 0 && user?.id) {
         console.log(`Uploading ${formData.optionalDocuments.length} documents...`);
         
         for (const doc of formData.optionalDocuments) {
           try {
             const fileExt = doc.file.name.split('.').pop();
-            const fileName = `${orgId}/${doc.id}.${fileExt}`;
+            const fileName = `${user.id}/${doc.id}.${fileExt}`;
             
             // Upload file to storage
             const { error: docUploadError } = await supabase.storage
