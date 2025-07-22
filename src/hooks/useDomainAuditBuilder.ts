@@ -91,13 +91,13 @@ export const useDomainAuditBuilder = (domainId: string) => {
         domainDbId = newDomain.id;
       }
 
-      // Insert MPSs
-      const mpsData = mpsList.map(mps => ({
+      // Insert MPSs with proper numbering
+      const mpsData = mpsList.map((mps, index) => ({
         domain_id: domainDbId,
         organization_id: currentOrganization.id,
         name: mps.name || mps.title || 'Untitled MPS',
         summary: mps.description || '',
-        mps_number: parseInt(mps.number || '0'),
+        mps_number: parseInt(mps.number || (index + 1).toString()),
         status: 'not_started' as const,
         created_by: user.id,
         updated_by: user.id
@@ -158,7 +158,7 @@ export const useDomainAuditBuilder = (domainId: string) => {
 
   // Get database-driven step status
   const getDatabaseStepStatus = async (stepId: number): Promise<'completed' | 'active' | 'locked'> => {
-    if (!currentOrganization?.id) return 'locked';
+    if (!currentOrganization?.id) return stepId === 1 ? 'active' : 'locked';
 
     try {
       const { data: domainData } = await supabase
@@ -174,8 +174,9 @@ export const useDomainAuditBuilder = (domainId: string) => {
         `)
         .eq('organization_id', currentOrganization.id)
         .eq('name', getDomainNameFromId(domainId))
-        .single();
+        .maybeSingle();
 
+      // If no domain exists yet, Step 1 should be active to start the process
       if (!domainData) return stepId === 1 ? 'active' : 'locked';
 
       const mpsCount = domainData.maturity_practice_statements?.length || 0;
