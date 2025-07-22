@@ -927,7 +927,7 @@ const MaturitySetup = () => {
                     <Button 
                       size="lg" 
                       onClick={handleStartBuilding}
-                      disabled={isSubmitting || !lastSaved || !formData.fullName || !formData.title || !formData.companyName || 
+                      disabled={isSubmitting || isSaving || !lastSaved || !formData.fullName || !formData.title || !formData.companyName || 
                                !formData.modelName || !formData.regionOperating || formData.industryTags.length === 0 || 
                                formData.riskConcerns.length === 0}
                       className="min-w-[200px]"
