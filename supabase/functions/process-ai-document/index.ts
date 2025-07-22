@@ -104,7 +104,6 @@ serve(async (req) => {
     
     for (let i = 0; i < chunks.length; i += batchSize) {
       const batch = chunks.slice(i, i + batchSize);
-      console.log(`Processing batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(chunks.length/batchSize)}`);
       
       const processedChunks = [];
       
@@ -119,12 +118,23 @@ serve(async (req) => {
         const hashArray = Array.from(new Uint8Array(hashBuffer));
         const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
+        // Generate embedding for this chunk
+        let embedding = null;
+        try {
+          console.log(`Generating embedding for chunk ${chunkIndex + 1}...`);
+          embedding = await generateEmbedding(chunk);
+        } catch (embeddingError) {
+          console.error(`Failed to generate embedding for chunk ${chunkIndex + 1}:`, embeddingError);
+          // Continue without embedding rather than failing the entire process
+        }
+
         // Create safe metadata object
         const safeChunkMetadata = {
           chunk_length: chunk?.length || 0,
           position_in_document: Number((chunkIndex / chunks.length).toFixed(4)),
           document_type: document.document_type || 'unknown',
-          file_type: document.mime_type || 'unknown'
+          file_type: document.mime_type || 'unknown',
+          has_embedding: embedding !== null
         };
 
         // Ensure content is safe for JSON storage
@@ -136,7 +146,7 @@ serve(async (req) => {
           chunk_index: chunkIndex,
           content: safeContent,
           content_hash: hashHex,
-          embedding: null, // No embeddings for now
+          embedding: embedding, // Now includes actual embeddings
           metadata: safeChunkMetadata
         });
       }
@@ -310,4 +320,40 @@ function splitTextIntoChunks(text: string, chunkSize: number, overlap: number): 
   }
   
   return chunks;
+}
+
+// Function to generate embeddings using OpenAI
+async function generateEmbedding(text: string): Promise<number[] | null> {
+  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+  
+  if (!openaiApiKey) {
+    console.error('OpenAI API key not configured');
+    return null;
+  }
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/embeddings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${openaiApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        input: text,
+        model: 'text-embedding-3-small'
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('OpenAI API error:', errorData);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.data[0].embedding;
+  } catch (error) {
+    console.error('Error generating embedding:', error);
+    return null;
+  }
 }

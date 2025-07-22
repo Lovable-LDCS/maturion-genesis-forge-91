@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
+import { useOrganization } from '@/hooks/useOrganization';
 import { MessageCircle, Send, Bot, User, Minimize2, Maximize2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -70,6 +71,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
   });
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const { currentOrganization } = useOrganization();
 
   // Save messages to localStorage whenever they change
   useEffect(() => {
@@ -106,7 +108,8 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
         body: {
           prompt: inputValue,
           context: context || 'maturity assessment guidance',
-          currentDomain: currentDomain || 'general'
+          currentDomain: currentDomain || 'general',
+          organizationId: currentOrganization?.id
         }
       });
 
@@ -115,7 +118,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
       if (data.success) {
         const aiMessage: Message = {
           id: (Date.now() + 1).toString(),
-          content: data.response,
+          content: data.content || data.response,
           sender: 'maturion',
           timestamp: new Date()
         };
