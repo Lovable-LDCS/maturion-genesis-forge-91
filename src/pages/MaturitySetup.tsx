@@ -295,11 +295,11 @@ export const MaturitySetup = () => {
       }
 
       // Step 3: Handle company logo upload
-      if (formData.companyLogo && orgId) {
+      if (formData.companyLogo && user?.id) {
         console.log('Uploading company logo...');
         try {
           const fileExt = formData.companyLogo.name.split('.').pop();
-          const fileName = `${orgId}-logo.${fileExt}`;
+          const fileName = `${user.id}/logo.${fileExt}`;
           
           const { error: uploadError } = await supabase.storage
             .from('organization-logos')
