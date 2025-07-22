@@ -262,6 +262,97 @@ async function getDocumentContext(organizationId: string, query: string, domain?
   }
 }
 
+// Function to get relevant external insights based on organizational profile
+async function getExternalInsights(organizationId: string, context: string) {
+  try {
+    console.log('Fetching external insights for organization:', organizationId);
+    
+    // Get organization profile for filtering
+    const { data: org, error: orgError } = await supabase
+      .from('organizations')
+      .select('industry_tags, region_operating, risk_concerns, threat_sensitivity_level')
+      .eq('id', organizationId)
+      .single();
+    
+    if (orgError || !org) {
+      console.log('No organization profile found for external insights filtering');
+      return '';
+    }
+    
+    // Only fetch insights if threat sensitivity is Moderate or Advanced
+    if (org.threat_sensitivity_level === 'Basic') {
+      console.log('Basic threat sensitivity - skipping external insights');
+      return '';
+    }
+    
+    // Fetch relevant external insights
+    const { data: insights, error: insightsError } = await supabase
+      .from('external_insights')
+      .select('title, summary, industry_tags, region_tags, threat_tags, risk_level, published_at, source_type, is_verified')
+      .eq('is_verified', true) // Only verified insights
+      .gte('published_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()) // Last 30 days
+      .order('published_at', { ascending: false })
+      .limit(10);
+    
+    if (insightsError) {
+      console.error('Error fetching external insights:', insightsError);
+      return '';
+    }
+    
+    if (!insights || insights.length === 0) {
+      console.log('No recent external insights found');
+      return '';
+    }
+    
+    // Filter insights based on organizational profile
+    const relevantInsights = insights.filter(insight => {
+      // Check industry match
+      const industryMatch = org.industry_tags?.some(tag => 
+        insight.industry_tags?.includes(tag)
+      );
+      
+      // Check region match
+      const regionMatch = org.region_operating && 
+        insight.region_tags?.includes(org.region_operating);
+      
+      // Check threat/risk concern match
+      const threatMatch = org.risk_concerns?.some(concern => 
+        insight.threat_tags?.includes(concern)
+      );
+      
+      // Include global insights and profile matches
+      return insight.industry_tags?.includes('Global') || 
+             insight.region_tags?.includes('Global') ||
+             industryMatch || regionMatch || threatMatch;
+    });
+    
+    if (relevantInsights.length === 0) {
+      console.log('No insights match organizational profile');
+      return '';
+    }
+    
+    console.log(`Found ${relevantInsights.length} relevant external insights`);
+    
+    // Format insights for AI context
+    let insightsContext = '=== EXTERNAL THREAT INTELLIGENCE (ADVISORY ONLY) ===\n';
+    insightsContext += `Matched to your risk profile: ${org.industry_tags?.join(', ')} | ${org.region_operating} | ${org.risk_concerns?.join(', ')}\n\n`;
+    
+    relevantInsights.forEach(insight => {
+      insightsContext += `THREAT ALERT [${insight.risk_level} Risk]: ${insight.title}\n`;
+      insightsContext += `Published: ${new Date(insight.published_at).toLocaleDateString()}\n`;
+      insightsContext += `Summary: ${insight.summary}\n`;
+      insightsContext += `Tags: Industry [${insight.industry_tags?.join(', ')}] | Region [${insight.region_tags?.join(', ')}] | Threats [${insight.threat_tags?.join(', ')}]\n`;
+      insightsContext += `Source: ${insight.source_type} | Verified: ${insight.is_verified ? 'Yes' : 'No'}\n\n`;
+    });
+    
+    insightsContext += 'NOTE: This external intelligence is ADVISORY ONLY and does not impact maturity scores or evidence decisions.\n';
+    
+    return insightsContext;
+  } catch (error) {
+    console.error('Error getting external insights:', error);
+    return '';
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -343,6 +434,14 @@ serve(async (req) => {
       }
     }
     
+    // For Tier 3 (External Awareness) contexts, get relevant threat intelligence
+    let externalInsightsContext = '';
+    if (isExternalAwarenessContext && organizationId) {
+      console.log('🌐 EXTERNAL AWARENESS MODE: Fetching threat intelligence');
+      externalInsightsContext = await getExternalInsights(organizationId, context);
+    }
+    
+    
     
     const systemPrompt = `You are Maturion, an AI assistant specializing in operational maturity assessment and security governance. Your mission is "Powering Assurance. Elevating Performance." You are part of APGI (Assurance Protection Group Inc.) and help organizations navigate their maturity journey.
 
@@ -406,8 +505,12 @@ I will generate the requested content using available context and industry best 
 - You may use real-time external sources for: threat detection, risk horizon scanning, industry-specific situational awareness
 - ALL external content must be tagged as "ADVISORY ONLY" and NOT used for maturity scoring or evidence decisions
 - ALWAYS begin responses with: ⚠️ "External insight used. Please validate before applying."
-- Example insights: "New insider threat trend detected in the diamond sector. Consider updating MPS 4 controls in recovery areas."
 - Tag all externally sourced intelligence as "External Insight"
+
+${externalInsightsContext ? `
+CURRENT THREAT INTELLIGENCE:
+${externalInsightsContext}
+` : 'No recent threat intelligence available for your organizational profile.'}
 - Do NOT mix external sources with scoring/evidence workflows
 ` : isOrganizationalContext ? `
 🏢 TIER 2: ORGANIZATIONAL CONTEXT MODE - AI Behavior & Knowledge Source Policy v2.0

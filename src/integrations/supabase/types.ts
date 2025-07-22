@@ -873,6 +873,69 @@ export type Database = {
           },
         ]
       }
+      external_insights: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          industry_tags: string[] | null
+          is_verified: boolean
+          matched_orgs: string[] | null
+          published_at: string | null
+          region_tags: string[] | null
+          retrieved_at: string
+          risk_level: Database["public"]["Enums"]["risk_level"] | null
+          source_type: Database["public"]["Enums"]["source_type"]
+          source_url: string | null
+          summary: string | null
+          threat_tags: string[] | null
+          title: string
+          updated_at: string
+          updated_by: string | null
+          visibility_scope: Database["public"]["Enums"]["visibility_scope"]
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          industry_tags?: string[] | null
+          is_verified?: boolean
+          matched_orgs?: string[] | null
+          published_at?: string | null
+          region_tags?: string[] | null
+          retrieved_at?: string
+          risk_level?: Database["public"]["Enums"]["risk_level"] | null
+          source_type?: Database["public"]["Enums"]["source_type"]
+          source_url?: string | null
+          summary?: string | null
+          threat_tags?: string[] | null
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+          visibility_scope?: Database["public"]["Enums"]["visibility_scope"]
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          industry_tags?: string[] | null
+          is_verified?: boolean
+          matched_orgs?: string[] | null
+          published_at?: string | null
+          region_tags?: string[] | null
+          retrieved_at?: string
+          risk_level?: Database["public"]["Enums"]["risk_level"] | null
+          source_type?: Database["public"]["Enums"]["source_type"]
+          source_url?: string | null
+          summary?: string | null
+          threat_tags?: string[] | null
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+          visibility_scope?: Database["public"]["Enums"]["visibility_scope"]
+        }
+        Relationships: []
+      }
       maturity_levels: {
         Row: {
           ai_suggested_descriptor: string | null
@@ -1587,7 +1650,10 @@ export type Database = {
         | "rejected"
         | "escalated"
         | "alternative_proposal"
+      risk_level: "Low" | "Medium" | "High"
+      source_type: "RSS" | "API" | "Manual"
       threat_sensitivity_level: "Basic" | "Moderate" | "Advanced"
+      visibility_scope: "global" | "region" | "industry-specific" | "private"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1746,7 +1812,10 @@ export const Constants = {
         "escalated",
         "alternative_proposal",
       ],
+      risk_level: ["Low", "Medium", "High"],
+      source_type: ["RSS", "API", "Manual"],
       threat_sensitivity_level: ["Basic", "Moderate", "Advanced"],
+      visibility_scope: ["global", "region", "industry-specific", "private"],
     },
   },
 } as const
