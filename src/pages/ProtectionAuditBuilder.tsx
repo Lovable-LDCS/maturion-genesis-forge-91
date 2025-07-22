@@ -1,78 +1,75 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { ArrowLeft, FileText, Target, CheckSquare, BarChart3, ClipboardCheck, Sparkles, Shield } from 'lucide-react';
+import { ArrowLeft, Database, Target, CheckSquare, Sparkles, Shield } from 'lucide-react';
 import { MPSSelectionModal } from '@/components/assessment/MPSSelectionModal';
 import { IntentCreator } from '@/components/assessment/IntentCreator';
-import { useDomainAuditBuilder } from '@/hooks/useDomainAuditBuilder';
+import { useDomainAuditBuilder, type AuditStep } from '@/hooks/useDomainAuditBuilder';
 
 const ProtectionAuditBuilder = () => {
   const navigate = useNavigate();
+  const domainId = 'protection';
+  const domainName = 'Protection';
   
   const {
     isMPSModalOpen,
     setIsMPSModalOpen,
     isGeneratingMPSs,
+    setIsGeneratingMPSs,
     isIntentCreatorOpen,
     setIsIntentCreatorOpen,
-    acceptedMPSs,
-    mpsCompleted,
-    intentCompleted,
     handleAcceptMPSs,
     handleIntentsFinalized,
     handleStepClick,
-    isStepClickable,
-    getStepStatus
-  } = useDomainAuditBuilder('protection');
+    getStepStatus,
+    getDatabaseStepStatus
+  } = useDomainAuditBuilder(domainId);
 
-  const domainName = 'Protection';
-
-  const auditSteps = [
+  const [auditSteps, setAuditSteps] = useState<AuditStep[]>([
     {
       id: 1,
-      title: 'List MPSs',
-      description: 'Define your Security & Protection Standards (MPS 15-20)',
-      timeEstimate: '30 minutes',
-      status: mpsCompleted ? 'completed' as const : 'active' as const,
-      icon: FileText
+      title: 'Create MPSs',
+      description: 'Set up Mini Performance Standards based on your uploaded document context',
+      timeEstimate: '5-10 minutes',
+      status: 'active',
+      icon: Database
     },
     {
       id: 2,
-      title: 'Formulate Intent',
-      description: 'Create security-focused intent statements for each MPS',
-      timeEstimate: '45 minutes',
-      status: intentCompleted ? 'completed' as const : (mpsCompleted ? 'active' as const : 'locked' as const),
+      title: 'Create Intent',
+      description: 'Define purpose and objectives for each MPS to guide implementation',
+      timeEstimate: '10-15 minutes',
+      status: 'locked',
       icon: Target
     },
     {
       id: 3,
       title: 'Create Criteria',
-      description: 'Develop detailed security criteria for each MPS',
-      timeEstimate: '1-2 hours',
-      status: intentCompleted ? 'active' as const : 'locked' as const,
+      description: 'Establish assessment criteria and maturity levels for auditing',
+      timeEstimate: '15-20 minutes',
+      status: 'locked',
       icon: CheckSquare
-    },
-    {
-      id: 4,
-      title: 'Maturity Descriptors',
-      description: 'Define security maturity levels',
-      timeEstimate: '1 hour',
-      status: 'locked' as const,
-      icon: BarChart3
-    },
-    {
-      id: 5,
-      title: 'Audit Review',
-      description: 'Review and validate your security audit framework',
-      timeEstimate: '1-2 hours',
-      status: 'locked' as const,
-      icon: ClipboardCheck
     }
-  ];
+  ]);
+
+  // Update step statuses based on database state
+  useEffect(() => {
+    const updateStepStatuses = async () => {
+      const updatedSteps = await Promise.all(
+        auditSteps.map(async (step) => ({
+          ...step,
+          status: await getDatabaseStepStatus(step.id)
+        }))
+      );
+      setAuditSteps(updatedSteps);
+    };
+
+    updateStepStatuses();
+  }, [isIntentCreatorOpen, isMPSModalOpen]);
 
   const completedSteps = auditSteps.filter(step => step.status === 'completed').length;
   const progressPercentage = Math.round((completedSteps / auditSteps.length) * 100);
@@ -120,32 +117,36 @@ const ProtectionAuditBuilder = () => {
 
           <div className="grid gap-6">
             {auditSteps.map((step) => {
-              const stepStyle = getStepStatus(step);
-              const isClickable = isStepClickable(step);
+              const stepStyles = getStepStatus(step.status);
               
               return (
                 <Card 
                   key={step.id}
-                  className={`transition-all ${stepStyle.border} ${
-                    step.status === 'active' ? 'shadow-lg ring-2 ring-blue-200' : ''
-                  } ${step.status === 'completed' ? 'shadow-sm ring-1 ring-green-200' : ''} ${
-                    isClickable ? 'cursor-pointer hover:shadow-md' : 'opacity-60'
-                  } ${step.status === 'locked' ? 'opacity-40' : ''}`}
-                  onClick={() => {
-                    if (isClickable) {
+                  onClick={async () => {
+                    const stepStatus = await getDatabaseStepStatus(step.id);
+                    const canClick = stepStatus === 'active' || stepStatus === 'completed';
+                    if (canClick) {
                       handleStepClick(step.id);
                     }
                   }}
+                  className={`transition-all duration-300 ${
+                    step.status === 'completed'
+                      ? 'border-green-200 bg-green-50/50 hover:bg-green-50/70 cursor-pointer'
+                      : step.status === 'active'
+                      ? 'border-blue-200 bg-blue-50/50 hover:bg-blue-50/70 cursor-pointer'
+                      : 'border-muted bg-muted/20 opacity-60 cursor-not-allowed'
+                  }`}
                 >
                   <CardHeader className="pb-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${stepStyle.bgColor} ${stepStyle.textColor} font-bold text-lg`}>
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${stepStyles.bgColor} ${stepStyles.textColor} font-bold text-lg`}>
                           {step.id}
                         </div>
+                        
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-1">
-                            <step.icon className={`h-5 w-5 ${stepStyle.textColor}`} />
+                            <step.icon className={`h-5 w-5 ${stepStyles.textColor}`} />
                             <CardTitle className="text-lg">{step.title}</CardTitle>
                           </div>
                           <CardDescription className="text-sm">
@@ -213,7 +214,6 @@ const ProtectionAuditBuilder = () => {
         isOpen={isIntentCreatorOpen}
         onClose={() => setIsIntentCreatorOpen(false)}
         domainName={domainName}
-        acceptedMPSs={acceptedMPSs}
         onIntentsFinalized={handleIntentsFinalized}
       />
     </div>
