@@ -169,12 +169,15 @@ export default function AssessmentFramework() {
                 return (
                   <Card 
                     key={domain.id}
-                    className={`cursor-pointer transition-all duration-300 hover:shadow-lg ${
-                      domain.status === 'completed' ? 'border-green-200 bg-green-50/30' :
-                      domain.status === 'in_progress' ? 'border-blue-200 bg-blue-50/30' :
-                      domain.status === 'locked' ? 'opacity-60 cursor-not-allowed' :
-                      isNextSuggested ? 'border-primary/40 bg-primary/5 shadow-lg ring-2 ring-primary/20' :
-                      'hover:border-primary/50'
+                    className={`transition-all duration-300 ${
+                      domain.status === 'locked' ? 
+                        'opacity-50 cursor-not-allowed bg-muted/30 border-muted' :
+                        `cursor-pointer hover:shadow-lg ${
+                          domain.status === 'completed' ? 'border-green-200 bg-green-50/30' :
+                          domain.status === 'in_progress' ? 'border-blue-200 bg-blue-50/30' :
+                          isNextSuggested ? 'border-primary/40 bg-primary/5 shadow-lg ring-2 ring-primary/20' :
+                          'hover:border-primary/50'
+                        }`
                     }`}
                     onClick={() => {
                       if (domain.status !== 'locked') {

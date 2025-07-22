@@ -28,27 +28,32 @@ const DOMAIN_INFO = {
   'leadership-governance': {
     name: 'Leadership & Governance',
     description: 'Strategic oversight, risk management, and compliance frameworks',
-    mpsRange: 'MPS 1–5'
+    mpsRange: 'MPS 1–5',
+    dbNames: ['Leadership & Governance', 'leadership-governance']
   },
   'process-integrity': {
     name: 'Process Integrity',
     description: 'Document management, version control, and quality assurance processes',
-    mpsRange: 'MPS 6–10'
+    mpsRange: 'MPS 6–10',
+    dbNames: ['Process Integrity', 'process-integrity']
   },
   'people-culture': {
     name: 'People & Culture', 
     description: 'Training, awareness, and organizational behavior standards',
-    mpsRange: 'MPS 11–14'
+    mpsRange: 'MPS 11–14',
+    dbNames: ['People & Culture', 'people-culture']
   },
   'protection': {
     name: 'Protection',
     description: 'Security controls, access management, and data protection',
-    mpsRange: 'MPS 15–20'
+    mpsRange: 'MPS 15–20',
+    dbNames: ['Protection', 'protection']
   },
   'proof-it-works': {
     name: 'Proof it Works',
     description: 'Monitoring, testing, and validation mechanisms',
-    mpsRange: 'MPS 21–25'
+    mpsRange: 'MPS 21–25',
+    dbNames: ['Proof it Works', 'proof-it-works']
   }
 };
 
@@ -97,8 +102,13 @@ export const useDomainProgress = () => {
       // Calculate progress for each domain
       const progressData: DomainProgress[] = DOMAIN_ORDER.map((domainKey, index) => {
         const domainInfo = DOMAIN_INFO[domainKey as keyof typeof DOMAIN_INFO];
+        
+        // Improved domain matching using multiple possible names
         const domainData = domainsData?.find(d => 
-          d.name.toLowerCase().replace(/\s+/g, '-').replace(/&/g, '').replace(/'/g, '') === domainKey
+          domainInfo.dbNames.some(name => 
+            d.name === name || 
+            d.name.toLowerCase().replace(/\s+/g, '-').replace(/&/g, '').replace(/'/g, '') === name.toLowerCase().replace(/\s+/g, '-').replace(/&/g, '').replace(/'/g, '')
+          )
         );
 
         let mpsCount = 0;
@@ -150,13 +160,17 @@ export const useDomainProgress = () => {
           }
         }
 
-        // Determine if domain is unlocked
+        // Determine if domain is unlocked - STRICT SEQUENTIAL LOCKING
         let isUnlocked = index === 0; // First domain is always unlocked
         if (index > 0) {
           // Check if previous domain is completed
           const prevDomainKey = DOMAIN_ORDER[index - 1];
+          const prevDomainInfo = DOMAIN_INFO[prevDomainKey as keyof typeof DOMAIN_INFO];
           const prevDomainData = domainsData?.find(d => 
-            d.name.toLowerCase().replace(/\s+/g, '-').replace(/&/g, '').replace(/'/g, '') === prevDomainKey
+            prevDomainInfo.dbNames.some(name => 
+              d.name === name || 
+              d.name.toLowerCase().replace(/\s+/g, '-').replace(/&/g, '').replace(/'/g, '') === name.toLowerCase().replace(/\s+/g, '-').replace(/&/g, '').replace(/'/g, '')
+            )
           );
           
           if (prevDomainData?.maturity_practice_statements) {
