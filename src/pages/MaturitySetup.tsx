@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { MaturionChat } from '@/components/ai/MaturionChat';
 
 // Standardized options for Risk & Awareness Profile
 const INDUSTRY_OPTIONS = [
@@ -683,6 +684,12 @@ const MaturitySetup = () => {
           </div>
         </div>
       </main>
+
+      {/* Maturion AI Chat Assistant */}
+      <MaturionChat 
+        context="Maturity model setup - organization profile, risk assessment, and model configuration guidance"
+        currentDomain="Foundation Setup"
+      />
     </div>
   );
 };

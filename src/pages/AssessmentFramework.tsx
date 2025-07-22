@@ -12,6 +12,7 @@ import { CriteriaManagement } from '@/components/assessment/CriteriaManagement';
 import { BulkImportExport } from '@/components/assessment/BulkImportExport';
 import { ISOComplianceValidation } from '@/components/assessment/ISOComplianceValidation';
 import { useDomainProgress } from '@/hooks/useDomainProgress';
+import { MaturionChat } from '@/components/ai/MaturionChat';
 import { Settings, Database, CheckSquare, Upload, Shield, Target, CheckCircle, Clock, AlertCircle, Lock } from 'lucide-react';
 
 export default function AssessmentFramework() {
@@ -321,6 +322,12 @@ export default function AssessmentFramework() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Maturion AI Chat Assistant */}
+      <MaturionChat 
+        context="Assessment framework configuration - domain setup, MPS management, and audit structure guidance"
+        currentDomain="Assessment Framework"
+      />
     </div>
   );
 }

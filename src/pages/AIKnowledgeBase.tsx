@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter } from 'lucide-react';
 import { AIAdminUploadZone } from '@/components/ai/AIAdminUploadZone';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
+import { MaturionChat } from '@/components/ai/MaturionChat';
 import { useAIDocuments } from '@/hooks/useAIDocuments';
 
 const AIKnowledgeBase: React.FC = () => {
@@ -199,6 +200,12 @@ const AIKnowledgeBase: React.FC = () => {
           <AIAdminUploadZone filteredDocuments={filteredDocuments} />
         </div>
       </div>
+
+      {/* Maturion AI Chat Assistant */}
+      <MaturionChat 
+        context="AI Knowledge Base management - document processing, chunking, and knowledge enhancement guidance"
+        currentDomain="AI Knowledge Base"
+      />
     </div>
   );
 };
