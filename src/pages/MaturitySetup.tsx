@@ -24,7 +24,9 @@ import {
   Globe,
   AlertTriangle,
   Plus,
-  Trash2
+  Trash2,
+  X,
+  Clock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -50,6 +52,12 @@ const COMPLIANCE_OPTIONS = [
   'ISO 27001', 'NIST', 'SOC 2', 'PCI DSS', 'GDPR', 'HIPAA', 'SOX', 'COBIT'
 ];
 
+interface UploadedFile {
+  file: File;
+  uploadedAt: Date;
+  id: string;
+}
+
 interface FormData {
   // User Information
   fullName: string;
@@ -60,7 +68,7 @@ interface FormData {
   companyName: string;
   primaryColor: string;
   companyLogo?: File;
-  companyProfile?: File;
+  optionalDocuments: UploadedFile[];
   
   // AI-Assisted Model Naming
   modelName: string;
@@ -94,7 +102,8 @@ const MaturitySetup = () => {
     regionOperating: '',
     riskConcerns: [],
     complianceCommitments: [],
-    threatSensitivityLevel: 'Basic'
+    threatSensitivityLevel: 'Basic',
+    optionalDocuments: []
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -122,18 +131,48 @@ const MaturitySetup = () => {
     }
   };
 
-  const handleFileUpload = (field: 'companyLogo' | 'companyProfile', file: File) => {
+  const handleFileUpload = (field: 'companyLogo', file: File) => {
     setFormData(prev => ({ ...prev, [field]: file }));
     toast({
       title: "File Uploaded",
-      description: `${field === 'companyLogo' ? 'Company logo' : 'Company profile'} uploaded successfully.`,
+      description: "Company logo uploaded successfully.",
     });
   };
 
-  const triggerFileUpload = (field: 'companyLogo' | 'companyProfile') => {
+  const handleOptionalDocumentUpload = (file: File) => {
+    const newDocument: UploadedFile = {
+      file,
+      uploadedAt: new Date(),
+      id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    };
+    
+    setFormData(prev => ({ 
+      ...prev, 
+      optionalDocuments: [...prev.optionalDocuments, newDocument] 
+    }));
+    
+    toast({
+      title: "Document Uploaded",
+      description: `${file.name} uploaded successfully.`,
+    });
+  };
+
+  const removeOptionalDocument = (documentId: string) => {
+    setFormData(prev => ({
+      ...prev,
+      optionalDocuments: prev.optionalDocuments.filter(doc => doc.id !== documentId)
+    }));
+    
+    toast({
+      title: "Document Removed",
+      description: "Document removed from your uploads.",
+    });
+  };
+
+  const triggerFileUpload = (field: 'companyLogo') => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = field === 'companyLogo' ? 'image/*' : '.pdf,.doc,.docx,.png,.jpg,.jpeg';
+    input.accept = 'image/*';
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (file) {
@@ -141,6 +180,41 @@ const MaturitySetup = () => {
       }
     };
     input.click();
+  };
+
+  const triggerOptionalDocumentUpload = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf,.doc,.docx,.png,.jpg,.jpeg,.txt,.csv,.xlsx';
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (file) {
+        handleOptionalDocumentUpload(file);
+      }
+    };
+    input.click();
+  };
+
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const formatUploadTime = (date: Date): string => {
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    return `${diffInDays}d ago`;
   };
 
   const handleInputChange = (field: keyof FormData, value: string) => {
@@ -574,7 +648,7 @@ const MaturitySetup = () => {
               </CardContent>
             </Card>
 
-            {/* Optional Uploads */}
+            {/* Optional Documents */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -585,23 +659,58 @@ const MaturitySetup = () => {
                   Additional context to help personalize your maturity model.
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
                 <div>
-                  <Label>Company Profile or Org Chart</Label>
+                  <Label>Company Profile, Org Chart, or Related Documents</Label>
                   <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
                     <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                     <p className="text-sm text-muted-foreground mb-2">
-                      {formData.companyProfile ? formData.companyProfile.name : 'Upload company profile, organizational chart, or similar document'}
+                      Upload company profile, organizational chart, policies, or similar documents
                     </p>
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => triggerFileUpload('companyProfile')}
+                      onClick={triggerOptionalDocumentUpload}
                     >
                       Choose File
                     </Button>
                   </div>
                 </div>
+
+                {/* Uploaded Files List */}
+                {formData.optionalDocuments.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Uploaded Documents ({formData.optionalDocuments.length})</Label>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {formData.optionalDocuments.map((doc) => (
+                        <div key={doc.id} className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium truncate" title={doc.file.name}>
+                                {doc.file.name}
+                              </p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Clock className="h-3 w-3" />
+                                <span>{formatUploadTime(doc.uploadedAt)}</span>
+                                <span>•</span>
+                                <span>{formatFileSize(doc.file.size)}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeOptionalDocument(doc.id)}
+                            className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
