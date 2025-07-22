@@ -131,6 +131,25 @@ const MaturitySetup = () => {
   useEffect(() => {
     refetchOrganization();
   }, [refetchOrganization]);
+
+  // Load saved form data from localStorage on mount
+  useEffect(() => {
+    const savedData = localStorage.getItem('maturion_setup_data');
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        setFormData(prev => ({
+          ...prev,
+          ...parsedData,
+          // Don't restore files from localStorage as they can't be serialized properly
+          companyLogo: undefined,
+          optionalDocuments: []
+        }));
+      } catch (error) {
+        console.error('Error parsing saved form data:', error);
+      }
+    }
+  }, []);
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -149,7 +168,8 @@ const MaturitySetup = () => {
     try {
       const cleanDomains = formData.linkedDomains.filter(d => d && d.trim());
       
-      const { error } = await supabase
+      // Save organization data
+      const { error: orgError } = await supabase
         .from('organizations')
         .update({
           name: formData.companyName || currentOrganization.name,
@@ -165,17 +185,98 @@ const MaturitySetup = () => {
         })
         .eq('id', currentOrganization.id);
         
-      if (error) {
-        console.error('Auto-save error:', error);
-      } else {
-        setLastSaved(new Date());
-        // Refresh organization data to pick up changes
-        await refetchOrganization();
-        // Store the setup data in localStorage for persistence
-        localStorage.setItem('maturion_setup_data', JSON.stringify(formData));
+      if (orgError) {
+        console.error('Organization save error:', orgError);
+        throw orgError;
       }
+
+      // Save/update profile data (personal information)
+      if (formData.fullName || formData.title || formData.bio) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            user_id: user.id,
+            full_name: formData.fullName || profile?.full_name,
+            email: profile?.email || user.email,
+            avatar_url: profile?.avatar_url
+          });
+          
+        if (profileError) {
+          console.error('Profile save error:', profileError);
+        }
+      }
+
+      // Upload company logo if provided
+      if (formData.companyLogo) {
+        const fileExt = formData.companyLogo.name.split('.').pop();
+        const fileName = `${currentOrganization.id}-logo.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('organization-logos')
+          .upload(fileName, formData.companyLogo, {
+            upsert: true
+          });
+          
+        if (uploadError) {
+          console.error('Logo upload error:', uploadError);
+        } else {
+          // Update organization with logo URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('organization-logos')
+            .getPublicUrl(fileName);
+            
+          await supabase
+            .from('organizations')
+            .update({ logo_url: publicUrl })
+            .eq('id', currentOrganization.id);
+        }
+      }
+
+      // Upload optional documents if any
+      for (const doc of formData.optionalDocuments) {
+        const fileExt = doc.file.name.split('.').pop();
+        const fileName = `${currentOrganization.id}/${doc.id}.${fileExt}`;
+        
+        const { error: docUploadError } = await supabase.storage
+          .from('ai-documents')
+          .upload(fileName, doc.file, {
+            upsert: true
+          });
+          
+        if (docUploadError) {
+          console.error('Document upload error:', docUploadError);
+        } else {
+          // Create document record
+          const { error: docRecordError } = await supabase
+            .from('ai_documents')
+            .insert({
+              organization_id: currentOrganization.id,
+              file_name: doc.file.name,
+              file_path: fileName,
+              file_size: doc.file.size,
+              mime_type: doc.file.type,
+              document_type: 'organizational',
+              title: doc.file.name,
+              uploaded_by: user.id,
+              updated_by: user.id,
+              processing_status: 'pending'
+            });
+            
+          if (docRecordError) {
+            console.error('Document record error:', docRecordError);
+          }
+        }
+      }
+
+      setLastSaved(new Date());
+      // Refresh organization data to pick up changes
+      await refetchOrganization();
+      // Store the setup data in localStorage for persistence
+      localStorage.setItem('maturion_setup_data', JSON.stringify(formData));
+      
     } catch (error) {
       console.error('Auto-save failed:', error);
+      throw error;
     } finally {
       setIsSaving(false);
     }
@@ -186,13 +287,22 @@ const MaturitySetup = () => {
     if (!currentOrganization) return;
     
     const timeoutId = setTimeout(() => {
-      autoSave();
+      autoSave().catch(error => {
+        console.error('Auto-save failed:', error);
+        toast({
+          title: "Auto-save Failed",
+          description: "There was an issue saving your progress. Please try manual save.",
+          variant: "destructive"
+        });
+      });
     }, 2000); // Auto-save 2 seconds after user stops typing
 
     return () => clearTimeout(timeoutId);
-  }, [formData.companyName, formData.primaryWebsiteUrl, formData.linkedDomains, 
-      formData.industryTags, formData.customIndustry, formData.regionOperating, 
-      formData.riskConcerns, formData.complianceCommitments, formData.threatSensitivityLevel]);
+  }, [formData.fullName, formData.title, formData.bio, formData.companyName, 
+      formData.primaryWebsiteUrl, formData.linkedDomains, formData.industryTags, 
+      formData.customIndustry, formData.regionOperating, formData.riskConcerns, 
+      formData.complianceCommitments, formData.threatSensitivityLevel, 
+      formData.companyLogo, formData.optionalDocuments]);
 
   // Generate AI-suggested model name based on company name
   const generateModelName = () => {
@@ -344,11 +454,19 @@ const MaturitySetup = () => {
   };
 
   const handleSaveProgress = async () => {
-    await autoSave();
-    toast({
-      title: "Progress Saved",
-      description: "Your setup progress has been saved successfully.",
-    });
+    try {
+      await autoSave();
+      toast({
+        title: "Progress Saved",
+        description: "Your setup progress has been saved successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Save Failed",
+        description: error.message || "There was an error saving your progress. Please try again.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleStartBuilding = async () => {
