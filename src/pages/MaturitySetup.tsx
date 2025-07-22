@@ -36,13 +36,6 @@ interface FormData {
   companyLogo?: File;
   companyProfile?: File;
   
-  // Risk & Awareness Profile
-  industryTags: string[];
-  regionOperating: string;
-  riskConcerns: string[];
-  complianceCommitments: string[];
-  threatSensitivityLevel: string;
-  
   // AI-Assisted Model Naming
   modelName: string;
 }
@@ -59,11 +52,6 @@ const MaturitySetup = () => {
     bio: '',
     companyName: currentOrganization?.name || '',
     primaryColor: '#0066cc',
-    industryTags: [],
-    regionOperating: '',
-    riskConcerns: [],
-    complianceCommitments: [],
-    threatSensitivityLevel: 'Basic',
     modelName: ''
   });
   
@@ -113,17 +101,8 @@ const MaturitySetup = () => {
     input.click();
   };
 
-  const handleInputChange = (field: keyof FormData, value: string | string[]) => {
+  const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const toggleArrayValue = (field: 'industryTags' | 'riskConcerns' | 'complianceCommitments', value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: prev[field].includes(value) 
-        ? prev[field].filter(item => item !== value)
-        : [...prev[field], value]
-    }));
   };
 
   const handleSubmit = async () => {
@@ -347,132 +326,6 @@ const MaturitySetup = () => {
               </CardContent>
             </Card>
 
-            {/* Risk & Awareness Profile */}
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Risk & Awareness Profile
-                </CardTitle>
-                <CardDescription>
-                  Configure your organization's risk profile to enable contextualized AI recommendations and threat matching.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-6">
-                  {/* Industry Tags */}
-                  <div>
-                    <Label className="flex items-center gap-2 mb-3">
-                      <Building className="h-4 w-4" />
-                      Industry Sectors
-                    </Label>
-                    <div className="space-y-2">
-                      {['Mining', 'Energy', 'Finance', 'Healthcare', 'Manufacturing', 'Technology', 'Government', 'Other'].map((industry) => (
-                        <label key={industry} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.industryTags.includes(industry)}
-                            onChange={() => toggleArrayValue('industryTags', industry)}
-                            className="rounded border-gray-300"
-                          />
-                          <span className="text-sm">{industry}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Region Operating */}
-                  <div>
-                    <Label htmlFor="regionOperating" className="flex items-center gap-2 mb-3">
-                      <Globe className="h-4 w-4" />
-                      Primary Operating Region
-                    </Label>
-                    <select
-                      id="regionOperating"
-                      value={formData.regionOperating}
-                      onChange={(e) => handleInputChange('regionOperating', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md"
-                    >
-                      <option value="">Select Region</option>
-                      <option value="North America">North America</option>
-                      <option value="Europe">Europe</option>
-                      <option value="Asia Pacific">Asia Pacific</option>
-                      <option value="Latin America">Latin America</option>
-                      <option value="Middle East & Africa">Middle East & Africa</option>
-                      <option value="Southern Africa">Southern Africa</option>
-                      <option value="Global">Global</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-6">
-                  {/* Risk Concerns */}
-                  <div>
-                    <Label className="flex items-center gap-2 mb-3">
-                      <AlertTriangle className="h-4 w-4" />
-                      Primary Risk Concerns
-                    </Label>
-                    <div className="space-y-2">
-                      {['Cyber Attacks', 'Insider Threats', 'Data Breaches', 'Supply Chain Risks', 'Regulatory Compliance', 'Physical Security', 'Business Continuity', 'Third-party Risks'].map((risk) => (
-                        <label key={risk} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.riskConcerns.includes(risk)}
-                            onChange={() => toggleArrayValue('riskConcerns', risk)}
-                            className="rounded border-gray-300"
-                          />
-                          <span className="text-sm">{risk}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Compliance Commitments */}
-                  <div>
-                    <Label className="flex items-center gap-2 mb-3">
-                      <FileText className="h-4 w-4" />
-                      Compliance Frameworks
-                    </Label>
-                    <div className="space-y-2">
-                      {['ISO 27001', 'NIST', 'SOC 2', 'PCI DSS', 'GDPR', 'HIPAA', 'SOX', 'COBIT'].map((framework) => (
-                        <label key={framework} className="flex items-center space-x-2 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={formData.complianceCommitments.includes(framework)}
-                            onChange={() => toggleArrayValue('complianceCommitments', framework)}
-                            className="rounded border-gray-300"
-                          />
-                          <span className="text-sm">{framework}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Threat Sensitivity Level */}
-                <div>
-                  <Label htmlFor="threatSensitivityLevel" className="flex items-center gap-2 mb-3">
-                    <Shield className="h-4 w-4" />
-                    Threat Sensitivity Level
-                  </Label>
-                  <select
-                    id="threatSensitivityLevel"
-                    value={formData.threatSensitivityLevel}
-                    onChange={(e) => handleInputChange('threatSensitivityLevel', e.target.value)}
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                  >
-                    <option value="Basic">Basic - Standard threat awareness</option>
-                    <option value="Enhanced">Enhanced - Increased threat monitoring</option>
-                    <option value="Advanced">Advanced - High-sensitivity threat detection</option>
-                    <option value="Critical">Critical - Maximum threat awareness</option>
-                  </select>
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Controls the depth and frequency of external threat intelligence integration
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-
             {/* AI Model Naming */}
             <Card className="lg:col-span-2">
               <CardHeader>
@@ -509,6 +362,14 @@ const MaturitySetup = () => {
                   <p className="text-sm text-muted-foreground">
                     This name will appear on all reports, certificates, and documentation 
                     generated by your maturity model.
+                  </p>
+                </div>
+
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                  <h4 className="font-medium text-sm mb-2">🔗 Organization Profile Required</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Risk & Awareness Profile configuration is now handled during organization setup. 
+                    Complete your organization profile first to enable full AI threat intelligence features.
                   </p>
                 </div>
               </CardContent>

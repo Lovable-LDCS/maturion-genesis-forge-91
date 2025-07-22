@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useForm, useFieldArray, Control } from 'react-hook-form'
+import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
@@ -9,67 +9,65 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Badge } from '@/components/ui/badge'
 import { useAuth } from '@/contexts/AuthContext'
 import { useToast } from '@/hooks/use-toast'
 import { supabase } from '@/integrations/supabase/client'
 import { 
   Building, 
   Plus, 
-  Globe, 
   Shield, 
-  MapPin, 
-  AlertTriangle, 
-  FileCheck, 
   Settings,
-  X,
-  Trash2
+  Trash2,
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react'
 
+// Unified schema with proper validation
 const organizationSchema = z.object({
   name: z.string().min(2, 'Organization name must be at least 2 characters'),
   description: z.string().optional(),
   
-  // AI Behavior & Knowledge Source Policy v2.0 fields
-  primary_website_url: z.string().optional(),
-  linked_domains: z.array(z.string()).default([]),
-  industry_tags: z.array(z.string()).default([]),
-  region_operating: z.string().optional(),
-  risk_concerns: z.array(z.string()).default([]),
+  // Enhanced fields with proper validation
+  primary_website_url: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
+  linked_domains: z.array(z.string().url('Invalid domain URL')).default([]).optional(),
+  industry_tags: z.array(z.string()).min(1, 'Please select at least one industry').max(5, 'Maximum 5 industries allowed'),
+  region_operating: z.string().min(1, 'Please select your operating region'),
+  risk_concerns: z.array(z.string()).min(1, 'Please select at least one risk concern').max(8, 'Maximum 8 risk concerns allowed'),
   compliance_commitments: z.array(z.string()).default([]),
   threat_sensitivity_level: z.enum(['Basic', 'Moderate', 'Advanced']).default('Basic'),
 })
 
 type OrganizationData = z.infer<typeof organizationSchema>
 
-interface EnhancedOrganizationSetupProps {
+interface UnifiedOrganizationSetupProps {
   onComplete: () => void
+  variant?: 'dashboard' | 'maturity' // Controls flow and messaging
 }
 
-// Predefined options for better UX
+// Standardized options (aligned with database enums)
 const INDUSTRY_OPTIONS = [
-  'Diamond Mining', 'Security Services', 'Platinum Mining', 'Gold Mining',
-  'Financial Services', 'Manufacturing', 'Technology', 'Healthcare',
-  'Government', 'Energy', 'Construction', 'Retail', 'Transportation'
+  'Mining', 'Energy', 'Finance', 'Healthcare', 'Manufacturing', 
+  'Technology', 'Government', 'Construction', 'Retail', 'Transportation', 'Other'
 ]
 
 const REGION_OPTIONS = [
-  'Botswana', 'South Africa', 'Canada', 'United States', 'Australia',
-  'Sub-Saharan Africa', 'Europe', 'Asia-Pacific', 'Latin America', 'Middle East'
+  'North America', 'Europe', 'Asia Pacific', 'Latin America', 
+  'Middle East & Africa', 'Southern Africa', 'Global'
 ]
 
 const RISK_CONCERN_OPTIONS = [
-  'Theft', 'Sabotage', 'Cyber Fraud', 'Collusion', 'Insider Threat',
-  'Data Breach', 'Supply Chain Risk', 'Regulatory Compliance', 'Environmental Risk',
-  'Operational Risk', 'Financial Crime', 'Physical Security'
+  'Cyber Attacks', 'Insider Threats', 'Data Breaches', 'Supply Chain Risks',
+  'Regulatory Compliance', 'Physical Security', 'Business Continuity', 'Third-party Risks'
 ]
 
 const COMPLIANCE_OPTIONS = [
-  'VPSHR', 'ISO 31000', 'Kimberley Process', 'ISO 27001', 'SOX', 'GDPR',
-  'HIPAA', 'PCI DSS', 'NIST Framework', 'COBIT', 'King IV', 'Basel III'
+  'ISO 27001', 'NIST', 'SOC 2', 'PCI DSS', 'GDPR', 'HIPAA', 'SOX', 'COBIT'
 ]
 
-export const EnhancedOrganizationSetup: React.FC<EnhancedOrganizationSetupProps> = ({ onComplete }) => {
+export const UnifiedOrganizationSetup: React.FC<UnifiedOrganizationSetupProps> = ({ 
+  onComplete, 
+  variant = 'dashboard' 
+}) => {
   const { user } = useAuth()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -96,30 +94,33 @@ export const EnhancedOrganizationSetup: React.FC<EnhancedOrganizationSetupProps>
     setLoading(true)
     
     try {
+      // Clean and validate linked domains
+      const cleanDomains = data.linked_domains?.filter(d => d && d.trim()) || []
+      
       const { data: organization, error } = await supabase
         .from('organizations')
         .insert({
           name: data.name,
-          description: data.description,
+          description: data.description || null,
           owner_id: user.id,
           primary_website_url: data.primary_website_url || null,
-          linked_domains: data.linked_domains?.filter(d => d.trim()) || [],
-          industry_tags: data.industry_tags || [],
-          region_operating: data.region_operating || null,
-          risk_concerns: data.risk_concerns || [],
-          compliance_commitments: data.compliance_commitments || [],
-          threat_sensitivity_level: data.threat_sensitivity_level || 'Basic',
+          linked_domains: cleanDomains,
+          industry_tags: data.industry_tags,
+          region_operating: data.region_operating,
+          risk_concerns: data.risk_concerns,
+          compliance_commitments: data.compliance_commitments,
+          threat_sensitivity_level: data.threat_sensitivity_level,
         })
         .select()
         .single()
 
-      if (error) {
-        throw error
-      }
+      if (error) throw error
 
       toast({
         title: 'Success',
-        description: 'Organization profile created successfully! Maturion will now personalize threat intelligence based on your profile.',
+        description: variant === 'maturity' 
+          ? 'Organization profile created! Your maturity model setup can now begin.'
+          : 'Organization profile created successfully! AI threat intelligence is now personalized to your profile.',
       })
 
       onComplete()
@@ -135,20 +136,43 @@ export const EnhancedOrganizationSetup: React.FC<EnhancedOrganizationSetupProps>
     }
   }
 
-  const renderBasicInfo = () => (
+  const addLinkedDomain = () => {
+    const current = form.getValues('linked_domains') || []
+    form.setValue('linked_domains', [...current, ''])
+  }
+
+  const removeLinkedDomain = (index: number) => {
+    const current = form.getValues('linked_domains') || []
+    current.splice(index, 1)
+    form.setValue('linked_domains', current)
+  }
+
+  const updateLinkedDomain = (index: number, value: string) => {
+    const current = form.getValues('linked_domains') || []
+    current[index] = value
+    form.setValue('linked_domains', current)
+  }
+
+  const toggleArrayValue = (field: 'industry_tags' | 'risk_concerns' | 'compliance_commitments', value: string) => {
+    const current = form.getValues(field) || []
+    if (current.includes(value)) {
+      form.setValue(field, current.filter(item => item !== value))
+    } else {
+      form.setValue(field, [...current, value])
+    }
+  }
+
+  const renderStep1 = () => (
     <div className="space-y-6">
       <div className="space-y-2">
         <Label htmlFor="name">Organization Name *</Label>
         <Input
           id="name"
-          type="text"
           placeholder="Enter organization name"
           {...form.register('name')}
         />
         {form.formState.errors.name && (
-          <p className="text-sm text-destructive">
-            {form.formState.errors.name.message}
-          </p>
+          <p className="text-sm text-destructive">{form.formState.errors.name.message}</p>
         )}
       </div>
       
@@ -157,7 +181,6 @@ export const EnhancedOrganizationSetup: React.FC<EnhancedOrganizationSetupProps>
         <Textarea
           id="description"
           placeholder="Describe your organization"
-          className="min-h-[100px]"
           {...form.register('description')}
         />
       </div>
@@ -170,46 +193,27 @@ export const EnhancedOrganizationSetup: React.FC<EnhancedOrganizationSetupProps>
           placeholder="https://www.yourcompany.com"
           {...form.register('primary_website_url')}
         />
-        <p className="text-xs text-muted-foreground">Used for company reference and threat feed alignment</p>
+        {form.formState.errors.primary_website_url && (
+          <p className="text-sm text-destructive">{form.formState.errors.primary_website_url.message}</p>
+        )}
       </div>
 
       <div className="space-y-2">
-        <Label>Linked Domains</Label>
-        <p className="text-xs text-muted-foreground mb-2">Additional relevant sites (ESG portal, security intranet, etc.)</p>
+        <Label>Additional Domains (Optional)</Label>
+        <p className="text-xs text-muted-foreground">ESG portals, security sites, etc.</p>
         {form.watch('linked_domains')?.map((domain, index) => (
           <div key={index} className="flex gap-2">
             <Input
-              placeholder="https://example.com"
+              placeholder="https://portal.example.com"
               value={domain}
-              onChange={(e) => {
-                const domains = form.getValues('linked_domains') || []
-                domains[index] = e.target.value
-                form.setValue('linked_domains', domains)
-              }}
+              onChange={(e) => updateLinkedDomain(index, e.target.value)}
             />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const domains = form.getValues('linked_domains') || []
-                domains.splice(index, 1)
-                form.setValue('linked_domains', domains)
-              }}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={() => removeLinkedDomain(index)}>
               <Trash2 className="h-4 w-4" />
             </Button>
           </div>
         ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            const domains = form.getValues('linked_domains') || []
-            form.setValue('linked_domains', [...domains, ''])
-          }}
-        >
+        <Button type="button" variant="outline" size="sm" onClick={addLinkedDomain}>
           <Plus className="h-4 w-4 mr-2" />
           Add Domain
         </Button>
@@ -217,36 +221,30 @@ export const EnhancedOrganizationSetup: React.FC<EnhancedOrganizationSetupProps>
     </div>
   )
 
-  const renderThreatProfile = () => (
+  const renderStep2 = () => (
     <div className="space-y-6">
       <div className="space-y-3">
-        <Label>Industry Categories</Label>
-        <p className="text-xs text-muted-foreground">Select all that apply for targeted threat intelligence</p>
+        <Label>Industry Sectors *</Label>
+        <p className="text-xs text-muted-foreground">Select 1-5 industries for targeted threat intelligence</p>
         <div className="grid grid-cols-2 gap-2">
           {INDUSTRY_OPTIONS.map((industry) => (
             <div key={industry} className="flex items-center space-x-2">
               <Checkbox
                 id={`industry-${industry}`}
                 checked={form.watch('industry_tags')?.includes(industry) || false}
-                onCheckedChange={(checked) => {
-                  const current = form.getValues('industry_tags') || []
-                  if (checked) {
-                    form.setValue('industry_tags', [...current, industry])
-                  } else {
-                    form.setValue('industry_tags', current.filter(t => t !== industry))
-                  }
-                }}
+                onCheckedChange={() => toggleArrayValue('industry_tags', industry)}
               />
-              <Label htmlFor={`industry-${industry}`} className="text-sm">
-                {industry}
-              </Label>
+              <Label htmlFor={`industry-${industry}`} className="text-sm">{industry}</Label>
             </div>
           ))}
         </div>
+        {form.formState.errors.industry_tags && (
+          <p className="text-sm text-destructive">{form.formState.errors.industry_tags.message}</p>
+        )}
       </div>
 
       <div className="space-y-2">
-        <Label>Primary Operating Region</Label>
+        <Label>Primary Operating Region *</Label>
         <Select
           value={form.watch('region_operating') || ''}
           onValueChange={(value) => form.setValue('region_operating', value)}
@@ -256,66 +254,50 @@ export const EnhancedOrganizationSetup: React.FC<EnhancedOrganizationSetupProps>
           </SelectTrigger>
           <SelectContent>
             {REGION_OPTIONS.map((region) => (
-              <SelectItem key={region} value={region}>
-                {region}
-              </SelectItem>
+              <SelectItem key={region} value={region}>{region}</SelectItem>
             ))}
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground">For localized threat intelligence</p>
+        {form.formState.errors.region_operating && (
+          <p className="text-sm text-destructive">{form.formState.errors.region_operating.message}</p>
+        )}
       </div>
 
       <div className="space-y-3">
-        <Label>Risk Concerns</Label>
-        <p className="text-xs text-muted-foreground">Key risk areas for personalized threat awareness</p>
+        <Label>Primary Risk Concerns *</Label>
+        <p className="text-xs text-muted-foreground">Select 1-8 key risk areas</p>
         <div className="grid grid-cols-2 gap-2">
           {RISK_CONCERN_OPTIONS.map((risk) => (
             <div key={risk} className="flex items-center space-x-2">
               <Checkbox
                 id={`risk-${risk}`}
                 checked={form.watch('risk_concerns')?.includes(risk) || false}
-                onCheckedChange={(checked) => {
-                  const current = form.getValues('risk_concerns') || []
-                  if (checked) {
-                    form.setValue('risk_concerns', [...current, risk])
-                  } else {
-                    form.setValue('risk_concerns', current.filter(r => r !== risk))
-                  }
-                }}
+                onCheckedChange={() => toggleArrayValue('risk_concerns', risk)}
               />
-              <Label htmlFor={`risk-${risk}`} className="text-sm">
-                {risk}
-              </Label>
+              <Label htmlFor={`risk-${risk}`} className="text-sm">{risk}</Label>
             </div>
           ))}
         </div>
+        {form.formState.errors.risk_concerns && (
+          <p className="text-sm text-destructive">{form.formState.errors.risk_concerns.message}</p>
+        )}
       </div>
     </div>
   )
 
-  const renderComplianceAndSensitivity = () => (
+  const renderStep3 = () => (
     <div className="space-y-6">
       <div className="space-y-3">
         <Label>Compliance Frameworks (Optional)</Label>
-        <p className="text-xs text-muted-foreground">Frameworks you follow for compliance-specific insights</p>
         <div className="grid grid-cols-2 gap-2">
           {COMPLIANCE_OPTIONS.map((framework) => (
             <div key={framework} className="flex items-center space-x-2">
               <Checkbox
                 id={`compliance-${framework}`}
                 checked={form.watch('compliance_commitments')?.includes(framework) || false}
-                onCheckedChange={(checked) => {
-                  const current = form.getValues('compliance_commitments') || []
-                  if (checked) {
-                    form.setValue('compliance_commitments', [...current, framework])
-                  } else {
-                    form.setValue('compliance_commitments', current.filter(c => c !== framework))
-                  }
-                }}
+                onCheckedChange={() => toggleArrayValue('compliance_commitments', framework)}
               />
-              <Label htmlFor={`compliance-${framework}`} className="text-sm">
-                {framework}
-              </Label>
+              <Label htmlFor={`compliance-${framework}`} className="text-sm">{framework}</Label>
             </div>
           ))}
         </div>
@@ -324,64 +306,64 @@ export const EnhancedOrganizationSetup: React.FC<EnhancedOrganizationSetupProps>
       <div className="space-y-2">
         <Label>Threat Sensitivity Level</Label>
         <Select
-          value={form.watch('threat_sensitivity_level') || 'Basic'}
-          onValueChange={(value: 'Basic' | 'Moderate' | 'Advanced') => form.setValue('threat_sensitivity_level', value)}
+          value={form.watch('threat_sensitivity_level')}
+          onValueChange={(value: 'Basic' | 'Moderate' | 'Advanced') => 
+            form.setValue('threat_sensitivity_level', value)
+          }
         >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="Basic">Basic - General threat awareness</SelectItem>
+            <SelectItem value="Basic">Basic - Standard threat awareness</SelectItem>
             <SelectItem value="Moderate">Moderate - Enhanced threat monitoring</SelectItem>
             <SelectItem value="Advanced">Advanced - Comprehensive threat intelligence</SelectItem>
           </SelectContent>
         </Select>
-        <p className="text-xs text-muted-foreground">Controls how much external threat data Maturion surfaces</p>
+        <p className="text-xs text-muted-foreground">
+          Controls the depth and frequency of external threat intelligence integration
+        </p>
       </div>
 
       <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
-        <h4 className="font-medium text-sm mb-2">🧠 AI Behavior Enhancement</h4>
+        <h4 className="font-medium text-sm mb-2">🧠 AI Enhancement Active</h4>
         <p className="text-xs text-muted-foreground">
-          These settings enable Maturion's three-layer knowledge model. External threat intelligence will be 
-          tagged as "ADVISORY ONLY" and never impact maturity scores or evidence decisions.
+          External threat intelligence will be tagged "ADVISORY ONLY" and never impact maturity scores.
         </p>
       </div>
     </div>
   )
 
   const steps = [
-    {
-      title: 'Basic Information',
-      description: 'Organization details and website',
-      icon: Building,
-      content: renderBasicInfo()
-    },
-    {
-      title: 'Threat Profile',
-      description: 'Industry, region, and risk concerns',
-      icon: Shield,
-      content: renderThreatProfile()
-    },
-    {
-      title: 'Compliance & Sensitivity',
-      description: 'Frameworks and threat monitoring level',
-      icon: Settings,
-      content: renderComplianceAndSensitivity()
-    }
+    { title: 'Organization Details', content: renderStep1() },
+    { title: 'Risk Profile', content: renderStep2() },
+    { title: 'Compliance & Sensitivity', content: renderStep3() }
   ]
 
-  const currentStepData = steps[currentStep - 1]
+  const isStepValid = (step: number): boolean => {
+    switch (step) {
+      case 1: return !!form.watch('name')?.trim()
+      case 2: return (form.watch('industry_tags')?.length || 0) > 0 && !!form.watch('region_operating')
+      case 3: return true // Optional step
+      default: return false
+    }
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-secondary/20 p-4">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <currentStepData.icon className="h-6 w-6 text-primary" />
+            <Building className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-bold">Enhanced Organization Setup</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            {variant === 'maturity' ? 'Organization Setup' : 'Enhanced Organization Profile'}
+          </CardTitle>
           <CardDescription>
-            Configure your organization profile for personalized AI threat intelligence
+            {variant === 'maturity' 
+              ? 'Configure your organization to begin building your maturity model'
+              : 'Enable personalized AI threat intelligence for your organization'
+            }
           </CardDescription>
           
           {/* Step indicator */}
@@ -396,16 +378,13 @@ export const EnhancedOrganizationSetup: React.FC<EnhancedOrganizationSetupProps>
             ))}
           </div>
           <p className="text-sm text-muted-foreground mt-2">
-            Step {currentStep} of {steps.length}: {currentStepData.title}
+            Step {currentStep} of {steps.length}: {steps[currentStep - 1].title}
           </p>
         </CardHeader>
+        
         <CardContent>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">{currentStepData.title}</h3>
-              <p className="text-sm text-muted-foreground">{currentStepData.description}</p>
-              {currentStepData.content}
-            </div>
+            {steps[currentStep - 1].content}
             
             <div className="flex justify-between pt-4">
               {currentStep > 1 ? (
@@ -414,6 +393,7 @@ export const EnhancedOrganizationSetup: React.FC<EnhancedOrganizationSetupProps>
                   variant="outline"
                   onClick={() => setCurrentStep(currentStep - 1)}
                 >
+                  <ChevronLeft className="h-4 w-4 mr-2" />
                   Previous
                 </Button>
               ) : (
@@ -424,13 +404,15 @@ export const EnhancedOrganizationSetup: React.FC<EnhancedOrganizationSetupProps>
                 <Button
                   type="button"
                   onClick={() => setCurrentStep(currentStep + 1)}
+                  disabled={!isStepValid(currentStep)}
                 >
                   Next
+                  <ChevronRight className="h-4 w-4 ml-2" />
                 </Button>
               ) : (
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" disabled={loading || !isStepValid(currentStep)}>
                   <Plus className="mr-2 h-4 w-4" />
-                  {loading ? 'Creating Organization...' : 'Complete Setup'}
+                  {loading ? 'Creating...' : 'Complete Setup'}
                 </Button>
               )}
             </div>
