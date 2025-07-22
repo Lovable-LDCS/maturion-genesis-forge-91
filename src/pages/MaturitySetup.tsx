@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { useOrganization } from '@/hooks/useOrganization';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,18 +84,19 @@ interface FormData {
   threatSensitivityLevel: 'Basic' | 'Moderate' | 'Advanced';
 }
 
-const MaturitySetup = () => {
+export const MaturitySetup = () => {
   const navigate = useNavigate();
-  const { profile, user } = useAuth();
-  const { currentOrganization, refetch: refetchOrganization, loading: orgLoading } = useOrganization();
+  const { user } = useAuth();
   const { toast } = useToast();
+  
+  // Local organization state (independent of useOrganization hook)
   
   // State for local organization data if remote fetch fails
   const [localOrgData, setLocalOrgData] = useState<any>(null);
   const [orgFetchFailed, setOrgFetchFailed] = useState(false);
   
   const [formData, setFormData] = useState<FormData>({
-    fullName: profile?.full_name || '',
+    fullName: user?.user_metadata?.full_name || '',
     title: '',
     bio: '',
     companyName: '',
@@ -112,29 +113,54 @@ const MaturitySetup = () => {
     optionalDocuments: []
   });
   
-  // Re-sync organization profile when currentOrganization changes
+  
+  // Load organization data independently (without useOrganization hook)
   useEffect(() => {
-    if (currentOrganization) {
-      console.log('Syncing organization data to form:', currentOrganization);
-      setFormData(prev => ({
-        ...prev,
-        companyName: currentOrganization.name || '',
-        primaryWebsiteUrl: currentOrganization.primary_website_url || '',
-        linkedDomains: currentOrganization.linked_domains || [],
-        industryTags: currentOrganization.industry_tags || [],
-        customIndustry: currentOrganization.custom_industry || '',
-        regionOperating: currentOrganization.region_operating || '',
-        riskConcerns: currentOrganization.risk_concerns || [],
-        complianceCommitments: currentOrganization.compliance_commitments || [],
-        threatSensitivityLevel: (currentOrganization.threat_sensitivity_level as 'Basic' | 'Moderate' | 'Advanced') || 'Basic',
-      }));
-    }
-  }, [currentOrganization]);
-
-  // Force refetch organization data when component mounts
-  useEffect(() => {
-    refetchOrganization();
-  }, [refetchOrganization]);
+    const loadOrganizationData = async () => {
+      if (!user?.id) return;
+      
+      try {
+        // Try to get current user's organization
+        const { data: orgs, error } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+          
+        if (error) {
+          console.warn('Could not fetch organization (expected during setup):', error);
+          setOrgFetchFailed(true);
+          return;
+        }
+        
+        if (orgs && orgs.length > 0) {
+          const org = orgs[0];
+          setLocalOrgData(org);
+          console.log('Loaded organization data locally:', org);
+          
+          // Sync to form
+          setFormData(prev => ({
+            ...prev,
+            companyName: org.name || '',
+            primaryWebsiteUrl: org.primary_website_url || '',
+            linkedDomains: org.linked_domains || [],
+            industryTags: org.industry_tags || [],
+            customIndustry: org.custom_industry || '',
+            regionOperating: org.region_operating || '',
+            riskConcerns: org.risk_concerns || [],
+            complianceCommitments: org.compliance_commitments || [],
+            threatSensitivityLevel: (org.threat_sensitivity_level as 'Basic' | 'Moderate' | 'Advanced') || 'Basic',
+          }));
+        }
+      } catch (err) {
+        console.warn('Organization fetch failed (normal during initial setup):', err);
+        setOrgFetchFailed(true);
+      }
+    };
+    
+    loadOrganizationData();
+  }, [user?.id]);
 
   // Load saved form data from localStorage on mount
   useEffect(() => {
@@ -175,9 +201,8 @@ const MaturitySetup = () => {
     console.log('🔍 AutoSave Debug Payload:');
     console.log('- User ID:', user.id);
     console.log('- User Email:', user.email);
-    console.log('- Org ID from hook:', currentOrganization?.id);
-    console.log('- Org ID from local:', localOrgData?.id);
-    console.log('- Hook loading state:', orgLoading);
+    console.log('- Local Org Data:', localOrgData);
+    console.log('- Org Fetch Failed:', orgFetchFailed);
     console.log('- Form Data Summary:', {
       companyName: formData.companyName,
       hasLogo: !!formData.companyLogo,
@@ -188,7 +213,7 @@ const MaturitySetup = () => {
     });
     
     const cleanDomains = formData.linkedDomains.filter(d => d && d.trim());
-    let orgId = currentOrganization?.id || localOrgData?.id;
+    let orgId = localOrgData?.id;  // Only use local org data
     
     console.log('- Final Org ID to use:', orgId);
     
@@ -257,9 +282,9 @@ const MaturitySetup = () => {
           .from('profiles')
           .upsert({
             user_id: user.id,
-            full_name: formData.fullName || profile?.full_name,
-            email: profile?.email || user.email,
-            avatar_url: profile?.avatar_url
+            full_name: formData.fullName || user?.user_metadata?.full_name,
+            email: user.email,
+            avatar_url: user?.user_metadata?.avatar_url
           });
           
         if (profileError) {
@@ -376,15 +401,6 @@ const MaturitySetup = () => {
         }))
       };
       localStorage.setItem('maturion_setup_data', JSON.stringify(dataToStore));
-      
-      // Try to refresh organization data, but don't fail if it doesn't work
-      try {
-        await refetchOrganization();
-        console.log('✅ Organization data refreshed');
-      } catch (error) {
-        console.warn('Organization refresh failed (non-critical):', error);
-        setOrgFetchFailed(true);
-      }
       
       console.log('🎉 Auto-save completed successfully');
       return { success: true, organizationId: orgId };
@@ -673,7 +689,7 @@ const MaturitySetup = () => {
       const cleanDomains = formData.linkedDomains.filter(d => d && d.trim());
       
       let orgData;
-      if (currentOrganization) {
+      if (localOrgData) {
         // Update existing organization
         const { data, error } = await supabase
           .from('organizations')
@@ -689,7 +705,7 @@ const MaturitySetup = () => {
             threat_sensitivity_level: formData.threatSensitivityLevel,
             updated_by: user?.id
           })
-          .eq('id', currentOrganization.id)
+          .eq('id', localOrgData.id)
           .select()
           .single();
           
