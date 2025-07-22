@@ -227,7 +227,7 @@ Return JSON format:
           criteriaCount: Math.floor(Math.random() * 3) + 2, // 2-4 criteria per MPS
           selected: false,
           rationale: mps.rationale || `This MPS is important for ${domainName} domain governance and compliance.`,
-          aiSourceType: mps.knowledge_base_used ? 'internal' : 'external',
+          aiSourceType: (mps.knowledge_base_used ? 'internal' : 'external') as 'internal' | 'external',
           hasDocumentContext: mps.knowledge_base_used || false
         }));
 
