@@ -73,12 +73,26 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
     }
   }, [isOpen, currentOrganization?.id]);
 
+  // Listen for MPS save events to refresh data
+  useEffect(() => {
+    const handleMPSSaved = () => {
+      if (isOpen && currentOrganization?.id) {
+        fetchMPSsAndGenerateIntents();
+      }
+    };
+
+    window.addEventListener('mps-saved', handleMPSSaved);
+    return () => window.removeEventListener('mps-saved', handleMPSSaved);
+  }, [isOpen, currentOrganization?.id]);
+
   const fetchMPSsAndGenerateIntents = async () => {
     if (!currentOrganization?.id) return;
 
     try {
+      console.log('Fetching MPSs for domain:', domainName, 'org:', currentOrganization.id);
+      
       // Fetch MPSs from database for this domain
-      const { data: domainData } = await supabase
+      const { data: domainData, error } = await supabase
         .from('domains')
         .select(`
           maturity_practice_statements (
@@ -91,9 +105,16 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
         `)
         .eq('organization_id', currentOrganization.id)
         .eq('name', domainName)
-        .single();
+        .maybeSingle();
 
-      if (domainData?.maturity_practice_statements) {
+      if (error) {
+        console.error('Error fetching domain data:', error);
+        return;
+      }
+
+      console.log('Fetched domain data:', domainData);
+
+      if (domainData?.maturity_practice_statements && domainData.maturity_practice_statements.length > 0) {
         const acceptedMPSs = domainData.maturity_practice_statements.map((mps: any) => ({
           id: mps.id,
           name: mps.name,
@@ -101,9 +122,16 @@ export const IntentCreator: React.FC<IntentCreatorProps> = ({
           intent: mps.intent_statement || ''
         }));
 
-        if (acceptedMPSs.length > 0 && mpssWithIntents.length === 0) {
+        console.log('Found accepted MPSs:', acceptedMPSs.length, acceptedMPSs);
+
+        // Always refresh the list when fetching
+        setMpssWithIntents([]);
+        if (acceptedMPSs.length > 0) {
           generateIntentsForMPSs(acceptedMPSs);
         }
+      } else {
+        console.log('No MPSs found for domain:', domainName);
+        setMpssWithIntents([]);
       }
     } catch (error) {
       console.error('Error fetching MPSs:', error);

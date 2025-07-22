@@ -137,11 +137,19 @@ export const useDomainAuditBuilder = (domainId: string) => {
 
   const handleAcceptMPSs = async (selectedMPSs: MPS[]) => {
     try {
+      console.log('Saving selected MPSs to database:', selectedMPSs.map(mps => ({ 
+        name: mps.name || mps.title, 
+        number: mps.number,
+        selected: mps.selected 
+      })));
+      
       // Save MPSs directly to database
       await saveMPSsToDatabase(selectedMPSs);
       setIsMPSModalOpen(false);
-      // Force a refresh of step statuses after successful save
-      window.location.reload();
+      
+      // Instead of page reload, just refresh the step status
+      // This maintains the flow and allows proper state updates
+      window.dispatchEvent(new CustomEvent('mps-saved'));
     } catch (error) {
       console.error('Error saving MPSs:', error);
     }
