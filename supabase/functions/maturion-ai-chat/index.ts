@@ -223,6 +223,12 @@ serve(async (req) => {
       sourceDocuments = []
     } = await req.json();
 
+    // Validate required fields
+    if (!prompt || typeof prompt !== 'string') {
+      console.error('Invalid or missing prompt in request');
+      throw new Error('Prompt is required and must be a string');
+    }
+
     // Determine if this is an internal-only context
     const isInternalOnlyContext = INTERNAL_ONLY_CONTEXTS.some(internalContext => 
       context?.toLowerCase().includes(internalContext.toLowerCase())
