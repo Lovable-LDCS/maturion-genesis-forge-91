@@ -343,6 +343,22 @@ const MaturitySetup = () => {
     }));
   };
 
+  const handleSaveProgress = async () => {
+    await autoSave();
+    toast({
+      title: "Progress Saved",
+      description: "Your setup progress has been saved successfully.",
+    });
+  };
+
+  const handleStartBuilding = async () => {
+    // Auto-save before proceeding
+    await autoSave();
+    
+    // Then proceed with validation and submission
+    handleSubmit();
+  };
+
   const handleSubmit = async () => {
     // Validation
     const isOtherSelected = formData.industryTags.includes('Other');
@@ -893,7 +909,7 @@ const MaturitySetup = () => {
                 <div className="flex gap-4 justify-center">
                   <Button 
                     variant="outline"
-                    onClick={autoSave}
+                    onClick={handleSaveProgress}
                     disabled={isSaving}
                     className="min-w-[150px]"
                   >
@@ -907,26 +923,33 @@ const MaturitySetup = () => {
                     )}
                   </Button>
                   
-                  <Button 
-                    size="lg" 
-                    onClick={handleSubmit}
-                    disabled={isSubmitting || !formData.fullName || !formData.title || !formData.companyName || 
-                             !formData.modelName || !formData.regionOperating || formData.industryTags.length === 0 || 
-                             formData.riskConcerns.length === 0}
-                    className="min-w-[200px]"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Setting Up...
-                      </>
-                    ) : (
-                      <>
-                        Start Building Your Maturity Model
-                        <ChevronRight className="h-4 w-4 ml-2" />
-                      </>
+                  <div className="relative">
+                    <Button 
+                      size="lg" 
+                      onClick={handleStartBuilding}
+                      disabled={isSubmitting || !lastSaved || !formData.fullName || !formData.title || !formData.companyName || 
+                               !formData.modelName || !formData.regionOperating || formData.industryTags.length === 0 || 
+                               formData.riskConcerns.length === 0}
+                      className="min-w-[200px]"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Setting Up...
+                        </>
+                      ) : (
+                        <>
+                          Start Building Your Maturity Model
+                          <ChevronRight className="h-4 w-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                    {!lastSaved && (
+                      <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-popover text-popover-foreground px-3 py-1 rounded text-xs whitespace-nowrap border shadow-md z-10">
+                        Please save your setup to continue
+                      </div>
                     )}
-                  </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
