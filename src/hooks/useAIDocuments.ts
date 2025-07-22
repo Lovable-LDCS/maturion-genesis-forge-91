@@ -244,14 +244,26 @@ export const useAIDocuments = () => {
 
   const deleteDocument = async (documentId: string) => {
     try {
+      console.log('Starting document deletion for ID:', documentId);
+      
       // Get document info first
-      const { data: doc } = await supabase
+      const { data: doc, error: fetchError } = await supabase
         .from('ai_documents')
-        .select('file_path, organization_id')
+        .select('file_path, organization_id, title, file_name')
         .eq('id', documentId)
-        .single();
+        .maybeSingle();
 
-      if (!doc) throw new Error('Document not found');
+      if (fetchError) {
+        console.error('Error fetching document for deletion:', fetchError);
+        throw fetchError;
+      }
+
+      if (!doc) {
+        console.error('Document not found:', documentId);
+        throw new Error('Document not found');
+      }
+
+      console.log('Found document to delete:', doc);
 
       // Delete from storage first
       const { error: storageError } = await supabase.storage
@@ -261,6 +273,8 @@ export const useAIDocuments = () => {
       if (storageError) {
         console.warn('Storage deletion warning:', storageError);
         // Continue with database deletion even if storage fails
+      } else {
+        console.log('Storage file deleted successfully');
       }
 
       // Delete document record (chunks will be deleted via CASCADE)
@@ -269,22 +283,36 @@ export const useAIDocuments = () => {
         .delete()
         .eq('id', documentId);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Database deletion error:', deleteError);
+        throw deleteError;
+      }
+
+      console.log('Document deleted from database successfully');
 
       // Create audit log
-      await supabase
+      const { error: auditError } = await supabase
         .from('ai_upload_audit')
         .insert({
           organization_id: doc.organization_id,
           document_id: documentId,
           action: 'delete',
           user_id: (await supabase.auth.getUser()).data.user?.id || '',
-          metadata: { deleted_at: new Date().toISOString() }
+          metadata: { 
+            deleted_at: new Date().toISOString(),
+            deleted_file: doc.file_name,
+            deleted_title: doc.title 
+          }
         });
+
+      if (auditError) {
+        console.warn('Audit log creation failed:', auditError);
+        // Don't fail the deletion if audit logging fails
+      }
 
       toast({
         title: "Document deleted",
-        description: "Document and all associated data have been removed",
+        description: `${doc.title || doc.file_name} has been removed`,
       });
 
       // Refresh documents list
