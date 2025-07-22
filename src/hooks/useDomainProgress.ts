@@ -111,6 +111,13 @@ export const useDomainProgress = () => {
           )
         );
 
+        // Debug: Log domain matching for troubleshooting
+        console.log(`Domain ${domainKey}:`, {
+          expectedNames: domainInfo.dbNames,
+          foundData: domainData ? `Found: ${domainData.name}` : 'Not found',
+          allAvailableNames: domainsData?.map(d => d.name)
+        });
+
         let mpsCount = 0;
         let criteriaCount = 0;
         let mpsWithIntent = 0;
@@ -160,20 +167,28 @@ export const useDomainProgress = () => {
           }
         }
 
-        // Determine if domain is unlocked - STRICT SEQUENTIAL LOCKING
-        let isUnlocked = index === 0; // First domain is always unlocked
+        // STRICT SEQUENTIAL DOMAIN LOCKING
+        let isUnlocked = index === 0; // Only first domain (Leadership & Governance) is unlocked by default
+        
         if (index > 0) {
-          // Check if previous domain is completed
-          const prevDomainKey = DOMAIN_ORDER[index - 1];
-          const prevDomainInfo = DOMAIN_INFO[prevDomainKey as keyof typeof DOMAIN_INFO];
-          const prevDomainData = domainsData?.find(d => 
-            prevDomainInfo.dbNames.some(name => 
-              d.name === name || 
-              d.name.toLowerCase().replace(/\s+/g, '-').replace(/&/g, '').replace(/'/g, '') === name.toLowerCase().replace(/\s+/g, '-').replace(/&/g, '').replace(/'/g, '')
-            )
-          );
+          // Check if ALL previous domains are completed
+          let allPreviousCompleted = true;
           
-          if (prevDomainData?.maturity_practice_statements) {
+          for (let i = 0; i < index; i++) {
+            const prevDomainKey = DOMAIN_ORDER[i];
+            const prevDomainInfo = DOMAIN_INFO[prevDomainKey as keyof typeof DOMAIN_INFO];
+            const prevDomainData = domainsData?.find(d => 
+              prevDomainInfo.dbNames.some(name => 
+                d.name === name || 
+                d.name.toLowerCase().replace(/\s+/g, '-').replace(/&/g, '').replace(/'/g, '') === name.toLowerCase().replace(/\s+/g, '-').replace(/&/g, '').replace(/'/g, '')
+              )
+            );
+            
+            if (!prevDomainData?.maturity_practice_statements) {
+              allPreviousCompleted = false;
+              break;
+            }
+            
             const prevMpsCount = prevDomainData.maturity_practice_statements.length;
             const prevMpsWithIntent = prevDomainData.maturity_practice_statements.filter(
               (mps: any) => mps.intent_statement && mps.intent_statement.trim() !== ''
@@ -188,14 +203,33 @@ export const useDomainProgress = () => {
               }
             });
 
-            isUnlocked = prevMpsCount > 0 && prevMpsWithIntent === prevMpsCount && 
-                        prevCriteriaCompleted === prevCriteriaCount && prevCriteriaCount > 0;
+            // Domain is only complete if it has MPSs, intents, and all criteria are approved
+            const isDomainComplete = prevMpsCount > 0 && 
+                                   prevMpsWithIntent === prevMpsCount && 
+                                   prevCriteriaCompleted === prevCriteriaCount && 
+                                   prevCriteriaCount > 0;
+            
+            if (!isDomainComplete) {
+              allPreviousCompleted = false;
+              break;
+            }
           }
+          
+          isUnlocked = allPreviousCompleted;
         }
 
+        // Force status to locked if domain is not unlocked
         if (!isUnlocked && status !== 'completed') {
           status = 'locked';
         }
+
+        console.log(`Domain ${domainKey} (index ${index}):`, {
+          isUnlocked,
+          status,
+          mpsCount,
+          criteriaCount,
+          completionPercentage
+        });
 
         return {
           id: domainKey,

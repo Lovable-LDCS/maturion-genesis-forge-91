@@ -126,11 +126,11 @@ export default function AssessmentFramework() {
               <CardTitle className="flex items-center justify-between">
                 Audit Structure Setup
                 <Badge variant="secondary" className="text-sm">
-                  {domainProgress.reduce((sum, d) => sum + d.mpsCount, 0)} MPSs • {domainProgress.reduce((sum, d) => sum + d.criteriaCount, 0)} Criteria
+                  {domainProgress.filter(d => d.mpsCount > 0).reduce((sum, d) => sum + d.mpsCount, 0)} MPSs • {domainProgress.filter(d => d.criteriaCount > 0).reduce((sum, d) => sum + d.criteriaCount, 0)} Criteria
                 </Badge>
               </CardTitle>
               <CardDescription>
-                Configure Mini Performance Standards (MPSs) for each LDCS audit domain
+                Configure Mini Performance Standards (MPSs) for each LDCS audit domain. Only completed items are counted above.
               </CardDescription>
             </CardHeader>
             <CardContent>
