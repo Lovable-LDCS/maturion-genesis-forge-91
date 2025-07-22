@@ -355,6 +355,7 @@ export const MaturitySetup = () => {
             }
             
             // Create document record in database
+            console.log(`Creating document record for ${doc.file.name} with type: general`);
             const { error: docRecordError } = await supabase
               .from('ai_documents')
               .insert({
@@ -363,7 +364,7 @@ export const MaturitySetup = () => {
                 file_path: fileName,
                 file_size: doc.file.size,
                 mime_type: doc.file.type,
-                document_type: 'organizational',
+                document_type: 'general',
                 title: doc.file.name,
                 uploaded_by: user.id,
                 updated_by: user.id,
