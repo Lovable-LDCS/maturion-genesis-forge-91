@@ -303,22 +303,10 @@ serve(async (req) => {
       
       // Middleware validation: Check if we have sufficient internal documentation
       if (documentContext.length === 0) {
-        console.warn('⚠️ POLICY VIOLATION: No internal documentation found for audit/maturity context');
-        return new Response(JSON.stringify({
-          error: 'This topic lacks internal reference documentation. Please upload relevant documents to your AI Knowledge Base, or contact your administrator to approve external reasoning for this request.',
-          success: false,
-          policyViolation: true,
-          missingInternalSource: true,
-          suggestedAction: 'upload_documents',
-          requiredDocuments: [
-            `${currentDomain || 'Domain'} MPS documentation`,
-            'Audit criteria and standards', 
-            'Organizational frameworks and policies'
-          ]
-        }), {
-          status: 422, // Unprocessable Entity - policy violation
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
+        console.warn('⚠️ POLICY WARNING: Limited internal documentation found for audit/maturity context');
+        console.log('Proceeding with limited context but will note the policy constraint in response');
+        // Instead of blocking, we'll proceed but note the policy issue in the response
+        // This allows the system to work while encouraging users to upload proper documentation
       }
     }
     
@@ -365,8 +353,15 @@ ${documentContext}
 
 COMPLIANCE REQUIREMENT: Base ALL responses strictly on the internal documents above. Document references are MANDATORY for audit trail.
 ` : `
-⚠️ CRITICAL: NO INTERNAL DOCUMENTATION AVAILABLE
-This violates the AI Behavior & Knowledge Source Policy. Cannot generate audit/maturity content without internal sources.
+⚠️ LIMITED INTERNAL DOCUMENTATION AVAILABLE
+For this ${currentDomain || 'domain'} request, I have limited internal documentation. I will proceed with available knowledge while noting this policy constraint.
+
+POLICY RECOMMENDATION: Please upload relevant documents to your AI Knowledge Base:
+- ${currentDomain || 'Domain'} MPS documentation (Annex 1 or MPS lists)
+- Domain-specific audit criteria and standards
+- Organizational frameworks and policies
+
+I will generate the requested content using available context and industry best practices, but optimal results require proper internal documentation.
 `}
 ` : `
 🌐 ADVISORY MODE ACTIVE - External context permitted for general guidance.
