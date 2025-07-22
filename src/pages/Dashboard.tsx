@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
-import { OrganizationSetup } from '@/components/organization/OrganizationSetup';
+import { EnhancedOrganizationSetup } from '@/components/organization/EnhancedOrganizationSetup';
 import { MilestoneTracker } from '@/components/milestones/MilestoneTracker';
 import { AssessmentFramework } from '@/components/assessment/AssessmentFramework';
 import { Button } from '@/components/ui/button';
@@ -56,7 +56,7 @@ const Dashboard = () => {
   }
 
   if (showOrgSetup) {
-    return <OrganizationSetup onComplete={handleOrgSetupComplete} />;
+    return <EnhancedOrganizationSetup onComplete={handleOrgSetupComplete} />;
   }
 
   const userInitials = profile?.full_name

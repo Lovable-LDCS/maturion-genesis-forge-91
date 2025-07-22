@@ -1236,43 +1236,70 @@ export type Database = {
       }
       organizations: {
         Row: {
+          compliance_commitments: string[] | null
           created_at: string
           created_by: string
           description: string | null
           email_webhook_url: string | null
           id: string
+          industry_tags: string[] | null
+          linked_domains: string[] | null
           logo_url: string | null
           name: string
           owner_id: string
+          primary_website_url: string | null
+          region_operating: string | null
+          risk_concerns: string[] | null
           slack_webhook_url: string | null
+          threat_sensitivity_level:
+            | Database["public"]["Enums"]["threat_sensitivity_level"]
+            | null
           updated_at: string
           updated_by: string
           zapier_webhook_url: string | null
         }
         Insert: {
+          compliance_commitments?: string[] | null
           created_at?: string
           created_by?: string
           description?: string | null
           email_webhook_url?: string | null
           id?: string
+          industry_tags?: string[] | null
+          linked_domains?: string[] | null
           logo_url?: string | null
           name: string
           owner_id?: string
+          primary_website_url?: string | null
+          region_operating?: string | null
+          risk_concerns?: string[] | null
           slack_webhook_url?: string | null
+          threat_sensitivity_level?:
+            | Database["public"]["Enums"]["threat_sensitivity_level"]
+            | null
           updated_at?: string
           updated_by?: string
           zapier_webhook_url?: string | null
         }
         Update: {
+          compliance_commitments?: string[] | null
           created_at?: string
           created_by?: string
           description?: string | null
           email_webhook_url?: string | null
           id?: string
+          industry_tags?: string[] | null
+          linked_domains?: string[] | null
           logo_url?: string | null
           name?: string
           owner_id?: string
+          primary_website_url?: string | null
+          region_operating?: string | null
+          risk_concerns?: string[] | null
           slack_webhook_url?: string | null
+          threat_sensitivity_level?:
+            | Database["public"]["Enums"]["threat_sensitivity_level"]
+            | null
           updated_at?: string
           updated_by?: string
           zapier_webhook_url?: string | null
@@ -1560,6 +1587,7 @@ export type Database = {
         | "rejected"
         | "escalated"
         | "alternative_proposal"
+      threat_sensitivity_level: "Basic" | "Moderate" | "Advanced"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1718,6 +1746,7 @@ export const Constants = {
         "escalated",
         "alternative_proposal",
       ],
+      threat_sensitivity_level: ["Basic", "Moderate", "Advanced"],
     },
   },
 } as const

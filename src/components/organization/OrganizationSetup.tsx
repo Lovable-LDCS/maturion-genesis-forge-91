@@ -15,6 +15,15 @@ import { Building, Plus } from 'lucide-react'
 const organizationSchema = z.object({
   name: z.string().min(2, 'Organization name must be at least 2 characters'),
   description: z.string().optional(),
+  
+  // AI Behavior & Knowledge Source Policy v2.0 fields
+  primary_website_url: z.string().url('Please enter a valid URL').optional().or(z.literal('')),
+  linked_domains: z.array(z.string()).optional(),
+  industry_tags: z.array(z.string()).optional(),
+  region_operating: z.string().optional(),
+  risk_concerns: z.array(z.string()).optional(),
+  compliance_commitments: z.array(z.string()).optional(),
+  threat_sensitivity_level: z.enum(['Basic', 'Moderate', 'Advanced']).optional(),
 })
 
 type OrganizationData = z.infer<typeof organizationSchema>
