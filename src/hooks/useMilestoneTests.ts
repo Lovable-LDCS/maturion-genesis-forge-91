@@ -866,7 +866,7 @@ export const useMilestoneTests = () => {
         });
       }
     } else if (taskName.includes('scoring system')) {
-      // Annex 2 - Assessment Scoring System
+      // Assessment Scoring System Tests
       try {
         const { data: scores, error } = await supabase
           .from('assessment_scores')

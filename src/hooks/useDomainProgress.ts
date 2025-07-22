@@ -72,7 +72,7 @@ export const useDomainProgress = () => {
     if (!currentOrganization?.id) return;
 
     try {
-      // Fetch domains and their MPSs
+      // Fetch domains and their MPSs from database ONLY
       const { data: domainsData, error: domainsError } = await supabase
         .from('domains')
         .select(`
@@ -99,11 +99,11 @@ export const useDomainProgress = () => {
 
       if (domainsError) throw domainsError;
 
-      // Calculate progress for each domain
+      // Create clean progress data based ONLY on database state
       const progressData: DomainProgress[] = DOMAIN_ORDER.map((domainKey, index) => {
         const domainInfo = DOMAIN_INFO[domainKey as keyof typeof DOMAIN_INFO];
         
-        // Find matching domain data from database
+        // Find matching domain in database
         const domainData = domainsData?.find(d => 
           domainInfo.dbNames.some(name => 
             d.name === name || 
@@ -111,39 +111,28 @@ export const useDomainProgress = () => {
           )
         );
 
-        // Debug: Log domain matching for troubleshooting
-        console.log(`Domain ${domainKey}:`, {
-          expectedNames: domainInfo.dbNames,
-          foundData: domainData ? `Found: ${domainData.name}` : 'Not found',
-          allAvailableNames: domainsData?.map(d => d.name)
-        });
-
-        // Initialize all counts to zero - NO MOCK DATA
+        // NO MOCK DATA - All values start at zero
         let mpsCount = 0;
         let criteriaCount = 0;
         let mpsWithIntent = 0;
-        let mpsCompleted = 0;
         let criteriaCompleted = 0;
 
-        // ONLY use real database data if it exists
-        if (domainData?.maturity_practice_statements && domainData.maturity_practice_statements.length > 0) {
+        // Only count if real database data exists
+        if (domainData?.maturity_practice_statements?.length > 0) {
           mpsCount = domainData.maturity_practice_statements.length;
           mpsWithIntent = domainData.maturity_practice_statements.filter(
             (mps: any) => mps.intent_statement && mps.intent_statement.trim() !== ''
           ).length;
-          mpsCompleted = domainData.maturity_practice_statements.filter(
-            (mps: any) => mps.status === 'approved_locked'
-          ).length;
 
           domainData.maturity_practice_statements.forEach((mps: any) => {
-            if (mps.criteria && mps.criteria.length > 0) {
+            if (mps.criteria?.length > 0) {
               criteriaCount += mps.criteria.length;
               criteriaCompleted += mps.criteria.filter((c: any) => c.status === 'approved_locked').length;
             }
           });
         }
 
-        // Determine current step and status
+        // Determine status based ONLY on database data
         let currentStep: DomainProgress['currentStep'] = 'mps';
         let status: DomainProgress['status'] = 'not_started';
         let completionPercentage = 0;
@@ -156,7 +145,7 @@ export const useDomainProgress = () => {
             completionPercentage = 100;
           } else if (criteriaCount > 0) {
             currentStep = 'criteria';
-            completionPercentage = Math.round((criteriaCompleted / Math.max(criteriaCount, 1)) * 100);
+            completionPercentage = Math.round((criteriaCompleted / criteriaCount) * 100);
           } else if (mpsWithIntent === mpsCount) {
             currentStep = 'criteria';
             completionPercentage = 66;
@@ -169,11 +158,11 @@ export const useDomainProgress = () => {
           }
         }
 
-        // STRICT SEQUENTIAL DOMAIN LOCKING
-        let isUnlocked = index === 0; // Only first domain (Leadership & Governance) is unlocked by default
+        // STRICT SEQUENTIAL UNLOCKING - NO EXCEPTIONS
+        let isUnlocked = index === 0; // ONLY first domain unlocked by default
         
         if (index > 0) {
-          // Check if ALL previous domains are completed
+          // Check if ALL previous domains are 100% completed
           let allPreviousCompleted = true;
           
           for (let i = 0; i < index; i++) {
@@ -186,7 +175,8 @@ export const useDomainProgress = () => {
               )
             );
             
-            if (!prevDomainData?.maturity_practice_statements) {
+            // Previous domain MUST exist and be completed
+            if (!prevDomainData?.maturity_practice_statements?.length) {
               allPreviousCompleted = false;
               break;
             }
@@ -199,13 +189,13 @@ export const useDomainProgress = () => {
             let prevCriteriaCompleted = 0;
 
             prevDomainData.maturity_practice_statements.forEach((mps: any) => {
-              if (mps.criteria) {
+              if (mps.criteria?.length > 0) {
                 prevCriteriaCount += mps.criteria.length;
                 prevCriteriaCompleted += mps.criteria.filter((c: any) => c.status === 'approved_locked').length;
               }
             });
 
-            // Domain is only complete if it has MPSs, intents, and all criteria are approved
+            // Domain is complete ONLY if all requirements met
             const isDomainComplete = prevMpsCount > 0 && 
                                    prevMpsWithIntent === prevMpsCount && 
                                    prevCriteriaCompleted === prevCriteriaCount && 
@@ -220,18 +210,10 @@ export const useDomainProgress = () => {
           isUnlocked = allPreviousCompleted;
         }
 
-        // Force status to locked if domain is not unlocked
-        if (!isUnlocked && status !== 'completed') {
+        // Force locked status if not unlocked
+        if (!isUnlocked) {
           status = 'locked';
         }
-
-        console.log(`Domain ${domainKey} (index ${index}):`, {
-          isUnlocked,
-          status,
-          mpsCount,
-          criteriaCount,
-          completionPercentage
-        });
 
         return {
           id: domainKey,

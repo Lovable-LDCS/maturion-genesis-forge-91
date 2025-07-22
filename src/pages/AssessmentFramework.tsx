@@ -130,7 +130,7 @@ export default function AssessmentFramework() {
                 </Badge>
               </CardTitle>
               <CardDescription>
-                Configure Mini Performance Standards (MPSs) for each LDCS audit domain. Only completed domains are counted above.
+                Configure Mini Performance Standards (MPSs) for each LDCS audit domain. Only shows completed MPSs and criteria.
               </CardDescription>
             </CardHeader>
             <CardContent>

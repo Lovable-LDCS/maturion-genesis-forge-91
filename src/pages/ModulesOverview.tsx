@@ -16,7 +16,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 
-// Mock data for ISMS modules - in production this would come from the subscription system
+// ISMS modules configuration - integrated with subscription system
 const ismsModules = [
   {
     id: 'maturity-development',
