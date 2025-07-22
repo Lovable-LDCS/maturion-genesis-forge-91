@@ -131,8 +131,8 @@ const MaturitySetup = () => {
         description: "Your organization profile has been saved. You can now build your maturity model.",
       });
       
-      // Navigate to the model building interface
-      navigate('/maturity/build');
+      // Navigate to the assessment framework
+      navigate('/assessment/framework');
       
     } catch (error) {
       toast({
