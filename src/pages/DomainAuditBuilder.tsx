@@ -28,7 +28,7 @@ const DomainAuditBuilder = () => {
     handleStepClick,
     isStepClickable,
     getStepStatus
-  } = useDomainAuditBuilder();
+  } = useDomainAuditBuilder(domainId || '');
 
   // Mock domain data - in real app this would come from API
   const domainNames: Record<string, string> = {

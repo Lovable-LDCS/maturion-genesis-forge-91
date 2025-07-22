@@ -27,7 +27,7 @@ const ProcessIntegrityAuditBuilder = () => {
     handleStepClick,
     isStepClickable,
     getStepStatus
-  } = useDomainAuditBuilder();
+  } = useDomainAuditBuilder('process-integrity');
 
   const domainName = 'Process Integrity';
 

@@ -27,7 +27,7 @@ const ProtectionAuditBuilder = () => {
     handleStepClick,
     isStepClickable,
     getStepStatus
-  } = useDomainAuditBuilder();
+  } = useDomainAuditBuilder('protection');
 
   const domainName = 'Protection';
 
