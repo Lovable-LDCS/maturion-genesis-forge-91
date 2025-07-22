@@ -77,6 +77,7 @@ interface FormData {
   primaryWebsiteUrl: string;
   linkedDomains: string[];
   industryTags: string[];
+  customIndustry: string;
   regionOperating: string;
   riskConcerns: string[];
   complianceCommitments: string[];
@@ -99,6 +100,7 @@ const MaturitySetup = () => {
     primaryWebsiteUrl: '',
     linkedDomains: [],
     industryTags: [],
+    customIndustry: '',
     regionOperating: '',
     riskConcerns: [],
     complianceCommitments: [],
@@ -259,11 +261,21 @@ const MaturitySetup = () => {
 
   const handleSubmit = async () => {
     // Validation
+    const isOtherSelected = formData.industryTags.includes('Other');
+    const customIndustryRequired = isOtherSelected && !formData.customIndustry.trim();
+    
     if (!formData.fullName || !formData.title || !formData.companyName || !formData.modelName || 
-        !formData.regionOperating || formData.industryTags.length === 0 || formData.riskConcerns.length === 0) {
+        !formData.regionOperating || formData.industryTags.length === 0 || formData.riskConcerns.length === 0 ||
+        customIndustryRequired) {
+      
+      let errorMessage = "Please fill in all required fields including Risk & Awareness Profile before proceeding.";
+      if (customIndustryRequired) {
+        errorMessage = "Please specify your industry when 'Other' is selected.";
+      }
+      
       toast({
         title: "Required Fields Missing",
-        description: "Please fill in all required fields including Risk & Awareness Profile before proceeding.",
+        description: errorMessage,
         variant: "destructive"
       });
       return;
@@ -557,6 +569,20 @@ const MaturitySetup = () => {
                           </div>
                         ))}
                       </div>
+                      
+                      {/* Conditional Custom Industry Input */}
+                      {formData.industryTags.includes('Other') && (
+                        <div className="mt-3">
+                          <Label htmlFor="customIndustry">Please specify your industry *</Label>
+                          <Input
+                            id="customIndustry"
+                            value={formData.customIndustry}
+                            onChange={(e) => handleInputChange('customIndustry', e.target.value)}
+                            placeholder="e.g. Heavy Equipment Distribution, Cybersecurity Consulting, etc."
+                            className="mt-1"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     <div>
