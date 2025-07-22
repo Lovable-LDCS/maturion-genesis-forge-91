@@ -126,11 +126,11 @@ export default function AssessmentFramework() {
               <CardTitle className="flex items-center justify-between">
                 Audit Structure Setup
                 <Badge variant="secondary" className="text-sm">
-                  {domainProgress.filter(d => d.mpsCount > 0).reduce((sum, d) => sum + d.mpsCount, 0)} MPSs • {domainProgress.filter(d => d.criteriaCount > 0).reduce((sum, d) => sum + d.criteriaCount, 0)} Criteria
+                  {domainProgress.filter(d => d.status === 'completed').reduce((sum, d) => sum + d.mpsCount, 0)} MPSs • {domainProgress.filter(d => d.status === 'completed').reduce((sum, d) => sum + d.criteriaCount, 0)} Criteria
                 </Badge>
               </CardTitle>
               <CardDescription>
-                Configure Mini Performance Standards (MPSs) for each LDCS audit domain. Only completed items are counted above.
+                Configure Mini Performance Standards (MPSs) for each LDCS audit domain. Only completed domains are counted above.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -170,7 +170,7 @@ export default function AssessmentFramework() {
                   <Card 
                     key={domain.id}
                     className={`transition-all duration-300 ${
-                      domain.status === 'locked' ? 
+                      !domain.isUnlocked ? 
                         'opacity-50 cursor-not-allowed bg-muted/30 border-muted' :
                         `cursor-pointer hover:shadow-lg ${
                           domain.status === 'completed' ? 'border-green-200 bg-green-50/30' :
@@ -180,7 +180,7 @@ export default function AssessmentFramework() {
                         }`
                     }`}
                     onClick={() => {
-                      if (domain.status !== 'locked') {
+                      if (domain.isUnlocked) {
                         navigate(`/audit/domain/${domain.id}`);
                       }
                     }}
