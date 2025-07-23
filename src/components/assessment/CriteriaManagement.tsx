@@ -335,17 +335,73 @@ Return a JSON array with this structure:
           parsedData = JSON.parse(cleanedJsonString);
         } catch (parseError) {
           console.error('JSON Parse Error:', parseError);
-          console.log('Failed JSON string:', cleanedJsonString);
+          console.log('Failed JSON string (first 500 chars):', cleanedJsonString.substring(0, 500));
+          console.log('Failed JSON string (last 500 chars):', cleanedJsonString.substring(Math.max(0, cleanedJsonString.length - 500)));
           
-          // Try to fix common JSON issues
-          let fixedJson = cleanedJsonString
-            .replace(/,\s*}/g, '}') // Remove trailing commas
-            .replace(/,\s*]/g, ']') // Remove trailing commas in arrays
+          // Enhanced JSON repair for MPS 4 specific issues
+          let fixedJson = cleanedJsonString;
+          
+          // Step 1: Fix obvious structural issues
+          fixedJson = fixedJson
+            .replace(/,\s*}/g, '}') // Remove trailing commas before }
+            .replace(/,\s*]/g, ']') // Remove trailing commas before ]
             .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":') // Quote unquoted keys
-            .replace(/:\s*'([^']*)'/g, ':"$1"'); // Replace single quotes with double quotes
+            .replace(/:\s*'([^']*)'/g, ':"$1"') // Replace single quotes with double quotes
+            .replace(/([^\\])"/g, '$1"'); // Fix escaped quotes
+          
+          // Step 2: Handle truncated strings specifically
+          if (parseError.message.includes('position')) {
+            const errorPos = parseInt(parseError.message.match(/position (\d+)/)?.[1] || '0');
+            console.log(`Truncation detected at position ${errorPos}`);
             
-          console.log('Attempting to parse fixed JSON:', fixedJson.substring(0, 300));
-          parsedData = JSON.parse(fixedJson);
+            // Find the last complete object before the error position
+            let workingJson = fixedJson.substring(0, errorPos);
+            
+            // Find the last complete object
+            let objectStart = -1;
+            let braceCount = 0;
+            
+            for (let i = workingJson.length - 1; i >= 0; i--) {
+              if (workingJson[i] === '}') braceCount++;
+              if (workingJson[i] === '{') {
+                braceCount--;
+                if (braceCount === 0) {
+                  objectStart = i;
+                  break;
+                }
+              }
+            }
+            
+            if (objectStart > 0) {
+              // Keep everything up to the last complete object
+              workingJson = workingJson.substring(0, objectStart);
+              
+              // Remove any trailing comma and close the array
+              workingJson = workingJson.replace(/,\s*$/, '') + ']';
+              
+              console.log('Truncated to last complete object, length:', workingJson.length);
+              fixedJson = workingJson;
+            }
+          }
+          
+          console.log('Attempting to parse enhanced-repair JSON:', fixedJson.substring(0, 300));
+          try {
+            parsedData = JSON.parse(fixedJson);
+          } catch (secondError) {
+            console.error('Enhanced repair also failed:', secondError);
+            
+            // Last resort: try to extract individual objects
+            const objectRegex = /\{\s*"criteria_number":\s*"[^"]+",\s*"statement":\s*"[^"]*",\s*"summary":\s*"[^"]*",\s*"evidence_suggestions":\s*"[^"]*"\s*\}/g;
+            const objects = cleanedJsonString.match(objectRegex);
+            
+            if (objects && objects.length > 0) {
+              console.log(`Found ${objects.length} individual objects, reconstructing array`);
+              const reconstructedJson = '[' + objects.join(',') + ']';
+              parsedData = JSON.parse(reconstructedJson);
+            } else {
+              throw new Error(`Failed to parse or repair JSON: ${secondError.message}`);
+            }
+          }
         }
         
         // Ensure it's an array
