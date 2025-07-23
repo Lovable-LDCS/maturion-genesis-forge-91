@@ -219,8 +219,15 @@ Return a JSON array with this structure:
         console.log('Raw AI response length:', responseContent.length);
         console.log('Raw AI response preview:', responseContent.substring(0, 500));
         
-        // Enhanced JSON extraction with multiple fallback strategies
-        console.log('Full response for debugging (MPS specific):', responseContent);
+        // Add MPS 4 specific debugging
+        const isMPS4 = mps.mps_number === 4 || mps.name.includes('Risk Management');
+        if (isMPS4) {
+          console.log('🔍 MPS 4 DEBUG - Starting JSON parsing');
+          console.log('📄 Full AI response length:', responseContent.length);
+          console.log('📋 Response content (first 1000 chars):', responseContent.substring(0, 1000));
+          console.log('📋 Response content (last 500 chars):', responseContent.substring(Math.max(0, responseContent.length - 500)));
+          console.log('🔍 MPS 4 DEBUG - Full response content:', responseContent);
+        }
         
         let jsonString = '';
         
@@ -331,8 +338,19 @@ Return a JSON array with this structure:
         
         // Parse and validate the JSON
         let parsedData;
+        
+        // Add extra debugging for MPS 4
+        if (isMPS4) {
+          console.log('🔍 MPS 4 DEBUG - About to parse JSON, length:', cleanedJsonString.length);
+          console.log('🔍 MPS 4 DEBUG - JSON starts with:', cleanedJsonString.substring(0, 100));
+          console.log('🔍 MPS 4 DEBUG - JSON ends with:', cleanedJsonString.substring(Math.max(0, cleanedJsonString.length - 100)));
+        }
+        
         try {
           parsedData = JSON.parse(cleanedJsonString);
+          if (isMPS4) {
+            console.log('✅ MPS 4 DEBUG - JSON parsed successfully, array length:', Array.isArray(parsedData) ? parsedData.length : 'not array');
+          }
         } catch (parseError) {
           console.error('JSON Parse Error:', parseError);
           console.log('Failed JSON string (first 500 chars):', cleanedJsonString.substring(0, 500));
