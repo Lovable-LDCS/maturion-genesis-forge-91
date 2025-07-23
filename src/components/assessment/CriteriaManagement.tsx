@@ -262,10 +262,10 @@ Return a JSON array with this structure:
             throw new Error('Criterion missing required fields (criteria_number or statement)');
           }
           
-          // Only reject truly placeholder responses - be less aggressive
-          if (criterion.statement.includes('Evaluation requirements for') && 
-              criterion.statement.includes('criterion') &&
-              criterion.statement.length < 30) {
+          // Only reject truly generic placeholder responses 
+          if (criterion.statement.startsWith('Assessment criterion') && 
+              criterion.statement.includes('for ') &&
+              criterion.statement.length < 50) {
             console.warn('Placeholder statement detected:', criterion.statement);
             throw new Error('AI returned placeholder statements instead of full descriptors');
           }
@@ -276,13 +276,7 @@ Return a JSON array with this structure:
       } catch (parseError) {
         console.error('Failed to parse criteria response:', parseError);
         console.error('Response was:', data);
-        // Fallback: create default criteria
-        generatedCriteria = Array.from({ length: 5 }, (_, index) => ({
-          criteria_number: `${mps.mps_number}.${index + 1}`,
-          statement: `Assessment criterion ${index + 1} for ${mps.name}`,
-          summary: `Evaluation requirements for ${mps.name} - criterion ${index + 1}`,
-          evidence_suggestions: "Documentation, policies, procedures, implementation evidence"
-        }));
+        throw new Error(`Failed to generate valid criteria: ${parseError.message}`);
       }
 
       // Save generated criteria to database
