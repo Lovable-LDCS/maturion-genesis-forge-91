@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Edit3, Check, X, ChevronDown, ChevronUp, Sparkles, AlertTriangle, FileText, CheckCircle, Lock } from 'lucide-react';
+import { Edit3, Check, X, ChevronDown, ChevronUp, Sparkles, AlertTriangle, FileText, CheckCircle, Lock, Plus } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AISourceIndicator } from '@/components/ai/AISourceIndicator';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -73,6 +75,9 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
     statement: '',
     summary: ''
   });
+  const [showCustomCriteriaModal, setShowCustomCriteriaModal] = useState<string | null>(null);
+  const [customCriterion, setCustomCriterion] = useState({ statement: '', summary: '' });
+  const [isProcessingCustom, setIsProcessingCustom] = useState(false);
 
   // Load existing MPSs and criteria when modal opens
   useEffect(() => {
@@ -340,6 +345,17 @@ Return a JSON array with this structure:
       // Refresh data
       await fetchMPSsAndCriteria();
 
+      // Check if this was the last criteria for the MPS to show custom criteria modal
+      const criteria = criteriaList.find(c => c.id === criteriaId);
+      if (criteria) {
+        const mpssCriteria = getCriteriaForMPS(criteria.mps_id);
+        const allApproved = mpssCriteria.every(c => c.id === criteriaId || c.status === 'approved_locked');
+        
+        if (allApproved) {
+          setTimeout(() => setShowCustomCriteriaModal(criteria.mps_id), 500);
+        }
+      }
+
       toast({
         title: "Criteria Approved",
         description: "Criteria statement has been approved and locked.",
@@ -350,6 +366,48 @@ Return a JSON array with this structure:
       toast({
         title: "Approval Failed",
         description: "Failed to approve criteria.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const approveAllCriteria = async (mpsId: string) => {
+    if (!currentOrganization?.id) return;
+
+    const mpssCriteria = getCriteriaForMPS(mpsId);
+    const unapprovedCriteria = mpssCriteria.filter(c => c.status !== 'approved_locked');
+
+    try {
+      for (const criteria of unapprovedCriteria) {
+        const { error } = await supabase
+          .from('criteria')
+          .update({
+            status: 'approved_locked',
+            statement_approved_by: currentOrganization.owner_id,
+            statement_approved_at: new Date().toISOString(),
+            updated_by: currentOrganization.owner_id
+          })
+          .eq('id', criteria.id);
+
+        if (error) throw error;
+      }
+
+      // Refresh data
+      await fetchMPSsAndCriteria();
+
+      // Show custom criteria modal after approval
+      setTimeout(() => setShowCustomCriteriaModal(mpsId), 500);
+
+      toast({
+        title: "All Criteria Approved",
+        description: `Successfully approved ${unapprovedCriteria.length} criteria.`,
+      });
+
+    } catch (error) {
+      console.error('Error approving all criteria:', error);
+      toast({
+        title: "Approval Failed",
+        description: "Failed to approve all criteria.",
         variant: "destructive"
       });
     }
@@ -426,6 +484,116 @@ Return a JSON array with this structure:
 
   const getCriteriaForMPS = (mpsId: string) => {
     return criteriaList.filter(criteria => criteria.mps_id === mpsId);
+  };
+
+  const getMPSByID = (mpsId: string) => {
+    return mpsList.find(mps => mps.id === mpsId);
+  };
+
+  const addCustomCriterion = async () => {
+    if (!currentOrganization?.id || !showCustomCriteriaModal) return;
+
+    setIsProcessingCustom(true);
+    try {
+      const mps = getMPSByID(showCustomCriteriaModal);
+      if (!mps) throw new Error('MPS not found');
+
+      const mpssCriteria = getCriteriaForMPS(showCustomCriteriaModal);
+      const nextNumber = mpssCriteria.length + 1;
+      const criteriaNumber = `${mps.mps_number}.${nextNumber}`;
+
+      // Validate and improve the custom criterion using AI
+      const prompt = `Please review and improve this custom assessment criterion:
+
+Statement: ${customCriterion.statement}
+Summary: ${customCriterion.summary}
+
+For MPS ${mps.mps_number}: ${mps.name}
+Domain: ${domainName}
+
+Please provide an improved version that:
+1. Is specific, measurable, and auditable
+2. Follows international standards format
+3. Aligns with the MPS intent and domain
+4. Has clear language and structure
+
+Return as JSON:
+{
+  "statement": "Improved statement text",
+  "summary": "Improved summary text",
+  "evidence_suggestions": "Specific evidence recommendation"
+}`;
+
+      const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
+        body: {
+          prompt: prompt,
+          context: 'Custom criteria validation',
+          currentDomain: domainName,
+          organizationId: currentOrganization.id
+        }
+      });
+
+      if (error) throw error;
+
+      let improvedCriterion = {
+        statement: customCriterion.statement,
+        summary: customCriterion.summary,
+        evidence_suggestions: "Documentation and implementation evidence"
+      };
+
+      try {
+        const responseContent = data.content || data.response || '';
+        const jsonStart = responseContent.indexOf('{');
+        const jsonEnd = responseContent.lastIndexOf('}');
+        
+        if (jsonStart !== -1 && jsonEnd !== -1) {
+          const jsonString = responseContent.substring(jsonStart, jsonEnd + 1);
+          const parsedData = JSON.parse(jsonString);
+          if (parsedData.statement && parsedData.summary) {
+            improvedCriterion = parsedData;
+          }
+        }
+      } catch (parseError) {
+        console.warn('Could not parse AI response, using original criterion');
+      }
+
+      // Insert the new criterion
+      const { error: insertError } = await supabase
+        .from('criteria')
+        .insert({
+          mps_id: showCustomCriteriaModal,
+          organization_id: currentOrganization.id,
+          criteria_number: criteriaNumber,
+          statement: improvedCriterion.statement,
+          summary: improvedCriterion.summary,
+          status: 'not_started',
+          created_by: currentOrganization.owner_id,
+          updated_by: currentOrganization.owner_id
+        });
+
+      if (insertError) throw insertError;
+
+      // Refresh data
+      await fetchMPSsAndCriteria();
+
+      toast({
+        title: "Custom Criterion Added",
+        description: `Successfully added criterion ${criteriaNumber}`,
+      });
+
+      setShowCustomCriteriaModal(null);
+      setCustomCriterion({ statement: '', summary: '' });
+
+    } catch (error) {
+      console.error('Error adding custom criterion:', error);
+      toast({
+        title: "Failed to Add Criterion",
+        description: "Could not add the custom criterion.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessingCustom(false);
+    }
   };
 
   const getMaturityLevelsForCriteria = (criteriaId: string) => {
@@ -607,6 +775,37 @@ Return a JSON array with this structure:
                                   )}
                                 </Button>
                               )}
+                              {mpssCriteria.length > 0 && mpssCriteria.some(c => c.status !== 'approved_locked') && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="mr-2"
+                                    >
+                                      <CheckCircle className="h-4 w-4 mr-1" />
+                                      Approve All
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Approve All Criteria</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to approve all {mpssCriteria.filter(c => c.status !== 'approved_locked').length} criteria for MPS {mps.mps_number} at once?
+                                        <br /><br />
+                                        Once approved, any edits will require approval from the Chain of Custody Owner.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={() => approveAllCriteria(mps.id)}>
+                                        Approve All
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
                               {isExpanded ? (
                                 <ChevronUp className="h-5 w-5" />
                               ) : (
@@ -678,14 +877,19 @@ Return a JSON array with this structure:
                                               )}
                                             </div>
                                             <div className="flex items-center gap-2">
-                                              {!isApproved && (
+                                                {!isApproved && (
                                                 <>
                                                   <Button
                                                     size="sm"
                                                     variant="outline"
                                                     onClick={(e) => {
                                                       e.stopPropagation();
-                                                      startEditing(criteria);
+                                                      if (!isCriteriaExpanded) {
+                                                        toggleCriteriaExpansion(criteria.id);
+                                                        setTimeout(() => startEditing(criteria), 100);
+                                                      } else {
+                                                        startEditing(criteria);
+                                                      }
                                                     }}
                                                   >
                                                     <Edit3 className="h-3 w-3" />
@@ -862,6 +1066,76 @@ Return a JSON array with this structure:
             </div>
           </div>
         </div>
+
+        {/* Custom Criteria Modal */}
+        <Dialog open={!!showCustomCriteriaModal} onOpenChange={() => setShowCustomCriteriaModal(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle>Add Custom Criterion</DialogTitle>
+              <div className="text-sm text-muted-foreground">
+                Would you like to add any of your own custom criteria to MPS {getMPSByID(showCustomCriteriaModal || '')?.mps_number}?
+              </div>
+            </DialogHeader>
+            
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="custom-statement">Criterion Statement</Label>
+                <Textarea
+                  id="custom-statement"
+                  placeholder="Enter your custom criterion statement..."
+                  value={customCriterion.statement}
+                  onChange={(e) => setCustomCriterion({ ...customCriterion, statement: e.target.value })}
+                  className="mt-1"
+                  rows={3}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="custom-summary">Summary</Label>
+                <Textarea
+                  id="custom-summary"
+                  placeholder="Brief explanation of what this criterion assesses..."
+                  value={customCriterion.summary}
+                  onChange={(e) => setCustomCriterion({ ...customCriterion, summary: e.target.value })}
+                  className="mt-1"
+                  rows={2}
+                />
+              </div>
+
+              <div className="bg-blue-50 p-3 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <strong>AI Validation:</strong> Your criterion will be reviewed and potentially improved by AI to ensure it meets international standards and assessment requirements.
+                </p>
+              </div>
+              
+              <div className="flex justify-end gap-3">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowCustomCriteriaModal(null)}
+                  disabled={isProcessingCustom}
+                >
+                  Skip
+                </Button>
+                <Button 
+                  onClick={addCustomCriterion}
+                  disabled={!customCriterion.statement.trim() || isProcessingCustom}
+                >
+                  {isProcessingCustom ? (
+                    <>
+                      <Sparkles className="h-4 w-4 mr-2 animate-pulse" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Criterion
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
