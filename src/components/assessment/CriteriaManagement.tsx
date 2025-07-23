@@ -225,41 +225,52 @@ Return a JSON array with this structure:
         // Try multiple extraction patterns
         let jsonString = '';
         
-        // Pattern 1: Look for the first valid JSON array start (must be followed by object or whitespace)
-        let arrayStart = -1;
-        for (let i = 0; i < responseContent.length; i++) {
-          if (responseContent[i] === '[') {
-            // Check if this looks like the start of a JSON array
-            const nextNonWhitespace = responseContent.substring(i + 1).search(/\S/);
-            if (nextNonWhitespace !== -1) {
-              const nextChar = responseContent[i + 1 + nextNonWhitespace];
-              // Valid if next non-whitespace is { (object start) or ] (empty array)
-              if (nextChar === '{' || nextChar === ']') {
-                arrayStart = i;
+        // Pattern 1: Look for a JSON array that contains criteria objects
+        // We need to find a '[' followed by objects with criteria_number property
+        const lines = responseContent.split('\n');
+        let arrayStartLine = -1;
+        
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          // Look for a line that starts with [ and the next non-empty line contains criteria_number
+          if (line.startsWith('[')) {
+            // Look ahead for criteria_number to confirm this is the right array
+            for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
+              if (lines[j].includes('criteria_number')) {
+                arrayStartLine = i;
                 break;
               }
             }
+            if (arrayStartLine !== -1) break;
           }
         }
         
-        if (arrayStart !== -1) {
-          // Find matching bracket with proper nesting
+        if (arrayStartLine !== -1) {
+          // Found the start line, now find the matching closing bracket
           let bracketCount = 0;
-          let arrayEnd = -1;
+          let startChar = -1;
+          let endChar = -1;
           
-          for (let i = arrayStart; i < responseContent.length; i++) {
+          // Find the actual character position of the opening bracket
+          for (let i = 0; i < arrayStartLine; i++) {
+            startChar += lines[i].length + 1; // +1 for newline
+          }
+          startChar += lines[arrayStartLine].indexOf('[') + 1;
+          
+          // Now find the matching closing bracket
+          for (let i = startChar; i < responseContent.length; i++) {
             if (responseContent[i] === '[') bracketCount++;
             if (responseContent[i] === ']') {
               bracketCount--;
               if (bracketCount === 0) {
-                arrayEnd = i;
+                endChar = i;
                 break;
               }
             }
           }
           
-          if (arrayEnd !== -1) {
-            jsonString = responseContent.substring(arrayStart, arrayEnd + 1);
+          if (endChar !== -1) {
+            jsonString = responseContent.substring(startChar - 1, endChar + 1);
           }
         }
         
@@ -281,6 +292,8 @@ Return a JSON array with this structure:
         }
         
         if (!jsonString) {
+          console.error('❌ No valid JSON array found in response');
+          console.log('Response content for debugging:', responseContent);
           throw new Error('No JSON array found in response');
         }
         
@@ -351,9 +364,20 @@ Return a JSON array with this structure:
 
     } catch (error) {
       console.error('Error generating criteria:', error);
+      
+      // Provide more specific error messages based on the error type
+      let errorMessage = "Failed to generate criteria. Please try again.";
+      if (error?.message?.includes('No JSON array found')) {
+        errorMessage = "AI response was invalid. The criteria format could not be parsed.";
+      } else if (error?.message?.includes('Unexpected token')) {
+        errorMessage = "AI response contained malformed JSON. Please try regenerating.";
+      } else if (error?.message?.includes('missing required fields')) {
+        errorMessage = "Generated criteria were incomplete. Please try again.";
+      }
+      
       toast({
         title: "Generation Failed",
-        description: "Failed to generate criteria. Please try again.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
