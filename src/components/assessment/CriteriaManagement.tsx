@@ -8,7 +8,8 @@ import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Edit3, Check, X, ChevronDown, ChevronUp, Sparkles, AlertTriangle, FileText, CheckCircle, Lock, Plus } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Edit3, Check, X, ChevronDown, ChevronUp, Sparkles, AlertTriangle, FileText, CheckCircle, Lock, Plus, MoreVertical, XCircle } from 'lucide-react';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { AISourceIndicator } from '@/components/ai/AISourceIndicator';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -78,6 +79,8 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
   const [showCustomCriteriaModal, setShowCustomCriteriaModal] = useState<string | null>(null);
   const [customCriterion, setCustomCriterion] = useState({ statement: '', summary: '' });
   const [isProcessingCustom, setIsProcessingCustom] = useState(false);
+  const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   // Load existing MPSs and criteria when modal opens
   useEffect(() => {
@@ -417,6 +420,53 @@ Return a JSON array with this structure:
     if (!currentOrganization?.id) return;
 
     try {
+      // Get current values for edit history
+      const { data: currentCriteria } = await supabase
+        .from('criteria')
+        .select('statement, summary')
+        .eq('id', criteriaId)
+        .single();
+
+      if (currentCriteria) {
+        // Log edit history for changed fields
+        const editHistoryEntries = [];
+        
+        if (currentCriteria.statement !== updates.statement) {
+          editHistoryEntries.push({
+            criteria_id: criteriaId,
+            organization_id: currentOrganization.id,
+            edited_by: currentOrganization.owner_id,
+            field_name: 'statement',
+            old_value: currentCriteria.statement,
+            new_value: updates.statement,
+            change_reason: 'User edit'
+          });
+        }
+        
+        if (currentCriteria.summary !== updates.summary) {
+          editHistoryEntries.push({
+            criteria_id: criteriaId,
+            organization_id: currentOrganization.id,
+            edited_by: currentOrganization.owner_id,
+            field_name: 'summary',
+            old_value: currentCriteria.summary,
+            new_value: updates.summary,
+            change_reason: 'User edit'
+          });
+        }
+
+        // Insert edit history
+        if (editHistoryEntries.length > 0) {
+          const { error: historyError } = await supabase
+            .from('criteria_edit_history')
+            .insert(editHistoryEntries);
+
+          if (historyError) {
+            console.error('Error logging edit history:', historyError);
+          }
+        }
+      }
+
       const { error } = await supabase
         .from('criteria')
         .update({
@@ -433,8 +483,8 @@ Return a JSON array with this structure:
       setEditingCriteria(null);
 
       toast({
-        title: "Criteria Updated",
-        description: "Criteria has been successfully updated.",
+        title: "✅ Criteria Updated",
+        description: "Criteria has been successfully updated and edit history logged.",
       });
 
     } catch (error) {
@@ -479,6 +529,53 @@ Return a JSON array with this structure:
   const saveEditing = () => {
     if (editingCriteria) {
       updateCriteria(editingCriteria, editForm);
+    }
+  };
+
+  const rejectCriteria = async (criteriaId: string, reason: string) => {
+    if (!currentOrganization?.id) return;
+
+    try {
+      // Log rejection
+      const { error: rejectError } = await supabase
+        .from('criteria_rejections')
+        .insert({
+          criteria_id: criteriaId,
+          organization_id: currentOrganization.id,
+          rejected_by: currentOrganization.owner_id,
+          rejection_reason: reason
+        });
+
+      if (rejectError) throw rejectError;
+
+      // Update criteria status to rejected
+      const { error } = await supabase
+        .from('criteria')
+        .update({
+          status: 'rejected',
+          updated_by: currentOrganization.owner_id
+        })
+        .eq('id', criteriaId);
+
+      if (error) throw error;
+
+      // Refresh data
+      await fetchMPSsAndCriteria();
+      setShowRejectModal(null);
+      setRejectionReason('');
+
+      toast({
+        title: "⚠️ Criteria Rejected",
+        description: "Criteria has been rejected and logged for audit trail.",
+      });
+
+    } catch (error) {
+      console.error('Error rejecting criteria:', error);
+      toast({
+        title: "Rejection Failed",
+        description: "Failed to reject criteria.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -876,42 +973,67 @@ Return as JSON:
                                                 </p>
                                               )}
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                {!isApproved && (
-                                                <>
-                                                  <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      if (!isCriteriaExpanded) {
-                                                        toggleCriteriaExpansion(criteria.id);
-                                                        setTimeout(() => startEditing(criteria), 100);
-                                                      } else {
-                                                        startEditing(criteria);
-                                                      }
-                                                    }}
-                                                  >
-                                                    <Edit3 className="h-3 w-3" />
-                                                  </Button>
-                                                  <Button
-                                                    size="sm"
-                                                    onClick={(e) => {
-                                                      e.stopPropagation();
-                                                      approveCriteria(criteria.id);
-                                                    }}
-                                                  >
-                                                    <Check className="h-3 w-3 mr-1" />
-                                                    Approve
-                                                  </Button>
-                                                </>
-                                              )}
-                                              {isCriteriaExpanded ? (
-                                                <ChevronUp className="h-4 w-4" />
-                                              ) : (
-                                                <ChevronDown className="h-4 w-4" />
-                                              )}
-                                            </div>
+                                             <div className="flex items-center gap-2">
+                                               {isApproved ? (
+                                                 <Badge className="bg-green-500 text-xs">
+                                                   <Lock className="h-3 w-3 mr-1" />
+                                                   Locked
+                                                 </Badge>
+                                               ) : criteria.status === 'rejected' ? (
+                                                 <Badge variant="destructive" className="text-xs">
+                                                   <XCircle className="h-3 w-3 mr-1" />
+                                                   Rejected
+                                                 </Badge>
+                                               ) : (
+                                                 <>
+                                                   <DropdownMenu>
+                                                     <DropdownMenuTrigger asChild>
+                                                       <Button
+                                                         size="sm"
+                                                         variant="ghost"
+                                                         onClick={(e) => e.stopPropagation()}
+                                                         className="h-6 w-6 p-0"
+                                                       >
+                                                         <MoreVertical className="h-3 w-3" />
+                                                       </Button>
+                                                     </DropdownMenuTrigger>
+                                                     <DropdownMenuContent align="end">
+                                                       <DropdownMenuItem onClick={() => {
+                                                         if (!isCriteriaExpanded) {
+                                                           toggleCriteriaExpansion(criteria.id);
+                                                           setTimeout(() => startEditing(criteria), 100);
+                                                         } else {
+                                                           startEditing(criteria);
+                                                         }
+                                                       }}>
+                                                         <Edit3 className="h-3 w-3 mr-2" />
+                                                         Edit
+                                                       </DropdownMenuItem>
+                                                       <DropdownMenuItem onClick={() => setShowRejectModal(criteria.id)}>
+                                                         <XCircle className="h-3 w-3 mr-2" />
+                                                         Reject
+                                                       </DropdownMenuItem>
+                                                     </DropdownMenuContent>
+                                                   </DropdownMenu>
+                                                   <Button
+                                                     size="sm"
+                                                     onClick={(e) => {
+                                                       e.stopPropagation();
+                                                       approveCriteria(criteria.id);
+                                                     }}
+                                                     className="h-6"
+                                                   >
+                                                     <Check className="h-3 w-3 mr-1" />
+                                                     Approve
+                                                   </Button>
+                                                 </>
+                                               )}
+                                               {isCriteriaExpanded ? (
+                                                 <ChevronUp className="h-4 w-4" />
+                                               ) : (
+                                                 <ChevronDown className="h-4 w-4" />
+                                               )}
+                                             </div>
                                           </div>
                                         </CardHeader>
                                       </CollapsibleTrigger>
@@ -1131,6 +1253,53 @@ Return as JSON:
                       Add Criterion
                     </>
                   )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Rejection Modal */}
+        <Dialog open={showRejectModal !== null} onOpenChange={() => setShowRejectModal(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                ⚠️ Reject Criterion
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to reject this proposed criterion? This action will be logged for audit trail purposes.
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="rejection-reason">Rejection Reason (Optional)</Label>
+                <Textarea
+                  id="rejection-reason"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Explain why this criterion is being rejected..."
+                  className="min-h-[80px]"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowRejectModal(null);
+                    setRejectionReason('');
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (showRejectModal) {
+                      rejectCriteria(showRejectModal, rejectionReason);
+                    }
+                  }}
+                >
+                  💡 Reject Criterion
                 </Button>
               </div>
             </div>

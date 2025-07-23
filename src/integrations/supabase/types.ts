@@ -681,6 +681,105 @@ export type Database = {
           },
         ]
       }
+      criteria_edit_history: {
+        Row: {
+          change_reason: string | null
+          created_at: string
+          criteria_id: string
+          edited_at: string
+          edited_by: string
+          field_name: string
+          id: string
+          new_value: string | null
+          old_value: string | null
+          organization_id: string
+        }
+        Insert: {
+          change_reason?: string | null
+          created_at?: string
+          criteria_id: string
+          edited_at?: string
+          edited_by: string
+          field_name: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          organization_id: string
+        }
+        Update: {
+          change_reason?: string | null
+          created_at?: string
+          criteria_id?: string
+          edited_at?: string
+          edited_by?: string
+          field_name?: string
+          id?: string
+          new_value?: string | null
+          old_value?: string | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "criteria_edit_history_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "criteria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "criteria_edit_history_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      criteria_rejections: {
+        Row: {
+          created_at: string
+          criteria_id: string
+          id: string
+          organization_id: string
+          rejected_at: string
+          rejected_by: string
+          rejection_reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          criteria_id: string
+          id?: string
+          organization_id: string
+          rejected_at?: string
+          rejected_by: string
+          rejection_reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          criteria_id?: string
+          id?: string
+          organization_id?: string
+          rejected_at?: string
+          rejected_by?: string
+          rejection_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "criteria_rejections_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "criteria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "criteria_rejections_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       discount_codes: {
         Row: {
           applicable_modules: string[] | null
