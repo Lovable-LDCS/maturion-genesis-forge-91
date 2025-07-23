@@ -225,52 +225,42 @@ Return a JSON array with this structure:
         // Try multiple extraction patterns
         let jsonString = '';
         
-        // Pattern 1: Look for a JSON array that contains criteria objects
-        // We need to find a '[' followed by objects with criteria_number property
-        const lines = responseContent.split('\n');
-        let arrayStartLine = -1;
+        // Pattern 1: More robust JSON array detection
+        // Find arrays containing criteria objects
+        let jsonStartIndex = -1;
+        let jsonEndIndex = -1;
         
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i].trim();
-          // Look for a line that starts with [ and the next non-empty line contains criteria_number
-          if (line.startsWith('[')) {
-            // Look ahead for criteria_number to confirm this is the right array
-            for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
-              if (lines[j].includes('criteria_number')) {
-                arrayStartLine = i;
-                break;
-              }
-            }
-            if (arrayStartLine !== -1) break;
+        // Look for patterns that indicate the start of a criteria array
+        const criteriaArrayPatterns = [
+          /\[\s*\{[^}]*"criteria_number"/i,
+          /\[\s*\{[^}]*criteria_number/i,
+          /\[\s*\n\s*\{[^}]*"criteria_number"/i
+        ];
+        
+        for (const pattern of criteriaArrayPatterns) {
+          const match = responseContent.match(pattern);
+          if (match && match.index !== undefined) {
+            jsonStartIndex = match.index;
+            break;
           }
         }
         
-        if (arrayStartLine !== -1) {
-          // Found the start line, now find the matching closing bracket
+        // If found, locate the matching closing bracket
+        if (jsonStartIndex !== -1) {
           let bracketCount = 0;
-          let startChar = -1;
-          let endChar = -1;
-          
-          // Find the actual character position of the opening bracket
-          for (let i = 0; i < arrayStartLine; i++) {
-            startChar += lines[i].length + 1; // +1 for newline
-          }
-          startChar += lines[arrayStartLine].indexOf('[') + 1;
-          
-          // Now find the matching closing bracket
-          for (let i = startChar; i < responseContent.length; i++) {
+          for (let i = jsonStartIndex; i < responseContent.length; i++) {
             if (responseContent[i] === '[') bracketCount++;
             if (responseContent[i] === ']') {
               bracketCount--;
               if (bracketCount === 0) {
-                endChar = i;
+                jsonEndIndex = i;
                 break;
               }
             }
           }
           
-          if (endChar !== -1) {
-            jsonString = responseContent.substring(startChar - 1, endChar + 1);
+          if (jsonEndIndex !== -1) {
+            jsonString = responseContent.substring(jsonStartIndex, jsonEndIndex + 1);
           }
         }
         
@@ -952,6 +942,14 @@ Return as JSON:
     });
   };
 
+  const allCriteriaApproved = () => {
+    return criteriaList.length > 0 && criteriaList.every(criteria => criteria.status === 'approved_locked');
+  };
+
+  const getUnapprovedCriteriaCount = () => {
+    return criteriaList.filter(criteria => criteria.status !== 'approved_locked').length;
+  };
+
   const completeCriteriaSetup = async () => {
     const approvedCriteria = criteriaList.filter(criteria => criteria.status === 'approved_locked');
     await onCriteriaFinalized(approvedCriteria);
@@ -1413,14 +1411,30 @@ Return as JSON:
               </div>
               
               <Button 
-                onClick={completeCriteriaSetup}
+                onClick={() => {
+                  if (!allCriteriaApproved()) {
+                    const unapprovedCount = getUnapprovedCriteriaCount();
+                    toast({
+                      title: "Cannot Continue",
+                      description: `You still have ${unapprovedCount} unapproved ${unapprovedCount === 1 ? 'criterion' : 'criteria'}. Please approve, reject, or edit them before continuing to Step 4.`,
+                      variant: "destructive"
+                    });
+                    return;
+                  }
+                  completeCriteriaSetup();
+                }}
                 disabled={!hasApprovedCriteria()}
                 className="min-w-[200px]"
               >
-                {hasApprovedCriteria() ? (
+                {allCriteriaApproved() ? (
                   <>
                     <CheckCircle className="h-4 w-4 mr-2" />
                     Continue to Step 4 - Maturity Descriptors
+                  </>
+                ) : hasApprovedCriteria() ? (
+                  <>
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    {getUnapprovedCriteriaCount()} Criteria Need Approval
                   </>
                 ) : (
                   <>
