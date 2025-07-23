@@ -26,7 +26,9 @@ const documentTypeLabels: Record<MaturionDocument['document_type'], string> = {
   general: 'General Knowledge',
   mps_document: 'MPS Document',
   iso_alignment: 'ISO Alignment',
-  assessment_framework_component: 'Assessment Framework Component'
+  assessment_framework_component: 'Assessment Framework Component',
+  ai_logic_rule: 'AI Logic Rule – Global',
+  system_instruction: 'System Instruction – Global'
 };
 
 // Domain options for MPS documents
@@ -35,7 +37,8 @@ const domainOptions = [
   'Process Integrity',
   'People & Culture',
   'Protection',
-  'Proof it Works'
+  'Proof it Works',
+  'Global Instruction – applies across all MPS and domains'
 ];
 
 const statusIcons = {
