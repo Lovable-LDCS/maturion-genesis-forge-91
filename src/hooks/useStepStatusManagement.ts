@@ -66,8 +66,9 @@ export const useStepStatusManagement = (domainId: string) => {
           if (mpsCount === 0) return 'locked';
           return mpsWithApprovedIntent === mpsCount ? 'completed' : 'active';
         case 3:
-          if (mpsCount === 0) return 'locked';
-          return mpsWithApprovedIntent === mpsCount ? 'active' : 'locked';
+          // Step 3 should only be active/unlocked when ALL intents are approved
+          if (mpsCount === 0 || mpsWithApprovedIntent < mpsCount) return 'locked';
+          return 'active'; // Once all intents approved, step 3 becomes active
         default:
           return 'locked';
       }

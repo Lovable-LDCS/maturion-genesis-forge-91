@@ -194,35 +194,84 @@ Return a JSON array with this structure:
         console.log('Raw AI response length:', responseContent.length);
         console.log('Raw AI response preview:', responseContent.substring(0, 500));
         
-        // Find the start of the JSON array
-        const arrayStart = responseContent.indexOf('[');
-        if (arrayStart === -1) {
-          throw new Error('No JSON array start found in response');
-        }
+        // Enhanced JSON extraction - handle multiple patterns and formatting issues
+        console.log('Full response for debugging:', responseContent);
         
-        // Find the matching closing bracket by counting nested brackets
-        let bracketCount = 0;
-        let arrayEnd = -1;
-        for (let i = arrayStart; i < responseContent.length; i++) {
-          if (responseContent[i] === '[') bracketCount++;
-          if (responseContent[i] === ']') {
-            bracketCount--;
-            if (bracketCount === 0) {
-              arrayEnd = i;
-              break;
+        // Try multiple extraction patterns
+        let jsonString = '';
+        
+        // Pattern 1: Look for standard JSON array
+        let arrayStart = responseContent.indexOf('[');
+        if (arrayStart !== -1) {
+          // Find matching bracket with proper nesting
+          let bracketCount = 0;
+          let arrayEnd = -1;
+          
+          for (let i = arrayStart; i < responseContent.length; i++) {
+            if (responseContent[i] === '[') bracketCount++;
+            if (responseContent[i] === ']') {
+              bracketCount--;
+              if (bracketCount === 0) {
+                arrayEnd = i;
+                break;
+              }
             }
+          }
+          
+          if (arrayEnd !== -1) {
+            jsonString = responseContent.substring(arrayStart, arrayEnd + 1);
           }
         }
         
-        if (arrayEnd === -1) {
-          throw new Error('No matching closing bracket found for JSON array');
+        // Pattern 2: If no array found, try extracting from code blocks
+        if (!jsonString) {
+          const codeBlockMatch = responseContent.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
+          if (codeBlockMatch) {
+            jsonString = codeBlockMatch[1];
+          }
         }
         
-        const jsonString = responseContent.substring(arrayStart, arrayEnd + 1);
-        console.log('Extracted JSON string length:', jsonString.length);
-        console.log('Extracted JSON preview:', jsonString.substring(0, 200));
+        // Pattern 3: Last resort - extract everything between first [ and last ]
+        if (!jsonString) {
+          const firstBracket = responseContent.indexOf('[');
+          const lastBracket = responseContent.lastIndexOf(']');
+          if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+            jsonString = responseContent.substring(firstBracket, lastBracket + 1);
+          }
+        }
         
-        generatedCriteria = JSON.parse(jsonString);
+        if (!jsonString) {
+          throw new Error('No JSON array found in response');
+        }
+        
+        console.log('Extracted JSON string length:', jsonString.length);
+        console.log('Extracted JSON preview:', jsonString.substring(0, 300));
+        
+        // Parse and validate the JSON
+        const parsedData = JSON.parse(jsonString);
+        
+        // Ensure it's an array
+        if (!Array.isArray(parsedData)) {
+          throw new Error('Response is not an array');
+        }
+        
+        // Validate each criterion has required fields
+        for (const criterion of parsedData) {
+          if (!criterion.criteria_number || !criterion.statement) {
+            console.warn('Invalid criterion structure:', criterion);
+            throw new Error('Criterion missing required fields (criteria_number or statement)');
+          }
+          
+          // Ensure we have a proper statement, not placeholder text
+          if (criterion.statement.includes('Evaluation requirements for') || 
+              criterion.statement.includes('criterion') ||
+              criterion.statement.length < 20) {
+            console.warn('Placeholder statement detected:', criterion.statement);
+            throw new Error('AI returned placeholder statements instead of full descriptors');
+          }
+        }
+        
+        generatedCriteria = parsedData;
         console.log(`✅ Generated ${generatedCriteria.length} criteria for MPS ${mps.mps_number}`);
       } catch (parseError) {
         console.error('Failed to parse criteria response:', parseError);
@@ -473,6 +522,17 @@ Return a JSON array with this structure:
                     <li>• Generate maturity descriptors (Step 4)</li>
                   </ul>
                 </div>
+              </div>
+              
+              {/* User Guidance for Generation */}
+              <div className="mt-4 p-3 bg-white/80 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 text-blue-600">
+                  <div className="text-lg">👆</div>
+                  <span className="font-medium">Click an MPS block below to begin generating criteria</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 ml-6">
+                  Each MPS will expand to show generated assessment criteria when clicked
+                </p>
               </div>
             </CardContent>
           </Card>
