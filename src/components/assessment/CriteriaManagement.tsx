@@ -219,79 +219,134 @@ Return a JSON array with this structure:
         console.log('Raw AI response length:', responseContent.length);
         console.log('Raw AI response preview:', responseContent.substring(0, 500));
         
-        // Enhanced JSON extraction - handle multiple patterns and formatting issues
-        console.log('Full response for debugging:', responseContent);
+        // Enhanced JSON extraction with multiple fallback strategies
+        console.log('Full response for debugging (MPS specific):', responseContent);
         
-        // Try multiple extraction patterns
         let jsonString = '';
         
-        // Pattern 1: More robust JSON array detection
-        // Find arrays containing criteria objects
-        let jsonStartIndex = -1;
-        let jsonEndIndex = -1;
-        
-        // Look for patterns that indicate the start of a criteria array
+        // Strategy 1: Enhanced criteria array detection with multiple patterns
         const criteriaArrayPatterns = [
-          /\[\s*\{[^}]*"criteria_number"/i,
-          /\[\s*\{[^}]*criteria_number/i,
-          /\[\s*\n\s*\{[^}]*"criteria_number"/i
+          // Pattern for direct array start with criteria_number
+          /\[\s*\{[^}]*["']criteria_number["'][^}]*\}/i,
+          // Pattern for array with newlines
+          /\[\s*\n\s*\{[^}]*["']criteria_number["'][^}]*\}/i,
+          // Pattern for markdown code blocks
+          /```(?:json)?\s*(\[[\s\S]*?\])\s*```/i,
+          // Pattern for any array containing criteria objects
+          /\[[^[]*["']criteria_number["'][^[]*\]/i,
+          // Fallback pattern for any bracketed array
+          /\[[\s\S]*\]/
         ];
         
+        // Try each pattern in order of specificity
         for (const pattern of criteriaArrayPatterns) {
           const match = responseContent.match(pattern);
-          if (match && match.index !== undefined) {
-            jsonStartIndex = match.index;
+          if (match) {
+            // If it's a code block match, use the captured group
+            jsonString = match[1] || match[0];
+            console.log(`✅ Found JSON using pattern: ${pattern}`);
+            console.log('Extracted JSON preview:', jsonString.substring(0, 200));
             break;
           }
         }
         
-        // If found, locate the matching closing bracket
-        if (jsonStartIndex !== -1) {
-          let bracketCount = 0;
-          for (let i = jsonStartIndex; i < responseContent.length; i++) {
-            if (responseContent[i] === '[') bracketCount++;
-            if (responseContent[i] === ']') {
-              bracketCount--;
-              if (bracketCount === 0) {
-                jsonEndIndex = i;
+        // Strategy 2: Manual bracket matching if patterns fail
+        if (!jsonString) {
+          console.log('🔍 Pattern matching failed, trying manual bracket search...');
+          
+          let startIndex = -1;
+          let endIndex = -1;
+          
+          // Find the first '[' that's followed by criteria content
+          for (let i = 0; i < responseContent.length - 20; i++) {
+            if (responseContent[i] === '[') {
+              // Look ahead for criteria_number within reasonable distance
+              const lookahead = responseContent.substring(i, i + 500);
+              if (lookahead.includes('criteria_number') || lookahead.includes('"statement"')) {
+                startIndex = i;
                 break;
               }
             }
           }
           
-          if (jsonEndIndex !== -1) {
-            jsonString = responseContent.substring(jsonStartIndex, jsonEndIndex + 1);
+          if (startIndex !== -1) {
+            // Find matching closing bracket
+            let bracketCount = 0;
+            for (let i = startIndex; i < responseContent.length; i++) {
+              if (responseContent[i] === '[') bracketCount++;
+              if (responseContent[i] === ']') {
+                bracketCount--;
+                if (bracketCount === 0) {
+                  endIndex = i;
+                  break;
+                }
+              }
+            }
+            
+            if (endIndex !== -1) {
+              jsonString = responseContent.substring(startIndex, endIndex + 1);
+              console.log('✅ Found JSON using manual bracket matching');
+            }
           }
         }
         
-        // Pattern 2: If no array found, try extracting from code blocks
+        // Strategy 3: Last resort - extract everything between first and last brackets
         if (!jsonString) {
-          const codeBlockMatch = responseContent.match(/```(?:json)?\s*(\[[\s\S]*?\])\s*```/);
-          if (codeBlockMatch) {
-            jsonString = codeBlockMatch[1];
-          }
-        }
-        
-        // Pattern 3: Last resort - extract everything between first [ and last ]
-        if (!jsonString) {
+          console.log('🔍 Manual search failed, trying first/last bracket extraction...');
           const firstBracket = responseContent.indexOf('[');
           const lastBracket = responseContent.lastIndexOf(']');
           if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
             jsonString = responseContent.substring(firstBracket, lastBracket + 1);
+            console.log('✅ Using first/last bracket extraction');
           }
         }
         
         if (!jsonString) {
           console.error('❌ No valid JSON array found in response');
           console.log('Response content for debugging:', responseContent);
+          
+          // Add specific error for MPS 4 debugging
+          console.error('MPS 4 DEBUG: Response analysis');
+          console.log('Contains [:', responseContent.includes('['));
+          console.log('Contains ]:', responseContent.includes(']'));
+          console.log('Contains criteria_number:', responseContent.includes('criteria_number'));
+          console.log('Response length:', responseContent.length);
+          
           throw new Error('No JSON array found in response');
         }
         
         console.log('Extracted JSON string length:', jsonString.length);
         console.log('Extracted JSON preview:', jsonString.substring(0, 300));
         
+        // Clean the JSON string before parsing
+        let cleanedJsonString = jsonString
+          .replace(/[\u0000-\u001F\u007F-\u009F]/g, '') // Remove control characters
+          .replace(/\n/g, ' ') // Replace newlines with spaces
+          .replace(/\r/g, '') // Remove carriage returns
+          .replace(/\t/g, ' ') // Replace tabs with spaces
+          .replace(/\s+/g, ' ') // Normalize whitespace
+          .trim();
+          
+        console.log('Cleaned JSON preview:', cleanedJsonString.substring(0, 300));
+        
         // Parse and validate the JSON
-        const parsedData = JSON.parse(jsonString);
+        let parsedData;
+        try {
+          parsedData = JSON.parse(cleanedJsonString);
+        } catch (parseError) {
+          console.error('JSON Parse Error:', parseError);
+          console.log('Failed JSON string:', cleanedJsonString);
+          
+          // Try to fix common JSON issues
+          let fixedJson = cleanedJsonString
+            .replace(/,\s*}/g, '}') // Remove trailing commas
+            .replace(/,\s*]/g, ']') // Remove trailing commas in arrays
+            .replace(/([{,]\s*)([a-zA-Z_][a-zA-Z0-9_]*)\s*:/g, '$1"$2":') // Quote unquoted keys
+            .replace(/:\s*'([^']*)'/g, ':"$1"'); // Replace single quotes with double quotes
+            
+          console.log('Attempting to parse fixed JSON:', fixedJson.substring(0, 300));
+          parsedData = JSON.parse(fixedJson);
+        }
         
         // Ensure it's an array
         if (!Array.isArray(parsedData)) {
@@ -357,13 +412,24 @@ Return a JSON array with this structure:
       
       // Provide more specific error messages based on the error type
       let errorMessage = "Failed to generate criteria. Please try again.";
+      let debugInfo = "";
+      
       if (error?.message?.includes('No JSON array found')) {
         errorMessage = "AI response was invalid. The criteria format could not be parsed.";
-      } else if (error?.message?.includes('Unexpected token')) {
+        debugInfo = "Debug: No valid JSON array structure found in AI response.";
+      } else if (error?.message?.includes('Unexpected token') || error?.message?.includes('JSON')) {
         errorMessage = "AI response contained malformed JSON. Please try regenerating.";
+        debugInfo = `Debug: JSON parsing failed - ${error.message}`;
       } else if (error?.message?.includes('missing required fields')) {
         errorMessage = "Generated criteria were incomplete. Please try again.";
+        debugInfo = "Debug: Criteria missing required fields (criteria_number or statement).";
+      } else if (error?.message?.includes('placeholder statements')) {
+        errorMessage = "AI returned generic placeholders instead of actual criteria. Please regenerate.";
+        debugInfo = "Debug: AI response contained placeholder text instead of proper criteria.";
       }
+      
+      console.error(`MPS ${mps.mps_number} Generation Error:`, error);
+      console.error('Debug Info:', debugInfo);
       
       toast({
         title: "Generation Failed",
