@@ -36,6 +36,7 @@ interface Criteria {
   ai_suggested_summary?: string;
   statement_approved_by?: string;
   statement_approved_at?: string;
+  deferral_status?: string | null;
 }
 
 interface MaturityLevel {
@@ -478,10 +479,29 @@ Return a JSON array with this structure:
       // Refresh criteria list
       await fetchMPSsAndCriteria();
 
-      toast({
-        title: "Criteria Generated",
-        description: `Successfully generated ${generatedCriteria.length} criteria for MPS ${mps.mps_number}`,
-      });
+      // Add validation check and retry logic for empty results
+      if (generatedCriteria.length === 0) {
+        console.warn('⚠️ Generated 0 criteria - this might be a parsing failure');
+        toast({
+          title: "⚠️ Generation Issue Detected",
+          description: `No criteria were generated for MPS ${mps.mps_number}. This might be a temporary issue.`,
+          variant: "destructive",
+          action: (
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => generateCriteriaForMPS(mps)}
+            >
+              Retry
+            </Button>
+          )
+        });
+      } else {
+        toast({
+          title: "Criteria Generated",
+          description: `Successfully generated ${generatedCriteria.length} criteria for MPS ${mps.mps_number}`,
+        });
+      }
 
     } catch (error) {
       console.error('Error generating criteria:', error);
@@ -768,7 +788,10 @@ Return a JSON array with this structure:
   };
 
   const getCriteriaForMPS = (mpsId: string) => {
-    return criteriaList.filter(criteria => criteria.mps_id === mpsId);
+    return criteriaList.filter(criteria => 
+      criteria.mps_id === mpsId && 
+      criteria.deferral_status !== 'deferred'
+    );
   };
 
   const getMPSByID = (mpsId: string) => {
