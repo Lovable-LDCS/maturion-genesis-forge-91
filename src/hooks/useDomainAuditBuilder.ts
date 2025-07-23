@@ -8,6 +8,7 @@ export const useDomainAuditBuilder = (domainId: string) => {
   const [isMPSModalOpen, setIsMPSModalOpen] = useState(false);
   const [isGeneratingMPSs, setIsGeneratingMPSs] = useState(false);
   const [isIntentCreatorOpen, setIsIntentCreatorOpen] = useState(false);
+  const [isCriteriaManagementOpen, setIsCriteriaManagementOpen] = useState(false);
 
   const { saveMPSsToDatabase } = useMPSManagement(domainId);
   const { 
@@ -55,6 +56,18 @@ export const useDomainAuditBuilder = (domainId: string) => {
     }
   };
 
+  const handleCriteriaFinalized = async (criteria: any[]) => {
+    try {
+      console.log('Criteria finalized:', criteria);
+      setIsCriteriaManagementOpen(false);
+      
+      // Notify other components that criteria were finalized
+      window.dispatchEvent(new CustomEvent('criteria-finalized'));
+    } catch (error) {
+      console.error('Error finalizing criteria:', error);
+    }
+  };
+
   const handleStepClick = async (stepId: number) => {
     const stepStatus = await fetchStepStatus(stepId);
     
@@ -66,6 +79,8 @@ export const useDomainAuditBuilder = (domainId: string) => {
       }, 2000);
     } else if (stepId === 2 && (stepStatus === 'active' || stepStatus === 'completed')) {
       setIsIntentCreatorOpen(true);
+    } else if (stepId === 3 && (stepStatus === 'active' || stepStatus === 'completed')) {
+      setIsCriteriaManagementOpen(true);
     }
   };
 
@@ -77,11 +92,14 @@ export const useDomainAuditBuilder = (domainId: string) => {
     setIsGeneratingMPSs,
     isIntentCreatorOpen,
     setIsIntentCreatorOpen,
+    isCriteriaManagementOpen,
+    setIsCriteriaManagementOpen,
     stepStatuses,
     
     // Actions
     handleAcceptMPSs,
     handleIntentsFinalized,
+    handleCriteriaFinalized,
     handleStepClick,
     isStepClickable,
     getStepStatus,

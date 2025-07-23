@@ -8,6 +8,7 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ArrowLeft, Database, Target, CheckSquare, BarChart3, ClipboardCheck, Sparkles } from 'lucide-react';
 import { MPSSelectionModal } from '@/components/assessment/MPSSelectionModal';
 import { IntentCreator } from '@/components/assessment/IntentCreator';
+import { CriteriaManagement } from '@/components/assessment/CriteriaManagement';
 
 import { useDomainAuditBuilder, type AuditStep } from '@/hooks/useDomainAuditBuilder';
 
@@ -22,8 +23,11 @@ const DomainAuditBuilder = () => {
     setIsGeneratingMPSs,
     isIntentCreatorOpen,
     setIsIntentCreatorOpen,
+    isCriteriaManagementOpen,
+    setIsCriteriaManagementOpen,
     handleAcceptMPSs,
     handleIntentsFinalized,
+    handleCriteriaFinalized,
     handleStepClick,
     getStepStatus,
     fetchStepStatus
@@ -259,6 +263,14 @@ const DomainAuditBuilder = () => {
         onClose={() => setIsIntentCreatorOpen(false)}
         domainName={domainName}
         onIntentsFinalized={handleIntentsFinalized}
+      />
+
+      {/* Criteria Management */}
+      <CriteriaManagement
+        isOpen={isCriteriaManagementOpen}
+        onClose={() => setIsCriteriaManagementOpen(false)}
+        domainName={domainName}
+        onCriteriaFinalized={handleCriteriaFinalized}
       />
 
     </div>
