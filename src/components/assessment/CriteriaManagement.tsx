@@ -78,6 +78,7 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
     summary: ''
   });
   const [showCustomCriteriaModal, setShowCustomCriteriaModal] = useState<string | null>(null);
+  const [showAddAnotherModal, setShowAddAnotherModal] = useState<string | null>(null);
   const [customCriterion, setCustomCriterion] = useState({ statement: '', summary: '' });
   const [isProcessingCustom, setIsProcessingCustom] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
@@ -949,7 +950,10 @@ Return as JSON:
         description: `Successfully added criterion ${criteriaNumber}`,
       });
 
+      // Reset form and show "Add Another?" modal
+      setCustomCriterion({ statement: '', summary: '' });
       setShowCustomCriteriaModal(null);
+      setShowAddAnotherModal(showCustomCriteriaModal);
       setCustomCriterion({ statement: '', summary: '' });
 
     } catch (error) {
@@ -1045,6 +1049,9 @@ Return as JSON:
         description: `Criterion moved to ${suggestion.domain} - MPS ${suggestion.mpsNumber} queue for future processing.`,
       });
 
+      // Show "Add Another?" modal after deferral
+      setShowAddAnotherModal(suggestion.domain === domainName ? criteriaId.substring(0, 36) : null);
+
     } catch (error) {
       console.error('Error deferring criterion:', error);
       toast({
@@ -1109,6 +1116,22 @@ Return as JSON:
 
   const allCriteriaApproved = () => {
     return criteriaList.length > 0 && criteriaList.every(criteria => criteria.status === 'approved_locked');
+  };
+
+  const hasAnyCustomCriteria = () => {
+    // Check if any criteria beyond the AI-generated ones exist
+    return mpsList.some(mps => {
+      const mpssCriteria = getCriteriaForMPS(mps.id);
+      // Consider custom if there are more criteria than typically generated or if any have specific patterns
+      return mpssCriteria.length > 10 || mpssCriteria.some(c => 
+        c.statement.toLowerCase().includes('custom') || 
+        c.criteria_number.includes('.') && parseInt(c.criteria_number.split('.')[1]) > 10
+      );
+    });
+  };
+
+  const resetCustomCriteriaForm = () => {
+    setCustomCriterion({ statement: '', summary: '' });
   };
 
   const getUnapprovedCriteriaCount = () => {
@@ -1612,6 +1635,43 @@ Return as JSON:
           </div>
         </div>
 
+        {/* Add Another Criteria Modal */}
+        <Dialog open={showAddAnotherModal !== null} onOpenChange={() => setShowAddAnotherModal(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-blue-500" />
+                Add Another Criterion?
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                💡 You can keep adding as many custom criteria as needed — we'll help with placement, structure, and quality.
+              </p>
+              
+              <div className="flex gap-2 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAddAnotherModal(null)}
+                >
+                  ⚪ No, I'm Done
+                </Button>
+                <Button
+                  onClick={() => {
+                    const mpsId = showAddAnotherModal;
+                    setShowAddAnotherModal(null);
+                    resetCustomCriteriaForm();
+                    setShowCustomCriteriaModal(mpsId);
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  🔹 Yes, Add Another
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         {/* Custom Criteria Modal */}
         <Dialog open={!!showCustomCriteriaModal} onOpenChange={() => setShowCustomCriteriaModal(null)}>
           <DialogContent className="max-w-2xl">
@@ -1656,7 +1716,10 @@ Return as JSON:
               <div className="flex justify-end gap-3">
                 <Button 
                   variant="outline" 
-                  onClick={() => setShowCustomCriteriaModal(null)}
+                  onClick={() => {
+                    resetCustomCriteriaForm();
+                    setShowCustomCriteriaModal(null);
+                  }}
                   disabled={isProcessingCustom}
                 >
                   Skip
