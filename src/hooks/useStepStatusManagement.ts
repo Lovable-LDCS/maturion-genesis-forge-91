@@ -51,15 +51,23 @@ export const useStepStatusManagement = (domainId: string) => {
       const mpsWithIntent = domainData.maturity_practice_statements?.filter(
         (mps: any) => mps.intent_statement && mps.intent_statement.trim() !== ''
       ).length || 0;
+      
+      // Count MPSs with approved/locked intent statements
+      const mpsWithApprovedIntent = domainData.maturity_practice_statements?.filter(
+        (mps: any) => mps.intent_statement && 
+                     mps.intent_statement.trim() !== '' && 
+                     mps.status === 'approved_locked'
+      ).length || 0;
 
       switch (stepId) {
         case 1:
           return mpsCount > 0 ? 'completed' : 'active';
         case 2:
           if (mpsCount === 0) return 'locked';
-          return mpsWithIntent === mpsCount ? 'completed' : 'active';
+          return mpsWithApprovedIntent === mpsCount ? 'completed' : 'active';
         case 3:
-          return mpsCount > 0 && mpsWithIntent === mpsCount ? 'active' : 'locked';
+          if (mpsCount === 0) return 'locked';
+          return mpsWithApprovedIntent === mpsCount ? 'active' : 'locked';
         default:
           return 'locked';
       }
