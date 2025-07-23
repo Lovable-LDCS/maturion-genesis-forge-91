@@ -191,24 +191,39 @@ Return a JSON array with this structure:
       try {
         // Parse AI response - the response contains additional text, so extract just the JSON array
         let responseContent = data.content || data.response || '';
-        console.log('Raw AI response:', responseContent);
+        console.log('Raw AI response length:', responseContent.length);
+        console.log('Raw AI response preview:', responseContent.substring(0, 500));
         
-        // Look for JSON array in the response - handle multiple possible formats
-        let jsonMatch = responseContent.match(/\[\s*\{[\s\S]*?\}\s*\]/);
-        
-        if (!jsonMatch) {
-          // Try alternative pattern that captures nested brackets
-          jsonMatch = responseContent.match(/\[[\s\S]*?\{[\s\S]*?\}[\s\S]*?\]/);
+        // Find the start of the JSON array
+        const arrayStart = responseContent.indexOf('[');
+        if (arrayStart === -1) {
+          throw new Error('No JSON array start found in response');
         }
         
-        if (jsonMatch) {
-          const cleanResponse = jsonMatch[0];
-          console.log('Extracted JSON:', cleanResponse);
-          generatedCriteria = JSON.parse(cleanResponse);
-          console.log(`✅ Generated ${generatedCriteria.length} criteria for MPS ${mps.mps_number}`);
-        } else {
-          throw new Error('No valid JSON array found in response');
+        // Find the matching closing bracket by counting nested brackets
+        let bracketCount = 0;
+        let arrayEnd = -1;
+        for (let i = arrayStart; i < responseContent.length; i++) {
+          if (responseContent[i] === '[') bracketCount++;
+          if (responseContent[i] === ']') {
+            bracketCount--;
+            if (bracketCount === 0) {
+              arrayEnd = i;
+              break;
+            }
+          }
         }
+        
+        if (arrayEnd === -1) {
+          throw new Error('No matching closing bracket found for JSON array');
+        }
+        
+        const jsonString = responseContent.substring(arrayStart, arrayEnd + 1);
+        console.log('Extracted JSON string length:', jsonString.length);
+        console.log('Extracted JSON preview:', jsonString.substring(0, 200));
+        
+        generatedCriteria = JSON.parse(jsonString);
+        console.log(`✅ Generated ${generatedCriteria.length} criteria for MPS ${mps.mps_number}`);
       } catch (parseError) {
         console.error('Failed to parse criteria response:', parseError);
         console.error('Response was:', data);
