@@ -143,22 +143,30 @@ Intent: ${mps.intent_statement || 'No intent provided'}
 Domain: ${domainName}
 
 Please generate criteria that:
-1. Are specific, measurable, and auditable
+1. Are specific, measurable, and auditable requirement statements
 2. Follow international standards (ISO 27001, NIST, etc.)
 3. Are appropriate for ${domainName} domain
-4. Include evidence expectations
+4. Each criterion must have a clear, actionable descriptor (not placeholder text)
 5. Are numbered as ${mps.mps_number}.1, ${mps.mps_number}.2, etc.
-6. Generate as many criteria as needed to comprehensively assess this MPS (typically 8-15 criteria, but can be more for complex MPSs)
+6. Generate as many criteria as needed to comprehensively assess this MPS (no artificial limits)
 7. Each criterion should assess a distinct aspect of the MPS
-8. Ensure criteria align with Annex 2 structure and audit requirements
+8. Each criterion should have ONE specific evidence expectation (not a bundle)
+9. Ensure criteria align with Annex 2 structure and audit requirements
+
+IMPORTANT: Each "statement" must be a full, clear requirement description, not placeholder text like "Evaluation requirements for X - criterion Y".
+
+Examples of good criterion statements:
+- "A documented information security policy must be established, approved by management, and communicated to all employees"
+- "Security roles and responsibilities must be formally assigned and documented with clear accountability chains"
+- "Regular security risk assessments must be conducted and documented with findings tracked to resolution"
 
 Return a JSON array with this structure:
 [
   {
     "criteria_number": "${mps.mps_number}.1",
-    "statement": "A clear, neutral requirement statement",
+    "statement": "Full, clear requirement statement describing what must be evaluated",
     "summary": "Brief explanation of what this criterion assesses",
-    "evidence_suggestions": "Types of evidence expected for this criterion"
+    "evidence_suggestions": "One specific evidence item that demonstrates compliance"
   }
 ]`;
 
