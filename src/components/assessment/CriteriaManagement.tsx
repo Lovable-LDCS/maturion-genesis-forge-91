@@ -92,6 +92,9 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
       reason: string;
       scenario: 'same_domain' | 'future_domain' | 'past_domain';
     };
+    currentStatement?: string;
+    currentSummary?: string;
+    originalMpsId?: string;
   } | null>(null);
   const [showDeferralWarning, setShowDeferralWarning] = useState<{
     deferrals: Array<{
@@ -811,12 +814,15 @@ Return a JSON array with this structure:
   const addCustomCriterion = async () => {
     if (!currentOrganization?.id || !showCustomCriteriaModal) return;
 
+    // Store the current MPS ID at the start to ensure it's available throughout the process
+    const currentMpsId = showCustomCriteriaModal;
+    
     setIsProcessingCustom(true);
     try {
-      const mps = getMPSByID(showCustomCriteriaModal);
+      const mps = getMPSByID(currentMpsId);
       if (!mps) throw new Error('MPS not found');
 
-      const mpssCriteria = getCriteriaForMPS(showCustomCriteriaModal);
+      const mpssCriteria = getCriteriaForMPS(currentMpsId);
       const nextNumber = mpssCriteria.length + 1;
       const criteriaNumber = `${mps.mps_number}.${nextNumber}`;
 
@@ -931,7 +937,10 @@ Return as JSON:
             mpsTitle: placementAnalysis.suggested_mps_title || '',
             reason: placementAnalysis.reason || 'Better alignment with domain focus',
             scenario: scenario
-          }
+          },
+          currentStatement: placementAnalysis.improved_statement,
+          currentSummary: placementAnalysis.improved_summary,
+          originalMpsId: currentMpsId
         });
 
         setShowCustomCriteriaModal(null);
@@ -963,8 +972,7 @@ Return as JSON:
         description: `Successfully added criterion ${criteriaNumber}`,
       });
 
-      // Reset form and show "Add Another?" modal
-      const currentMpsId = showCustomCriteriaModal;
+      // Reset form and show "Add Another?" modal using stored MPS ID
       setCustomCriterion({ statement: '', summary: '' });
       setShowCustomCriteriaModal(null);
       setShowAddAnotherModal(currentMpsId);
@@ -1062,9 +1070,9 @@ Return as JSON:
         description: `Criterion moved to ${suggestion.domain} - MPS ${suggestion.mpsNumber} queue for future processing.`,
       });
 
-      // Show "Add Another?" modal after deferral
-      const currentMpsId = showCustomCriteriaModal || showPlacementModal?.criteriaId?.split('-')[0];
-      setShowAddAnotherModal(currentMpsId);
+      // Show "Add Another?" modal after deferral using original MPS ID
+      const originalMpsId = showPlacementModal?.originalMpsId;
+      setShowAddAnotherModal(originalMpsId);
 
     } catch (error) {
       console.error('Error deferring criterion:', error);
