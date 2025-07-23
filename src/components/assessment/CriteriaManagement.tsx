@@ -964,10 +964,10 @@ Return as JSON:
       });
 
       // Reset form and show "Add Another?" modal
+      const currentMpsId = showCustomCriteriaModal;
       setCustomCriterion({ statement: '', summary: '' });
       setShowCustomCriteriaModal(null);
-      setShowAddAnotherModal(showCustomCriteriaModal);
-      setCustomCriterion({ statement: '', summary: '' });
+      setShowAddAnotherModal(currentMpsId);
 
     } catch (error) {
       console.error('Error adding custom criterion:', error);
@@ -1063,7 +1063,8 @@ Return as JSON:
       });
 
       // Show "Add Another?" modal after deferral
-      setShowAddAnotherModal(suggestion.domain === domainName ? criteriaId.substring(0, 36) : null);
+      const currentMpsId = showCustomCriteriaModal || showPlacementModal?.criteriaId?.split('-')[0];
+      setShowAddAnotherModal(currentMpsId);
 
     } catch (error) {
       console.error('Error deferring criterion:', error);
@@ -1565,18 +1566,22 @@ Return as JSON:
                                                        </Button>
                                                      </DropdownMenuTrigger>
                                                      <DropdownMenuContent align="end">
-                                                       <DropdownMenuItem onClick={() => {
-                                                         if (!isCriteriaExpanded) {
-                                                           toggleCriteriaExpansion(criteria.id);
-                                                           setTimeout(() => startEditing(criteria), 100);
-                                                         } else {
-                                                           startEditing(criteria);
-                                                         }
-                                                       }}>
+                                                        <DropdownMenuItem onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          if (!isCriteriaExpanded) {
+                                                            toggleCriteriaExpansion(criteria.id);
+                                                            setTimeout(() => startEditing(criteria), 100);
+                                                          } else {
+                                                            startEditing(criteria);
+                                                          }
+                                                        }}>
                                                          <Edit3 className="h-3 w-3 mr-2" />
                                                          Edit
                                                        </DropdownMenuItem>
-                                                       <DropdownMenuItem onClick={() => setShowRejectModal(criteria.id)}>
+                                                        <DropdownMenuItem onClick={(e) => {
+                                                          e.stopPropagation();
+                                                          setShowRejectModal(criteria.id);
+                                                        }}>
                                                          <XCircle className="h-3 w-3 mr-2" />
                                                          Reject
                                                        </DropdownMenuItem>
