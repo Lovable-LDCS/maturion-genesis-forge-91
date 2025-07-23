@@ -231,33 +231,46 @@ Return a JSON array with this structure:
         
         let jsonString = '';
         
-        // Strategy 1: Enhanced criteria array detection with multiple patterns
-        const criteriaArrayPatterns = [
-          // Pattern for direct array start with criteria_number
-          /\[\s*\{[^}]*["']criteria_number["'][^}]*\}/i,
-          // Pattern for array with newlines
-          /\[\s*\n\s*\{[^}]*["']criteria_number["'][^}]*\}/i,
-          // Pattern for markdown code blocks
-          /```(?:json)?\s*(\[[\s\S]*?\])\s*```/i,
-          // Pattern for any array containing criteria objects
-          /\[[^[]*["']criteria_number["'][^[]*\]/i,
-          // Fallback pattern for any bracketed array
-          /\[[\s\S]*\]/
-        ];
+        // Strategy 1: First/last bracket extraction (most reliable for complete arrays)
+        console.log('🔍 Trying first/last bracket extraction...');
+        const firstBracket = responseContent.indexOf('[');
+        const lastBracket = responseContent.lastIndexOf(']');
+        if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+          jsonString = responseContent.substring(firstBracket, lastBracket + 1);
+          console.log('✅ Using first/last bracket extraction');
+          console.log('Extracted length:', jsonString.length);
+        }
         
-        // Try each pattern in order of specificity
-        for (const pattern of criteriaArrayPatterns) {
-          const match = responseContent.match(pattern);
-          if (match) {
-            // If it's a code block match, use the captured group
-            jsonString = match[1] || match[0];
-            console.log(`✅ Found JSON using pattern: ${pattern}`);
-            console.log('Extracted JSON preview:', jsonString.substring(0, 200));
-            break;
+        // Strategy 2: Enhanced criteria array detection with multiple patterns (fallback)
+        if (!jsonString) {
+          console.log('🔍 Trying pattern matching...');
+          const criteriaArrayPatterns = [
+            // Pattern for markdown code blocks
+            /```(?:json)?\s*(\[[\s\S]*?\])\s*```/i,
+            // Pattern for direct array start with criteria_number
+            /\[\s*\{[^}]*["']criteria_number["'][^}]*\}/i,
+            // Pattern for array with newlines
+            /\[\s*\n\s*\{[^}]*["']criteria_number["'][^}]*\}/i,
+            // Pattern for any array containing criteria objects
+            /\[[^[]*["']criteria_number["'][^[]*\]/i,
+            // Fallback pattern for any bracketed array
+            /\[[\s\S]*\]/
+          ];
+          
+          // Try each pattern in order of specificity
+          for (const pattern of criteriaArrayPatterns) {
+            const match = responseContent.match(pattern);
+            if (match) {
+              // If it's a code block match, use the captured group
+              jsonString = match[1] || match[0];
+              console.log(`✅ Found JSON using pattern: ${pattern}`);
+              console.log('Extracted JSON preview:', jsonString.substring(0, 200));
+              break;
+            }
           }
         }
         
-        // Strategy 2: Manual bracket matching if patterns fail
+        // Strategy 3: Manual bracket matching (most conservative)
         if (!jsonString) {
           console.log('🔍 Pattern matching failed, trying manual bracket search...');
           
@@ -294,17 +307,6 @@ Return a JSON array with this structure:
               jsonString = responseContent.substring(startIndex, endIndex + 1);
               console.log('✅ Found JSON using manual bracket matching');
             }
-          }
-        }
-        
-        // Strategy 3: Last resort - extract everything between first and last brackets
-        if (!jsonString) {
-          console.log('🔍 Manual search failed, trying first/last bracket extraction...');
-          const firstBracket = responseContent.indexOf('[');
-          const lastBracket = responseContent.lastIndexOf(']');
-          if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
-            jsonString = responseContent.substring(firstBracket, lastBracket + 1);
-            console.log('✅ Using first/last bracket extraction');
           }
         }
         
