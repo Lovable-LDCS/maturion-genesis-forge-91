@@ -135,7 +135,7 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
 
     setIsGenerating(true);
     try {
-      const prompt = `Generate 5 assessment criteria for the following MPS (Mini Performance Standard):
+      const prompt = `Generate comprehensive assessment criteria for the following MPS (Mini Performance Standard):
 
 MPS ${mps.mps_number}: ${mps.name}
 Summary: ${mps.summary || 'No summary provided'}
@@ -144,10 +144,13 @@ Domain: ${domainName}
 
 Please generate criteria that:
 1. Are specific, measurable, and auditable
-2. Follow international standards (ISO, NIST, etc.)
+2. Follow international standards (ISO 27001, NIST, etc.)
 3. Are appropriate for ${domainName} domain
 4. Include evidence expectations
 5. Are numbered as ${mps.mps_number}.1, ${mps.mps_number}.2, etc.
+6. Generate as many criteria as needed to comprehensively assess this MPS (typically 8-15 criteria, but can be more for complex MPSs)
+7. Each criterion should assess a distinct aspect of the MPS
+8. Ensure criteria align with Annex 2 structure and audit requirements
 
 Return a JSON array with this structure:
 [
@@ -161,16 +164,9 @@ Return a JSON array with this structure:
 
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
-          messages: [
-            {
-              role: 'system',
-              content: 'You are Maturion, an expert in maturity assessment frameworks. Generate specific, auditable criteria that align with international best practices.'
-            },
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
+          prompt: prompt,
+          context: 'Criteria generation',
+          currentDomain: domainName,
           organizationId: currentOrganization.id
         }
       });
@@ -429,7 +425,7 @@ Return a JSON array with this structure:
                 <div>
                   <h4 className="font-medium mb-2">What Maturion Will Generate:</h4>
                   <ul className="space-y-1 text-muted-foreground">
-                    <li>• 5 suggested criteria per MPS</li>
+                    <li>• Comprehensive criteria per MPS (8-15+ as needed)</li>
                     <li>• Numbered references (e.g., MPS1.1, MPS1.2)</li>
                     <li>• Evidence expectations</li>
                     <li>• International alignment (ISO, NIST)</li>
