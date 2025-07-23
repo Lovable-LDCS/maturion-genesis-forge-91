@@ -239,7 +239,7 @@ export const MaturitySetup = () => {
             uploadedAt: new Date(doc.created_at)
           }));
           
-          // Merge with any documents already in state (newly uploaded in this session)
+          // Only merge documents that don't already exist in state - PREVENT DUPLICATES
           setFormData(prev => ({
             ...prev,
             optionalDocuments: [
@@ -496,104 +496,136 @@ export const MaturitySetup = () => {
         }
       }
 
-      // Step 4: Handle document uploads
+      // Step 4: Handle document uploads - CHECK FOR DUPLICATES FIRST
       if (formData.optionalDocuments.length > 0 && user?.id) {
-        console.log(`Uploading ${formData.optionalDocuments.length} documents...`);
+        console.log(`Processing ${formData.optionalDocuments.length} documents for upload...`);
+        
+        // Filter out documents that already exist in the database to prevent duplicates
+        const documentsToUpload = [];
         
         for (const doc of formData.optionalDocuments) {
-          try {
-            const fileExt = doc.file.name.split('.').pop();
-            const fileName = `${user.id}/${doc.id}.${fileExt}`;
-            
-            // Upload file to storage
-            const { data: uploadData, error: docUploadError } = await supabase.storage
-              .from('ai-documents')
-              .upload(fileName, doc.file, {
-                upsert: true,
-                cacheControl: '3600'
-              });
-              
-            if (docUploadError) {
-              console.error(`Document upload error for ${doc.file.name}:`, docUploadError);
-              throw new Error(`Document upload failed for ${doc.file.name}: ${docUploadError.message}`);
-            }
-            
-            // Use the actual path returned from upload for consistency
-            const actualFilePath = uploadData?.path || fileName;
-            console.log(`✅ File uploaded successfully to: ${actualFilePath}`);
-            
-            // Create document record in database
-            console.log(`Creating document record for ${doc.file.name} with type: general`);
-            const { data: documentRecord, error: docRecordError } = await supabase
+          // Check if document already exists by checking for database ID or filename match
+          if (doc.id.startsWith('doc_')) {
+            // This is a new document (local ID), check if filename already exists
+            const { data: existingDoc } = await supabase
               .from('ai_documents')
-              .insert({
-                organization_id: orgId,
-                file_name: doc.file.name,
-                file_path: actualFilePath,
-                file_size: doc.file.size,
-                mime_type: doc.file.type,
-                document_type: 'general',
-                title: doc.file.name,
-                uploaded_by: user.id,
-                updated_by: user.id,
-                processing_status: 'pending'
-              })
-              .select()
-              .single();
+              .select('id')
+              .eq('organization_id', orgId)
+              .eq('file_name', doc.file.name)
+              .eq('uploaded_by', user.id)
+              .maybeSingle();
               
-            if (docRecordError) {
-              console.error(`Document record error for ${doc.file.name}:`, docRecordError);
-              throw new Error(`Document record creation failed for ${doc.file.name}: ${docRecordError.message}`);
+            if (!existingDoc) {
+              documentsToUpload.push(doc);
+            } else {
+              console.log(`⚠️ Skipping duplicate document: ${doc.file.name}`);
             }
-            
-            // Trigger AI document processing
-            if (documentRecord) {
-              console.log(`Triggering AI processing for document: ${doc.file.name}`);
+          } else {
+            // This already has a database ID, skip upload
+            console.log(`⚠️ Document ${doc.file.name} already exists in database, skipping upload`);
+          }
+        }
+        
+        if (documentsToUpload.length === 0) {
+          console.log('✅ No new documents to upload - all already exist');
+        } else {
+          console.log(`Uploading ${documentsToUpload.length} new documents...`);
+          
+          for (const doc of documentsToUpload) {
+            try {
+              const fileExt = doc.file.name.split('.').pop();
+              const fileName = `${user.id}/${doc.id}.${fileExt}`;
               
-              // Update processing status to pending initially
-              setProcessingStatuses(prev => ({
-                ...prev,
-                [documentRecord.id]: 'pending'
-              }));
-              
-              try {
-                const { error: processingError } = await supabase.functions.invoke('process-ai-document', {
-                  body: { 
-                    documentId: documentRecord.id,
-                    organizationId: orgId
-                  }
+              // Upload file to storage
+              const { data: uploadData, error: docUploadError } = await supabase.storage
+                .from('ai-documents')
+                .upload(fileName, doc.file, {
+                  upsert: true,
+                  cacheControl: '3600'
                 });
                 
-                if (processingError) {
-                  console.warn(`AI processing failed for ${doc.file.name}:`, processingError);
+              if (docUploadError) {
+                console.error(`Document upload error for ${doc.file.name}:`, docUploadError);
+                throw new Error(`Document upload failed for ${doc.file.name}: ${docUploadError.message}`);
+              }
+              
+              // Use the actual path returned from upload for consistency
+              const actualFilePath = uploadData?.path || fileName;
+              console.log(`✅ File uploaded successfully to: ${actualFilePath}`);
+              
+              // Create document record in database
+              console.log(`Creating document record for ${doc.file.name} with type: general`);
+              const { data: documentRecord, error: docRecordError } = await supabase
+                .from('ai_documents')
+                .insert({
+                  organization_id: orgId,
+                  file_name: doc.file.name,
+                  file_path: actualFilePath,
+                  file_size: doc.file.size,
+                  mime_type: doc.file.type,
+                  document_type: 'general',
+                  title: doc.file.name,
+                  uploaded_by: user.id,
+                  updated_by: user.id,
+                  processing_status: 'pending'
+                })
+                .select()
+                .single();
+                
+              if (docRecordError) {
+                console.error(`Document record error for ${doc.file.name}:`, docRecordError);
+                throw new Error(`Document record creation failed for ${doc.file.name}: ${docRecordError.message}`);
+              }
+              
+              // Trigger AI document processing
+              if (documentRecord) {
+                console.log(`Triggering AI processing for document: ${doc.file.name}`);
+                
+                // Update processing status to pending initially
+                setProcessingStatuses(prev => ({
+                  ...prev,
+                  [documentRecord.id]: 'pending'
+                }));
+                
+                try {
+                  const { error: processingError } = await supabase.functions.invoke('process-ai-document', {
+                    body: { 
+                      documentId: documentRecord.id,
+                      organizationId: orgId
+                    }
+                  });
+                  
+                  if (processingError) {
+                    console.warn(`AI processing failed for ${doc.file.name}:`, processingError);
+                    setProcessingStatuses(prev => ({
+                      ...prev,
+                      [documentRecord.id]: 'failed'
+                    }));
+                  } else {
+                    console.log(`✅ AI processing initiated for: ${doc.file.name}`);
+                    setProcessingStatuses(prev => ({
+                      ...prev,
+                      [documentRecord.id]: 'processing'
+                    }));
+                  }
+                } catch (processingErr) {
+                  console.warn(`AI processing request failed for ${doc.file.name}:`, processingErr);
                   setProcessingStatuses(prev => ({
                     ...prev,
                     [documentRecord.id]: 'failed'
                   }));
-                } else {
-                  console.log(`✅ AI processing initiated for: ${doc.file.name}`);
-                  setProcessingStatuses(prev => ({
-                    ...prev,
-                    [documentRecord.id]: 'processing'
-                  }));
                 }
-              } catch (processingErr) {
-                console.warn(`AI processing request failed for ${doc.file.name}:`, processingErr);
-                setProcessingStatuses(prev => ({
-                  ...prev,
-                  [documentRecord.id]: 'failed'
-                }));
               }
+              
+              console.log(`✅ Document processed: ${doc.file.name}`);
+            } catch (docError) {
+              console.error(`Failed to process document ${doc.file.name}:`, docError);
+              throw docError;
             }
-            
-            console.log(`✅ Document processed: ${doc.file.name}`);
-          } catch (docError) {
-            console.error(`Failed to process document ${doc.file.name}:`, docError);
-            throw docError;
           }
+          
+          console.log('✅ All new documents uploaded and processing initiated');
         }
-        
-        console.log('✅ All documents uploaded and processing initiated');
       }
 
       // Step 5: Persist to localStorage and update state

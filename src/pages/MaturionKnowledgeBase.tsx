@@ -3,15 +3,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter, Trash2, CheckSquare, Square } from 'lucide-react';
 import { MaturionKnowledgeUploadZone } from '@/components/ai/MaturionKnowledgeUploadZone';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
 
 import { useMaturionDocuments } from '@/hooks/useMaturionDocuments';
 
 const MaturionKnowledgeBase: React.FC = () => {
-  const { documents, loading, refreshDocuments } = useMaturionDocuments();
+  const { documents, loading, refreshDocuments, bulkDeleteDocuments } = useMaturionDocuments();
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { toast } = useToast();
   
   // Filter documents based on status
   const filteredDocuments = useMemo(() => {
@@ -50,6 +55,74 @@ const MaturionKnowledgeBase: React.FC = () => {
       completionRate
     };
   }, [documents, loading]);
+
+  // Bulk deletion functions
+  const toggleDocumentSelection = (documentId: string) => {
+    setSelectedDocuments(prev => {
+      const newSelection = new Set(prev);
+      if (newSelection.has(documentId)) {
+        newSelection.delete(documentId);
+      } else {
+        newSelection.add(documentId);
+      }
+      return newSelection;
+    });
+  };
+
+  const selectAllDocuments = () => {
+    setSelectedDocuments(new Set(filteredDocuments.map(doc => doc.id)));
+  };
+
+  const clearSelection = () => {
+    setSelectedDocuments(new Set());
+  };
+
+  const selectDuplicatesByName = () => {
+    const fileNameCounts = new Map<string, string[]>();
+    filteredDocuments.forEach(doc => {
+      const fileName = doc.file_name;
+      if (!fileNameCounts.has(fileName)) {
+        fileNameCounts.set(fileName, []);
+      }
+      fileNameCounts.get(fileName)!.push(doc.id);
+    });
+
+    const duplicateIds = new Set<string>();
+    fileNameCounts.forEach((ids, fileName) => {
+      if (ids.length > 1) {
+        // Keep the newest (first in list since sorted by created_at desc), mark rest for deletion
+        ids.slice(1).forEach(id => duplicateIds.add(id));
+      }
+    });
+
+    setSelectedDocuments(duplicateIds);
+    
+    toast({
+      title: "Duplicates Selected",
+      description: `Selected ${duplicateIds.size} duplicate documents for deletion`,
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedDocuments.size === 0) {
+      toast({
+        title: "No Selection",
+        description: "Please select documents to delete",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const success = await bulkDeleteDocuments(Array.from(selectedDocuments));
+      if (success) {
+        setSelectedDocuments(new Set());
+      }
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <div className="container mx-auto py-8 px-4">
@@ -165,13 +238,13 @@ const MaturionKnowledgeBase: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Document Status Filter */}
+        {/* Document Management Panel */}
         <Card className="mb-6">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-lg flex items-center gap-2">
                 <Filter className="h-5 w-5" />
-                Document Status Filter
+                Document Management
               </CardTitle>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">
@@ -192,7 +265,139 @@ const MaturionKnowledgeBase: React.FC = () => {
               </div>
             </div>
           </CardHeader>
+          
+          {/* Bulk Actions Panel */}
+          {filteredDocuments.length > 0 && (
+            <CardContent className="pt-0">
+              <div className="flex items-center justify-between bg-muted/30 p-4 rounded-lg">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={selectedDocuments.size === filteredDocuments.length ? clearSelection : selectAllDocuments}
+                    >
+                      {selectedDocuments.size === filteredDocuments.length ? (
+                        <>
+                          <CheckSquare className="h-4 w-4 mr-2" />
+                          Deselect All
+                        </>
+                      ) : (
+                        <>
+                          <Square className="h-4 w-4 mr-2" />
+                          Select All ({filteredDocuments.length})
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={selectDuplicatesByName}
+                    >
+                      Select Duplicates
+                    </Button>
+                  </div>
+                  
+                  {selectedDocuments.size > 0 && (
+                    <span className="text-sm text-muted-foreground">
+                      {selectedDocuments.size} document{selectedDocuments.size !== 1 ? 's' : ''} selected
+                    </span>
+                  )}
+                </div>
+                
+                {selectedDocuments.size > 0 && (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <div className="flex items-center gap-2">
+                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                        Deleting...
+                      </div>
+                    ) : (
+                      <>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Delete Selected ({selectedDocuments.size})
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          )}
         </Card>
+
+        {/* Document List with Selection */}
+        {filteredDocuments.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Documents</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {filteredDocuments.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className={`flex items-center gap-3 p-3 rounded-lg border ${
+                      selectedDocuments.has(doc.id) ? 'bg-muted border-primary' : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    <div
+                      className="cursor-pointer"
+                      onClick={() => toggleDocumentSelection(doc.id)}
+                    >
+                      {selectedDocuments.has(doc.id) ? (
+                        <CheckSquare className="h-4 w-4 text-primary" />
+                      ) : (
+                        <Square className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                    
+                    <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{doc.title || doc.file_name}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {Math.round(doc.file_size / 1024)} KB • {new Date(doc.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      {doc.processing_status === 'completed' && (
+                        <Badge variant="default" className="text-xs">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Processed
+                        </Badge>
+                      )}
+                      {doc.processing_status === 'processing' && (
+                        <Badge variant="outline" className="text-xs">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Processing
+                        </Badge>
+                      )}
+                      {doc.processing_status === 'pending' && (
+                        <Badge variant="outline" className="text-xs">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Pending
+                        </Badge>
+                      )}
+                      {doc.processing_status === 'failed' && (
+                        <Badge variant="destructive" className="text-xs">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Failed
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Admin Tools */}
         <div className="space-y-6">

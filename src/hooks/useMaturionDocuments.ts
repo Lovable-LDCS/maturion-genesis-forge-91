@@ -64,6 +64,21 @@ export const useMaturionDocuments = () => {
     setUploading(true);
     
     try {
+      // CHECK FOR DUPLICATE FILES BEFORE UPLOAD
+      const { data: existingDocs, error: checkError } = await supabase
+        .from('ai_documents')
+        .select('id, file_name')
+        .eq('organization_id', organizationId)
+        .eq('file_name', file.name)
+        .eq('uploaded_by', userId);
+
+      if (checkError) {
+        console.warn('Error checking for duplicates:', checkError);
+        // Continue with upload despite check error
+      } else if (existingDocs && existingDocs.length > 0) {
+        throw new Error(`Document "${file.name}" already exists in your knowledge base. Please rename the file or delete the existing document first.`);
+      }
+
       // Upload file to storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -329,6 +344,100 @@ export const useMaturionDocuments = () => {
     }
   };
 
+  // BULK DELETE FUNCTION FOR DUPLICATE CLEANUP
+  const bulkDeleteDocuments = async (documentIds: string[]) => {
+    try {
+      console.log(`Starting bulk deletion of ${documentIds.length} documents`);
+      
+      if (documentIds.length === 0) {
+        throw new Error('No documents selected for deletion');
+      }
+
+      // Get documents info first for audit logging
+      const { data: docs, error: fetchError } = await supabase
+        .from('ai_documents')
+        .select('id, file_path, organization_id, title, file_name')
+        .in('id', documentIds);
+
+      if (fetchError) {
+        console.error('Error fetching documents for bulk deletion:', fetchError);
+        throw fetchError;
+      }
+
+      if (!docs || docs.length === 0) {
+        throw new Error('No documents found for deletion');
+      }
+
+      console.log(`Found ${docs.length} documents to delete`);
+
+      // Get current user for audit logs
+      const { data: { user } } = await supabase.auth.getUser();
+      const currentUserId = user?.id || '';
+
+      // Create audit logs for all documents BEFORE deleting
+      const auditPromises = docs.map(doc => 
+        supabase
+          .from('ai_upload_audit')
+          .insert({
+            organization_id: doc.organization_id,
+            document_id: doc.id,
+            action: 'bulk_delete',
+            user_id: currentUserId,
+            metadata: { 
+              deleted_at: new Date().toISOString(),
+              deleted_file: doc.file_name,
+              deleted_title: doc.title,
+              bulk_operation: true
+            }
+          })
+      );
+
+      const auditResults = await Promise.allSettled(auditPromises);
+      console.log('Audit logs created:', auditResults);
+
+      // Delete from storage (non-blocking if some fail)
+      const storagePromises = docs.map(doc => 
+        supabase.storage
+          .from('ai-documents')
+          .remove([doc.file_path])
+      );
+
+      const storageResults = await Promise.allSettled(storagePromises);
+      console.log('Storage deletion results:', storageResults);
+
+      // Delete document records from database
+      const { error: deleteError } = await supabase
+        .from('ai_documents')
+        .delete()
+        .in('id', documentIds);
+
+      if (deleteError) {
+        console.error('Bulk database deletion error:', deleteError);
+        throw deleteError;
+      }
+
+      console.log(`Successfully deleted ${docs.length} documents from database`);
+
+      toast({
+        title: "Bulk deletion completed",
+        description: `${docs.length} documents have been removed`,
+      });
+
+      // Refresh documents list
+      await fetchDocuments();
+      
+      return true;
+    } catch (error: any) {
+      console.error('Bulk delete error:', error);
+      toast({
+        title: "Bulk delete failed",
+        description: error.message || "Failed to delete documents",
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
+
   useEffect(() => {
     fetchDocuments();
   }, []);
@@ -340,6 +449,7 @@ export const useMaturionDocuments = () => {
     uploadDocument,
     updateDocument,
     deleteDocument,
+    bulkDeleteDocuments,
     refreshDocuments: fetchDocuments
   };
 };
