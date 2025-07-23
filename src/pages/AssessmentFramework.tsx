@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { DomainManagement } from '@/components/assessment/DomainManagement';
 import { MPSManagement } from '@/components/assessment/MPSManagement';
-import { CriteriaManagement } from '@/components/assessment/CriteriaManagement';
+
 import { BulkImportExport } from '@/components/assessment/BulkImportExport';
 import { ISOComplianceValidation } from '@/components/assessment/ISOComplianceValidation';
 import { useDomainProgress } from '@/hooks/useDomainProgress';
@@ -285,11 +285,20 @@ export default function AssessmentFramework() {
               <CardHeader>
                 <CardTitle>Criteria Configuration</CardTitle>
                 <CardDescription>
-                  Define assessment criteria with maturity levels and AI-generated descriptors
+                  Criteria management has been moved to the individual domain audit builders. 
+                  Use the "Domain Audit Builder" for each domain to configure criteria.
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <CriteriaManagement />
+                <div className="text-center py-8">
+                  <CheckSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground mb-4">
+                    Criteria are now managed within each domain's audit workflow
+                  </p>
+                  <Button onClick={() => navigate('/assessment/framework')} variant="outline">
+                    Go to Domain Selection
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
