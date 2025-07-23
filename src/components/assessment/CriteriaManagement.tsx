@@ -225,8 +225,23 @@ Return a JSON array with this structure:
         // Try multiple extraction patterns
         let jsonString = '';
         
-        // Pattern 1: Look for standard JSON array
-        let arrayStart = responseContent.indexOf('[');
+        // Pattern 1: Look for the first valid JSON array start (must be followed by object or whitespace)
+        let arrayStart = -1;
+        for (let i = 0; i < responseContent.length; i++) {
+          if (responseContent[i] === '[') {
+            // Check if this looks like the start of a JSON array
+            const nextNonWhitespace = responseContent.substring(i + 1).search(/\S/);
+            if (nextNonWhitespace !== -1) {
+              const nextChar = responseContent[i + 1 + nextNonWhitespace];
+              // Valid if next non-whitespace is { (object start) or ] (empty array)
+              if (nextChar === '{' || nextChar === ']') {
+                arrayStart = i;
+                break;
+              }
+            }
+          }
+        }
+        
         if (arrayStart !== -1) {
           // Find matching bracket with proper nesting
           let bracketCount = 0;
