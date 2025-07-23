@@ -658,17 +658,22 @@ Return as JSON:
   "evidence_suggestions": "specific evidence recommendation"
 }`;
 
-      const { data, error } = await supabase.functions.invoke('search-ai-context', {
+      const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
           prompt: prompt,
           context: 'Smart criteria placement validation',
           currentDomain: domainName,
           organizationId: currentOrganization.id,
-          tags: ['cross-domain', 'criteria-placement', 'lesson-learned', 'ai-logic']
+          allowExternalContext: false,
+          knowledgeBaseUsed: true
         }
       });
 
-      if (error) throw error;
+      
+      if (error) {
+        console.warn('AI placement analysis failed, proceeding with original criterion placement:', error);
+        // Fallback: proceed with normal insertion if AI analysis fails
+      }
 
       let placementAnalysis: {
         belongs_here: boolean;
@@ -687,23 +692,26 @@ Return as JSON:
       };
 
       try {
-        const responseContent = data.content || data.response || '';
-        const jsonStart = responseContent.indexOf('{');
-        const jsonEnd = responseContent.lastIndexOf('}');
-        
-        if (jsonStart !== -1 && jsonEnd !== -1) {
-          const jsonString = responseContent.substring(jsonStart, jsonEnd + 1);
-          const parsedData = JSON.parse(jsonString);
-          if (parsedData.belongs_here !== undefined) {
-            placementAnalysis = parsedData;
+        // Only parse if we have a successful response
+        if (!error && data?.content) {
+          const responseContent = data.content || data.response || '';
+          const jsonStart = responseContent.indexOf('{');
+          const jsonEnd = responseContent.lastIndexOf('}');
+          
+          if (jsonStart !== -1 && jsonEnd !== -1) {
+            const jsonString = responseContent.substring(jsonStart, jsonEnd + 1);
+            const parsedData = JSON.parse(jsonString);
+            if (parsedData.belongs_here !== undefined) {
+              placementAnalysis = parsedData;
+            }
           }
         }
       } catch (parseError) {
         console.warn('Could not parse AI placement analysis, proceeding with original criterion');
       }
 
-      // If misaligned, show placement suggestion modal
-      if (!placementAnalysis.belongs_here && placementAnalysis.suggested_domain) {
+      // If misaligned AND we have a successful AI analysis, show placement suggestion modal
+      if (!error && !placementAnalysis.belongs_here && placementAnalysis.suggested_domain) {
         // Create the criterion first, then show placement modal
         const { data: newCriterion, error: insertError } = await supabase
           .from('criteria')
@@ -767,6 +775,48 @@ Return as JSON:
 
     } catch (error) {
       console.error('Error adding custom criterion:', error);
+      
+      // Check if this is a function call error and provide more specific feedback
+      if (error?.message?.includes('Edge Function returned a non-2xx status code')) {
+        toast({
+          title: "AI Analysis Temporarily Unavailable",
+          description: "Criterion added without smart placement analysis. Please manually review if it fits this domain.",
+          variant: "default"
+        });
+        
+        // Proceed with normal insertion as fallback
+        try {
+          const mps = getMPSByID(showCustomCriteriaModal);
+          if (!mps) throw new Error('MPS not found');
+          
+          const mpssCriteria = getCriteriaForMPS(showCustomCriteriaModal);
+          const nextNumber = mpssCriteria.length + 1;
+          const criteriaNumber = `${mps.mps_number}.${nextNumber}`;
+          
+          const { error: insertError } = await supabase
+            .from('criteria')
+            .insert({
+              mps_id: showCustomCriteriaModal,
+              organization_id: currentOrganization.id,
+              criteria_number: criteriaNumber,
+              statement: customCriterion.statement,
+              summary: customCriterion.summary,
+              status: 'not_started',
+              created_by: currentOrganization.owner_id,
+              updated_by: currentOrganization.owner_id
+            });
+
+          if (!insertError) {
+            await fetchMPSsAndCriteria();
+            setShowCustomCriteriaModal(null);
+            setCustomCriterion({ statement: '', summary: '' });
+            return;
+          }
+        } catch (fallbackError) {
+          console.error('Fallback insertion also failed:', fallbackError);
+        }
+      }
+      
       toast({
         title: "Failed to Add Criterion",
         description: "Could not add the custom criterion.",
