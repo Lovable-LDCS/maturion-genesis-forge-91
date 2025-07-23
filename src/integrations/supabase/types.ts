@@ -626,6 +626,7 @@ export type Database = {
           created_at: string
           created_by: string
           criteria_number: string
+          deferral_status: string | null
           id: string
           mps_id: string
           organization_id: string
@@ -643,6 +644,7 @@ export type Database = {
           created_at?: string
           created_by: string
           criteria_number: string
+          deferral_status?: string | null
           id?: string
           mps_id: string
           organization_id: string
@@ -660,6 +662,7 @@ export type Database = {
           created_at?: string
           created_by?: string
           criteria_number?: string
+          deferral_status?: string | null
           id?: string
           mps_id?: string
           organization_id?: string
@@ -677,6 +680,73 @@ export type Database = {
             columns: ["mps_id"]
             isOneToOne: false
             referencedRelation: "maturity_practice_statements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      criteria_deferrals: {
+        Row: {
+          approved: boolean
+          created_at: string
+          deferred_at: string
+          id: string
+          organization_id: string
+          original_mps_id: string | null
+          proposed_criteria_id: string
+          reason: string | null
+          suggested_domain: string
+          suggested_mps_number: number
+          suggested_mps_title: string | null
+          user_id: string
+        }
+        Insert: {
+          approved?: boolean
+          created_at?: string
+          deferred_at?: string
+          id?: string
+          organization_id: string
+          original_mps_id?: string | null
+          proposed_criteria_id: string
+          reason?: string | null
+          suggested_domain: string
+          suggested_mps_number: number
+          suggested_mps_title?: string | null
+          user_id: string
+        }
+        Update: {
+          approved?: boolean
+          created_at?: string
+          deferred_at?: string
+          id?: string
+          organization_id?: string
+          original_mps_id?: string | null
+          proposed_criteria_id?: string
+          reason?: string | null
+          suggested_domain?: string
+          suggested_mps_number?: number
+          suggested_mps_title?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "criteria_deferrals_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "criteria_deferrals_original_mps_id_fkey"
+            columns: ["original_mps_id"]
+            isOneToOne: false
+            referencedRelation: "maturity_practice_statements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "criteria_deferrals_proposed_criteria_id_fkey"
+            columns: ["proposed_criteria_id"]
+            isOneToOne: false
+            referencedRelation: "criteria"
             referencedColumns: ["id"]
           },
         ]

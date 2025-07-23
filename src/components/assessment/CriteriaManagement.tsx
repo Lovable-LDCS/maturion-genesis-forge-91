@@ -81,11 +81,28 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
   const [isProcessingCustom, setIsProcessingCustom] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [showPlacementModal, setShowPlacementModal] = useState<{
+    criteriaId: string;
+    suggestion: {
+      domain: string;
+      mpsNumber: number;
+      mpsTitle: string;
+      reason: string;
+    };
+  } | null>(null);
+  const [showDeferralWarning, setShowDeferralWarning] = useState<{
+    deferrals: Array<{
+      domain: string;
+      mpsNumber: number;
+      count: number;
+    }>;
+  } | null>(null);
 
   // Load existing MPSs and criteria when modal opens
   useEffect(() => {
     if (isOpen && currentOrganization?.id) {
       fetchMPSsAndCriteria();
+      checkForDeferredCriteria();
     }
   }, [isOpen, currentOrganization?.id]);
 
@@ -599,42 +616,58 @@ Return a JSON array with this structure:
       const nextNumber = mpssCriteria.length + 1;
       const criteriaNumber = `${mps.mps_number}.${nextNumber}`;
 
-      // Validate and improve the custom criterion using AI
-      const prompt = `Please review and improve this custom assessment criterion:
+      // Enhanced AI validation with smart placement detection
+      const prompt = `Please review this custom assessment criterion and check for proper placement:
 
 Statement: ${customCriterion.statement}
 Summary: ${customCriterion.summary}
 
-For MPS ${mps.mps_number}: ${mps.name}
-Domain: ${domainName}
+Current Context:
+- Target MPS ${mps.mps_number}: ${mps.name}
+- Domain: ${domainName}
 
-Please provide an improved version that:
-1. Is specific, measurable, and auditable
-2. Follows international standards format
-3. Aligns with the MPS intent and domain
-4. Has clear language and structure
+Please:
+1. Validate if this criterion belongs in the current MPS and domain
+2. If misaligned, suggest the correct domain and MPS with explanation
+3. Improve the criterion text for standards compliance
 
 Return as JSON:
 {
-  "statement": "Improved statement text",
-  "summary": "Improved summary text",
-  "evidence_suggestions": "Specific evidence recommendation"
+  "belongs_here": true/false,
+  "suggested_domain": "domain name if misaligned",
+  "suggested_mps_number": number or null,
+  "suggested_mps_title": "title if misaligned",
+  "reason": "explanation for placement",
+  "improved_statement": "enhanced statement text",
+  "improved_summary": "enhanced summary text",
+  "evidence_suggestions": "specific evidence recommendation"
 }`;
 
-      const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
+      const { data, error } = await supabase.functions.invoke('search-ai-context', {
         body: {
           prompt: prompt,
-          context: 'Custom criteria validation',
+          context: 'Smart criteria placement validation',
           currentDomain: domainName,
-          organizationId: currentOrganization.id
+          organizationId: currentOrganization.id,
+          tags: ['cross-domain', 'criteria-placement', 'lesson-learned', 'ai-logic']
         }
       });
 
       if (error) throw error;
 
-      let improvedCriterion = {
-        statement: customCriterion.statement,
-        summary: customCriterion.summary,
+      let placementAnalysis: {
+        belongs_here: boolean;
+        suggested_domain?: string;
+        suggested_mps_number?: number;
+        suggested_mps_title?: string;
+        reason?: string;
+        improved_statement: string;
+        improved_summary: string;
+        evidence_suggestions: string;
+      } = {
+        belongs_here: true,
+        improved_statement: customCriterion.statement,
+        improved_summary: customCriterion.summary,
         evidence_suggestions: "Documentation and implementation evidence"
       };
 
@@ -646,23 +679,59 @@ Return as JSON:
         if (jsonStart !== -1 && jsonEnd !== -1) {
           const jsonString = responseContent.substring(jsonStart, jsonEnd + 1);
           const parsedData = JSON.parse(jsonString);
-          if (parsedData.statement && parsedData.summary) {
-            improvedCriterion = parsedData;
+          if (parsedData.belongs_here !== undefined) {
+            placementAnalysis = parsedData;
           }
         }
       } catch (parseError) {
-        console.warn('Could not parse AI response, using original criterion');
+        console.warn('Could not parse AI placement analysis, proceeding with original criterion');
       }
 
-      // Insert the new criterion
+      // If misaligned, show placement suggestion modal
+      if (!placementAnalysis.belongs_here && placementAnalysis.suggested_domain) {
+        // Create the criterion first, then show placement modal
+        const { data: newCriterion, error: insertError } = await supabase
+          .from('criteria')
+          .insert({
+            mps_id: showCustomCriteriaModal,
+            organization_id: currentOrganization.id,
+            criteria_number: criteriaNumber,
+            statement: placementAnalysis.improved_statement,
+            summary: placementAnalysis.improved_summary,
+            status: 'not_started',
+            deferral_status: 'pending_placement',
+            created_by: currentOrganization.owner_id,
+            updated_by: currentOrganization.owner_id
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        setShowPlacementModal({
+          criteriaId: newCriterion.id,
+          suggestion: {
+            domain: placementAnalysis.suggested_domain,
+            mpsNumber: placementAnalysis.suggested_mps_number || 0,
+            mpsTitle: placementAnalysis.suggested_mps_title || '',
+            reason: placementAnalysis.reason || 'Better alignment with domain focus'
+          }
+        });
+
+        setShowCustomCriteriaModal(null);
+        setCustomCriterion({ statement: '', summary: '' });
+        return;
+      }
+
+      // Insert normally if placement is correct
       const { error: insertError } = await supabase
         .from('criteria')
         .insert({
           mps_id: showCustomCriteriaModal,
           organization_id: currentOrganization.id,
           criteria_number: criteriaNumber,
-          statement: improvedCriterion.statement,
-          summary: improvedCriterion.summary,
+          statement: placementAnalysis.improved_statement,
+          summary: placementAnalysis.improved_summary,
           status: 'not_started',
           created_by: currentOrganization.owner_id,
           updated_by: currentOrganization.owner_id
@@ -674,7 +743,7 @@ Return as JSON:
       await fetchMPSsAndCriteria();
 
       toast({
-        title: "Custom Criterion Added",
+        title: "✅ Custom Criterion Added",
         description: `Successfully added criterion ${criteriaNumber}`,
       });
 
@@ -690,6 +759,92 @@ Return as JSON:
       });
     } finally {
       setIsProcessingCustom(false);
+    }
+  };
+
+  const deferCriterion = async (criteriaId: string, suggestion: any) => {
+    if (!currentOrganization?.id) return;
+
+    try {
+      // Create deferral record
+      const { error: deferralError } = await supabase
+        .from('criteria_deferrals')
+        .insert({
+          proposed_criteria_id: criteriaId,
+          organization_id: currentOrganization.id,
+          suggested_domain: suggestion.domain,
+          suggested_mps_number: suggestion.mpsNumber,
+          suggested_mps_title: suggestion.mpsTitle,
+          reason: suggestion.reason,
+          user_id: currentOrganization.owner_id,
+          original_mps_id: showCustomCriteriaModal
+        });
+
+      if (deferralError) throw deferralError;
+
+      // Update criteria status to deferred
+      const { error } = await supabase
+        .from('criteria')
+        .update({
+          deferral_status: 'deferred',
+          updated_by: currentOrganization.owner_id
+        })
+        .eq('id', criteriaId);
+
+      if (error) throw error;
+
+      await fetchMPSsAndCriteria();
+      setShowPlacementModal(null);
+
+      toast({
+        title: "🧠 Criterion Deferred",
+        description: `Criterion moved to ${suggestion.domain} - MPS ${suggestion.mpsNumber} queue for future processing.`,
+      });
+
+    } catch (error) {
+      console.error('Error deferring criterion:', error);
+      toast({
+        title: "Deferral Failed",
+        description: "Failed to defer criterion.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const checkForDeferredCriteria = async () => {
+    if (!currentOrganization?.id) return;
+
+    try {
+      const { data: deferrals, error } = await supabase
+        .from('criteria_deferrals')
+        .select('suggested_domain, suggested_mps_number')
+        .eq('organization_id', currentOrganization.id)
+        .eq('approved', false);
+
+      if (error) throw error;
+
+      if (deferrals && deferrals.length > 0) {
+        // Group by domain and MPS
+        const grouped = deferrals.reduce((acc, def) => {
+          const key = `${def.suggested_domain}-${def.suggested_mps_number}`;
+          if (!acc[key]) {
+            acc[key] = {
+              domain: def.suggested_domain,
+              mpsNumber: def.suggested_mps_number,
+              count: 0
+            };
+          }
+          acc[key].count++;
+          return acc;
+        }, {} as Record<string, any>);
+
+        const deferralList = Object.values(grouped);
+        if (deferralList.length > 0) {
+          setShowDeferralWarning({ deferrals: deferralList });
+        }
+      }
+    } catch (error) {
+      console.error('Error checking deferred criteria:', error);
     }
   };
 
@@ -1253,6 +1408,112 @@ Return as JSON:
                       Add Criterion
                     </>
                   )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Smart Placement Modal */}
+        <Dialog open={showPlacementModal !== null} onOpenChange={() => setShowPlacementModal(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                🧠 Smart MPS Placement Detected
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <p className="text-sm">
+                  <strong>💡 Maturion detected:</strong> This criterion looks like it fits better under:
+                </p>
+                <div className="mt-2 p-3 bg-white rounded border">
+                  <p className="font-medium text-blue-700">
+                    {showPlacementModal?.suggestion.domain} - MPS {showPlacementModal?.suggestion.mpsNumber}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {showPlacementModal?.suggestion.mpsTitle}
+                  </p>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  <strong>Reason:</strong> {showPlacementModal?.suggestion.reason}
+                </p>
+              </div>
+              
+              <p className="text-sm">
+                I'll hold it there and bring it up when you reach that step. Continue?
+              </p>
+              
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowPlacementModal(null)}
+                >
+                  Keep Here
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (showPlacementModal) {
+                      deferCriterion(showPlacementModal.criteriaId, showPlacementModal.suggestion);
+                    }
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  🌍 Defer to Correct Domain
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Deferral Warning Modal */}
+        <Dialog open={showDeferralWarning !== null} onOpenChange={() => setShowDeferralWarning(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                ⚠️ Unresolved Deferred Criteria
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                You have unapproved deferred criteria in other domains:
+              </p>
+              
+              <div className="space-y-2">
+                {showDeferralWarning?.deferrals.map((def, index) => (
+                  <div key={index} className="p-3 bg-yellow-50 rounded border border-yellow-200">
+                    <p className="font-medium text-yellow-800">
+                      {def.domain} - MPS {def.mpsNumber}
+                    </p>
+                    <p className="text-sm text-yellow-600">
+                      {def.count} pending {def.count === 1 ? 'criterion' : 'criteria'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              
+              <p className="text-sm">
+                Do you want to review these before continuing to Step 4?
+              </p>
+              
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowDeferralWarning(null)}
+                >
+                  Continue Anyway
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowDeferralWarning(null);
+                    // In a real implementation, this would navigate to the appropriate domain
+                    toast({
+                      title: "Navigation Required",
+                      description: "Navigate to the domains with pending criteria to resolve them.",
+                    });
+                  }}
+                >
+                  📍 Review Deferred Criteria
                 </Button>
               </div>
             </div>
