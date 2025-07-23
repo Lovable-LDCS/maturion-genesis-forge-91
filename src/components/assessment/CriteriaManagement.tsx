@@ -189,19 +189,29 @@ Return a JSON array with this structure:
       }> = [];
 
       try {
-        // Parse AI response
-        let cleanResponse = data.response.replace(/```json\n?|\n?```/g, '').trim();
+        // Parse AI response - the response contains additional text, so extract just the JSON array
+        let responseContent = data.content || data.response || '';
+        console.log('Raw AI response:', responseContent);
         
-        // Look for JSON array in the response
-        const jsonArrayMatch = cleanResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
-        if (jsonArrayMatch) {
-          cleanResponse = jsonArrayMatch[0];
+        // Look for JSON array in the response - handle multiple possible formats
+        let jsonMatch = responseContent.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+        
+        if (!jsonMatch) {
+          // Try alternative pattern that captures nested brackets
+          jsonMatch = responseContent.match(/\[[\s\S]*?\{[\s\S]*?\}[\s\S]*?\]/);
         }
         
-        generatedCriteria = JSON.parse(cleanResponse);
-        console.log(`✅ Generated ${generatedCriteria.length} criteria for MPS ${mps.mps_number}`);
+        if (jsonMatch) {
+          const cleanResponse = jsonMatch[0];
+          console.log('Extracted JSON:', cleanResponse);
+          generatedCriteria = JSON.parse(cleanResponse);
+          console.log(`✅ Generated ${generatedCriteria.length} criteria for MPS ${mps.mps_number}`);
+        } else {
+          throw new Error('No valid JSON array found in response');
+        }
       } catch (parseError) {
-        console.warn('Failed to parse criteria response, using fallback');
+        console.error('Failed to parse criteria response:', parseError);
+        console.error('Response was:', data);
         // Fallback: create default criteria
         generatedCriteria = Array.from({ length: 5 }, (_, index) => ({
           criteria_number: `${mps.mps_number}.${index + 1}`,
