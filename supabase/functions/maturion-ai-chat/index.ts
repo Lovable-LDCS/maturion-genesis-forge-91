@@ -721,7 +721,7 @@ Respond in a helpful, professional tone that builds confidence while being reali
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
-        max_tokens: 800,
+        max_tokens: context === 'Criteria generation' ? 2000 : 800, // Higher limit for criteria generation
       }),
     });
 
