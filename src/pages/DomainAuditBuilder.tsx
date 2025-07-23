@@ -30,7 +30,8 @@ const DomainAuditBuilder = () => {
     handleCriteriaFinalized,
     handleStepClick,
     getStepStatus,
-    fetchStepStatus
+    fetchStepStatus,
+    stepStatuses
   } = useDomainAuditBuilder(domainId || '');
 
   // Domain name mapping
@@ -84,7 +85,7 @@ const DomainAuditBuilder = () => {
     };
 
     updateStepStatuses();
-  }, [isIntentCreatorOpen, isMPSModalOpen]); // Re-run when modals change
+  }, [isIntentCreatorOpen, isMPSModalOpen, stepStatuses]); // Re-run when modals change or step statuses update
 
   const completedSteps = auditSteps.filter(step => step.status === 'completed').length;
   const progressPercentage = Math.round((completedSteps / auditSteps.length) * 100);

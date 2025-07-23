@@ -264,8 +264,8 @@ Return a JSON array with this structure:
           
           // Ensure we have a proper statement, not placeholder text
           if (criterion.statement.includes('Evaluation requirements for') || 
-              criterion.statement.includes('criterion') ||
-              criterion.statement.length < 20) {
+              (criterion.statement.includes('criterion') && criterion.statement.length < 50) ||
+              criterion.statement.length < 15) {
             console.warn('Placeholder statement detected:', criterion.statement);
             throw new Error('AI returned placeholder statements instead of full descriptors');
           }
