@@ -140,10 +140,9 @@ const DomainAuditBuilder = () => {
               return (
                 <Card 
                   key={step.id}
-                  onClick={async () => {
-                    const stepStatus = await fetchStepStatus(step.id);
-                    const canClick = stepStatus === 'active' || stepStatus === 'completed';
-                    if (canClick) {
+                  onClick={() => {
+                    // Only allow clicking if the step is visually active or completed
+                    if (step.status === 'active' || step.status === 'completed') {
                       handleStepClick(step.id);
                     }
                   }}
