@@ -90,6 +90,7 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
       mpsNumber: number;
       mpsTitle: string;
       reason: string;
+      scenario: 'same_domain' | 'future_domain' | 'past_domain';
     };
   } | null>(null);
   const [showDeferralWarning, setShowDeferralWarning] = useState<{
@@ -98,6 +99,14 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
       mpsNumber: number;
       count: number;
     }>;
+  } | null>(null);
+  const [showSplitCriteriaModal, setShowSplitCriteriaModal] = useState<{
+    originalStatement: string;
+    splitCriteria: Array<{
+      statement: string;
+      summary: string;
+    }>;
+    mpsId: string;
   } | null>(null);
 
   // Load existing MPSs and criteria when modal opens
@@ -911,13 +920,17 @@ Return as JSON:
 
         if (insertError) throw insertError;
 
+        // Determine scenario based on domain status
+        const scenario = await determinePlacementScenario(placementAnalysis.suggested_domain, domainName);
+
         setShowPlacementModal({
           criteriaId: newCriterion.id,
           suggestion: {
             domain: placementAnalysis.suggested_domain,
             mpsNumber: placementAnalysis.suggested_mps_number || 0,
             mpsTitle: placementAnalysis.suggested_mps_title || '',
-            reason: placementAnalysis.reason || 'Better alignment with domain focus'
+            reason: placementAnalysis.reason || 'Better alignment with domain focus',
+            scenario: scenario
           }
         });
 
@@ -1132,6 +1145,130 @@ Return as JSON:
 
   const resetCustomCriteriaForm = () => {
     setCustomCriterion({ statement: '', summary: '' });
+  };
+
+  // Enhanced criteria placement analysis
+  const determinePlacementScenario = async (suggestedDomain: string, currentDomain: string): Promise<'same_domain' | 'future_domain' | 'past_domain'> => {
+    if (suggestedDomain === currentDomain) {
+      return 'same_domain';
+    }
+
+    // Check if suggested domain has been completed
+    const { data: domainData } = await supabase
+      .from('domains')
+      .select('status')
+      .eq('organization_id', currentOrganization?.id)
+      .eq('name', suggestedDomain)
+      .single();
+
+    if (domainData?.status === 'approved_locked') {
+      return 'past_domain';
+    }
+
+    return 'future_domain';
+  };
+
+  // Analyze criteria for potential splitting
+  const analyzeCriteriaForSplitting = (statement: string) => {
+    const splitIndicators = [
+      ' and ',
+      ' & ',
+      'must have',
+      'must conduct',
+      'must implement',
+      'must establish',
+      'must maintain',
+      'must ensure'
+    ];
+
+    const evidenceCount = splitIndicators.filter(indicator => 
+      statement.toLowerCase().includes(indicator.toLowerCase())
+    ).length;
+
+    if (evidenceCount >= 2) {
+      // Simple splitting logic - this could be enhanced with AI
+      const parts = statement.split(/\s+and\s+|\s+&\s+/i);
+      
+      if (parts.length >= 2) {
+        return {
+          shouldSplit: true,
+          splitCriteria: parts.map((part, index) => ({
+            statement: part.trim(),
+            summary: `Part ${index + 1} of multi-requirement criterion`
+          }))
+        };
+      }
+    }
+
+    return { shouldSplit: false, splitCriteria: [] };
+  };
+
+  // Handle split criteria approval
+  const handleSplitCriteriaApproval = async (splitCriteria: Array<{ statement: string; summary: string }>, mpsId: string) => {
+    if (!currentOrganization?.id) return;
+
+    try {
+      const mps = getMPSByID(mpsId);
+      if (!mps) throw new Error('MPS not found');
+
+      for (let i = 0; i < splitCriteria.length; i++) {
+        const mpssCriteria = getCriteriaForMPS(mpsId);
+        const nextNumber = mpssCriteria.length + 1 + i; // Account for multiple insertions
+        const criteriaNumber = `${mps.mps_number}.${nextNumber}`;
+        
+        await supabase
+          .from('criteria')
+          .insert({
+            mps_id: mpsId,
+            organization_id: currentOrganization.id,
+            criteria_number: criteriaNumber,
+            statement: splitCriteria[i].statement,
+            summary: splitCriteria[i].summary,
+            status: 'not_started',
+            created_by: currentOrganization.owner_id,
+            updated_by: currentOrganization.owner_id
+          });
+      }
+
+      // Log the split action
+      await logCriteriaAction('SPLIT', mpsId, `Split into ${splitCriteria.length} criteria`);
+
+      await fetchMPSsAndCriteria();
+      
+      toast({
+        title: "Criteria Split Successfully",
+        description: `Created ${splitCriteria.length} separate criteria for better assessment.`,
+      });
+
+      setShowSplitCriteriaModal(null);
+      setShowAddAnotherModal(mpsId);
+
+    } catch (error) {
+      console.error('Error splitting criteria:', error);
+      toast({
+        title: "Error Splitting Criteria",
+        description: "Failed to split the criteria. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Enhanced logging function
+  const logCriteriaAction = async (action: string, entityId: string, details: string) => {
+    try {
+      await supabase
+        .from('audit_trail')
+        .insert({
+          organization_id: currentOrganization?.id,
+          table_name: 'criteria',
+          record_id: entityId,
+          action: action,
+          changed_by: currentOrganization?.owner_id,
+          change_reason: details
+        });
+    } catch (error) {
+      console.error('Error logging criteria action:', error);
+    }
   };
 
   const getUnapprovedCriteriaCount = () => {
@@ -1845,6 +1982,138 @@ Return as JSON:
                   }}
                 >
                   📍 Review Deferred Criteria
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Split Criteria Modal */}
+        <Dialog open={showSplitCriteriaModal !== null} onOpenChange={() => setShowSplitCriteriaModal(null)}>
+          <DialogContent className="max-w-2xl">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                ✂️ Split Multi-Requirement Criterion
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                We've detected multiple requirements in your criterion. We recommend splitting them for clearer assessment:
+              </p>
+              
+              {showSplitCriteriaModal && (
+                <div className="space-y-4">
+                  <div className="p-3 bg-orange-50 rounded border border-orange-200">
+                    <h4 className="font-medium text-orange-800 mb-2">Original Statement:</h4>
+                    <p className="text-sm text-orange-700">{showSplitCriteriaModal.originalStatement}</p>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <h4 className="font-medium">Proposed Split:</h4>
+                    {showSplitCriteriaModal.splitCriteria.map((criterion, index) => (
+                      <div key={index} className="p-3 bg-green-50 rounded border border-green-200">
+                        <h5 className="font-medium text-green-800">Criterion {index + 1}:</h5>
+                        <p className="text-sm text-green-700 mt-1">{criterion.statement}</p>
+                        <p className="text-xs text-green-600 mt-1">{criterion.summary}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowSplitCriteriaModal(null)}
+                >
+                  Keep as One
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (showSplitCriteriaModal) {
+                      handleSplitCriteriaApproval(
+                        showSplitCriteriaModal.splitCriteria,
+                        showSplitCriteriaModal.mpsId
+                      );
+                    }
+                  }}
+                  className="bg-green-600 hover:bg-green-700"
+                >
+                  ✅ Proceed with Split
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Enhanced Placement Modal with 5 Scenarios */}
+        <Dialog open={showPlacementModal !== null} onOpenChange={() => setShowPlacementModal(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {showPlacementModal?.suggestion.scenario === 'same_domain' && (
+                  <>🔄 Better MPS Placement</>
+                )}
+                {showPlacementModal?.suggestion.scenario === 'future_domain' && (
+                  <>🔮 Future Domain Detected</>
+                )}
+                {showPlacementModal?.suggestion.scenario === 'past_domain' && (
+                  <>⏰ Past Domain Detected</>
+                )}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {showPlacementModal && (
+                <>
+                  {showPlacementModal.suggestion.scenario === 'same_domain' && (
+                    <p className="text-sm text-muted-foreground">
+                      This criterion fits better under <strong>MPS {showPlacementModal.suggestion.mpsNumber} - {showPlacementModal.suggestion.mpsTitle}</strong> within the same domain.
+                    </p>
+                  )}
+                  {showPlacementModal.suggestion.scenario === 'future_domain' && (
+                    <p className="text-sm text-muted-foreground">
+                      This criterion belongs to <strong>{showPlacementModal.suggestion.domain}</strong> which you haven't configured yet. We'll defer it and remind you when you reach that domain.
+                    </p>
+                  )}
+                  {showPlacementModal.suggestion.scenario === 'past_domain' && (
+                    <p className="text-sm text-muted-foreground">
+                      This criterion belongs to <strong>{showPlacementModal.suggestion.domain}</strong> which you've already completed. Do you want to return to add it?
+                    </p>
+                  )}
+                  
+                  <div className="p-3 bg-blue-50 rounded border border-blue-200">
+                    <p className="text-sm text-blue-700">
+                      <strong>Reason:</strong> {showPlacementModal.suggestion.reason}
+                    </p>
+                  </div>
+                </>
+              )}
+              
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // Keep in current location - this would need custom handling
+                    setShowPlacementModal(null);
+                    toast({
+                      title: "Kept in Current MPS",
+                      description: "Criterion added to current MPS as requested.",
+                    });
+                  }}
+                >
+                  Keep Here
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (showPlacementModal) {
+                      deferCriterion(showPlacementModal.criteriaId, showPlacementModal.suggestion);
+                    }
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {showPlacementModal?.suggestion.scenario === 'same_domain' && '🔄 Move to Correct MPS'}
+                  {showPlacementModal?.suggestion.scenario === 'future_domain' && '⏳ Defer to Future Domain'}
+                  {showPlacementModal?.suggestion.scenario === 'past_domain' && '📍 Return to Past Domain'}
                 </Button>
               </div>
             </div>
