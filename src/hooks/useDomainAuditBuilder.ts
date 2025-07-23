@@ -32,18 +32,38 @@ export const useDomainAuditBuilder = (domainId: string) => {
 
   const handleIntentsFinalized = async (mpssWithIntents: MPS[]) => {
     try {
+      console.log('Saving intents for MPSs:', mpssWithIntents.length);
+      
+      // Get current user
+      const { supabase } = await import('@/integrations/supabase/client');
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+      
       // Save intents to database 
       for (const mps of mpssWithIntents) {
         if (mps.intent && mps.id) {
-          await import('@/integrations/supabase/client').then(({ supabase }) =>
-            supabase
-              .from('maturity_practice_statements')
-              .update({ 
-                intent_statement: mps.intent,
-                status: 'approved_locked'
-              })
-              .eq('id', mps.id)
-          );
+          console.log('Updating MPS:', mps.id, 'with intent:', mps.intent.substring(0, 50) + '...');
+          
+          const { data, error } = await supabase
+            .from('maturity_practice_statements')
+            .update({ 
+              intent_statement: mps.intent,
+              status: 'approved_locked',
+              intent_approved_by: user.id,
+              intent_approved_at: new Date().toISOString()
+            })
+            .eq('id', mps.id)
+            .select();
+          
+          if (error) {
+            console.error('Error updating MPS:', mps.id, error);
+            throw error;
+          } else {
+            console.log('Successfully updated MPS:', mps.id, data);
+          }
         }
       }
       
@@ -51,8 +71,17 @@ export const useDomainAuditBuilder = (domainId: string) => {
       
       // Notify other components that intents were finalized
       window.dispatchEvent(new CustomEvent('intents-finalized'));
+      console.log('Intents finalized successfully');
     } catch (error) {
       console.error('Error saving intents:', error);
+      // Show error to user
+      import('@/hooks/use-toast').then(({ toast }) => {
+        toast({
+          title: "Error saving intents",
+          description: "There was a problem saving the intent statements. Please try again.",
+          variant: "destructive",
+        });
+      });
     }
   };
 
