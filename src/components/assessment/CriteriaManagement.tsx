@@ -103,6 +103,11 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
       count: number;
     }>;
   } | null>(null);
+  const [showDuplicateModal, setShowDuplicateModal] = useState<{
+    existingCriteria: Criteria;
+    isExact: boolean;
+  } | null>(null);
+  const [showDeferralReminder, setShowDeferralReminder] = useState<any[] | null>(null);
   const [showSplitCriteriaModal, setShowSplitCriteriaModal] = useState<{
     originalStatement: string;
     splitCriteria: Array<{
@@ -814,6 +819,16 @@ Return a JSON array with this structure:
   const addCustomCriterion = async () => {
     if (!currentOrganization?.id || !showCustomCriteriaModal) return;
 
+    // Validate inputs
+    if (!customCriterion.statement.trim() || !customCriterion.summary.trim()) {
+      toast({
+        title: "Missing Information",
+        description: "Please provide both a criterion statement and summary.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Store the current MPS ID at the start to ensure it's available throughout the process
     const currentMpsId = showCustomCriteriaModal;
     
@@ -822,7 +837,15 @@ Return a JSON array with this structure:
       const mps = getMPSByID(currentMpsId);
       if (!mps) throw new Error('MPS not found');
 
+      // Check for duplicate criteria within the same MPS
       const mpssCriteria = getCriteriaForMPS(currentMpsId);
+      const duplicateResult = await checkForDuplicateCriteria(customCriterion.statement, mpssCriteria);
+      
+      if (!duplicateResult) {
+        setIsProcessingCustom(false);
+        return; // User chose to skip or edit existing
+      }
+
       const nextNumber = mpssCriteria.length + 1;
       const criteriaNumber = `${mps.mps_number}.${nextNumber}`;
 
@@ -973,7 +996,7 @@ Return as JSON:
       });
 
       // Reset form and show "Add Another?" modal using stored MPS ID
-      setCustomCriterion({ statement: '', summary: '' });
+      resetCustomCriteriaForm();
       setShowCustomCriteriaModal(null);
       setShowAddAnotherModal(currentMpsId);
 
@@ -1088,16 +1111,34 @@ Return as JSON:
     if (!currentOrganization?.id) return;
 
     try {
+      // Check for relevant deferred criteria for the current domain and MPS
       const { data: deferrals, error } = await supabase
         .from('criteria_deferrals')
-        .select('suggested_domain, suggested_mps_number')
+        .select(`
+          *,
+          proposed_criteria_id,
+          suggested_domain,
+          suggested_mps_number,
+          suggested_mps_title,
+          reason
+        `)
         .eq('organization_id', currentOrganization.id)
         .eq('approved', false);
 
       if (error) throw error;
 
       if (deferrals && deferrals.length > 0) {
-        // Group by domain and MPS
+        // Check for criteria that match the current domain
+        const currentDomainDeferrals = deferrals.filter(def => 
+          def.suggested_domain === domainName
+        );
+
+        if (currentDomainDeferrals.length > 0) {
+          // Show immediate reminder for current domain
+          setShowDeferralReminder(currentDomainDeferrals);
+        }
+
+        // Group remaining deferrals by domain and MPS for general warning
         const grouped = deferrals.reduce((acc, def) => {
           const key = `${def.suggested_domain}-${def.suggested_mps_number}`;
           if (!acc[key]) {
@@ -1118,6 +1159,32 @@ Return as JSON:
       }
     } catch (error) {
       console.error('Error checking deferred criteria:', error);
+    }
+  };
+
+  // Enhanced deferred criteria reminder for current domain/MPS
+  const checkDeferredForCurrentMPS = async (mpsNumber: number) => {
+    if (!currentOrganization?.id) return;
+
+    try {
+      const { data: deferrals, error } = await supabase
+        .from('criteria_deferrals')
+        .select(`
+          *,
+          criteria!inner(statement, summary)
+        `)
+        .eq('organization_id', currentOrganization.id)
+        .eq('approved', false)
+        .eq('suggested_domain', domainName)
+        .eq('suggested_mps_number', mpsNumber);
+
+      if (error) throw error;
+
+      if (deferrals && deferrals.length > 0) {
+        setShowDeferralReminder(deferrals);
+      }
+    } catch (error) {
+      console.error('Error checking deferred criteria for current MPS:', error);
     }
   };
 
@@ -1154,6 +1221,55 @@ Return as JSON:
 
   const resetCustomCriteriaForm = () => {
     setCustomCriterion({ statement: '', summary: '' });
+    setIsProcessingCustom(false);
+  };
+
+  // Duplicate detection function
+  const checkForDuplicateCriteria = async (newStatement: string, existingCriteria: Criteria[]): Promise<boolean> => {
+    // Simple similarity check for exact or near-exact matches
+    const normalizedNew = newStatement.toLowerCase().trim().replace(/[^\w\s]/g, '');
+    
+    for (const criteria of existingCriteria) {
+      const normalizedExisting = criteria.statement.toLowerCase().trim().replace(/[^\w\s]/g, '');
+      
+      // Check for exact match or high similarity
+      if (normalizedNew === normalizedExisting) {
+        await showDuplicateDetectionModal(criteria, true);
+        return true;
+      }
+      
+      // Check for high similarity (80% word overlap)
+      const newWords = normalizedNew.split(/\s+/);
+      const existingWords = normalizedExisting.split(/\s+/);
+      const commonWords = newWords.filter(word => 
+        word.length > 3 && existingWords.includes(word)
+      );
+      
+      const similarity = (commonWords.length * 2) / (newWords.length + existingWords.length);
+      
+      if (similarity > 0.8) {
+        await showDuplicateDetectionModal(criteria, false);
+        return true;
+      }
+    }
+    
+    return false;
+  };
+
+  // Show duplicate detection modal
+  const showDuplicateDetectionModal = (existingCriteria: Criteria, isExact: boolean): Promise<boolean> => {
+    return new Promise((resolve) => {
+      setShowDuplicateModal({ existingCriteria, isExact });
+      
+      // Set up a one-time listener for the modal response
+      const handleResponse = (shouldContinue: boolean) => {
+        setShowDuplicateModal(null);
+        resolve(shouldContinue);
+      };
+      
+      // Store the handler for the modal buttons to use
+      (window as any).__duplicateModalHandler = handleResponse;
+    });
   };
 
   // Enhanced criteria placement analysis
@@ -1810,8 +1926,18 @@ Return as JSON:
                   onClick={() => {
                     const mpsId = showAddAnotherModal;
                     setShowAddAnotherModal(null);
+                    // Ensure complete state reset for second entry
                     resetCustomCriteriaForm();
+                    setIsProcessingCustom(false);
+                    setEditingCriteria(null);
                     setShowCustomCriteriaModal(mpsId);
+                    // Check for deferred criteria for this specific MPS
+                    if (mpsId) {
+                      const mps = getMPSByID(mpsId);
+                      if (mps) {
+                        checkDeferredForCurrentMPS(mps.mps_number);
+                      }
+                    }
                   }}
                   className="bg-blue-600 hover:bg-blue-700"
                 >
@@ -2053,6 +2179,124 @@ Return as JSON:
                   className="bg-green-600 hover:bg-green-700"
                 >
                   ✅ Proceed with Split
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Duplicate Detection Modal */}
+        <Dialog open={showDuplicateModal !== null} onOpenChange={() => setShowDuplicateModal(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-yellow-500" />
+                {showDuplicateModal?.isExact ? 'Duplicate Criterion Detected' : 'Similar Criterion Found'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {showDuplicateModal?.isExact 
+                  ? 'This criterion appears to be identical to an existing one in this MPS.'
+                  : 'This appears similar to an existing criterion in this MPS.'
+                }
+              </p>
+              
+              {showDuplicateModal && (
+                <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-xs text-yellow-700 font-medium mb-1">Existing Criterion:</p>
+                  <p className="text-sm">{showDuplicateModal.existingCriteria.statement}</p>
+                </div>
+              )}
+              
+              <div className="flex gap-2 justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    resetCustomCriteriaForm();
+                    setShowCustomCriteriaModal(null);
+                    setShowDuplicateModal(null);
+                    if ((window as any).__duplicateModalHandler) {
+                      (window as any).__duplicateModalHandler(false);
+                    }
+                  }}
+                >
+                  Skip This Criterion
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    if (showDuplicateModal) {
+                      setCustomCriterion({
+                        statement: showDuplicateModal.existingCriteria.statement,
+                        summary: showDuplicateModal.existingCriteria.summary || ''
+                      });
+                      setEditingCriteria(showDuplicateModal.existingCriteria.id);
+                      setShowDuplicateModal(null);
+                    }
+                    if ((window as any).__duplicateModalHandler) {
+                      (window as any).__duplicateModalHandler(false);
+                    }
+                  }}
+                >
+                  Edit Existing
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowDuplicateModal(null);
+                    if ((window as any).__duplicateModalHandler) {
+                      (window as any).__duplicateModalHandler(true);
+                    }
+                  }}
+                >
+                  Add Anyway
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Deferred Criteria Reminder Modal */}
+        <Dialog open={showDeferralReminder !== null} onOpenChange={() => setShowDeferralReminder(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                🧠 Deferred Criteria Available
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                You previously proposed criteria for this domain. Would you like to review them now?
+              </p>
+              
+              {showDeferralReminder && showDeferralReminder.length > 0 && (
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {showDeferralReminder.map((deferral, index) => (
+                    <div key={index} className="p-3 bg-blue-50 rounded border border-blue-200">
+                      <p className="text-sm font-medium">MPS {deferral.suggested_mps_number}</p>
+                      <p className="text-xs text-blue-600 mt-1">{deferral.reason}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div className="flex gap-2 justify-end">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowDeferralReminder(null)}
+                >
+                  Review Later
+                </Button>
+                <Button 
+                  onClick={() => {
+                    setShowDeferralReminder(null);
+                    toast({
+                      title: "Reviewing Deferred Criteria",
+                      description: "Navigate to the deferred criteria section to process them.",
+                    });
+                  }}
+                >
+                  Review Now
                 </Button>
               </div>
             </div>
