@@ -913,22 +913,36 @@ Return as JSON:
         // Only parse if we have a successful response
         if (!error && data?.content) {
           const responseContent = data.content || data.response || '';
+          console.log('🧠 AI Placement Analysis Response:', responseContent);
+          
           const jsonStart = responseContent.indexOf('{');
           const jsonEnd = responseContent.lastIndexOf('}');
           
           if (jsonStart !== -1 && jsonEnd !== -1) {
             const jsonString = responseContent.substring(jsonStart, jsonEnd + 1);
+            console.log('🔍 Extracted JSON for placement analysis:', jsonString);
+            
             const parsedData = JSON.parse(jsonString);
+            console.log('📊 Parsed placement analysis:', parsedData);
+            
             if (parsedData.belongs_here !== undefined) {
               placementAnalysis = parsedData;
+              console.log('✅ Placement analysis assigned:', placementAnalysis);
             }
           }
         }
       } catch (parseError) {
-        console.warn('Could not parse AI placement analysis, proceeding with original criterion');
+        console.warn('Could not parse AI placement analysis, proceeding with original criterion:', parseError);
       }
 
       // If misaligned AND we have a successful AI analysis, show placement suggestion modal
+      console.log('🎯 Placement check:', { 
+        hasError: !!error, 
+        belongsHere: placementAnalysis.belongs_here, 
+        suggestedDomain: placementAnalysis.suggested_domain,
+        shouldTriggerModal: !error && !placementAnalysis.belongs_here && placementAnalysis.suggested_domain
+      });
+      
       if (!error && !placementAnalysis.belongs_here && placementAnalysis.suggested_domain) {
         // Create the criterion first, then show placement modal
         const { data: newCriterion, error: insertError } = await supabase
