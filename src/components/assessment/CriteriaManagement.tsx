@@ -192,7 +192,7 @@ Please generate criteria that:
 3. Are appropriate for ${domainName} domain
 4. Each criterion must have a clear, actionable descriptor (not placeholder text)
 5. Are numbered as ${mps.mps_number}.1, ${mps.mps_number}.2, etc.
-6. Generate as many criteria as needed to comprehensively assess this MPS (no artificial limits)
+6. Generate as many distinct, meaningful, and non-redundant assessment criteria as are reasonably required to fully evaluate this MPS. Do not impose a fixed limit — but ensure at least 10 are generated unless fewer are genuinely justified.
 7. Each criterion should assess a distinct aspect of the MPS
 8. Each criterion should have ONE specific evidence expectation (not a bundle)
 9. Ensure criteria align with Annex 2 structure and audit requirements

@@ -720,7 +720,7 @@ Respond in a helpful, professional tone that builds confidence while being reali
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
         ],
-        temperature: 0.7,
+        temperature: context === 'Criteria generation' ? 0 : 0.7, // Temperature = 0 for criteria generation consistency
         max_tokens: context === 'Criteria generation' ? 2000 : 800, // Higher limit for criteria generation
       }),
     });
