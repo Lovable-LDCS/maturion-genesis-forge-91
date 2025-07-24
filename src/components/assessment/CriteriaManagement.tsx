@@ -835,37 +835,7 @@ Return a JSON array with this structure:
       variant: "default"
     });
   };
-        getMPSByID,
-        getCriteriaForMPS,
-        checkForDuplicateCriteria,
-        determinePlacementScenario,
-        onRefreshData: fetchMPSsAndCriteria,
-        onShowPlacementModal: setShowPlacementModal
-      });
-
-      const { success, placementModalTriggered } = await customCriterionHook.addCustomCriterion(
-        customCriterion,
-        showCustomCriteriaModal
-      );
-
-      if (success) {
-        // Reset form and handle next steps
-        resetCustomCriteriaForm();
-        setShowCustomCriteriaModal(null);
-        
-        // Only show "Add Another" modal if placement modal wasn't triggered
-        if (!placementModalTriggered) {
-          setShowAddAnotherModal(showCustomCriteriaModal);
-        }
-      }
-    } catch (error) {
-      console.error('Error in addCustomCriterion:', error);
-      toast({
-        title: "Error",
-        description: "Failed to add criterion. Please try again.",
-        variant: "destructive"
-      });
-  };
+  const deferCriterion = async (criteriaId: string, suggestion: any) => {
 
   const deferCriterion = async (criteriaId: string, suggestion: any) => {
     if (!currentOrganization?.id) return;
