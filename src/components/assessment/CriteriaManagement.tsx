@@ -817,7 +817,19 @@ Return a JSON array with this structure:
   };
 
   const addCustomCriterion = async () => {
-    if (!currentOrganization?.id || !showCustomCriteriaModal) return;
+    console.log('🚀 addCustomCriterion called with:', { 
+      customCriterion, 
+      showCustomCriteriaModal, 
+      organizationId: currentOrganization?.id 
+    });
+    
+    if (!currentOrganization?.id || !showCustomCriteriaModal) {
+      console.log('❌ Missing required data:', { 
+        hasOrganization: !!currentOrganization?.id, 
+        hasModalId: !!showCustomCriteriaModal 
+      });
+      return;
+    }
 
     // Validate inputs
     if (!customCriterion.statement.trim() || !customCriterion.summary.trim()) {
