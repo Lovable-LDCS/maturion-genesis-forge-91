@@ -1,0 +1,311 @@
+import React from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertTriangle, CheckCircle, FileText, Clock, ArrowRight, Split } from 'lucide-react';
+
+interface PlacementScenario {
+  scenario: 'better_placement' | 'split_required' | 'same_domain_different_mps' | 'future_domain' | 'past_domain' | 'duplicate' | 'fits_current';
+  suggestion: {
+    targetDomain?: string;
+    targetMPS?: string;
+    rationale?: string;
+    action?: string;
+    duplicateOf?: string;
+    splitSuggestion?: {
+      criterion1: string;
+      criterion2: string;
+      reasoning: string;
+    };
+  };
+  criteriaId?: string;
+  originalStatement?: string;
+  originalSummary?: string;
+}
+
+interface EnhancedPlacementModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  placementData: PlacementScenario | null;
+  onApprove?: (data: PlacementScenario) => void;
+  onDefer?: (data: PlacementScenario) => void;
+  onReject?: (data: PlacementScenario) => void;
+  onSplit?: (data: PlacementScenario) => void;
+}
+
+export const EnhancedPlacementModal: React.FC<EnhancedPlacementModalProps> = ({
+  isOpen,
+  onClose,
+  placementData,
+  onApprove,
+  onDefer,
+  onReject,
+  onSplit
+}) => {
+  if (!placementData) return null;
+
+  const getScenarioConfig = (scenario: string) => {
+    switch (scenario) {
+      case 'better_placement':
+        return {
+          icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
+          title: 'Better Placement Suggested',
+          description: 'AI analysis suggests this criterion would be better placed elsewhere.',
+          variant: 'warning' as const,
+          actions: ['approve', 'defer', 'reject']
+        };
+      case 'split_required':
+        return {
+          icon: <Split className="h-5 w-5 text-blue-500" />,
+          title: 'Criterion Split Recommended',
+          description: 'This criterion covers multiple requirements and should be split.',
+          variant: 'info' as const,
+          actions: ['split', 'reject']
+        };
+      case 'same_domain_different_mps':
+        return {
+          icon: <ArrowRight className="h-5 w-5 text-blue-500" />,
+          title: 'Different MPS in Same Domain',
+          description: 'This criterion fits better in a different MPS within the current domain.',
+          variant: 'info' as const,
+          actions: ['approve', 'defer']
+        };
+      case 'future_domain':
+        return {
+          icon: <Clock className="h-5 w-5 text-purple-500" />,
+          title: 'Future Domain Detected',
+          description: 'This criterion belongs to a domain that will be configured later.',
+          variant: 'info' as const,
+          actions: ['defer', 'reject']
+        };
+      case 'past_domain':
+        return {
+          icon: <ArrowRight className="h-5 w-5 text-orange-500" />,
+          title: 'Past Domain Detected',
+          description: 'This criterion belongs to a domain that was already configured.',
+          variant: 'warning' as const,
+          actions: ['approve', 'defer']
+        };
+      case 'duplicate':
+        return {
+          icon: <FileText className="h-5 w-5 text-red-500" />,
+          title: 'Duplicate Criterion Detected',
+          description: 'A similar criterion already exists.',
+          variant: 'destructive' as const,
+          actions: ['replace', 'keep_both', 'reject']
+        };
+      default:
+        return {
+          icon: <CheckCircle className="h-5 w-5 text-green-500" />,
+          title: 'Placement Analysis',
+          description: 'AI analysis of criterion placement.',
+          variant: 'default' as const,
+          actions: ['approve', 'reject']
+        };
+    }
+  };
+
+  const config = getScenarioConfig(placementData.scenario);
+
+  const handleApprove = () => {
+    onApprove?.(placementData);
+    onClose();
+  };
+
+  const handleDefer = () => {
+    onDefer?.(placementData);
+    onClose();
+  };
+
+  const handleReject = () => {
+    onReject?.(placementData);
+    onClose();
+  };
+
+  const handleSplit = () => {
+    onSplit?.(placementData);
+    onClose();
+  };
+
+  const renderActionButtons = () => {
+    const buttons = [];
+
+    if (config.actions.includes('approve')) {
+      buttons.push(
+        <Button key="approve" onClick={handleApprove}>
+          Apply Suggestion
+        </Button>
+      );
+    }
+
+    if (config.actions.includes('defer')) {
+      buttons.push(
+        <Button key="defer" variant="secondary" onClick={handleDefer}>
+          Defer for Review
+        </Button>
+      );
+    }
+
+    if (config.actions.includes('split')) {
+      buttons.push(
+        <Button key="split" onClick={handleSplit}>
+          Split Criterion
+        </Button>
+      );
+    }
+
+    if (config.actions.includes('replace')) {
+      buttons.push(
+        <Button key="replace" onClick={handleApprove}>
+          Replace Existing
+        </Button>
+      );
+    }
+
+    if (config.actions.includes('keep_both')) {
+      buttons.push(
+        <Button key="keep_both" variant="secondary" onClick={handleDefer}>
+          Keep Both
+        </Button>
+      );
+    }
+
+    if (config.actions.includes('reject')) {
+      buttons.push(
+        <Button key="reject" variant="outline" onClick={handleReject}>
+          {placementData.scenario === 'duplicate' ? 'Skip Adding' : 'Reject Suggestion'}
+        </Button>
+      );
+    }
+
+    return buttons;
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-3xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {config.icon}
+            {config.title}
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <Alert variant={config.variant === 'warning' || config.variant === 'info' ? 'default' : config.variant}>
+            <AlertDescription>
+              {config.description}
+            </AlertDescription>
+          </Alert>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Analysis Results</CardTitle>
+              <CardDescription>
+                Maturion's assessment of your criterion placement
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {placementData.suggestion.targetDomain && (
+                <div>
+                  <h4 className="font-medium mb-1">Suggested Placement:</h4>
+                  <Badge variant="outline" className="mb-2">
+                    {placementData.suggestion.targetDomain}
+                    {placementData.suggestion.targetMPS && ` - ${placementData.suggestion.targetMPS}`}
+                  </Badge>
+                </div>
+              )}
+              
+              {placementData.suggestion.rationale && (
+                <div>
+                  <h4 className="font-medium mb-1">Rationale:</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {placementData.suggestion.rationale}
+                  </p>
+                </div>
+              )}
+              
+              {placementData.suggestion.action && (
+                <div>
+                  <h4 className="font-medium mb-1">Recommended Action:</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {placementData.suggestion.action}
+                  </p>
+                </div>
+              )}
+
+              {placementData.suggestion.splitSuggestion && (
+                <div>
+                  <h4 className="font-medium mb-2">Split Suggestion:</h4>
+                  <div className="space-y-2">
+                    <Card className="border-blue-200">
+                      <CardContent className="pt-3">
+                        <p className="text-sm font-medium">Criterion 1:</p>
+                        <p className="text-sm text-muted-foreground">
+                          {placementData.suggestion.splitSuggestion.criterion1}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <Card className="border-blue-200">
+                      <CardContent className="pt-3">
+                        <p className="text-sm font-medium">Criterion 2:</p>
+                        <p className="text-sm text-muted-foreground">
+                          {placementData.suggestion.splitSuggestion.criterion2}
+                        </p>
+                      </CardContent>
+                    </Card>
+                    <p className="text-xs text-muted-foreground">
+                      <strong>Reasoning:</strong> {placementData.suggestion.splitSuggestion.reasoning}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {placementData.suggestion.duplicateOf && (
+                <div>
+                  <h4 className="font-medium mb-1">Conflicts With:</h4>
+                  <Card className="border-orange-200 bg-orange-50">
+                    <CardContent className="pt-3">
+                      <p className="text-sm">
+                        {placementData.suggestion.duplicateOf}
+                      </p>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {(placementData.originalStatement || placementData.originalSummary) && (
+                <div>
+                  <h4 className="font-medium mb-1">Current Criterion:</h4>
+                  <Card className="border-gray-200">
+                    <CardContent className="pt-3">
+                      {placementData.originalStatement && (
+                        <p className="text-sm mb-1">
+                          <strong>Statement:</strong> {placementData.originalStatement}
+                        </p>
+                      )}
+                      {placementData.originalSummary && (
+                        <p className="text-sm text-muted-foreground">
+                          <strong>Summary:</strong> {placementData.originalSummary}
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+          
+          <div className="flex justify-end space-x-2">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            {renderActionButtons()}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};

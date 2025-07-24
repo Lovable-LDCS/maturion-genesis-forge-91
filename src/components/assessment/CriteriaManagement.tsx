@@ -4,12 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Plus, Sparkles } from 'lucide-react';
+import { Plus, Sparkles, Bot } from 'lucide-react';
 import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { CriterionModal } from './CriterionModal';
-import { PlacementModal } from './PlacementModal';
+import { AIGeneratedCriteriaCards } from './AIGeneratedCriteriaCards';
+import { EnhancedCriterionModal } from './EnhancedCriterionModal';
+import { EnhancedPlacementModal } from './EnhancedPlacementModal';
+import { useCustomCriterion } from '@/hooks/useCustomCriterion';
 
 interface MPS {
   id: string;
@@ -50,9 +52,11 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
   const [mpsList, setMPSList] = useState<MPS[]>([]);
   const [criteriaList, setCriteriaList] = useState<Criteria[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [showCriterionModal, setShowCriterionModal] = useState<string | null>(null);
+  const [showAIGeneration, setShowAIGeneration] = useState<string | null>(null);
+  const [showManualModal, setShowManualModal] = useState<string | null>(null);
   const [showPlacementModal, setShowPlacementModal] = useState(false);
   const [placementData, setPlacementData] = useState<any>(null);
+  const [aiPhaseCompleted, setAIPhaseCompleted] = useState<Set<string>>(new Set());
   
   const { currentOrganization } = useOrganization();
   const { toast } = useToast();
@@ -146,6 +150,80 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
     return criteriaList.filter(criteria => criteria.status === 'approved_locked').length;
   };
 
+  // Custom criterion hook setup
+  const customCriterionHook = useCustomCriterion({
+    organizationId: currentOrganization?.id || '',
+    organizationOwnerId: currentOrganization?.owner_id || '',
+    domainName: domainName,
+    getMPSByID: (id: string) => mpsList.find(mps => mps.id === id),
+    getCriteriaForMPS: (mpsId: string) => getCriteriaForMPS(mpsId),
+    checkForDuplicateCriteria: async (statement: string, criteria: Criteria[]) => {
+      // Simple duplicate check - in production this would be more sophisticated
+      const isDuplicate = criteria.some(c => 
+        c.statement.toLowerCase().includes(statement.toLowerCase().substring(0, 20))
+      );
+      return !isDuplicate;
+    },
+    determinePlacementScenario: async (suggestedDomain: string, currentDomain: string) => {
+      if (suggestedDomain === currentDomain) return 'same_domain';
+      // Simple heuristic - in production this would check against domain configuration
+      return 'future_domain';
+    },
+    onRefreshData: fetchMPSsAndCriteria,
+    onShowPlacementModal: (data) => {
+      setPlacementData(data);
+      setShowPlacementModal(true);
+    }
+  });
+
+  const handleStartAIGeneration = (mpsId: string) => {
+    setShowAIGeneration(mpsId);
+  };
+
+  const handleAIGenerationComplete = (mpsId: string, approvedCriteria: any[]) => {
+    // Add approved AI criteria to the criteria list
+    const newCriteria = approvedCriteria.map((criterion, index) => ({
+      id: `ai-${mpsId}-${index}`,
+      mps_id: mpsId,
+      criteria_number: `${mpsList.find(m => m.id === mpsId)?.mps_number}.${index + 1}`,
+      statement: criterion.statement,
+      summary: criterion.summary,
+      status: 'approved_locked'
+    }));
+    
+    setCriteriaList(prev => [...prev, ...newCriteria]);
+    setAIPhaseCompleted(prev => new Set([...prev, mpsId]));
+    setShowAIGeneration(null);
+    
+    toast({
+      title: "AI Criteria Added",
+      description: `${approvedCriteria.length} AI-generated criteria have been added.`,
+    });
+  };
+
+  const handleOpenManualModal = (mpsId: string) => {
+    if (!aiPhaseCompleted.has(mpsId)) {
+      // If AI phase not completed, start AI generation first
+      handleStartAIGeneration(mpsId);
+    } else {
+      // AI phase completed, open manual modal
+      setShowManualModal(mpsId);
+    }
+  };
+
+  const handleManualCriterionSubmit = async (criterion: { statement: string; summary: string }) => {
+    if (!showManualModal) return { success: false };
+    
+    const result = await customCriterionHook.addCustomCriterion(criterion, showManualModal);
+    
+    if (result.success && !result.placementModalTriggered) {
+      // Refresh data only if placement modal wasn't triggered
+      await fetchMPSsAndCriteria();
+    }
+    
+    return result;
+  };
+
   const handlePlacementData = (data: any) => {
     setPlacementData(data);
     setShowPlacementModal(true);
@@ -213,14 +291,25 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
                             <Badge variant={approvedCount === mpscriteria.length ? "default" : "secondary"}>
                               {approvedCount} / {mpscriteria.length} criteria
                             </Badge>
-                            <Button
-                              size="sm"
-                              onClick={() => setShowCriterionModal(mps.id)}
-                              className="flex items-center gap-1"
-                            >
-                              <Plus className="h-4 w-4" />
-                              Add Criterion
-                            </Button>
+                            {!aiPhaseCompleted.has(mps.id) ? (
+                              <Button
+                                size="sm"
+                                onClick={() => handleStartAIGeneration(mps.id)}
+                                className="flex items-center gap-1"
+                              >
+                                <Bot className="h-4 w-4" />
+                                Generate AI Criteria
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                onClick={() => handleOpenManualModal(mps.id)}
+                                className="flex items-center gap-1"
+                              >
+                                <Plus className="h-4 w-4" />
+                                Add Manual Criterion
+                              </Button>
+                            )}
                           </div>
                         </CardTitle>
                       </CardHeader>
@@ -267,26 +356,62 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Modals */}
-      <CriterionModal
-        isOpen={!!showCriterionModal}
-        onClose={() => setShowCriterionModal(null)}
-        mpsId={showCriterionModal || ''}
-        onSuccess={fetchMPSsAndCriteria}
-        onShowPlacementModal={handlePlacementData}
+      {/* AI Generation Modal */}
+      {showAIGeneration && (
+        <Dialog open={!!showAIGeneration} onOpenChange={() => setShowAIGeneration(null)}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                AI Criteria Generation
+              </DialogTitle>
+            </DialogHeader>
+            <AIGeneratedCriteriaCards
+              mps={mpsList.find(m => m.id === showAIGeneration)!}
+              organizationId={currentOrganization?.id || ''}
+              domainName={domainName}
+              onComplete={(approvedCriteria) => 
+                handleAIGenerationComplete(showAIGeneration, approvedCriteria)
+              }
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Manual Criterion Modal */}
+      <EnhancedCriterionModal
+        isOpen={!!showManualModal}
+        onClose={() => setShowManualModal(null)}
+        mpsId={showManualModal || ''}
+        mpsName={mpsList.find(m => m.id === showManualModal)?.name || ''}
+        mpsNumber={mpsList.find(m => m.id === showManualModal)?.mps_number || 0}
+        onSubmitCriterion={handleManualCriterionSubmit}
+        isProcessing={customCriterionHook.isProcessing}
       />
 
-      <PlacementModal
+      {/* Enhanced Placement Modal */}
+      <EnhancedPlacementModal
         isOpen={showPlacementModal}
         onClose={() => setShowPlacementModal(false)}
         placementData={placementData}
         onApprove={(data) => {
           console.log('Approved placement:', data);
           setShowPlacementModal(false);
+          fetchMPSsAndCriteria();
         }}
         onDefer={(data) => {
           console.log('Deferred placement:', data);
           setShowPlacementModal(false);
+          fetchMPSsAndCriteria();
+        }}
+        onReject={(data) => {
+          console.log('Rejected placement:', data);
+          setShowPlacementModal(false);
+        }}
+        onSplit={(data) => {
+          console.log('Split criterion:', data);
+          setShowPlacementModal(false);
+          fetchMPSsAndCriteria();
         }}
       />
     </>
