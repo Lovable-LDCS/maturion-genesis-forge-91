@@ -193,7 +193,7 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
     const newCriteria = approvedCriteria.map((criterion, index) => ({
       id: `ai-${mpsId}-${index}`,
       mps_id: mpsId,
-      criteria_number: `${mpsList.find(m => m.id === mpsId)?.mps_number}.${index + 1}`,
+      criteria_number: criterion.criteria_number || `${mpsList.find(m => m.id === mpsId)?.mps_number}.${index + 1}`,
       statement: criterion.statement,
       summary: criterion.summary,
       status: 'approved_locked'
@@ -207,6 +207,11 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
       title: "AI Criteria Added",
       description: `${approvedCriteria.length} AI-generated criteria have been added.`,
     });
+
+    // Auto-trigger manual modal after AI completion
+    setTimeout(() => {
+      setShowManualModal(mpsId);
+    }, 500);
   };
 
   const handleOpenManualModal = (mpsId: string) => {
@@ -222,11 +227,26 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
   const handleManualCriterionSubmit = async (criterion: { statement: string; summary: string }) => {
     if (!showManualModal) return { success: false };
     
+    // Get the next available criteria number for this MPS
+    const existingCriteriaForMPS = getCriteriaForMPS(showManualModal);
+    const mpsNumber = mpsList.find(m => m.id === showManualModal)?.mps_number || 1;
+    const nextCriteriaNumber = existingCriteriaForMPS.length + 1;
+    const criteriaNumber = `${mpsNumber}.${nextCriteriaNumber}`;
+    
     const result = await customCriterionHook.addCustomCriterion(criterion, showManualModal);
     
     if (result.success && !result.placementModalTriggered) {
-      // Refresh data only if placement modal wasn't triggered
-      await fetchMPSsAndCriteria();
+      // Add the criterion to local state with proper numbering
+      const newCriterion = {
+        id: `manual-${showManualModal}-${Date.now()}`,
+        mps_id: showManualModal,
+        criteria_number: criteriaNumber,
+        statement: criterion.statement,
+        summary: criterion.summary,
+        status: 'approved_locked'
+      };
+      
+      setCriteriaList(prev => [...prev, newCriterion]);
     }
     
     return result;

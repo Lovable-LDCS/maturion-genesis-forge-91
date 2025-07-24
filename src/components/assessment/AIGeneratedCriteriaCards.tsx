@@ -15,6 +15,7 @@ interface GeneratedCriterion {
   summary: string;
   rationale: string;
   status: 'pending' | 'approved' | 'rejected' | 'editing';
+  criteria_number: string;
 }
 
 interface MPS {
@@ -47,27 +48,33 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
   const generateAICriteria = async () => {
     setIsGenerating(true);
     
-    const prompt = `Generate 3-5 specific, actionable assessment criteria for this MPS:
+    const prompt = `Generate at least 10 well-defined and distinct assessment criteria for this MPS, covering its full intent. Avoid unnecessary duplication or fragmentation.
 
 MPS ${mps.mps_number}: ${mps.name}
 Intent: ${mps.intent_statement || 'Not specified'}
 Domain: ${domainName}
 
 Requirements:
+- Generate at least 10 distinct criteria
 - Each criterion must be specific to this MPS and auditable
 - Focus on measurable outcomes and evidence requirements
 - Use professional audit language
 - Ensure criteria are distinct from each other
 - Base on organizational best practices for ${domainName}
 
-Return as JSON array:
-[
-  {
-    "statement": "specific criterion statement",
-    "summary": "brief explanation of what this measures", 
-    "rationale": "why this criterion is important for this MPS"
-  }
-]`;
+If fewer than 10 criteria are appropriate, include a "system_message" field explaining why.
+
+Return as JSON:
+{
+  "criteria": [
+    {
+      "statement": "specific criterion statement",
+      "summary": "brief explanation of what this measures", 
+      "rationale": "why this criterion is important for this MPS"
+    }
+  ],
+  "system_message": "explanation if fewer than 10 criteria (optional)"
+}`;
 
     try {
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
@@ -77,7 +84,8 @@ Return as JSON array:
           currentDomain: domainName,
           organizationId: organizationId,
           allowExternalContext: true,
-          knowledgeBaseUsed: true
+          knowledgeBaseUsed: true,
+          temperature: 0
         }
       });
 
@@ -87,52 +95,116 @@ Return as JSON array:
       }
 
       // Parse AI response
-      let criteria: GeneratedCriterion[] = [];
+      let criteria: any[] = [];
+      let systemMessage = '';
       
       if (data?.content) {
         try {
           const responseContent = data.content;
-          const jsonStart = responseContent.indexOf('[');
-          const jsonEnd = responseContent.lastIndexOf(']');
+          const jsonStart = responseContent.indexOf('{');
+          const jsonEnd = responseContent.lastIndexOf('}');
           
           if (jsonStart !== -1 && jsonEnd !== -1) {
             const jsonString = responseContent.substring(jsonStart, jsonEnd + 1);
-            const parsedCriteria = JSON.parse(jsonString);
+            const parsedData = JSON.parse(jsonString);
             
-            criteria = parsedCriteria.map((criterion: any, index: number) => ({
-              id: `ai-generated-${index}`,
-              statement: criterion.statement || '',
-              summary: criterion.summary || '',
-              rationale: criterion.rationale || 'AI-generated criterion',
-              status: 'pending' as const
-            }));
+            criteria = parsedData.criteria || [];
+            systemMessage = parsedData.system_message || '';
+          } else {
+            // Fallback: try to parse as array
+            const arrayStart = responseContent.indexOf('[');
+            const arrayEnd = responseContent.lastIndexOf(']');
+            if (arrayStart !== -1 && arrayEnd !== -1) {
+              const arrayString = responseContent.substring(arrayStart, arrayEnd + 1);
+              criteria = JSON.parse(arrayString);
+            }
           }
         } catch (parseError) {
           console.error('Failed to parse AI response:', parseError);
         }
       }
 
-      // Fallback if parsing failed
-      if (criteria.length === 0) {
+      // Generate minimum 10 fallback criteria if AI fails
+      if (!criteria || criteria.length === 0) {
         criteria = [
           {
-            id: 'fallback-1',
-            statement: `Establish clear ${mps.name.toLowerCase()} procedures and documentation`,
-            summary: `Ensure comprehensive procedures exist for ${mps.name.toLowerCase()}`,
-            rationale: 'Standard requirement for systematic approach',
-            status: 'pending'
+            statement: `Establish leadership commitment to ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Evaluate leadership's commitment to implementing ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Leadership commitment is fundamental to successful implementation'
           },
           {
-            id: 'fallback-2', 
-            statement: `Implement monitoring and review processes for ${mps.name.toLowerCase()}`,
-            summary: `Regular monitoring and review of ${mps.name.toLowerCase()} effectiveness`,
-            rationale: 'Essential for continuous improvement',
-            status: 'pending'
+            statement: `Develop and maintain documented procedures for ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Assess the existence and quality of documented procedures for ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Documented procedures provide clear guidance and consistency'
+          },
+          {
+            statement: `Implement training and awareness programs for ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Evaluate training programs and awareness initiatives for ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Training ensures personnel understand and can execute requirements'
+          },
+          {
+            statement: `Establish monitoring and measurement capabilities for ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Assess monitoring and measurement processes for ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Monitoring ensures ongoing effectiveness and compliance'
+          },
+          {
+            statement: `Conduct risk assessments related to ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Evaluate risk assessment processes for ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Risk assessment identifies potential issues and mitigation strategies'
+          },
+          {
+            statement: `Implement incident response procedures for ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Assess incident response capabilities for ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Incident response ensures quick resolution of issues'
+          },
+          {
+            statement: `Establish continuous improvement processes for ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Evaluate continuous improvement mechanisms for ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Continuous improvement ensures ongoing enhancement'
+          },
+          {
+            statement: `Allocate adequate resources for ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Assess resource allocation and management for ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Adequate resources are essential for effective implementation'
+          },
+          {
+            statement: `Implement communication strategies for ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Evaluate communication strategies and channels for ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Clear communication ensures stakeholder understanding and buy-in'
+          },
+          {
+            statement: `Define and track performance metrics for ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Assess performance metrics and KPIs for ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Performance metrics provide objective measures of success'
           }
         ];
       }
 
-      setGeneratedCriteria(criteria);
+      // Check minimum criteria threshold
+      if (criteria.length < 10 && !systemMessage) {
+        systemMessage = `AI generated ${criteria.length} criteria. Minimum threshold of 10 criteria recommended for comprehensive assessment.`;
+      }
+
+      // Add unique IDs, status, and numbering to each criterion
+      const processedCriteria: GeneratedCriterion[] = criteria.map((criterion, index) => ({
+        id: `ai-${mps.id}-${index}`,
+        statement: criterion.statement || '',
+        summary: criterion.summary || '',
+        rationale: criterion.rationale || 'AI-generated criterion',
+        status: 'pending' as const,
+        criteria_number: `${mps.mps_number}.${index + 1}`
+      }));
+
+      setGeneratedCriteria(processedCriteria);
+      
+      // Show system message if provided
+      if (systemMessage) {
+        toast({
+          title: "AI Generation Note",
+          description: systemMessage,
+          variant: "default"
+        });
+      }
       
     } catch (error) {
       console.error('Error generating AI criteria:', error);
@@ -142,16 +214,18 @@ Return as JSON array:
         variant: "destructive"
       });
       
-      // Provide fallback criteria
-      setGeneratedCriteria([
+      // Provide fallback criteria with numbering
+      const fallbackCriteria: GeneratedCriterion[] = [
         {
           id: 'fallback-1',
           statement: `Establish and maintain ${mps.name.toLowerCase()} framework`,
           summary: `Comprehensive framework for ${mps.name.toLowerCase()} implementation`,
           rationale: 'Foundation requirement for systematic approach',
-          status: 'pending'
+          status: 'pending',
+          criteria_number: `${mps.mps_number}.1`
         }
-      ]);
+      ];
+      setGeneratedCriteria(fallbackCriteria);
     } finally {
       setIsGenerating(false);
     }
@@ -283,12 +357,19 @@ Return as JSON:
     setEditValues({ statement: '', summary: '' });
   };
 
+  const handleBulkApprove = () => {
+    setGeneratedCriteria(prev => 
+      prev.map(c => c.status === 'pending' ? { ...c, status: 'approved' } : c)
+    );
+  };
+
   const handleContinue = () => {
     const approvedCriteria = generatedCriteria.filter(c => c.status === 'approved');
     onComplete(approvedCriteria);
   };
 
   const approvedCount = generatedCriteria.filter(c => c.status === 'approved').length;
+  const pendingCount = generatedCriteria.filter(c => c.status === 'pending').length;
   const canContinue = generatedCriteria.length > 0 && generatedCriteria.every(c => c.status !== 'pending');
 
   if (isGenerating) {
@@ -329,9 +410,22 @@ Return as JSON:
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Review each AI-generated criterion. You can approve, edit, or reject them.
-          </p>
+          <div className="flex justify-between items-center mb-4">
+            <p className="text-sm text-muted-foreground">
+              Review each AI-generated criterion. You can approve, edit, or reject them.
+            </p>
+            {pendingCount > 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleBulkApprove}
+                className="flex items-center gap-1"
+              >
+                <CheckCircle2 className="h-3 w-3" />
+                Approve All ({pendingCount})
+              </Button>
+            )}
+          </div>
           
           <div className="space-y-3">
             {generatedCriteria.map((criterion) => (
@@ -379,24 +473,31 @@ Return as JSON:
                     </div>
                   ) : (
                     <div>
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <p className="font-medium text-sm mb-1">{criterion.statement}</p>
-                          <p className="text-xs text-muted-foreground mb-2">{criterion.summary}</p>
-                          <p className="text-xs text-blue-600 italic">
-                            Rationale: {criterion.rationale}
-                          </p>
-                        </div>
-                        <Badge 
-                          variant={
-                            criterion.status === 'approved' ? 'default' :
-                            criterion.status === 'rejected' ? 'destructive' : 'secondary'
-                          }
-                          className="ml-2"
-                        >
-                          {criterion.status}
-                        </Badge>
-                      </div>
+                       <div className="flex items-start justify-between mb-2">
+                         <div className="flex-1">
+                           <div className="flex items-center gap-2 mb-1">
+                             <Badge variant="outline" className="text-xs">
+                               {criterion.criteria_number}
+                             </Badge>
+                             <span className="font-medium text-sm">{criterion.statement}</span>
+                           </div>
+                           <p className="text-xs text-muted-foreground mb-2">{criterion.summary}</p>
+                           <p className="text-xs text-blue-600 italic">
+                             Rationale: {criterion.rationale}
+                           </p>
+                         </div>
+                         <Badge 
+                           variant={
+                             criterion.status === 'approved' ? 'default' :
+                             criterion.status === 'rejected' ? 'destructive' : 'secondary'
+                           }
+                           className={`ml-2 ${
+                             criterion.status === 'approved' ? 'bg-green-500 hover:bg-green-600' : ''
+                           }`}
+                         >
+                           {criterion.status === 'approved' ? 'approved_locked' : criterion.status}
+                         </Badge>
+                       </div>
                       
                       {criterion.status === 'pending' && (
                         <div className="flex gap-2 mt-3">
