@@ -302,6 +302,7 @@ export const useMilestoneTests = () => {
     return results;
   };
 
+
   // Database health checks
   const runDatabaseTests = async (milestone: MilestoneWithTasks): Promise<TestResult[]> => {
     const results: TestResult[] = [];
@@ -579,6 +580,135 @@ export const useMilestoneTests = () => {
       });
     }
 
+    return results;
+  };
+
+  // Maturion Integration Rule Compliance Check
+  const runMaturionComplianceTests = async (milestone: MilestoneWithTasks): Promise<TestResult[]> => {
+    const results: TestResult[] = [];
+    
+    try {
+      // Test 1: Check for Maturion AI Integration & Performance Guide
+      const { data: integrationGuide, error: guideError } = await supabase
+        .from('ai_documents')
+        .select('*')
+        .eq('organization_id', milestone.organization_id)
+        .eq('document_type', 'ai_logic_rule_global')
+        .ilike('title', '%Maturion AI Integration%Performance Guide%');
+      
+      if (guideError) throw guideError;
+      
+      if (integrationGuide && integrationGuide.length > 0) {
+        results.push({
+          id: 'maturion-integration-guide',
+          name: '✅ Maturion Integration Guide Present',
+          status: 'passed',
+          message: 'Foundational AI governance document is uploaded and accessible',
+          category: 'manual'
+        });
+      } else {
+        results.push({
+          id: 'maturion-integration-guide',
+          name: '❌ Maturion Integration Guide Present',
+          status: 'failed',
+          message: 'CRITICAL: Maturion AI Integration & Performance Guide not found',
+          details: 'This document is required for all QA processes to be considered complete',
+          category: 'manual'
+        });
+      }
+      
+      // Test 2: Check for ai_logic_rule_global documents
+      const { data: globalRules, error: rulesError } = await supabase
+        .from('ai_documents')
+        .select('*')
+        .eq('organization_id', milestone.organization_id)
+        .eq('document_type', 'ai_logic_rule_global');
+      
+      if (rulesError) throw rulesError;
+      
+      if (globalRules && globalRules.length > 0) {
+        results.push({
+          id: 'maturion-global-rules',
+          name: '✅ Global AI Rules Properly Tagged',
+          status: 'passed',
+          message: `${globalRules.length} document(s) correctly tagged as ai_logic_rule_global`,
+          category: 'manual'
+        });
+      } else {
+        results.push({
+          id: 'maturion-global-rules',
+          name: '❌ Global AI Rules Properly Tagged',
+          status: 'failed',
+          message: 'No documents found with ai_logic_rule_global tagging',
+          category: 'manual'
+        });
+      }
+      
+      // Test 3: Check MPS document structure compliance
+      const { data: mpsDocuments, error: mpsError } = await supabase
+        .from('ai_documents')
+        .select('*')
+        .eq('organization_id', milestone.organization_id)
+        .eq('document_type', 'mps_document');
+      
+      if (mpsError) throw mpsError;
+      
+      if (mpsDocuments && mpsDocuments.length > 0) {
+        results.push({
+          id: 'maturion-mps-structure',
+          name: '⚠️ MPS Documents Structure Compliance',
+          status: 'warning',
+          message: `${mpsDocuments.length} MPS document(s) found - manual verification of Requirement+Evidence structure needed`,
+          details: 'Ensure all MPS documents follow the structured format defined in the integration guide',
+          category: 'manual'
+        });
+      } else {
+        results.push({
+          id: 'maturion-mps-structure',
+          name: '⚠️ MPS Documents Structure Compliance',
+          status: 'warning',
+          message: 'No MPS documents found to validate structure',
+          category: 'manual'
+        });
+      }
+      
+      // Test 4: Check AI-generated criteria traceability
+      const { data: aiCriteria, error: criteriaError } = await supabase
+        .from('criteria')
+        .select('*')
+        .eq('organization_id', milestone.organization_id)
+        .not('ai_suggested_statement', 'is', null);
+      
+      if (criteriaError) throw criteriaError;
+      
+      if (aiCriteria && aiCriteria.length > 0) {
+        results.push({
+          id: 'maturion-ai-criteria-traceability',
+          name: '✅ AI Criteria Traceability',
+          status: 'passed',
+          message: `${aiCriteria.length} AI-generated criteria found with traceability to structured logic`,
+          category: 'manual'
+        });
+      } else {
+        results.push({
+          id: 'maturion-ai-criteria-traceability',
+          name: '⚠️ AI Criteria Traceability',
+          status: 'warning',
+          message: 'No AI-generated criteria found to validate traceability',
+          category: 'manual'
+        });
+      }
+      
+    } catch (error) {
+      results.push({
+        id: 'maturion-compliance-error',
+        name: '❌ Maturion Compliance Check Error',
+        status: 'failed',
+        message: `Failed to run Maturion compliance checks: ${error}`,
+        category: 'manual'
+      });
+    }
+    
     return results;
   };
 
@@ -1044,6 +1174,12 @@ export const useMilestoneTests = () => {
       const phase1BResults = await runPhase1BTests(milestone);
       console.log(`📊 Phase 1B results received:`, phase1BResults.length, phase1BResults);
       allResults.push(...phase1BResults);
+
+      // Run Maturion compliance check first (highest priority)
+      console.log(`🛡️ Running Maturion Integration Rule Compliance check...`);
+      const complianceResults = await runMaturionComplianceTests(milestone);
+      console.log(`📋 Compliance results:`, complianceResults.length, complianceResults);
+      allResults.push(...complianceResults);
 
       // Run basic health checks specific to this milestone
       const [dbResults, secResults, structResults] = await Promise.all([

@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Plus, Edit, Trash2, ArrowUp, ArrowDown, Wand2, Check, X } from 'lucide-react';
 import { StatusBadge } from '@/components/milestones/StatusBadge';
+import { MaturionComplianceCheck } from '@/components/qa/MaturionComplianceCheck';
 
 interface Domain {
   id: string;

@@ -49,6 +49,7 @@ import { useMilestones, MilestoneWithTasks, MilestoneTestNoteInsert } from '@/ho
 import { useOrganization } from '@/hooks/useOrganization';
 import { Tables } from '@/integrations/supabase/types';
 import { MilestoneDataSeeder } from '@/components/milestones/MilestoneDataSeeder';
+import { MaturionComplianceCheck } from '@/components/qa/MaturionComplianceCheck';
 import WebhookTester from '@/components/webhook/WebhookTester';
 
 type MilestoneStatus = Tables<'milestone_tasks'>['status'];
@@ -58,6 +59,7 @@ const QASignOffDynamic: React.FC = () => {
   const [selectedMilestone, setSelectedMilestone] = useState<MilestoneWithTasks | null>(null);
   const [testNotes, setTestNotes] = useState('');
   const [testStatus, setTestStatus] = useState<MilestoneStatus>('ready_for_test');
+  const [complianceStatus, setComplianceStatus] = useState({ isCompliant: false, checkedItems: 0, totalItems: 6 });
   const { toast } = useToast();
   const navigate = useNavigate();
   const { currentOrganization } = useOrganization();
@@ -277,8 +279,29 @@ const QASignOffDynamic: React.FC = () => {
         </div>
       </div>
 
+      {/* Maturion Compliance Check */}
+      <MaturionComplianceCheck
+        organizationId={currentOrganization.id}
+        onComplianceChange={(isCompliant, checkedItems, totalItems) => 
+          setComplianceStatus({ isCompliant, checkedItems, totalItems })
+        }
+      />
+
       {/* Overview Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Compliance Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${complianceStatus.isCompliant ? 'text-green-600' : 'text-red-600'}`}>
+              {complianceStatus.checkedItems}/{complianceStatus.totalItems}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {complianceStatus.isCompliant ? 'Fully Compliant' : 'Non-Compliant'}
+            </p>
+          </CardContent>
+        </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Tasks</CardTitle>
