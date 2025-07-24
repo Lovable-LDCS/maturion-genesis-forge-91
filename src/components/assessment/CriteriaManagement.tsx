@@ -826,10 +826,14 @@ Return a JSON array with this structure:
     if (!currentOrganization?.id || !showCustomCriteriaModal) {
       console.log('❌ Missing required data:', { 
         hasOrganization: !!currentOrganization?.id, 
-        hasModalId: !!showCustomCriteriaModal 
+        hasModalId: !!showCustomCriteriaModal,
+        currentOrgId: currentOrganization?.id,
+        modalId: showCustomCriteriaModal
       });
       return;
     }
+
+    console.log('✅ Required data check passed, proceeding with validation...');
 
     // Validate inputs
     console.log('📝 Validating inputs:', { 
