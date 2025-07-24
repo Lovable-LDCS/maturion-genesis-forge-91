@@ -1480,10 +1480,13 @@ export type Database = {
           logo_url: string | null
           name: string
           owner_id: string
+          primary_color: string | null
           primary_website_url: string | null
           region_operating: string | null
           risk_concerns: string[] | null
+          secondary_color: string | null
           slack_webhook_url: string | null
+          text_color: string | null
           threat_sensitivity_level:
             | Database["public"]["Enums"]["threat_sensitivity_level"]
             | null
@@ -1504,10 +1507,13 @@ export type Database = {
           logo_url?: string | null
           name: string
           owner_id?: string
+          primary_color?: string | null
           primary_website_url?: string | null
           region_operating?: string | null
           risk_concerns?: string[] | null
+          secondary_color?: string | null
           slack_webhook_url?: string | null
+          text_color?: string | null
           threat_sensitivity_level?:
             | Database["public"]["Enums"]["threat_sensitivity_level"]
             | null
@@ -1528,10 +1534,13 @@ export type Database = {
           logo_url?: string | null
           name?: string
           owner_id?: string
+          primary_color?: string | null
           primary_website_url?: string | null
           region_operating?: string | null
           risk_concerns?: string[] | null
+          secondary_color?: string | null
           slack_webhook_url?: string | null
+          text_color?: string | null
           threat_sensitivity_level?:
             | Database["public"]["Enums"]["threat_sensitivity_level"]
             | null
@@ -1747,6 +1756,14 @@ export type Database = {
       reset_failed_document: {
         Args: { doc_id: string }
         Returns: boolean
+      }
+      reset_mps_documents_for_reprocessing: {
+        Args: { target_organization_id: string }
+        Returns: Json
+      }
+      reset_my_mps_documents: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
       }
       sparsevec_out: {
         Args: { "": unknown }
