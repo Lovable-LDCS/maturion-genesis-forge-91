@@ -51,8 +51,8 @@ export const EnhancedPlacementModal: React.FC<EnhancedPlacementModalProps> = ({
       case 'better_placement':
         return {
           icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
-          title: 'Better Placement Suggested',
-          description: 'AI analysis suggests this criterion would be better placed elsewhere.',
+          title: 'Smart MPS Placement Detected',
+          description: 'Maturion detected: This criterion looks like it fits better under:',
           variant: 'warning' as const,
           actions: ['approve', 'defer', 'reject']
         };
@@ -134,8 +134,8 @@ export const EnhancedPlacementModal: React.FC<EnhancedPlacementModalProps> = ({
 
     if (config.actions.includes('approve')) {
       buttons.push(
-        <Button key="approve" onClick={handleApprove}>
-          Apply Suggestion
+        <Button key="approve" onClick={handleApprove} className="bg-blue-500 hover:bg-blue-600">
+          Defer to Correct Domain
         </Button>
       );
     }
@@ -175,7 +175,7 @@ export const EnhancedPlacementModal: React.FC<EnhancedPlacementModalProps> = ({
     if (config.actions.includes('reject')) {
       buttons.push(
         <Button key="reject" variant="outline" onClick={handleReject}>
-          {placementData.scenario === 'duplicate' ? 'Skip Adding' : 'Reject Suggestion'}
+          {placementData.scenario === 'duplicate' ? 'Skip Adding' : 'Keep Here'}
         </Button>
       );
     }
@@ -209,18 +209,18 @@ export const EnhancedPlacementModal: React.FC<EnhancedPlacementModalProps> = ({
             </CardHeader>
             <CardContent className="space-y-4">
               {placementData.suggestion.targetDomain && (
-                <div>
-                  <h4 className="font-medium mb-1">Suggested Placement:</h4>
-                  <Badge variant="outline" className="mb-2">
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                  <Badge variant="outline" className="mb-2 bg-blue-100 text-blue-800">
                     {placementData.suggestion.targetDomain}
                     {placementData.suggestion.targetMPS && ` - ${placementData.suggestion.targetMPS}`}
                   </Badge>
+                  <p className="text-sm text-blue-700 font-medium">Risk Management</p>
                 </div>
               )}
               
               {placementData.suggestion.rationale && (
                 <div>
-                  <h4 className="font-medium mb-1">Rationale:</h4>
+                  <h4 className="font-medium mb-1">Reason:</h4>
                   <p className="text-sm text-muted-foreground">
                     {placementData.suggestion.rationale}
                   </p>
@@ -298,11 +298,13 @@ export const EnhancedPlacementModal: React.FC<EnhancedPlacementModalProps> = ({
             </CardContent>
           </Card>
           
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            {renderActionButtons()}
+          <div className="border-t pt-4">
+            <p className="text-sm text-muted-foreground mb-3">
+              I'll hold it there and bring it up when you reach that step. Continue?
+            </p>
+            <div className="flex justify-end space-x-2">
+              {renderActionButtons()}
+            </div>
           </div>
         </div>
       </DialogContent>

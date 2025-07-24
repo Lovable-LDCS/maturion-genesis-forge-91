@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Plus, Sparkles, Bot } from 'lucide-react';
+import { Plus, Sparkles, Bot, ChevronDown, ChevronRight } from 'lucide-react';
 import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -57,6 +57,7 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
   const [showPlacementModal, setShowPlacementModal] = useState(false);
   const [placementData, setPlacementData] = useState<any>(null);
   const [aiPhaseCompleted, setAIPhaseCompleted] = useState<Set<string>>(new Set());
+  const [collapsedMPS, setCollapsedMPS] = useState<Set<string>>(new Set());
   
   const { currentOrganization } = useOrganization();
   const { toast } = useToast();
@@ -189,11 +190,14 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
   };
 
   const handleAIGenerationComplete = (mpsId: string, approvedCriteria: any[]) => {
-    // Add approved AI criteria to the criteria list
+    // Add approved AI criteria to the criteria list with proper numbering
+    const existingCriteriaForMPS = getCriteriaForMPS(mpsId);
+    const mpsNumber = mpsList.find(m => m.id === mpsId)?.mps_number || 1;
+    
     const newCriteria = approvedCriteria.map((criterion, index) => ({
       id: `ai-${mpsId}-${index}`,
       mps_id: mpsId,
-      criteria_number: criterion.criteria_number || `${mpsList.find(m => m.id === mpsId)?.mps_number}.${index + 1}`,
+      criteria_number: `${mpsNumber}.${existingCriteriaForMPS.length + index + 1}`,
       statement: criterion.statement,
       summary: criterion.summary,
       status: 'approved_locked'
@@ -309,20 +313,41 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
                 {mpsList.map((mps) => {
                   const mpscriteria = getCriteriaForMPS(mps.id);
                   const approvedCount = mpscriteria.filter(c => c.status === 'approved_locked').length;
+                  const isCollapsed = collapsedMPS.has(mps.id);
                   
                   return (
                     <Card key={mps.id}>
-                      <CardHeader>
+                      <CardHeader className="cursor-pointer" onClick={() => {
+                        setCollapsedMPS(prev => {
+                          const newSet = new Set(prev);
+                          if (newSet.has(mps.id)) {
+                            newSet.delete(mps.id);
+                          } else {
+                            newSet.add(mps.id);
+                          }
+                          return newSet;
+                        });
+                      }}>
                         <CardTitle className="flex items-center justify-between">
-                          <span>MPS {mps.mps_number}: {mps.name}</span>
                           <div className="flex items-center gap-2">
-                            <Badge variant={approvedCount === mpscriteria.length ? "default" : "secondary"}>
+                            {isCollapsed ? (
+                              <ChevronRight className="h-4 w-4" />
+                            ) : (
+                              <ChevronDown className="h-4 w-4" />
+                            )}
+                            <span>MPS {mps.mps_number}: {mps.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge variant={approvedCount === mpscriteria.length && mpscriteria.length > 0 ? "default" : "secondary"}>
                               {approvedCount} / {mpscriteria.length} criteria
                             </Badge>
                             {!aiPhaseCompleted.has(mps.id) ? (
                               <Button
                                 size="sm"
-                                onClick={() => handleStartAIGeneration(mps.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStartAIGeneration(mps.id);
+                                }}
                                 className="flex items-center gap-1"
                               >
                                 <Bot className="h-4 w-4" />
@@ -331,7 +356,10 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
                             ) : (
                               <Button
                                 size="sm"
-                                onClick={() => handleOpenManualModal(mps.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenManualModal(mps.id);
+                                }}
                                 className="flex items-center gap-1"
                               >
                                 <Plus className="h-4 w-4" />
@@ -341,27 +369,37 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
                           </div>
                         </CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        {mpscriteria.length > 0 ? (
-                          <div className="space-y-2">
-                            {mpscriteria.map((criteria) => (
-                              <div key={criteria.id} className="flex items-center justify-between p-3 border rounded">
-                                <div className="flex-1">
-                                  <p className="text-sm font-medium">{criteria.statement}</p>
-                                  {criteria.summary && (
-                                    <p className="text-xs text-muted-foreground">{criteria.summary}</p>
-                                  )}
+                      {!isCollapsed && (
+                        <CardContent>
+                          {mpscriteria.length > 0 ? (
+                            <div className="space-y-2">
+                              {mpscriteria.map((criteria) => (
+                                <div key={criteria.id} className="flex items-center justify-between p-3 border rounded">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <Badge variant="outline" className="text-xs">
+                                        {criteria.criteria_number}
+                                      </Badge>
+                                      <p className="text-sm font-medium">{criteria.statement}</p>
+                                    </div>
+                                    {criteria.summary && (
+                                      <p className="text-xs text-muted-foreground ml-2">{criteria.summary}</p>
+                                    )}
+                                  </div>
+                                  <Badge 
+                                    variant={criteria.status === 'approved_locked' ? "default" : "secondary"}
+                                    className={criteria.status === 'approved_locked' ? "bg-green-500 hover:bg-green-600" : ""}
+                                  >
+                                    {criteria.status === 'approved_locked' ? 'approved_locked' : criteria.status}
+                                  </Badge>
                                 </div>
-                                <Badge variant={criteria.status === 'approved_locked' ? "default" : "secondary"}>
-                                  {criteria.status}
-                                </Badge>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-muted-foreground">No criteria yet. Add some to get started.</p>
-                        )}
-                      </CardContent>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-muted-foreground">No criteria yet. Click "Generate AI Criteria" to get started.</p>
+                          )}
+                        </CardContent>
+                      )}
                     </Card>
                   );
                 })}
@@ -423,23 +461,60 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
         onClose={() => setShowPlacementModal(false)}
         placementData={placementData}
         onApprove={(data) => {
-          console.log('Approved placement:', data);
+          // Don't wipe existing criteria, just add the new criterion to suggested location
+          if (data.suggestion.targetMPS && data.criteriaId) {
+            const newCriterion = {
+              id: `placed-${data.criteriaId}-${Date.now()}`,
+              mps_id: data.suggestion.targetMPS,
+              criteria_number: `${mpsList.find(m => m.id === data.suggestion.targetMPS)?.mps_number || 1}.${getCriteriaForMPS(data.suggestion.targetMPS).length + 1}`,
+              statement: data.originalStatement || '',
+              summary: data.originalSummary || '',
+              status: 'approved_locked'
+            };
+            setCriteriaList(prev => [...prev, newCriterion]);
+          }
           setShowPlacementModal(false);
-          fetchMPSsAndCriteria();
+          toast({ title: "Criterion Placed", description: "Criterion has been placed in the suggested location." });
         }}
         onDefer={(data) => {
+          // Create deferred entry for later review
           console.log('Deferred placement:', data);
           setShowPlacementModal(false);
-          fetchMPSsAndCriteria();
+          toast({ title: "Criterion Deferred", description: "Criterion has been deferred for later review." });
         }}
         onReject={(data) => {
           console.log('Rejected placement:', data);
           setShowPlacementModal(false);
+          toast({ title: "Placement Rejected", description: "The suggested placement has been rejected." });
         }}
         onSplit={(data) => {
-          console.log('Split criterion:', data);
+          // Handle splitting the criterion into two separate criteria
+          if (data.suggestion.splitSuggestion && showManualModal) {
+            const mpsNumber = mpsList.find(m => m.id === showManualModal)?.mps_number || 1;
+            const existingCount = getCriteriaForMPS(showManualModal).length;
+            
+            const newCriteria = [
+              {
+                id: `split-1-${Date.now()}`,
+                mps_id: showManualModal,
+                criteria_number: `${mpsNumber}.${existingCount + 1}`,
+                statement: data.suggestion.splitSuggestion.criterion1,
+                summary: 'Split from original criterion',
+                status: 'approved_locked'
+              },
+              {
+                id: `split-2-${Date.now()}`,
+                mps_id: showManualModal,
+                criteria_number: `${mpsNumber}.${existingCount + 2}`,
+                statement: data.suggestion.splitSuggestion.criterion2,
+                summary: 'Split from original criterion',
+                status: 'approved_locked'
+              }
+            ];
+            setCriteriaList(prev => [...prev, ...newCriteria]);
+          }
           setShowPlacementModal(false);
-          fetchMPSsAndCriteria();
+          toast({ title: "Criterion Split", description: "The criterion has been split into two separate criteria." });
         }}
       />
     </>
