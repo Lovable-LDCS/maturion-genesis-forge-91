@@ -56,6 +56,7 @@ Domain: ${domainName}
 
 Requirements:
 - Generate at least 10 distinct criteria
+- Each criterion MUST follow this exact format: "A policy shall be in place that describes [the organization's specific requirement]."
 - Each criterion must be specific to this MPS and auditable
 - Focus on measurable outcomes and evidence requirements
 - Use professional audit language
@@ -68,7 +69,7 @@ Return as JSON:
 {
   "criteria": [
     {
-      "statement": "specific criterion statement",
+      "statement": "A policy shall be in place that describes [specific requirement]",
       "summary": "brief explanation of what this measures", 
       "rationale": "why this criterion is important for this MPS"
     }

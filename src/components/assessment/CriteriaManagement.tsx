@@ -167,10 +167,29 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
     getMPSByID: (id: string) => mpsList.find(mps => mps.id === id),
     getCriteriaForMPS: (mpsId: string) => getCriteriaForMPS(mpsId),
     checkForDuplicateCriteria: async (statement: string, criteria: Criteria[]) => {
-      // Simple duplicate check - in production this would be more sophisticated
-      const isDuplicate = criteria.some(c => 
-        c.statement.toLowerCase().includes(statement.toLowerCase().substring(0, 20))
-      );
+      // Enhanced duplicate detection with semantic similarity
+      const normalizedStatement = statement.toLowerCase().trim();
+      
+      const isDuplicate = criteria.some(c => {
+        const normalizedExisting = c.statement.toLowerCase().trim();
+        
+        // Check for exact matches
+        if (normalizedStatement === normalizedExisting) return true;
+        
+        // Check for high similarity (>80% overlap of key words)
+        const statementWords = normalizedStatement.split(' ').filter(w => w.length > 3);
+        const existingWords = normalizedExisting.split(' ').filter(w => w.length > 3);
+        
+        const commonWords = statementWords.filter(word => 
+          existingWords.some(existingWord => 
+            existingWord.includes(word) || word.includes(existingWord)
+          )
+        );
+        
+        const similarity = commonWords.length / Math.max(statementWords.length, existingWords.length);
+        return similarity > 0.8;
+      });
+      
       return !isDuplicate;
     },
     determinePlacementScenario: async (suggestedDomain: string, currentDomain: string) => {

@@ -194,109 +194,94 @@ export const EnhancedPlacementModal: React.FC<EnhancedPlacementModalProps> = ({
         </DialogHeader>
         
         <div className="space-y-4">
-          <Alert variant={config.variant === 'warning' || config.variant === 'info' ? 'default' : config.variant}>
-            <AlertDescription>
-              {config.description}
-            </AlertDescription>
-          </Alert>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Analysis Results</CardTitle>
-              <CardDescription>
-                Maturion's assessment of your criterion placement
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {placementData.suggestion.targetDomain && (
-                <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                  <Badge variant="outline" className="mb-2 bg-blue-100 text-blue-800">
-                    {placementData.suggestion.targetDomain}
-                    {placementData.suggestion.targetMPS && ` - ${placementData.suggestion.targetMPS}`}
-                  </Badge>
-                  <p className="text-sm text-blue-700 font-medium">Risk Management</p>
-                </div>
-              )}
-              
-              {placementData.suggestion.rationale && (
-                <div>
-                  <h4 className="font-medium mb-1">Reason:</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {placementData.suggestion.rationale}
-                  </p>
-                </div>
-              )}
-              
-              {placementData.suggestion.action && (
-                <div>
-                  <h4 className="font-medium mb-1">Recommended Action:</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {placementData.suggestion.action}
-                  </p>
-                </div>
-              )}
-
-              {placementData.suggestion.splitSuggestion && (
-                <div>
-                  <h4 className="font-medium mb-2">Split Suggestion:</h4>
-                  <div className="space-y-2">
-                    <Card className="border-blue-200">
-                      <CardContent className="pt-3">
-                        <p className="text-sm font-medium">Criterion 1:</p>
-                        <p className="text-sm text-muted-foreground">
-                          {placementData.suggestion.splitSuggestion.criterion1}
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <Card className="border-blue-200">
-                      <CardContent className="pt-3">
-                        <p className="text-sm font-medium">Criterion 2:</p>
-                        <p className="text-sm text-muted-foreground">
-                          {placementData.suggestion.splitSuggestion.criterion2}
-                        </p>
-                      </CardContent>
-                    </Card>
-                    <p className="text-xs text-muted-foreground">
-                      <strong>Reasoning:</strong> {placementData.suggestion.splitSuggestion.reasoning}
-                    </p>
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <div className="flex items-start gap-2 mb-3">
+              <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-gray-900 mb-1">
+                  <strong>Maturion detected:</strong> This criterion looks like it fits better under:
+                </p>
+                {placementData.suggestion.targetDomain && (
+                  <div className="space-y-1">
+                    <div className="text-lg font-semibold text-blue-600">
+                      {placementData.suggestion.targetDomain}
+                      {placementData.suggestion.targetMPS && ` - MPS ${placementData.suggestion.targetMPS}`}
+                    </div>
+                    <p className="text-sm text-gray-600 font-medium">Risk Management</p>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+            </div>
+          </div>
 
-              {placementData.suggestion.duplicateOf && (
-                <div>
-                  <h4 className="font-medium mb-1">Conflicts With:</h4>
-                  <Card className="border-orange-200 bg-orange-50">
-                    <CardContent className="pt-3">
-                      <p className="text-sm">
-                        {placementData.suggestion.duplicateOf}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
+          {placementData.suggestion.rationale && (
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <h4 className="font-medium mb-2 text-gray-900">Reason:</h4>
+              <p className="text-sm text-gray-700">
+                {placementData.suggestion.rationale}
+              </p>
+            </div>
+          )}
 
-              {(placementData.originalStatement || placementData.originalSummary) && (
-                <div>
-                  <h4 className="font-medium mb-1">Current Criterion:</h4>
-                  <Card className="border-gray-200">
-                    <CardContent className="pt-3">
-                      {placementData.originalStatement && (
-                        <p className="text-sm mb-1">
-                          <strong>Statement:</strong> {placementData.originalStatement}
-                        </p>
-                      )}
-                      {placementData.originalSummary && (
-                        <p className="text-sm text-muted-foreground">
-                          <strong>Summary:</strong> {placementData.originalSummary}
-                        </p>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {placementData.suggestion.splitSuggestion && (
+            <div>
+              <h4 className="font-medium mb-2">Split Suggestion:</h4>
+              <div className="space-y-2">
+                <Card className="border-blue-200">
+                  <CardContent className="pt-3">
+                    <p className="text-sm font-medium">Criterion 1:</p>
+                    <p className="text-sm text-muted-foreground">
+                      {placementData.suggestion.splitSuggestion.criterion1}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="border-blue-200">
+                  <CardContent className="pt-3">
+                    <p className="text-sm font-medium">Criterion 2:</p>
+                    <p className="text-sm text-muted-foreground">
+                      {placementData.suggestion.splitSuggestion.criterion2}
+                    </p>
+                  </CardContent>
+                </Card>
+                <p className="text-xs text-muted-foreground">
+                  <strong>Reasoning:</strong> {placementData.suggestion.splitSuggestion.reasoning}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {placementData.suggestion.duplicateOf && (
+            <div>
+              <h4 className="font-medium mb-1">Conflicts With:</h4>
+              <Card className="border-orange-200 bg-orange-50">
+                <CardContent className="pt-3">
+                  <p className="text-sm">
+                    {placementData.suggestion.duplicateOf}
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {(placementData.originalStatement || placementData.originalSummary) && (
+            <div>
+              <h4 className="font-medium mb-1">Current Criterion:</h4>
+              <Card className="border-gray-200">
+                <CardContent className="pt-3">
+                  {placementData.originalStatement && (
+                    <p className="text-sm mb-1">
+                      <strong>Statement:</strong> {placementData.originalStatement}
+                    </p>
+                  )}
+                  {placementData.originalSummary && (
+                    <p className="text-sm text-muted-foreground">
+                      <strong>Summary:</strong> {placementData.originalSummary}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
           
           <div className="border-t pt-4">
             <p className="text-sm text-muted-foreground mb-3">
