@@ -34,6 +34,9 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useFileUpload } from '@/hooks/useFileUpload';
+import { generateBrandingColors, checkContrast } from '@/lib/colorUtils';
+import { BrandingPreview } from '@/components/ui/branding-preview';
 
 
 // Standardized options for Risk & Awareness Profile
@@ -71,7 +74,10 @@ interface FormData {
   // Company Information
   companyName: string;
   primaryColor: string;
+  secondaryColor: string;
+  textColor: string;
   companyLogo?: File;
+  logoUrl?: string; // For persistent logo storage
   optionalDocuments: UploadedFile[];
   
   // AI-Assisted Model Naming
@@ -92,6 +98,7 @@ export const MaturitySetup = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { uploadFile, uploading } = useFileUpload();
   
   // Local organization state (independent of useOrganization hook)
   
@@ -105,6 +112,8 @@ export const MaturitySetup = () => {
     bio: '',
     companyName: '',
     primaryColor: '#0066cc',
+    secondaryColor: '#00cc99',
+    textColor: '#ffffff',
     modelName: '',
     primaryWebsiteUrl: '',
     linkedDomains: [],
@@ -703,12 +712,31 @@ export const MaturitySetup = () => {
     }
   };
 
-  const handleFileUpload = (field: 'companyLogo', file: File) => {
+  const handleFileUpload = async (field: 'companyLogo', file: File) => {
     setFormData(prev => ({ ...prev, [field]: file }));
-    toast({
-      title: "File Uploaded",
-      description: "Company logo uploaded successfully.",
-    });
+    
+    // Upload logo to persistent storage
+    if (field === 'companyLogo') {
+      try {
+        const fileName = `${user?.id}-logo-${Date.now()}.${file.name.split('.').pop()}`;
+        const logoUrl = await uploadFile(file, 'organization-logos', fileName);
+        
+        if (logoUrl) {
+          setFormData(prev => ({ ...prev, logoUrl }));
+          toast({
+            title: "Logo Uploaded",
+            description: "Company logo uploaded successfully and will be saved to your organization.",
+          });
+        }
+      } catch (error) {
+        console.error('Logo upload error:', error);
+        toast({
+          title: "Upload Failed",
+          description: "Failed to upload logo. Please try again.",
+          variant: "destructive"
+        });
+      }
+    }
   };
 
   const handleOptionalDocumentUpload = (file: File) => {
@@ -790,7 +818,18 @@ export const MaturitySetup = () => {
   };
 
   const handleInputChange = (field: keyof FormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Auto-generate secondary and text colors when primary color changes
+      if (field === 'primaryColor') {
+        const brandingColors = generateBrandingColors(value);
+        newData.secondaryColor = brandingColors.secondary;
+        newData.textColor = brandingColors.text;
+      }
+      
+      return newData;
+    });
   };
 
   const handleArrayToggle = (field: 'industryTags' | 'riskConcerns' | 'complianceCommitments', value: string) => {
@@ -1122,22 +1161,69 @@ export const MaturitySetup = () => {
                   />
                 </div>
                 
-                <div>
-                  <Label htmlFor="primaryColor">Primary Brand Color</Label>
-                  <div className="flex items-center gap-3">
-                    <Input
-                      id="primaryColor"
-                      type="color"
-                      value={formData.primaryColor}
-                      onChange={(e) => handleInputChange('primaryColor', e.target.value)}
-                      className="w-20 h-10"
-                    />
-                    <Input
-                      value={formData.primaryColor}
-                      onChange={(e) => handleInputChange('primaryColor', e.target.value)}
-                      placeholder="#0066cc"
-                      className="flex-1"
-                    />
+                {/* Color Configuration */}
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="primaryColor">Primary Brand Color *</Label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        id="primaryColor"
+                        type="color"
+                        value={formData.primaryColor}
+                        onChange={(e) => handleInputChange('primaryColor', e.target.value)}
+                        className="w-20 h-10"
+                      />
+                      <Input
+                        value={formData.primaryColor}
+                        onChange={(e) => handleInputChange('primaryColor', e.target.value)}
+                        placeholder="#0066cc"
+                        className="flex-1"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="secondaryColor">Secondary Accent Color</Label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        id="secondaryColor"
+                        type="color"
+                        value={formData.secondaryColor}
+                        onChange={(e) => handleInputChange('secondaryColor', e.target.value)}
+                        className="w-20 h-10"
+                      />
+                      <Input
+                        value={formData.secondaryColor}
+                        onChange={(e) => handleInputChange('secondaryColor', e.target.value)}
+                        placeholder="#00cc99"
+                        className="flex-1"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Auto-generated from primary color, but you can customize
+                    </p>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="textColor">Font/Text Color</Label>
+                    <div className="flex items-center gap-3">
+                      <Input
+                        id="textColor"
+                        type="color"
+                        value={formData.textColor}
+                        onChange={(e) => handleInputChange('textColor', e.target.value)}
+                        className="w-20 h-10"
+                      />
+                      <Input
+                        value={formData.textColor}
+                        onChange={(e) => handleInputChange('textColor', e.target.value)}
+                        placeholder="#ffffff"
+                        className="flex-1"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Auto-generated for WCAG compliance, but you can customize
+                    </p>
                   </div>
                 </div>
                 
@@ -1180,11 +1266,32 @@ export const MaturitySetup = () => {
                        </Button>
                      </div>
                    )}
-                </div>
-              </CardContent>
-            </Card>
+                 </div>
+               </CardContent>
+             </Card>
 
-            {/* Risk & Awareness Profile - NEW SECTION */}
+             {/* Live Branding Preview */}
+             <Card>
+               <CardHeader>
+                 <CardTitle className="flex items-center gap-2">
+                   <Palette className="h-5 w-5" />
+                   Branding Preview
+                 </CardTitle>
+                 <CardDescription>
+                   See how your brand colors will appear across the platform.
+                 </CardDescription>
+               </CardHeader>
+               <CardContent>
+                 <BrandingPreview
+                   primaryColor={formData.primaryColor}
+                   secondaryColor={formData.secondaryColor}
+                   textColor={formData.textColor}
+                   companyName={formData.companyName}
+                 />
+               </CardContent>
+             </Card>
+
+             {/* Risk & Awareness Profile - NEW SECTION */}
             <Card className="lg:col-span-2">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
