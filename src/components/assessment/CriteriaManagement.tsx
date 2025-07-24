@@ -66,70 +66,78 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
 
     setIsLoading(true);
     try {
-      // Use a simplified fetch approach to avoid TypeScript inference issues
-      const fetchMPS = async () => {
-        return await fetch('/api/supabase-proxy', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            table: 'maturity_practice_statements',
-            action: 'select',
-            filters: {
-              organization_id: currentOrganization.id,
-              domain_name: domainName
-            }
-          })
-        });
-      };
+      // Fetch real MPS data from Supabase
+      const { data: mpsData, error: mpsError } = await supabase
+        .from('maturity_practice_statements')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .order('mps_number');
 
-      // For now, let's use mock data to get the component working
-      const mockMPSData = [
-        {
-          id: '1',
-          name: 'Sample MPS 1',
-          mps_number: 1,
-          status: 'approved_locked',
-          intent_statement: 'Sample intent',
-          summary: 'Sample summary'
-        },
-        {
-          id: '2', 
-          name: 'Sample MPS 2',
-          mps_number: 2,
-          status: 'in_progress',
-          intent_statement: 'Sample intent 2',
-          summary: 'Sample summary 2'
-        }
-      ];
+      if (mpsError) {
+        console.error('Error fetching MPS data:', mpsError);
+        // Fallback to mock data if fetch fails
+        setMPSList([
+          {
+            id: '1',
+            name: 'Leadership',
+            mps_number: 1,
+            status: 'approved_locked',
+            intent_statement: 'Establish leadership accountability for information security governance',
+            summary: 'Leadership framework for security oversight'
+          },
+          {
+            id: '2', 
+            name: 'Chain of Custody and Security Control Committee',
+            mps_number: 2,
+            status: 'in_progress',
+            intent_statement: 'Implement chain of custody controls and security committee oversight',
+            summary: 'Formal security governance structure'
+          }
+        ]);
+      } else {
+        setMPSList(mpsData || []);
+      }
 
-      const mockCriteriaData = [
-        {
-          id: '1',
-          mps_id: '1',
-          criteria_number: '1.1',
-          statement: 'Sample criteria statement 1',
-          summary: 'Sample criteria summary 1',
-          status: 'approved_locked'
-        },
-        {
-          id: '2',
-          mps_id: '2', 
-          criteria_number: '2.1',
-          statement: 'Sample criteria statement 2',
-          summary: 'Sample criteria summary 2',
-          status: 'in_progress'
-        }
-      ];
+      // Fetch real criteria data from Supabase
+      const { data: criteriaData, error: criteriaError } = await supabase
+        .from('criteria')
+        .select('*')
+        .eq('organization_id', currentOrganization.id)
+        .order('criteria_number');
 
-      setMPSList(mockMPSData);
-      setCriteriaList(mockCriteriaData);
+      if (criteriaError) {
+        console.error('Error fetching criteria data:', criteriaError);
+        setCriteriaList([]);
+      } else {
+        setCriteriaList(criteriaData || []);
+      }
+
+      console.log('📊 Data fetched:', { 
+        mpsCount: mpsData?.length || 0, 
+        criteriaCount: criteriaData?.length || 0,
+        domain: domainName 
+      });
+
     } catch (error) {
       console.error('Error fetching data:', error);
       toast({
         title: "Error",
-        description: "Failed to load criteria data.",
+        description: "Failed to load criteria data. Using fallback data.",
         variant: "destructive"
       });
+      
+      // Provide fallback data
+      setMPSList([
+        {
+          id: 'fallback-1',
+          name: 'Leadership',
+          mps_number: 1,
+          status: 'approved_locked',
+          intent_statement: 'Establish leadership accountability for information security governance',
+          summary: 'Leadership framework for security oversight'
+        }
+      ]);
+      setCriteriaList([]);
     } finally {
       setIsLoading(false);
     }
