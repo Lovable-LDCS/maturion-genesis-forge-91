@@ -822,6 +822,13 @@ Return a JSON array with this structure:
       showCustomCriteriaModal, 
       organizationId: currentOrganization?.id 
     });
+
+    console.log('🔬 IMMEDIATE STATE CHECK:', {
+      hasCurrentOrg: !!currentOrganization,
+      currentOrgId: currentOrganization?.id,
+      showModal: showCustomCriteriaModal,
+      isProcessing: isProcessingCustom
+    });
     
     if (!currentOrganization?.id || !showCustomCriteriaModal) {
       console.log('❌ Missing required data:', { 
