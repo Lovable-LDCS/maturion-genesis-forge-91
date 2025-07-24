@@ -829,44 +829,44 @@ Return a JSON array with this structure:
       showModal: showCustomCriteriaModal,
       isProcessing: isProcessingCustom
     });
-    
-    if (!currentOrganization?.id || !showCustomCriteriaModal) {
-      console.log('❌ Missing required data:', { 
-        hasOrganization: !!currentOrganization?.id, 
-        hasModalId: !!showCustomCriteriaModal,
-        currentOrgId: currentOrganization?.id,
-        modalId: showCustomCriteriaModal
-      });
-      return;
-    }
 
-    console.log('✅ Required data check passed, proceeding with validation...');
-
-    // Validate inputs
-    console.log('📝 Validating inputs:', { 
-      statement: customCriterion.statement.trim(), 
-      summary: customCriterion.summary.trim() 
-    });
-    
-    if (!customCriterion.statement.trim() || !customCriterion.summary.trim()) {
-      console.log('❌ Validation failed - missing statement or summary');
-      toast({
-        title: "Missing Information",
-        description: "Please provide both a criterion statement and summary.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    console.log('✅ Validation passed, proceeding...');
-
-    // Store the current MPS ID at the start to ensure it's available throughout the process
-    const currentMpsId = showCustomCriteriaModal;
-    
-    setIsProcessingCustom(true);
-    console.log('🔄 Starting processing, currentMpsId:', currentMpsId);
-    
     try {
+      if (!currentOrganization?.id || !showCustomCriteriaModal) {
+        console.log('❌ Missing required data:', { 
+          hasOrganization: !!currentOrganization?.id, 
+          hasModalId: !!showCustomCriteriaModal,
+          currentOrgId: currentOrganization?.id,
+          modalId: showCustomCriteriaModal
+        });
+        return;
+      }
+
+      console.log('✅ Required data check passed, proceeding with validation...');
+
+      // Validate inputs
+      console.log('📝 Validating inputs:', { 
+        statement: customCriterion.statement.trim(), 
+        summary: customCriterion.summary.trim() 
+      });
+      
+      if (!customCriterion.statement.trim() || !customCriterion.summary.trim()) {
+        console.log('❌ Validation failed - missing statement or summary');
+        toast({
+          title: "Missing Information",
+          description: "Please provide both a criterion statement and summary.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      console.log('✅ Validation passed, proceeding...');
+
+      // Store the current MPS ID at the start to ensure it's available throughout the process
+      const currentMpsId = showCustomCriteriaModal;
+      
+      setIsProcessingCustom(true);
+      console.log('🔄 Starting processing, currentMpsId:', currentMpsId);
+      
       const mps = getMPSByID(currentMpsId);
       console.log('🎯 Found MPS:', mps);
       if (!mps) throw new Error('MPS not found');
@@ -884,6 +884,7 @@ Return a JSON array with this structure:
       }
 
       console.log('✅ Duplicate check passed, proceeding with AI analysis...');
+
       const nextNumber = mpssCriteria.length + 1;
       const criteriaNumber = `${mps.mps_number}.${nextNumber}`;
       console.log('📊 Generated criteria number:', criteriaNumber);
