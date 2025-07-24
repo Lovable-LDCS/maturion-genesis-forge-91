@@ -45,18 +45,18 @@ const MaturionKnowledgeBase: React.FC = () => {
 
     setIsUploadingGuidance(true);
     try {
-      // Create the document content
-      const guidanceContent = `# Maturion Knowledge Base Guidance – Cross-Domain Criteria Handling (Extended)
+      // Create the document content (v2 with all 7 scenarios)
+      const guidanceContent = `# Maturion Knowledge Base Guidance – Cross-Domain Criteria Handling (Extended, v2)
 
 ## Purpose
-This document provides enhanced universal logic and fallback handling for proposed criteria that may fall outside the domain or MPS currently being configured. It supports better AI reasoning, user guidance, and safeguards against misplacement or omission of valid suggestions.
+This document provides enhanced universal logic and fallback handling for proposed criteria that may fall outside the domain or MPS currently being configured. It supports better AI reasoning, user guidance, and safeguards against misplacement, duplication, or omission of valid suggestions.
 
 ## Scope
-This logic applies globally across **all Domains** and **all MPSs**, and includes additional user behavioral logic to ensure no relevant criteria are lost, misfiled, or skipped.
+This logic applies globally across **all Domains** and **all MPSs**, and includes additional user behavioral logic to ensure no relevant criteria are lost, misfiled, or repeated unnecessarily.
 
 ---
 
-## Logic Rules (Extended)
+## Logic Rules (Extended – 7 Scenarios)
 
 ### ✅ Scenario 1: Proposed Criterion Fits Current MPS
 - AI (Maturion) reconstructs and validates the proposed criterion.
@@ -103,6 +103,17 @@ This logic applies globally across **all Domains** and **all MPSs**, and include
 - **Fallback:** If the user skips MPS B and reaches the final step of the domain without approving the deferred criterion:
   > ⚠️ "You still have unresolved criteria for MPS B in this domain. Would you like to review them before proceeding?"
 
+### ✅ Scenario 7: Proposed Criterion Is a Duplicate of Existing One
+- Maturion detects a criterion already exists (exact or near match).
+- Prompts:
+  > "This criterion is already included in this MPS. Would you like to:
+  > • Keep the existing one
+  > • Replace it with your version
+  > • Skip it entirely?"
+- If skipped, no duplicate is inserted.
+- If replaced, the old criterion is removed and new one inserted.
+- If both are kept, user is warned about redundancy.
+
 ---
 
 ## Modal Loop Logic
@@ -110,21 +121,22 @@ After submitting a custom criterion:
 - Always ask:
   > "Would you like to propose another?"
 - Modal repeats until the user explicitly confirms they are done.
+- Loop is persistent and allows sequential submissions.
 
 ---
 
 ## Upload Instructions
-- **Tags:** \`cross-domain\`, \`criteria-placement\`, \`lesson-learned\`, \`ai-logic\`, \`modal-logic\`, \`split-criteria\`
+- **Tags:** \`cross-domain\`, \`criteria-placement\`, \`lesson-learned\`, \`ai-logic\`, \`modal-logic\`, \`split-criteria\`, \`duplicate-detection\`
 - **Domain:** *(Leave blank for global logic)*
-- **Upload Notes:** Replaces previous guidance. Includes enhanced user flow logic and behavioral safeguards for full coverage across domains and intra-domain MPS deferrals.
+- **Upload Notes:** Replaces previous guidance. Includes 7-scenario model and loop control logic to manage cross-domain proposals, duplicate detection, and modal handling.
 
 ---
 
-*Generated on 2025-07-23 14:27 UTC – includes 6-scenario logic model and modal loop control.*`;
+*Generated on 2025-07-24 13:24 UTC – Version 2*`;
 
       // Create a File object from the content
       const blob = new Blob([guidanceContent], { type: 'text/markdown' });
-      const file = new File([blob], 'Maturion Knowledge Base Guidance – Cross-Domain Criteria Handling (Extended).md', {
+      const file = new File([blob], 'Maturion_Criteria_Logic_v2.md', {
         type: 'text/markdown',
         lastModified: Date.now()
       });
@@ -134,10 +146,10 @@ After submitting a custom criterion:
         'general',
         currentOrganization.id,
         user.id,
-        'Maturion Knowledge Base Guidance – Cross-Domain Criteria Handling (Extended)',
+        'Maturion Knowledge Base Guidance – Cross-Domain Criteria Handling (Extended, v2)',
         '', // Global logic - no specific domain
-        'cross-domain, criteria-placement, lesson-learned, ai-logic, modal-logic, split-criteria',
-        'Supersedes the earlier version. Includes 6 refined logic scenarios for accurate criterion placement across domains and MPSs. Introduces modal loop logic for user submissions. Implements behavioral safeguards for unplaced or deferred suggestions. Ensures no valid inputs are lost, misfiled, or skipped.'
+        'cross-domain, criteria-placement, lesson-learned, ai-logic, modal-logic, split-criteria, duplicate-detection',
+        'Replaces previous guidance. Includes 7-scenario model and loop control logic to manage cross-domain proposals, duplicate detection, and modal handling.'
       );
 
       if (documentId) {
