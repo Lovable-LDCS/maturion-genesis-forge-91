@@ -27,7 +27,7 @@ const documentTypeLabels: Record<MaturionDocument['document_type'], string> = {
   mps_document: 'MPS Document',
   iso_alignment: 'ISO Alignment',
   assessment_framework_component: 'Assessment Framework Component',
-  ai_logic_rule: 'AI Logic Rule – Global',
+  ai_logic_rule_global: 'AI Logic Rule – Global',
   system_instruction: 'System Instruction – Global'
 };
 

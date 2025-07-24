@@ -9,7 +9,7 @@ export interface MaturionDocument {
   file_path: string;
   file_size: number;
   mime_type: string;
-  document_type: 'maturity_model' | 'sector_context' | 'scoring_logic' | 'sop_template' | 'general' | 'mps_document' | 'iso_alignment' | 'assessment_framework_component' | 'ai_logic_rule' | 'system_instruction';
+  document_type: 'maturity_model' | 'sector_context' | 'scoring_logic' | 'sop_template' | 'general' | 'mps_document' | 'iso_alignment' | 'assessment_framework_component' | 'ai_logic_rule_global' | 'system_instruction';
   processing_status: 'pending' | 'processing' | 'completed' | 'failed';
   total_chunks: number;
   metadata: any;
