@@ -2243,3 +2243,5 @@ Return a JSON array with this structure:
     </Dialog>
   );
 };
+
+export default CriteriaManagement;
