@@ -832,7 +832,13 @@ Return a JSON array with this structure:
     }
 
     // Validate inputs
+    console.log('📝 Validating inputs:', { 
+      statement: customCriterion.statement.trim(), 
+      summary: customCriterion.summary.trim() 
+    });
+    
     if (!customCriterion.statement.trim() || !customCriterion.summary.trim()) {
+      console.log('❌ Validation failed - missing statement or summary');
       toast({
         title: "Missing Information",
         description: "Please provide both a criterion statement and summary.",
@@ -841,25 +847,35 @@ Return a JSON array with this structure:
       return;
     }
 
+    console.log('✅ Validation passed, proceeding...');
+
     // Store the current MPS ID at the start to ensure it's available throughout the process
     const currentMpsId = showCustomCriteriaModal;
     
     setIsProcessingCustom(true);
+    console.log('🔄 Starting processing, currentMpsId:', currentMpsId);
+    
     try {
       const mps = getMPSByID(currentMpsId);
+      console.log('🎯 Found MPS:', mps);
       if (!mps) throw new Error('MPS not found');
 
       // Check for duplicate criteria within the same MPS
       const mpssCriteria = getCriteriaForMPS(currentMpsId);
+      console.log('📋 Existing criteria for MPS:', mpssCriteria.length);
+      console.log('🔍 Starting duplicate check...');
       const duplicateResult = await checkForDuplicateCriteria(customCriterion.statement, mpssCriteria);
       
       if (!duplicateResult) {
+        console.log('❌ Duplicate check failed or user cancelled');
         setIsProcessingCustom(false);
         return; // User chose to skip or edit existing
       }
 
+      console.log('✅ Duplicate check passed, proceeding with AI analysis...');
       const nextNumber = mpssCriteria.length + 1;
       const criteriaNumber = `${mps.mps_number}.${nextNumber}`;
+      console.log('📊 Generated criteria number:', criteriaNumber);
 
       // Enhanced AI validation with smart placement detection
       const prompt = `Please review this custom assessment criterion and check for proper placement:
@@ -888,6 +904,7 @@ Return as JSON:
   "evidence_suggestions": "specific evidence recommendation"
 }`;
 
+      console.log('🤖 Calling AI placement analysis...');
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
           prompt: prompt,
@@ -898,6 +915,8 @@ Return as JSON:
           knowledgeBaseUsed: true
         }
       });
+      
+      console.log('🤖 AI analysis result:', { data, error });
 
       
       if (error) {
