@@ -15,6 +15,7 @@ import { AISourceIndicator } from '@/components/ai/AISourceIndicator';
 import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useCustomCriterion } from '@/hooks/useCustomCriterion';
 
 interface MPS {
   id: string;
@@ -116,6 +117,7 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
     }>;
     mpsId: string;
   } | null>(null);
+
 
   // Load existing MPSs and criteria when modal opens
   useEffect(() => {
@@ -816,299 +818,56 @@ Return a JSON array with this structure:
     return mpsList.find(mps => mps.id === mpsId);
   };
 
+  // Clean, simple function using the extracted hook
   const addCustomCriterion = async () => {
-    console.log('🚀 addCustomCriterion called with:', { 
-      customCriterion, 
-      showCustomCriteriaModal, 
-      organizationId: currentOrganization?.id 
-    });
-
-    console.log('🔬 IMMEDIATE STATE CHECK:', {
-      hasCurrentOrg: !!currentOrganization,
-      currentOrgId: currentOrganization?.id,
-      showModal: showCustomCriteriaModal,
-      isProcessing: isProcessingCustom
-    });
-
-    try {
-      if (!currentOrganization?.id || !showCustomCriteriaModal) {
-        console.log('❌ Missing required data:', { 
-          hasOrganization: !!currentOrganization?.id, 
-          hasModalId: !!showCustomCriteriaModal,
-          currentOrgId: currentOrganization?.id,
-          modalId: showCustomCriteriaModal
-        });
-        return;
-      }
-
-      console.log('✅ Required data check passed, proceeding with validation...');
-
-      // Validate inputs
-      console.log('📝 Validating inputs:', { 
-        statement: customCriterion.statement.trim(), 
-        summary: customCriterion.summary.trim() 
-      });
-      
-      if (!customCriterion.statement.trim() || !customCriterion.summary.trim()) {
-        console.log('❌ Validation failed - missing statement or summary');
-        toast({
-          title: "Missing Information",
-          description: "Please provide both a criterion statement and summary.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log('✅ Validation passed, proceeding...');
-
-      // Store the current MPS ID at the start to ensure it's available throughout the process
-      const currentMpsId = showCustomCriteriaModal;
-      
-      setIsProcessingCustom(true);
-      console.log('🔄 Starting processing, currentMpsId:', currentMpsId);
-      
-      const mps = getMPSByID(currentMpsId);
-      console.log('🎯 Found MPS:', mps);
-      if (!mps) throw new Error('MPS not found');
-
-      // Check for duplicate criteria within the same MPS
-      const mpssCriteria = getCriteriaForMPS(currentMpsId);
-      console.log('📋 Existing criteria for MPS:', mpssCriteria.length);
-      console.log('🔍 Starting duplicate check...');
-      const duplicateResult = await checkForDuplicateCriteria(customCriterion.statement, mpssCriteria);
-      
-      if (!duplicateResult) {
-        console.log('❌ Duplicate check failed or user cancelled');
-        setIsProcessingCustom(false);
-        return; // User chose to skip or edit existing
-      }
-
-      console.log('✅ Duplicate check passed, proceeding with AI analysis...');
-
-      const nextNumber = mpssCriteria.length + 1;
-      const criteriaNumber = `${mps.mps_number}.${nextNumber}`;
-      console.log('📊 Generated criteria number:', criteriaNumber);
-
-      // Enhanced AI validation with smart placement detection
-      const prompt = `Please review this custom assessment criterion and check for proper placement:
-
-Statement: ${customCriterion.statement}
-Summary: ${customCriterion.summary}
-
-Current Context:
-- Target MPS ${mps.mps_number}: ${mps.name}
-- Domain: ${domainName}
-
-Please:
-1. Validate if this criterion belongs in the current MPS and domain
-2. If misaligned, suggest the correct domain and MPS with explanation
-3. Improve the criterion text for standards compliance
-
-Return as JSON:
-{
-  "belongs_here": true/false,
-  "suggested_domain": "domain name if misaligned",
-  "suggested_mps_number": number or null,
-  "suggested_mps_title": "title if misaligned",
-  "reason": "explanation for placement",
-  "improved_statement": "enhanced statement text",
-  "improved_summary": "enhanced summary text",
-  "evidence_suggestions": "specific evidence recommendation"
-}`;
-
-      console.log('🤖 Calling AI placement analysis...');
-      const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
-        body: {
-          prompt: prompt,
-          context: 'Smart criteria placement validation',
-          currentDomain: domainName,
-          organizationId: currentOrganization.id,
-          allowExternalContext: false,
-          knowledgeBaseUsed: true
-        }
-      });
-      
-      console.log('🤖 AI analysis result:', { data, error });
-
-      
-      if (error) {
-        console.warn('AI placement analysis failed, proceeding with original criterion placement:', error);
-        // Fallback: proceed with normal insertion if AI analysis fails
-      }
-
-      let placementAnalysis: {
-        belongs_here: boolean;
-        suggested_domain?: string;
-        suggested_mps_number?: number;
-        suggested_mps_title?: string;
-        reason?: string;
-        improved_statement: string;
-        improved_summary: string;
-        evidence_suggestions: string;
-      } = {
-        belongs_here: true,
-        improved_statement: customCriterion.statement,
-        improved_summary: customCriterion.summary,
-        evidence_suggestions: "Documentation and implementation evidence"
-      };
-
-      try {
-        // Only parse if we have a successful response
-        if (!error && data?.content) {
-          const responseContent = data.content || data.response || '';
-          console.log('🧠 AI Placement Analysis Response:', responseContent);
-          
-          const jsonStart = responseContent.indexOf('{');
-          const jsonEnd = responseContent.lastIndexOf('}');
-          
-          if (jsonStart !== -1 && jsonEnd !== -1) {
-            const jsonString = responseContent.substring(jsonStart, jsonEnd + 1);
-            console.log('🔍 Extracted JSON for placement analysis:', jsonString);
-            
-            const parsedData = JSON.parse(jsonString);
-            console.log('📊 Parsed placement analysis:', parsedData);
-            
-            if (parsedData.belongs_here !== undefined) {
-              placementAnalysis = parsedData;
-              console.log('✅ Placement analysis assigned:', placementAnalysis);
-            }
-          }
-        }
-      } catch (parseError) {
-        console.warn('Could not parse AI placement analysis, proceeding with original criterion:', parseError);
-      }
-
-      // If misaligned AND we have a successful AI analysis, show placement suggestion modal
-      console.log('🎯 Placement check:', { 
-        hasError: !!error, 
-        belongsHere: placementAnalysis.belongs_here, 
-        suggestedDomain: placementAnalysis.suggested_domain,
-        shouldTriggerModal: !error && !placementAnalysis.belongs_here && placementAnalysis.suggested_domain
-      });
-      
-      if (!error && !placementAnalysis.belongs_here && placementAnalysis.suggested_domain) {
-        // Create the criterion first, then show placement modal
-        const { data: newCriterion, error: insertError } = await supabase
-          .from('criteria')
-          .insert({
-            mps_id: showCustomCriteriaModal,
-            organization_id: currentOrganization.id,
-            criteria_number: criteriaNumber,
-            statement: placementAnalysis.improved_statement,
-            summary: placementAnalysis.improved_summary,
-            status: 'not_started',
-            deferral_status: 'pending_placement',
-            created_by: currentOrganization.owner_id,
-            updated_by: currentOrganization.owner_id
-          })
-          .select()
-          .single();
-
-        if (insertError) throw insertError;
-
-        // Determine scenario based on domain status
-        const scenario = await determinePlacementScenario(placementAnalysis.suggested_domain, domainName);
-
-        setShowPlacementModal({
-          criteriaId: newCriterion.id,
-          suggestion: {
-            domain: placementAnalysis.suggested_domain,
-            mpsNumber: placementAnalysis.suggested_mps_number || 0,
-            mpsTitle: placementAnalysis.suggested_mps_title || '',
-            reason: placementAnalysis.reason || 'Better alignment with domain focus',
-            scenario: scenario
-          },
-          currentStatement: placementAnalysis.improved_statement,
-          currentSummary: placementAnalysis.improved_summary,
-          originalMpsId: currentMpsId
-        });
-
-        setShowCustomCriteriaModal(null);
-        setCustomCriterion({ statement: '', summary: '' });
-        return;
-      }
-
-      // Insert normally if placement is correct
-      const { error: insertError } = await supabase
-        .from('criteria')
-        .insert({
-          mps_id: showCustomCriteriaModal,
-          organization_id: currentOrganization.id,
-          criteria_number: criteriaNumber,
-          statement: placementAnalysis.improved_statement,
-          summary: placementAnalysis.improved_summary,
-          status: 'not_started',
-          created_by: currentOrganization.owner_id,
-          updated_by: currentOrganization.owner_id
-        });
-
-      if (insertError) throw insertError;
-
-      // Refresh data
-      await fetchMPSsAndCriteria();
-
+    if (!currentOrganization?.id || !showCustomCriteriaModal) {
+      console.log('❌ Missing required data for custom criterion');
       toast({
-        title: "✅ Custom Criterion Added",
-        description: `Successfully added criterion ${criteriaNumber}`,
-      });
-
-      // Reset form and show "Add Another?" modal using stored MPS ID
-      resetCustomCriteriaForm();
-      setShowCustomCriteriaModal(null);
-      setShowAddAnotherModal(currentMpsId);
-
-    } catch (error) {
-      console.error('Error adding custom criterion:', error);
-      
-      // Check if this is a function call error and provide more specific feedback
-      if (error?.message?.includes('Edge Function returned a non-2xx status code')) {
-        toast({
-          title: "AI Analysis Temporarily Unavailable",
-          description: "Criterion added without smart placement analysis. Please manually review if it fits this domain.",
-          variant: "default"
-        });
-        
-        // Proceed with normal insertion as fallback
-        try {
-          const mps = getMPSByID(showCustomCriteriaModal);
-          if (!mps) throw new Error('MPS not found');
-          
-          const mpssCriteria = getCriteriaForMPS(showCustomCriteriaModal);
-          const nextNumber = mpssCriteria.length + 1;
-          const criteriaNumber = `${mps.mps_number}.${nextNumber}`;
-          
-          const { error: insertError } = await supabase
-            .from('criteria')
-            .insert({
-              mps_id: showCustomCriteriaModal,
-              organization_id: currentOrganization.id,
-              criteria_number: criteriaNumber,
-              statement: customCriterion.statement,
-              summary: customCriterion.summary,
-              status: 'not_started',
-              created_by: currentOrganization.owner_id,
-              updated_by: currentOrganization.owner_id
-            });
-
-          if (!insertError) {
-            await fetchMPSsAndCriteria();
-            setShowCustomCriteriaModal(null);
-            setCustomCriterion({ statement: '', summary: '' });
-            return;
-          }
-        } catch (fallbackError) {
-          console.error('Fallback insertion also failed:', fallbackError);
-        }
-      }
-      
-      toast({
-        title: "Failed to Add Criterion",
-        description: "Could not add the custom criterion.",
+        title: "Missing Data",
+        description: "Missing organization or MPS data",
         variant: "destructive"
       });
-    } finally {
-      setIsProcessingCustom(false);
+      return;
     }
+
+    setIsProcessingCustom(true);
+    
+    try {
+      // Use the extracted hook logic
+      const customCriterionHook = useCustomCriterion({
+        organizationId: currentOrganization.id,
+        organizationOwnerId: currentOrganization.owner_id,
+        domainName,
+        getMPSByID,
+        getCriteriaForMPS,
+        checkForDuplicateCriteria,
+        determinePlacementScenario,
+        onRefreshData: fetchMPSsAndCriteria,
+        onShowPlacementModal: setShowPlacementModal
+      });
+
+      const { success, placementModalTriggered } = await customCriterionHook.addCustomCriterion(
+        customCriterion,
+        showCustomCriteriaModal
+      );
+
+      if (success) {
+        // Reset form and handle next steps
+        resetCustomCriteriaForm();
+        setShowCustomCriteriaModal(null);
+        
+        // Only show "Add Another" modal if placement modal wasn't triggered
+        if (!placementModalTriggered) {
+          setShowAddAnotherModal(showCustomCriteriaModal);
+        }
+      }
+    } catch (error) {
+      console.error('Error in addCustomCriterion:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add criterion. Please try again.",
+        variant: "destructive"
+      });
   };
 
   const deferCriterion = async (criteriaId: string, suggestion: any) => {
