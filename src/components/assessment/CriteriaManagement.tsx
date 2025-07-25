@@ -472,15 +472,22 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
                     
                     return (
                       <Card key={mps.id}>
-                        <CardHeader className="cursor-pointer" onClick={() => {
-                          setCollapsedMPS(prev => {
-                            const newSet = new Set(prev);
-                            if (newSet.has(mps.id)) {
-                              newSet.delete(mps.id);
-                            } else {
-                              newSet.add(mps.id);
-                            }
-                            return newSet;
+                <CardHeader className="cursor-pointer" onClick={() => {
+                  setCollapsedMPS(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(mps.id)) {
+                      newSet.delete(mps.id);
+                    } else {
+                      newSet.add(mps.id);
+                      // Check for deferred criteria when expanding MPS
+                      const deferredReminders = getRemindersForMPS(domainName, mps.mps_number.toString());
+                      if (deferredReminders && deferredReminders.deferrals.length > 0) {
+                        console.log(`🔔 Deferred criteria found for ${domainName} MPS ${mps.mps_number}:`, deferredReminders);
+                        setCurrentReminderData(deferredReminders);
+                        setShowReminderModal(true);
+                      }
+                    }
+                    return newSet;
                           });
                         }}>
                           <CardTitle className="flex items-center justify-between">
