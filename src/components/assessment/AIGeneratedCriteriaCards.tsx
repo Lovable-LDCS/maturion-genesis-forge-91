@@ -51,6 +51,23 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
   const generateAICriteria = async () => {
     setIsGenerating(true);
     
+    // Fetch organization context for name injection
+    let organizationName = 'the organization';
+    try {
+      const { data: orgData } = await supabase
+        .from('organizations')
+        .select('name, industry_tags, region_operating, risk_concerns, compliance_commitments')
+        .eq('id', organizationId)
+        .single();
+      
+      if (orgData?.name) {
+        organizationName = orgData.name;
+        console.log(`AI Criteria Tailoring: Organization name "${organizationName}" injected for context`);
+      }
+    } catch (error) {
+      console.warn('Failed to fetch organization name for injection:', error);
+    }
+    
     // Check if criteria already exist for this MPS
     try {
       const { data: existingCriteria } = await supabase
@@ -78,7 +95,8 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
     }
     
     // LOCKED SYSTEM PROMPT - Override all default generation prompts
-    const systemPrompt = `You are an AI assessment criteria generator operating under strict system constraints from the AI Criteria Generation Policy and Annex 2 AI_Criteria_Evaluation_Guide documents in the AI Admin Knowledge Base.
+    // Organization Name Injection Policy Applied
+    const systemPrompt = `You are an AI assessment criteria generator operating under strict system constraints from the AI Criteria Generation Policy, Annex 2 AI_Criteria_Evaluation_Guide, and AI Criteria Tailoring Policy – Organization Name Injection documents in the AI Admin Knowledge Base.
 
 MANDATORY SYSTEM CONSTRAINTS (NON-NEGOTIABLE):
 
@@ -89,6 +107,7 @@ MANDATORY SYSTEM CONSTRAINTS (NON-NEGOTIABLE):
 5. STRUCTURAL COMPLIANCE: Evidence Type + Verb + Context + Condition/Purpose
 6. ANTI-VAGUENESS: Never use "appropriate," "adequate," or "effective" without specific qualification/measurement
 7. MATURION LINK: End all explanations with: "Ask Maturion if you want to learn more."
+8. ORGANIZATION NAME INJECTION: Dynamically incorporate "${organizationName}" into criteria, intents, and suggestions where contextually appropriate
 
 HALLUCINATION FILTERS - REJECT ANY CONTENT WITH:
 - Unsupported claims not grounded in MPS context
@@ -96,18 +115,26 @@ HALLUCINATION FILTERS - REJECT ANY CONTENT WITH:
 - More than one "A policy shall be in place..." statement per MPS
 - Repetitive or template-like phrasing
 - Vague qualifiers without specific thresholds
+- Missing organization name context where relevant
 
 CONTROLLED CREATIVITY BOUNDARIES:
 - Variety in evidence types (policies, records, logs, systems, audits, interviews, configurations)
 - Context drawn from uploaded AI Admin Knowledge Base documents
 - Structured creativity mode - NOT freeform generation
 - Clarity prioritized over verbosity
+- Organization-specific language using "${organizationName}" where contextually relevant
+
+ORGANIZATION CONTEXT FOR INJECTION:
+- Organization Name: ${organizationName}
+- Use this name naturally in criteria statements where it makes sense (e.g., "${organizationName}'s policy framework", "within ${organizationName}", "by ${organizationName} personnel")
+- Maintain professional tone while personalizing content to this specific organization
 
 MPS CONTEXT FOR GENERATION:
 - Number: ${mps.mps_number}
 - Title: ${mps.name}
 - Domain: ${domainName}
 - Intent: ${mps.intent_statement || 'Not specified'}
+- Target Organization: ${organizationName}
 
 GENERATION TARGET: Generate 8-25 criteria based on MPS complexity for comprehensive coverage.
 
@@ -241,15 +268,44 @@ RESPONSE FORMAT - STRICT JSON:
               });
             }
             
-            // Log generation attempt with metadata
+            // Log generation attempt with metadata including organization name injection tracking
             const generationMetadata = parsedData.generation_metadata || {
               criteria_count: criteria.length,
               complexity_assessment: 'unknown',
               evidence_types_used: [],
-              document_references: ['AI_Criteria_Generation_Policy', 'Annex_2']
+              document_references: ['AI_Criteria_Generation_Policy', 'Annex_2', 'AI_Criteria_Tailoring_Policy_Organization_Name_Injection']
             };
             
-            await logGeneration(systemPrompt, data.content, generationMetadata);
+            // QA Validation: Track organization name injection compliance
+            const orgNameMissing = criteria.filter(c => 
+              !c.statement?.includes(organizationName) && 
+              !c.explanation?.includes(organizationName) && 
+              organizationName !== 'the organization'
+            );
+            
+            if (orgNameMissing.length > 0) {
+              console.warn(`QA Alert: ${orgNameMissing.length} criteria missing organization name injection for "${organizationName}"`);
+              // Log compliance issue
+              await supabase.from('ai_upload_audit').insert({
+                organization_id: organizationId,
+                user_id: organizationId,
+                action: 'qa_organization_name_missing',
+                metadata: {
+                  organization_name: organizationName,
+                  criteria_missing_name: orgNameMissing.length,
+                  total_criteria: criteria.length,
+                  compliance_percentage: ((criteria.length - orgNameMissing.length) / criteria.length * 100).toFixed(2)
+                }
+              });
+            } else {
+              console.log(`✅ QA Passed: All criteria include organization name "${organizationName}"`);
+            }
+            
+            await logGeneration(systemPrompt, data.content, { 
+              ...generationMetadata, 
+              organization_name_injection_compliance: orgNameMissing.length === 0,
+              organization_name_used: organizationName
+            });
           } else {
             // Fallback: try to parse as array
             const arrayStart = responseContent.indexOf('[');
