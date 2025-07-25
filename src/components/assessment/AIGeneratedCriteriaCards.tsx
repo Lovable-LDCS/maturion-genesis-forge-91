@@ -46,13 +46,19 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
   const [isGenerating, setIsGenerating] = useState(true);
   const [editingCriterion, setEditingCriterion] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{ statement: string; summary: string }>({ statement: '', summary: '' });
+  const [organizationContext, setOrganizationContext] = useState({
+    name: 'the organization',
+    industry_tags: [] as string[],
+    region_operating: null as string | null,
+    risk_concerns: [] as string[],
+    compliance_commitments: [] as string[]
+  });
   const { toast } = useToast();
 
   const generateAICriteria = async () => {
     setIsGenerating(true);
     
-    // Fetch organization context for name injection
-    let organizationName = 'the organization';
+    // Fetch organization context for name injection policy compliance
     try {
       const { data: orgData } = await supabase
         .from('organizations')
@@ -60,12 +66,19 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
         .eq('id', organizationId)
         .single();
       
-      if (orgData?.name) {
-        organizationName = orgData.name;
-        console.log(`AI Criteria Tailoring: Organization name "${organizationName}" injected for context`);
+      if (orgData) {
+        const updatedContext = {
+          name: orgData.name || 'the organization',
+          industry_tags: orgData.industry_tags || [],
+          region_operating: orgData.region_operating,
+          risk_concerns: orgData.risk_concerns || [],
+          compliance_commitments: orgData.compliance_commitments || []
+        };
+        setOrganizationContext(updatedContext);
+        console.log(`✅ AI Criteria Tailoring Policy: Organization "${updatedContext.name}" context loaded for injection`);
       }
     } catch (error) {
-      console.warn('Failed to fetch organization name for injection:', error);
+      console.warn('⚠️ Failed to fetch organization context for AI Criteria Tailoring Policy:', error);
     }
     
     // Check if criteria already exist for this MPS
@@ -84,14 +97,16 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
           summary: criterion.summary || '',
           rationale: 'Existing criterion from database',
           status: criterion.status === 'not_started' ? 'pending' as const : 'approved' as const,
-          criteria_number: criterion.criteria_number || `${mps.mps_number}.${index + 1}`
+          criteria_number: criterion.criteria_number || `${mps.mps_number}.${index + 1}`,
+          evidence_guidance: 'Evidence requirements established during prior assessment',
+          explanation: `This criterion was previously defined for ${organizationContext.name}. Ask Maturion if you want to learn more.`
         }));
         setGeneratedCriteria(processedCriteria);
         setIsGenerating(false);
         return;
       }
     } catch (error) {
-      console.log('No existing criteria found, generating new ones');
+      console.log('No existing criteria found, generating new ones with AI Criteria Generation Policy');
     }
     
     // LOCKED SYSTEM PROMPT - Override all default generation prompts
@@ -107,7 +122,7 @@ MANDATORY SYSTEM CONSTRAINTS (NON-NEGOTIABLE):
 5. STRUCTURAL COMPLIANCE: Evidence Type + Verb + Context + Condition/Purpose
 6. ANTI-VAGUENESS: Never use "appropriate," "adequate," or "effective" without specific qualification/measurement
 7. MATURION LINK: End all explanations with: "Ask Maturion if you want to learn more."
-8. ORGANIZATION NAME INJECTION: Dynamically incorporate "${organizationName}" into criteria, intents, and suggestions where contextually appropriate
+8. ORGANIZATION NAME INJECTION: Dynamically incorporate "${organizationContext.name}" into criteria, intents, and suggestions where contextually appropriate
 
 HALLUCINATION FILTERS - REJECT ANY CONTENT WITH:
 - Unsupported claims not grounded in MPS context
@@ -122,11 +137,14 @@ CONTROLLED CREATIVITY BOUNDARIES:
 - Context drawn from uploaded AI Admin Knowledge Base documents
 - Structured creativity mode - NOT freeform generation
 - Clarity prioritized over verbosity
-- Organization-specific language using "${organizationName}" where contextually relevant
+- Organization-specific language using "${organizationContext.name}" where contextually relevant
 
 ORGANIZATION CONTEXT FOR INJECTION:
-- Organization Name: ${organizationName}
-- Use this name naturally in criteria statements where it makes sense (e.g., "${organizationName}'s policy framework", "within ${organizationName}", "by ${organizationName} personnel")
+- Organization Name: ${organizationContext.name}
+- Industry Context: ${organizationContext.industry_tags?.join(', ') || 'Not specified'}
+- Region: ${organizationContext.region_operating || 'Not specified'}
+- Risk Concerns: ${organizationContext.risk_concerns?.join(', ') || 'Not specified'}
+- Use this name naturally in criteria statements where it makes sense (e.g., "${organizationContext.name}'s policy framework", "within ${organizationContext.name}", "by ${organizationContext.name} personnel")
 - Maintain professional tone while personalizing content to this specific organization
 
 MPS CONTEXT FOR GENERATION:
@@ -134,7 +152,7 @@ MPS CONTEXT FOR GENERATION:
 - Title: ${mps.name}
 - Domain: ${domainName}
 - Intent: ${mps.intent_statement || 'Not specified'}
-- Target Organization: ${organizationName}
+- Target Organization: ${organizationContext.name}
 
 GENERATION TARGET: Generate 8-25 criteria based on MPS complexity for comprehensive coverage.
 
@@ -278,33 +296,33 @@ RESPONSE FORMAT - STRICT JSON:
             
             // QA Validation: Track organization name injection compliance
             const orgNameMissing = criteria.filter(c => 
-              !c.statement?.includes(organizationName) && 
-              !c.explanation?.includes(organizationName) && 
-              organizationName !== 'the organization'
+              !c.statement?.includes(organizationContext.name) && 
+              !c.explanation?.includes(organizationContext.name) && 
+              organizationContext.name !== 'the organization'
             );
             
             if (orgNameMissing.length > 0) {
-              console.warn(`QA Alert: ${orgNameMissing.length} criteria missing organization name injection for "${organizationName}"`);
+              console.warn(`QA Alert: ${orgNameMissing.length} criteria missing organization name injection for "${organizationContext.name}"`);
               // Log compliance issue
               await supabase.from('ai_upload_audit').insert({
                 organization_id: organizationId,
                 user_id: organizationId,
                 action: 'qa_organization_name_missing',
                 metadata: {
-                  organization_name: organizationName,
+                  organization_name: organizationContext.name,
                   criteria_missing_name: orgNameMissing.length,
                   total_criteria: criteria.length,
                   compliance_percentage: ((criteria.length - orgNameMissing.length) / criteria.length * 100).toFixed(2)
                 }
               });
             } else {
-              console.log(`✅ QA Passed: All criteria include organization name "${organizationName}"`);
+              console.log(`✅ QA Passed: All criteria include organization name "${organizationContext.name}"`);
             }
             
             await logGeneration(systemPrompt, data.content, { 
               ...generationMetadata, 
               organization_name_injection_compliance: orgNameMissing.length === 0,
-              organization_name_used: organizationName
+              organization_name_used: organizationContext.name
             });
           } else {
             // Fallback: try to parse as array
@@ -320,66 +338,33 @@ RESPONSE FORMAT - STRICT JSON:
         }
       }
 
-      // Generate varied fallback criteria if AI fails
+      // Policy-aligned fallback criteria if AI fails - no legacy templates
       if (!criteria || criteria.length === 0) {
+        console.warn('AI generation failed, providing policy-aligned minimal fallback criteria');
+        
         criteria = [
           {
-            statement: `A policy shall be in place that establishes ${mps.name?.toLowerCase() || 'this practice'} governance framework with defined roles, responsibilities, and approval authorities`,
-            summary: `Evaluate the governance framework for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Clear governance framework is fundamental to successful implementation',
-            evidence_guidance: 'Formally approved policy document, version control records, role definitions, approval matrix, communication records',
-            explanation: `This criterion ensures there is a documented governance structure for ${mps.name?.toLowerCase() || 'this practice'}. Evidence should include the formal policy document with clear version control, defined roles and responsibilities, approval authorities, and records showing the policy has been communicated to relevant personnel. This matters because without clear governance, implementation becomes ad-hoc and inconsistent.`
+            statement: `${organizationContext.name}'s governance framework shall document roles and responsibilities for ${mps.name?.toLowerCase() || 'this practice'} with evidence of formal approval and annual review cycles`,
+            summary: `Assess governance documentation specific to ${organizationContext.name}`,
+            rationale: 'Formal governance provides accountability and clarity for implementation',
+            evidence_guidance: 'Approved governance framework document, role definitions, annual review records, approval signatures',
+            explanation: `This criterion ensures ${organizationContext.name} has established clear governance for ${mps.name?.toLowerCase() || 'this practice'}. Evidence should include the formal governance framework document with defined roles, responsibilities, approval records, and evidence of annual reviews. This is fundamental because clear governance prevents confusion and ensures accountability. Ask Maturion if you want to learn more.`
           },
           {
-            statement: `Records shall demonstrate systematic implementation of ${mps.name?.toLowerCase() || 'this practice'} activities with documented outcomes and frequency of at least monthly reviews`,
-            summary: `Assess documented evidence of ${mps.name?.toLowerCase() || 'this practice'} implementation`,
-            rationale: 'Documentation provides evidence of systematic implementation',
-            evidence_guidance: 'Activity logs, review meeting minutes, outcome reports, dated records showing monthly frequency, sign-off documentation',
-            explanation: `This criterion verifies that ${mps.name?.toLowerCase() || 'this practice'} is being systematically implemented with regular reviews. Evidence should include activity logs, meeting minutes from monthly reviews, documented outcomes, and appropriate sign-offs. This is important because it demonstrates consistent execution rather than sporadic or informal implementation.`
-          },
-          {
-            statement: `Training records shall show personnel competency in ${mps.name?.toLowerCase() || 'this practice'} with test scores ≥80% and annual refresher training`,
-            summary: `Evaluate training programs and competency records for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Training ensures personnel understand and can execute requirements',
-            evidence_guidance: 'Signed attendance registers, test results showing ≥80% scores, competency matrices, annual training schedules, certification records',
-            explanation: `This criterion ensures personnel have the necessary knowledge and skills for ${mps.name?.toLowerCase() || 'this practice'}. Evidence should include signed training attendance records, test scores of 80% or higher, competency assessment matrices, and schedules showing annual refresher training. This matters because untrained personnel cannot effectively implement requirements, leading to compliance failures.`
-          },
-          {
-            statement: `A monitoring system must track performance indicators for ${mps.name?.toLowerCase() || 'this practice'} with automated alerts for deviations exceeding defined thresholds`,
-            summary: `Assess monitoring and measurement processes for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Monitoring ensures ongoing effectiveness and compliance',
-            evidence_guidance: 'System configuration screenshots, alert logs, threshold definitions, performance dashboards, escalation procedures',
-            explanation: `This criterion requires an active monitoring system that tracks key performance indicators and provides alerts when thresholds are exceeded. Evidence should include system configurations, alert logs, clearly defined thresholds, performance dashboards, and escalation procedures. This is critical because proactive monitoring enables early detection and correction of issues before they become major problems.`
-          },
-          {
-            statement: `Independent audit results must confirm compliance with ${mps.name?.toLowerCase() || 'this practice'} requirements through annual assessments by qualified auditors`,
-            summary: `Evaluate audit findings and verification activities for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Independent verification confirms operational effectiveness',
-            evidence_guidance: 'Independent audit reports, auditor qualifications, finding classifications, corrective action plans, annual audit schedules',
-            explanation: `This criterion ensures independent verification of ${mps.name?.toLowerCase() || 'this practice'} effectiveness. Evidence should include formal audit reports from qualified auditors, documentation of auditor credentials, classification of findings, corrective action plans, and annual audit schedules. This matters because independent verification provides objective assurance that requirements are being met effectively.`
-          },
-          {
-            statement: `An incident log shall be maintained that captures all ${mps.name?.toLowerCase() || 'this practice'}-related incidents with root cause analysis completed within 30 days`,
-            summary: `Assess incident tracking and response capabilities for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Incident tracking enables continuous improvement and risk management',
-            evidence_guidance: 'Incident log database, root cause analysis reports, 30-day completion tracking, corrective action records, trend analysis',
-            explanation: `This criterion requires systematic tracking of incidents related to ${mps.name?.toLowerCase() || 'this practice'} with timely analysis. Evidence should include a maintained incident log, root cause analysis reports completed within 30 days, corrective action records, and trend analysis. This is important because systematic incident tracking enables learning from failures and preventing recurrence.`
-          },
-          {
-            statement: `Evidence must show measurable improvement in ${mps.name?.toLowerCase() || 'this practice'} performance through documented metrics and quarterly improvement initiatives`,
-            summary: `Evaluate continuous improvement mechanisms for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Continuous improvement ensures ongoing enhancement and adaptation',
-            evidence_guidance: 'Performance metrics trends, improvement project documentation, quarterly review records, before/after comparisons, benefits realization reports',
-            explanation: `This criterion ensures continuous improvement is actively pursued with measurable results. Evidence should include trending performance metrics, documented improvement projects, quarterly review records, before/after comparisons, and benefits realization reports. This matters because continuous improvement ensures the practice evolves and becomes more effective over time rather than remaining static.`
-          },
-          {
-            statement: `Resource allocation records must demonstrate sufficient funding and staffing for ${mps.name?.toLowerCase() || 'this practice'} with budget approval and quarterly resource reviews`,
-            summary: `Assess resource allocation and management for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Adequate resources are essential for effective implementation',
-            evidence_guidance: 'Budget allocation documents, staffing plans, resource utilization reports, quarterly review minutes, approval authorities',
-            explanation: `This criterion ensures adequate resources are allocated and managed for ${mps.name?.toLowerCase() || 'this practice'}. Evidence should include formal budget allocations, staffing plans, resource utilization reports, quarterly review minutes, and appropriate approval authorities. This is essential because insufficient resources lead to implementation failures and compromised effectiveness.`
+            statement: `System logs must demonstrate ${organizationContext.name} personnel actively implementing ${mps.name?.toLowerCase() || 'this practice'} with monthly performance metrics exceeding 85% compliance thresholds`,
+            summary: `Evaluate system-recorded implementation evidence within ${organizationContext.name}`,
+            rationale: 'System-generated evidence provides objective verification of active implementation',
+            evidence_guidance: 'System activity logs, automated compliance reports, monthly performance dashboards showing ≥85% compliance',
+            explanation: `This criterion requires objective system evidence that ${organizationContext.name} is actively implementing ${mps.name?.toLowerCase() || 'this practice'}. Evidence includes system logs, automated compliance reporting, and performance dashboards showing consistent achievement of 85% or higher compliance rates. This matters because system evidence is less susceptible to manipulation than manual documentation. Ask Maturion if you want to learn more.`
           }
         ];
+        
+        // Add organization context to fallback criteria
+        criteria = criteria.map(criterion => ({
+          ...criterion,
+          evidence_guidance: criterion.evidence_guidance || `Organization-specific evidence requirements for ${organizationContext.name}`,
+          explanation: criterion.explanation || `This criterion is tailored for ${organizationContext.name} and their implementation of ${mps.name?.toLowerCase() || 'this practice'}. Ask Maturion if you want to learn more.`
+        }));
       }
 
       // Note: No minimum threshold check - generate as many as needed for coverage
@@ -530,8 +515,8 @@ RESPONSE FORMAT - STRICT JSON:
   };
 
   const handleSaveEdit = async (criterionId: string) => {
-    // Re-analyze edited criterion with AI
-    const prompt = `Please review and improve this edited assessment criterion:
+    // Re-analyze edited criterion with AI using policy-aligned enhancement
+    const prompt = `You are operating under the AI Criteria Generation Policy and AI Criteria Tailoring Policy – Organization Name Injection. Please review and improve this edited assessment criterion:
 
 Original Statement: ${editValues.statement}
 Original Summary: ${editValues.summary}
@@ -539,16 +524,18 @@ Original Summary: ${editValues.summary}
 Context:
 - MPS ${mps.mps_number}: ${mps.name}
 - Domain: ${domainName}
+- Organization: ${organizationContext?.name || 'Not specified'}
 
-Please improve for:
-1. Clarity and auditability
-2. Professional language
-3. Measurable outcomes
-4. Compliance with assessment standards
+Apply the following improvement criteria from Annex 2:
+1. Clarity and auditability - eliminate ambiguous language
+2. Professional directive language (e.g., "Records shall show...", "System logs must demonstrate...")
+3. Measurable outcomes with specific thresholds
+4. Organization name injection where contextually appropriate
+5. Compliance with assessment standards
 
 Return as JSON:
 {
-  "improved_statement": "enhanced statement",
+  "improved_statement": "enhanced statement with organization context",
   "improved_summary": "enhanced summary",
   "belongs_here": true/false,
   "suggestion": "improvement rationale"
