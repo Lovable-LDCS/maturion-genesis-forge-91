@@ -225,6 +225,7 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
     },
     onRefreshData: fetchMPSsAndCriteria,
     onShowPlacementModal: (data) => {
+      console.log('🎯 Placement modal triggered with data:', data);
       setPlacementData(data);
       setShowPlacementModal(true);
     }

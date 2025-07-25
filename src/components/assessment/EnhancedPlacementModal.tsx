@@ -46,6 +46,8 @@ export const EnhancedPlacementModal: React.FC<EnhancedPlacementModalProps> = ({
 }) => {
   if (!placementData) return null;
 
+  console.log('🎯 Enhanced Placement Modal rendering with data:', placementData);
+
   const getScenarioConfig = (scenario: string) => {
     switch (scenario) {
       case 'better_placement':

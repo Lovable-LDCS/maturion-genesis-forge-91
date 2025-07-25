@@ -38,17 +38,22 @@ interface PlacementAnalysis {
 }
 
 interface PlacementSuggestion {
-  criteriaId: string;
+  scenario: 'better_placement' | 'split_required' | 'same_domain_different_mps' | 'future_domain' | 'past_domain' | 'duplicate' | 'fits_current';
   suggestion: {
-    domain: string;
-    mpsNumber: number;
-    mpsTitle: string;
-    reason: string;
-    scenario: 'same_domain' | 'future_domain' | 'past_domain';
+    targetDomain?: string;
+    targetMPS?: string;
+    rationale?: string;
+    action?: string;
+    duplicateOf?: string;
+    splitSuggestion?: {
+      criterion1: string;
+      criterion2: string;
+      reasoning: string;
+    };
   };
-  currentStatement?: string;
-  currentSummary?: string;
-  originalMpsId?: string;
+  criteriaId?: string;
+  originalStatement?: string;
+  originalSummary?: string;
 }
 
 interface UseCustomCriterionProps {
@@ -340,17 +345,15 @@ Return as JSON:
         );
 
         onShowPlacementModal({
-          criteriaId: insertResult.criteriaId!,
+          scenario: 'better_placement',
           suggestion: {
-            domain: placementAnalysis.suggested_domain,
-            mpsNumber: placementAnalysis.suggested_mps_number || 0,
-            mpsTitle: placementAnalysis.suggested_mps_title || '',
-            reason: placementAnalysis.reason || 'Better alignment with domain focus',
-            scenario: scenario
+            targetDomain: placementAnalysis.suggested_domain,
+            targetMPS: placementAnalysis.suggested_mps_number?.toString() || '',
+            rationale: placementAnalysis.reason || 'Better alignment with domain focus'
           },
-          currentStatement: placementAnalysis.improved_statement,
-          currentSummary: placementAnalysis.improved_summary,
-          originalMpsId: mpsId
+          criteriaId: insertResult.criteriaId!,
+          originalStatement: placementAnalysis.improved_statement,
+          originalSummary: placementAnalysis.improved_summary
         });
 
         console.log('✅ Placement modal triggered');
