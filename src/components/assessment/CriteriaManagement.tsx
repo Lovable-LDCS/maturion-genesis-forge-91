@@ -51,9 +51,6 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
   domainName,
   onCriteriaFinalized
 }) => {
-  console.log('🔍 CriteriaManagement: Component rendering with props:', { isOpen, domainName });
-  
-  // Wrap the entire component in try-catch for error boundary
   try {
     const [mpsList, setMPSList] = useState<MPS[]>([]);
     const [criteriaList, setCriteriaList] = useState<Criteria[]>([]);

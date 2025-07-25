@@ -33,16 +33,10 @@ export const useDeferredCriteria = (organizationId: string) => {
 
   // Load deferred criteria from database
   const loadDeferredCriteria = async () => {
-    console.log('🔍 useDeferredCriteria: Starting loadDeferredCriteria with organizationId:', organizationId);
-    
-    if (!organizationId) {
-      console.log('⚠️ useDeferredCriteria: No organizationId provided, skipping load');
-      return;
-    }
+    if (!organizationId) return;
 
     try {
       setIsLoading(true);
-      console.log('🔍 useDeferredCriteria: Querying criteria_deferrals table...');
       
       const { data, error } = await supabase
         .from('criteria_deferrals')
@@ -52,27 +46,18 @@ export const useDeferredCriteria = (organizationId: string) => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('❌ useDeferredCriteria: Error loading deferred criteria:', error);
+        console.error('Error loading deferred criteria:', error);
         setDeferredQueue([]);
         return;
       }
 
-      console.log('🔍 useDeferredCriteria: Raw query result:', { data, count: data?.length || 0 });
-
       if (data && Array.isArray(data)) {
-        console.log('🔍 useDeferredCriteria: Processing data array with length:', data.length);
         
         const formattedData: DeferredCriterion[] = data
           .filter(item => {
             // Safety check: ensure item exists and has required fields
-            if (!item || typeof item !== 'object') {
-              console.warn('⚠️ useDeferredCriteria: Invalid item in data array:', item);
-              return false;
-            }
-            if (!item.id || !item.proposed_criteria_id || !item.organization_id) {
-              console.warn('⚠️ useDeferredCriteria: Item missing required fields:', item);
-              return false;
-            }
+            if (!item || typeof item !== 'object') return false;
+            if (!item.id || !item.proposed_criteria_id || !item.organization_id) return false;
             return true;
           })
           .map(item => {
@@ -92,27 +77,18 @@ export const useDeferredCriteria = (organizationId: string) => {
               createdAt: String(item.created_at || new Date().toISOString()),
               deferredBy: String(item.user_id || '')
             };
-            
-            console.log('🔍 useDeferredCriteria: Formatted item:', formattedItem);
             return formattedItem;
           });
 
-        console.log('🔍 useDeferredCriteria: Final formatted data:', { 
-          count: formattedData.length, 
-          items: formattedData 
-        });
-        
         setDeferredQueue(formattedData);
       } else {
-        console.log('🔍 useDeferredCriteria: No data or data is not an array, setting empty queue');
         setDeferredQueue([]);
       }
     } catch (error) {
-      console.error('❌ useDeferredCriteria: Exception in loadDeferredCriteria:', error);
+      console.error('Error in loadDeferredCriteria:', error);
       setDeferredQueue([]);
     } finally {
       setIsLoading(false);
-      console.log('🔍 useDeferredCriteria: loadDeferredCriteria completed');
     }
   };
 
