@@ -173,24 +173,43 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
     }, [mpsList, currentOrganization?.id]);
 
     const checkForDeferredReminders = () => {
-      if (!domainName) return;
+      if (!domainName) {
+        console.log('⚠️ CriteriaManagement: No domainName provided, skipping reminder check');
+        return;
+      }
       
-      console.log('🔍 Checking for deferred reminders in domain:', domainName);
+      console.log('🔍 CriteriaManagement: Checking for deferred reminders');
+      console.log('🔍 Current domain:', domainName);
       console.log('🔍 Available MPS list:', mpsList.map(m => ({ id: m.id, number: m.mps_number, name: m.name })));
+      console.log('🔍 Deferred queue contents:', deferredQueue.map(d => ({
+        id: d.id,
+        targetDomain: d.targetDomain,
+        targetMPS: d.targetMPS,
+        status: d.status,
+        originalStatement: d.originalStatement.substring(0, 50) + '...'
+      })));
       
       // Check each MPS for deferred criteria
       mpsList.forEach(mps => {
+        console.log(`🔍 Checking MPS ${mps.mps_number} for deferrals...`);
         const reminder = getRemindersForMPS(domainName, mps.mps_number.toString());
         if (reminder && reminder.reminderCount > 0) {
           console.log('🔔 Found deferred criteria reminder for MPS', mps.mps_number, ':', reminder);
           // Show reminder for the first MPS with deferrals
           if (!showReminderModal) {
+            console.log('✅ Setting reminder modal data and showing modal');
             setCurrentReminderData(reminder);
             setShowReminderModal(true);
             return; // Exit early after showing first reminder
           }
+        } else {
+          console.log(`ℹ️ No deferrals found for MPS ${mps.mps_number}`);
         }
       });
+      
+      if (!showReminderModal) {
+        console.log('ℹ️ No reminder modals triggered for any MPS');
+      }
     };
 
     const getCriteriaForMPS = (mpsId: string): Criteria[] => {
@@ -679,8 +698,8 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
           }}
         />
 
-        {/* Deferred Criteria Reminder Modal - TEMPORARILY DISABLED FOR DEBUGGING */}
-        {false && showReminderModal && currentReminderData && (
+        {/* Deferred Criteria Reminder Modal - RE-ENABLED FOR TESTING */}
+        {showReminderModal && currentReminderData && (
           <DeferredCriteriaReminder
             isOpen={showReminderModal}
             onClose={() => setShowReminderModal(false)}
