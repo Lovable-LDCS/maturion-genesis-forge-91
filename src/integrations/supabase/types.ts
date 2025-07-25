@@ -306,6 +306,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_feedback_log: {
+        Row: {
+          created_at: string
+          domain_id: string | null
+          feedback_type: string
+          id: string
+          metadata: Json | null
+          organization_id: string
+          reason: string
+          rejected_text: string
+          replacement_text: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          domain_id?: string | null
+          feedback_type: string
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          reason: string
+          rejected_text: string
+          replacement_text?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          domain_id?: string | null
+          feedback_type?: string
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          reason?: string
+          rejected_text?: string
+          replacement_text?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_upload_audit: {
         Row: {
           action: string
