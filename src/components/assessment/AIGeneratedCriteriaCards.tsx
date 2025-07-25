@@ -77,65 +77,67 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
       console.log('No existing criteria found, generating new ones');
     }
     
-    const prompt = `Generate comprehensive assessment criteria for this MPS to achieve complete coverage of its intent. The number of criteria should be based on the complexity and scope of the MPS, not a fixed number.
+    const prompt = `You are generating formal assessment criteria for a maturity model, following the AI Criteria Generation Policy and Annex 2 AI_Criteria_Evaluation_Guide from the AI Admin Knowledge Base.
 
-MPS ${mps.mps_number}: ${mps.name}
-Intent: ${mps.intent_statement || 'Not specified'}
-Domain: ${domainName}
+MPS Details:
+- Number: ${mps.mps_number}
+- Title: ${mps.name}
+- Domain: ${domainName}
+- Intent: ${mps.intent_statement || 'Not specified'}
 
-CRITICAL REQUIREMENTS:
+MANDATORY REQUIREMENTS (per AI Criteria Generation Policy and Annex 2):
 
-1. UNAMBIGUOUS CRITERIA: Each criterion MUST be interpreted the same way by 10 different people from different backgrounds.
-   - Avoid vague terms like "adequate," "appropriate," or "effectiveness" without measurable qualifiers
-   - Use specific, measurable terms like "quarterly," "documented," "signed," "approved by [role]"
-   - Include clear thresholds, frequencies, or measurement criteria where applicable
+1. Be evidence-based (policies, records, logs, systems, audits, interviews)
+2. Include: Evidence type + Verb + Tailored Context + Condition/Purpose
+3. Be unambiguous and easily understood by all evaluators
+4. Be traceable (e.g., ${mps.mps_number}.X format)
+5. Include a rationale or explanation underneath the main statement
+6. Avoid vague terms like "appropriate" or "effective" unless explicitly defined
+7. Generate as many criteria as required for full domain coverage (8-25 range, not fixed at 10)
 
-2. EVIDENCE TYPE VARIATION: Use different evidence types based on what's most appropriate:
-   - "A policy shall be in place that..." (for governance/procedural requirements)
-   - "Records shall demonstrate that..." (for documentation/tracking requirements)
-   - "Training records shall show that..." (for competency requirements)
-   - "An automated system must..." (for technology/tool requirements)
-   - "Audit results must confirm that..." (for verification requirements)
-   - "A log shall be maintained that..." (for monitoring requirements)
-   - "Evidence must show that..." (for outcome-based requirements)
+EVIDENCE TYPE DIVERSITY (avoid policy-only approach):
+- "Training records shall demonstrate that..." (competency evidence)
+- "System logs must show evidence of..." (technical verification)
+- "Audit reports shall confirm that..." (independent verification)
+- "Configuration settings must ensure..." (technical implementation)
+- "Interview results shall verify that..." (behavioral verification)
+- "Incident response logs must document..." (operational evidence)
+- "Backup verification reports shall prove..." (continuity evidence)
+- "Access control records must demonstrate..." (security evidence)
 
-3. DETAILED EVIDENCE GUIDANCE: For each criterion, specify exactly what evidence is required:
-   - For training: "signed attendance registers, test scores ≥80%, competency matrix reviewed quarterly"
-   - For policies: "formally approved document, version control, review dates, communication records"
-   - For systems: "configuration screenshots, access logs, backup schedules, test results"
-   - For audits: "independent audit reports, finding classifications, corrective action plans"
+UNAMBIGUOUS REQUIREMENTS:
+- Use specific, measurable terms (quarterly, 80%+, within 30 days)
+- Avoid vague qualifiers without measurable standards
+- Include clear thresholds and frequencies
+- Ensure 10 different evaluators would interpret identically
 
-4. COMPREHENSIVE COVERAGE: Generate as many criteria as needed to fully cover:
-   - All aspects of the MPS intent statement
-   - Different operational contexts and scenarios
-   - Various evidence types and verification methods
-   - Implementation, monitoring, and verification requirements
+DETAILED EVIDENCE GUIDANCE: Specify exactly what evidence is needed:
+- Training: "Signed registers with 80%+ test scores, competency matrices reviewed quarterly, supervisor sign-offs"
+- Policies: "Formally approved documents, version control records, annual review dates, communication logs"
+- Systems: "Configuration screenshots, access logs, automated test results, backup schedules"
+- Audits: "Independent audit reports, finding classifications, corrective action tracking"
 
-5. QUALITY OVER QUANTITY: Focus on:
-   - Specific, auditable requirements
-   - Measurable outcomes
-   - Clear evidence expectations
-   - Professional audit language
-   - Distinct, non-overlapping criteria
+Generate comprehensive coverage ensuring:
+- Complete MPS intent fulfillment
+- Varied evidence types and verification methods
+- Implementation, monitoring, and verification aspects
+- Context-appropriate criteria count (complexity-driven)
 
-6. DYNAMIC SCOPE: The number of criteria should vary based on MPS complexity:
-   - Simple MPS: 8-12 criteria
-   - Complex MPS: 15-25 criteria
-   - Generate as many as needed for complete coverage
-
-Return as JSON:
+Return as JSON with this structure:
 {
   "criteria": [
     {
-      "statement": "[appropriate evidence type] [specific, unambiguous requirement]",
-      "summary": "brief explanation of what this measures", 
-      "rationale": "why this criterion is important for this MPS",
-      "evidence_guidance": "specific details of required evidence (e.g., signed registers, test scores ≥80%, quarterly reviews)",
-      "explanation": "detailed explanation covering: what the criterion means, what evidence is expected, and why it matters"
+      "statement": "[Evidence type] [specific, unambiguous requirement with measurable criteria]",
+      "summary": "brief explanation of what this criterion measures",
+      "rationale": "why this criterion is essential for this MPS",
+      "evidence_guidance": "specific evidence requirements with measurable thresholds",
+      "explanation": "detailed explanation: what it means, expected evidence, why it matters"
     }
   ],
-  "system_message": "explanation of criteria count and coverage approach"
-}`;
+  "system_message": "explanation of criteria count and coverage rationale"
+}
+
+Add "Ask Maturion if you want to learn more." to every explanation.`;
 
     try {
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
@@ -172,11 +174,13 @@ Return as JSON:
             criteria = parsedData.criteria || [];
             systemMessage = parsedData.system_message || '';
             
-            // Ensure all criteria have evidence_guidance and explanation
+            // Ensure all criteria have evidence_guidance and explanation with Maturion link
             criteria = criteria.map(criterion => ({
               ...criterion,
               evidence_guidance: criterion.evidence_guidance || 'Evidence requirements to be specified during assessment',
-              explanation: criterion.explanation || `This criterion measures ${criterion.summary}. Evidence requirements and specific implementation details should be documented during the assessment process.`
+              explanation: criterion.explanation ? 
+                (criterion.explanation.includes('Ask Maturion') ? criterion.explanation : `${criterion.explanation} Ask Maturion if you want to learn more.`) :
+                `This criterion measures ${criterion.summary}. Evidence requirements and specific implementation details should be documented during the assessment process. Ask Maturion if you want to learn more.`
             }));
           } else {
             // Fallback: try to parse as array
