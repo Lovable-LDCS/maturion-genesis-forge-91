@@ -189,27 +189,49 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
         originalStatement: d.originalStatement.substring(0, 50) + '...'
       })));
       
-      // Check each MPS for deferred criteria
+      // FORCE TEST: Check for ANY deferred criteria matching MPS numbers (ignore domain for now)
       mpsList.forEach(mps => {
-        console.log(`🔍 Checking MPS ${mps.mps_number} for deferrals...`);
+        console.log(`🔍 Checking MPS ${mps.mps_number} for deferrals (FORCE TEST MODE)...`);
+        
+        // First check with domain matching
         const reminder = getRemindersForMPS(domainName, mps.mps_number.toString());
         if (reminder && reminder.reminderCount > 0) {
           console.log('🔔 Found deferred criteria reminder for MPS', mps.mps_number, ':', reminder);
-          // Show reminder for the first MPS with deferrals
           if (!showReminderModal) {
             console.log('✅ Setting reminder modal data and showing modal');
             setCurrentReminderData(reminder);
             setShowReminderModal(true);
-            return; // Exit early after showing first reminder
+            return; // Exit after first match
           }
-        } else {
-          console.log(`ℹ️ No deferrals found for MPS ${mps.mps_number}`);
+        }
+        
+        // FORCE TEST: Check without domain matching if no exact match found
+        const forceTestMatches = deferredQueue.filter(def => 
+          def.targetMPS === mps.mps_number.toString() && def.status === 'pending'
+        );
+        
+        if (forceTestMatches.length > 0 && !showReminderModal) {
+          console.log('🚨 FORCE TEST: Found MPS number match ignoring domain:', {
+            mpsNumber: mps.mps_number,
+            matches: forceTestMatches.length,
+            currentDomain: domainName,
+            deferredDomains: forceTestMatches.map(d => d.targetDomain)
+          });
+          
+          // Create force test reminder data
+          const forceReminderData = {
+            targetDomain: domainName, // Use current domain
+            targetMPS: mps.mps_number.toString(),
+            deferrals: forceTestMatches,
+            reminderCount: forceTestMatches.length
+          };
+          
+          console.log('🚨 FORCE TEST: Triggering reminder modal with:', forceReminderData);
+          setCurrentReminderData(forceReminderData);
+          setShowReminderModal(true);
+          return;
         }
       });
-      
-      if (!showReminderModal) {
-        console.log('ℹ️ No reminder modals triggered for any MPS');
-      }
     };
 
     const getCriteriaForMPS = (mpsId: string): Criteria[] => {

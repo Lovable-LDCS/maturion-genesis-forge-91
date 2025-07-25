@@ -11,6 +11,9 @@ import { IntentCreator } from '@/components/assessment/IntentCreator';
 import { CriteriaManagement } from '@/components/assessment/CriteriaManagement';
 
 import { useDomainAuditBuilder, type AuditStep } from '@/hooks/useDomainAuditBuilder';
+import { useDeferredCriteria } from '@/hooks/useDeferredCriteria';
+import { useOrganization } from '@/hooks/useOrganization';
+import { DeferredCriteriaReminder } from '@/components/assessment/DeferredCriteriaReminder';
 
 const DomainAuditBuilder = () => {
   const navigate = useNavigate();
@@ -34,6 +37,19 @@ const DomainAuditBuilder = () => {
     stepStatuses
   } = useDomainAuditBuilder(domainId || '');
 
+  // Add deferred criteria management
+  const { currentOrganization } = useOrganization();
+  const {
+    deferredQueue,
+    getRemindersForMPS,
+    handleDeferredAction,
+    refreshQueue
+  } = useDeferredCriteria(currentOrganization?.id || '');
+
+  // State for deferred reminder modal
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [currentReminderData, setCurrentReminderData] = useState<any>(null);
+
   // Domain name mapping
   const domainNames: Record<string, string> = {
     'process-integrity': 'Process Integrity',
@@ -44,6 +60,54 @@ const DomainAuditBuilder = () => {
   };
 
   const domainName = domainNames[domainId || ''] || 'Unknown Domain';
+
+  // FORCE TEST: Check for deferred reminders on page load
+  useEffect(() => {
+    if (currentOrganization?.id && domainName !== 'Unknown Domain') {
+      console.log('🚨 DomainAuditBuilder: FORCE CHECKING for deferred reminders on page load');
+      console.log('🔍 Current route domain:', domainName);
+      console.log('🔍 Current route domainId:', domainId);
+      console.log('🔍 Deferred queue size:', deferredQueue.length);
+      
+      // Check all possible MPS numbers for this domain
+      for (let mpsNumber = 1; mpsNumber <= 10; mpsNumber++) {
+        console.log(`🔍 FORCE TEST: Checking MPS ${mpsNumber} in ${domainName}...`);
+        
+        const reminder = getRemindersForMPS(domainName, mpsNumber.toString());
+        if (reminder && reminder.reminderCount > 0) {
+          console.log('🔔 FORCE TEST: Found deferred criteria reminder!', reminder);
+          setCurrentReminderData(reminder);
+          setShowReminderModal(true);
+          break; // Show first match
+        }
+        
+        // Also do force test ignoring domain
+        const forceMatches = deferredQueue.filter(def => 
+          def.targetMPS === mpsNumber.toString() && def.status === 'pending'
+        );
+        
+        if (forceMatches.length > 0) {
+          console.log('🚨 FORCE TEST: Found MPS number match ignoring domain for MPS', mpsNumber, ':', {
+            matches: forceMatches.length,
+            currentDomain: domainName,
+            deferredDomains: forceMatches.map(d => d.targetDomain)
+          });
+          
+          const forceReminderData = {
+            targetDomain: domainName,
+            targetMPS: mpsNumber.toString(),
+            deferrals: forceMatches,
+            reminderCount: forceMatches.length
+          };
+          
+          console.log('🚨 FORCE TEST: Triggering reminder modal!');
+          setCurrentReminderData(forceReminderData);
+          setShowReminderModal(true);
+          break;
+        }
+      }
+    }
+  }, [currentOrganization?.id, domainName, domainId, deferredQueue.length]);
 
   const [auditSteps, setAuditSteps] = useState<AuditStep[]>([
     {
@@ -272,6 +336,37 @@ const DomainAuditBuilder = () => {
         domainName={domainName}
         onCriteriaFinalized={handleCriteriaFinalized}
       />
+
+      {/* Deferred Criteria Reminder Modal */}
+      {showReminderModal && currentReminderData && (
+        <DeferredCriteriaReminder
+          isOpen={showReminderModal}
+          onClose={() => setShowReminderModal(false)}
+          targetDomain={currentReminderData?.targetDomain || ''}
+          targetMPS={currentReminderData?.targetMPS || ''}
+          deferrals={currentReminderData?.deferrals || []}
+          onView={(deferral) => {
+            console.log('👁️ Viewing deferred criterion:', deferral);
+          }}
+          onApprove={async (deferral) => {
+            const result = await handleDeferredAction(deferral.id, 'approve');
+            if (result.success) {
+              await refreshQueue();
+              setShowReminderModal(false);
+            }
+          }}
+          onEdit={(deferral) => {
+            console.log('📝 Edit deferred criterion:', deferral);
+          }}
+          onDiscard={async (deferral) => {
+            const result = await handleDeferredAction(deferral.id, 'discard');
+            if (result.success) {
+              await refreshQueue();
+              setShowReminderModal(false);
+            }
+          }}
+        />
+      )}
 
     </div>
   );
