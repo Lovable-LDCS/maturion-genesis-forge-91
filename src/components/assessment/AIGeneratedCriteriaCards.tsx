@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Sparkles, CheckCircle2, Edit, X, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Sparkles, CheckCircle2, Edit, X, Loader2, HelpCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -16,6 +17,8 @@ interface GeneratedCriterion {
   rationale: string;
   status: 'pending' | 'approved' | 'rejected' | 'editing';
   criteria_number: string;
+  evidence_guidance?: string;
+  explanation?: string;
 }
 
 interface MPS {
@@ -81,7 +84,13 @@ Intent: ${mps.intent_statement || 'Not specified'}
 Domain: ${domainName}
 
 CRITICAL REQUIREMENTS:
-1. EVIDENCE TYPE VARIATION: Use different evidence types based on what's most appropriate:
+
+1. UNAMBIGUOUS CRITERIA: Each criterion MUST be interpreted the same way by 10 different people from different backgrounds.
+   - Avoid vague terms like "adequate," "appropriate," or "effectiveness" without measurable qualifiers
+   - Use specific, measurable terms like "quarterly," "documented," "signed," "approved by [role]"
+   - Include clear thresholds, frequencies, or measurement criteria where applicable
+
+2. EVIDENCE TYPE VARIATION: Use different evidence types based on what's most appropriate:
    - "A policy shall be in place that..." (for governance/procedural requirements)
    - "Records shall demonstrate that..." (for documentation/tracking requirements)
    - "Training records shall show that..." (for competency requirements)
@@ -90,20 +99,26 @@ CRITICAL REQUIREMENTS:
    - "A log shall be maintained that..." (for monitoring requirements)
    - "Evidence must show that..." (for outcome-based requirements)
 
-2. COMPREHENSIVE COVERAGE: Generate as many criteria as needed to fully cover:
+3. DETAILED EVIDENCE GUIDANCE: For each criterion, specify exactly what evidence is required:
+   - For training: "signed attendance registers, test scores ≥80%, competency matrix reviewed quarterly"
+   - For policies: "formally approved document, version control, review dates, communication records"
+   - For systems: "configuration screenshots, access logs, backup schedules, test results"
+   - For audits: "independent audit reports, finding classifications, corrective action plans"
+
+4. COMPREHENSIVE COVERAGE: Generate as many criteria as needed to fully cover:
    - All aspects of the MPS intent statement
    - Different operational contexts and scenarios
    - Various evidence types and verification methods
    - Implementation, monitoring, and verification requirements
 
-3. QUALITY OVER QUANTITY: Focus on:
+5. QUALITY OVER QUANTITY: Focus on:
    - Specific, auditable requirements
    - Measurable outcomes
    - Clear evidence expectations
    - Professional audit language
    - Distinct, non-overlapping criteria
 
-4. DYNAMIC SCOPE: The number of criteria should vary based on MPS complexity:
+6. DYNAMIC SCOPE: The number of criteria should vary based on MPS complexity:
    - Simple MPS: 8-12 criteria
    - Complex MPS: 15-25 criteria
    - Generate as many as needed for complete coverage
@@ -112,9 +127,11 @@ Return as JSON:
 {
   "criteria": [
     {
-      "statement": "[appropriate evidence type] [specific requirement]",
+      "statement": "[appropriate evidence type] [specific, unambiguous requirement]",
       "summary": "brief explanation of what this measures", 
-      "rationale": "why this criterion is important for this MPS"
+      "rationale": "why this criterion is important for this MPS",
+      "evidence_guidance": "specific details of required evidence (e.g., signed registers, test scores ≥80%, quarterly reviews)",
+      "explanation": "detailed explanation covering: what the criterion means, what evidence is expected, and why it matters"
     }
   ],
   "system_message": "explanation of criteria count and coverage approach"
@@ -154,6 +171,13 @@ Return as JSON:
             
             criteria = parsedData.criteria || [];
             systemMessage = parsedData.system_message || '';
+            
+            // Ensure all criteria have evidence_guidance and explanation
+            criteria = criteria.map(criterion => ({
+              ...criterion,
+              evidence_guidance: criterion.evidence_guidance || 'Evidence requirements to be specified during assessment',
+              explanation: criterion.explanation || `This criterion measures ${criterion.summary}. Evidence requirements and specific implementation details should be documented during the assessment process.`
+            }));
           } else {
             // Fallback: try to parse as array
             const arrayStart = responseContent.indexOf('[');
@@ -172,44 +196,60 @@ Return as JSON:
       if (!criteria || criteria.length === 0) {
         criteria = [
           {
-            statement: `A policy shall be in place that establishes ${mps.name?.toLowerCase() || 'this practice'} governance framework`,
+            statement: `A policy shall be in place that establishes ${mps.name?.toLowerCase() || 'this practice'} governance framework with defined roles, responsibilities, and approval authorities`,
             summary: `Evaluate the governance framework for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Clear governance framework is fundamental to successful implementation'
+            rationale: 'Clear governance framework is fundamental to successful implementation',
+            evidence_guidance: 'Formally approved policy document, version control records, role definitions, approval matrix, communication records',
+            explanation: `This criterion ensures there is a documented governance structure for ${mps.name?.toLowerCase() || 'this practice'}. Evidence should include the formal policy document with clear version control, defined roles and responsibilities, approval authorities, and records showing the policy has been communicated to relevant personnel. This matters because without clear governance, implementation becomes ad-hoc and inconsistent.`
           },
           {
-            statement: `Records shall demonstrate implementation of ${mps.name?.toLowerCase() || 'this practice'} activities`,
+            statement: `Records shall demonstrate systematic implementation of ${mps.name?.toLowerCase() || 'this practice'} activities with documented outcomes and frequency of at least monthly reviews`,
             summary: `Assess documented evidence of ${mps.name?.toLowerCase() || 'this practice'} implementation`,
-            rationale: 'Documentation provides evidence of systematic implementation'
+            rationale: 'Documentation provides evidence of systematic implementation',
+            evidence_guidance: 'Activity logs, review meeting minutes, outcome reports, dated records showing monthly frequency, sign-off documentation',
+            explanation: `This criterion verifies that ${mps.name?.toLowerCase() || 'this practice'} is being systematically implemented with regular reviews. Evidence should include activity logs, meeting minutes from monthly reviews, documented outcomes, and appropriate sign-offs. This is important because it demonstrates consistent execution rather than sporadic or informal implementation.`
           },
           {
-            statement: `Training records shall show personnel competency in ${mps.name?.toLowerCase() || 'this practice'}`,
+            statement: `Training records shall show personnel competency in ${mps.name?.toLowerCase() || 'this practice'} with test scores ≥80% and annual refresher training`,
             summary: `Evaluate training programs and competency records for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Training ensures personnel understand and can execute requirements'
+            rationale: 'Training ensures personnel understand and can execute requirements',
+            evidence_guidance: 'Signed attendance registers, test results showing ≥80% scores, competency matrices, annual training schedules, certification records',
+            explanation: `This criterion ensures personnel have the necessary knowledge and skills for ${mps.name?.toLowerCase() || 'this practice'}. Evidence should include signed training attendance records, test scores of 80% or higher, competency assessment matrices, and schedules showing annual refresher training. This matters because untrained personnel cannot effectively implement requirements, leading to compliance failures.`
           },
           {
-            statement: `A monitoring system must track performance of ${mps.name?.toLowerCase() || 'this practice'}`,
+            statement: `A monitoring system must track performance indicators for ${mps.name?.toLowerCase() || 'this practice'} with automated alerts for deviations exceeding defined thresholds`,
             summary: `Assess monitoring and measurement processes for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Monitoring ensures ongoing effectiveness and compliance'
+            rationale: 'Monitoring ensures ongoing effectiveness and compliance',
+            evidence_guidance: 'System configuration screenshots, alert logs, threshold definitions, performance dashboards, escalation procedures',
+            explanation: `This criterion requires an active monitoring system that tracks key performance indicators and provides alerts when thresholds are exceeded. Evidence should include system configurations, alert logs, clearly defined thresholds, performance dashboards, and escalation procedures. This is critical because proactive monitoring enables early detection and correction of issues before they become major problems.`
           },
           {
-            statement: `Audit results must confirm effectiveness of ${mps.name?.toLowerCase() || 'this practice'}`,
+            statement: `Independent audit results must confirm compliance with ${mps.name?.toLowerCase() || 'this practice'} requirements through annual assessments by qualified auditors`,
             summary: `Evaluate audit findings and verification activities for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Independent verification confirms operational effectiveness'
+            rationale: 'Independent verification confirms operational effectiveness',
+            evidence_guidance: 'Independent audit reports, auditor qualifications, finding classifications, corrective action plans, annual audit schedules',
+            explanation: `This criterion ensures independent verification of ${mps.name?.toLowerCase() || 'this practice'} effectiveness. Evidence should include formal audit reports from qualified auditors, documentation of auditor credentials, classification of findings, corrective action plans, and annual audit schedules. This matters because independent verification provides objective assurance that requirements are being met effectively.`
           },
           {
-            statement: `A log shall be maintained that tracks incidents related to ${mps.name?.toLowerCase() || 'this practice'}`,
+            statement: `An incident log shall be maintained that captures all ${mps.name?.toLowerCase() || 'this practice'}-related incidents with root cause analysis completed within 30 days`,
             summary: `Assess incident tracking and response capabilities for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Incident tracking enables continuous improvement and risk management'
+            rationale: 'Incident tracking enables continuous improvement and risk management',
+            evidence_guidance: 'Incident log database, root cause analysis reports, 30-day completion tracking, corrective action records, trend analysis',
+            explanation: `This criterion requires systematic tracking of incidents related to ${mps.name?.toLowerCase() || 'this practice'} with timely analysis. Evidence should include a maintained incident log, root cause analysis reports completed within 30 days, corrective action records, and trend analysis. This is important because systematic incident tracking enables learning from failures and preventing recurrence.`
           },
           {
-            statement: `Evidence must show continuous improvement in ${mps.name?.toLowerCase() || 'this practice'}`,
+            statement: `Evidence must show measurable improvement in ${mps.name?.toLowerCase() || 'this practice'} performance through documented metrics and quarterly improvement initiatives`,
             summary: `Evaluate continuous improvement mechanisms for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Continuous improvement ensures ongoing enhancement and adaptation'
+            rationale: 'Continuous improvement ensures ongoing enhancement and adaptation',
+            evidence_guidance: 'Performance metrics trends, improvement project documentation, quarterly review records, before/after comparisons, benefits realization reports',
+            explanation: `This criterion ensures continuous improvement is actively pursued with measurable results. Evidence should include trending performance metrics, documented improvement projects, quarterly review records, before/after comparisons, and benefits realization reports. This matters because continuous improvement ensures the practice evolves and becomes more effective over time rather than remaining static.`
           },
           {
-            statement: `Resource allocation records must demonstrate adequate support for ${mps.name?.toLowerCase() || 'this practice'}`,
+            statement: `Resource allocation records must demonstrate sufficient funding and staffing for ${mps.name?.toLowerCase() || 'this practice'} with budget approval and quarterly resource reviews`,
             summary: `Assess resource allocation and management for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Adequate resources are essential for effective implementation'
+            rationale: 'Adequate resources are essential for effective implementation',
+            evidence_guidance: 'Budget allocation documents, staffing plans, resource utilization reports, quarterly review minutes, approval authorities',
+            explanation: `This criterion ensures adequate resources are allocated and managed for ${mps.name?.toLowerCase() || 'this practice'}. Evidence should include formal budget allocations, staffing plans, resource utilization reports, quarterly review minutes, and appropriate approval authorities. This is essential because insufficient resources lead to implementation failures and compromised effectiveness.`
           }
         ];
       }
@@ -247,6 +287,8 @@ Return as JSON:
               statement: criterion.statement || '',
               summary: criterion.summary || '',
               rationale: criterion.rationale || 'AI-generated criterion',
+              evidence_guidance: criterion.evidence_guidance || 'Evidence requirements to be specified',
+              explanation: criterion.explanation || 'Detailed explanation to be provided',
               status: 'pending' as const,
               criteria_number: `${mps.mps_number}.${index + 1}`
             });
@@ -257,6 +299,8 @@ Return as JSON:
               statement: insertedCriterion.statement || '',
               summary: insertedCriterion.summary || '',
               rationale: criterion.rationale || 'AI-generated criterion',
+              evidence_guidance: criterion.evidence_guidance || 'Evidence requirements to be specified',
+              explanation: criterion.explanation || 'Detailed explanation to be provided',
               status: 'pending' as const,
               criteria_number: insertedCriterion.criteria_number || `${mps.mps_number}.${index + 1}`
             });
@@ -269,6 +313,8 @@ Return as JSON:
             statement: criterion.statement || '',
             summary: criterion.summary || '',
             rationale: criterion.rationale || 'AI-generated criterion',
+            evidence_guidance: criterion.evidence_guidance || 'Evidence requirements to be specified',
+            explanation: criterion.explanation || 'Detailed explanation to be provided',
             status: 'pending' as const,
             criteria_number: `${mps.mps_number}.${index + 1}`
           });
@@ -597,39 +643,100 @@ Return as JSON:
                          >
                            {criterion.status === 'approved' ? 'approved_locked' : criterion.status}
                          </Badge>
-                       </div>
-                      
-                      {criterion.status === 'pending' && (
-                        <div className="flex gap-2 mt-3">
-                          <Button 
-                            size="sm" 
-                            variant="default"
-                            onClick={() => handleApprove(criterion.id)}
-                            className="flex items-center gap-1"
-                          >
-                            <CheckCircle2 className="h-3 w-3" />
-                            Approve
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => handleEdit(criterion)}
-                            className="flex items-center gap-1"
-                          >
-                            <Edit className="h-3 w-3" />
-                            Edit
-                          </Button>
-                          <Button 
-                            size="sm" 
-                            variant="destructive"
-                            onClick={() => handleReject(criterion.id)}
-                            className="flex items-center gap-1"
-                          >
-                            <X className="h-3 w-3" />
-                            Reject
-                          </Button>
                         </div>
-                      )}
+
+                        {/* Evidence Guidance for all criteria */}
+                        {criterion.evidence_guidance && (
+                          <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
+                            <span className="font-medium text-muted-foreground">Evidence Required: </span>
+                            <span className="text-muted-foreground">{criterion.evidence_guidance}</span>
+                          </div>
+                        )}
+                       
+                       {criterion.status === 'pending' && (
+                         <div className="flex gap-2 mt-3">
+                           <Button 
+                             size="sm" 
+                             variant="default"
+                             onClick={() => handleApprove(criterion.id)}
+                             className="flex items-center gap-1"
+                           >
+                             <CheckCircle2 className="h-3 w-3" />
+                             Approve
+                           </Button>
+                           <Button 
+                             size="sm" 
+                             variant="outline"
+                             onClick={() => handleEdit(criterion)}
+                             className="flex items-center gap-1"
+                           >
+                             <Edit className="h-3 w-3" />
+                             Edit
+                           </Button>
+                           <Button 
+                             size="sm" 
+                             variant="destructive"
+                             onClick={() => handleReject(criterion.id)}
+                             className="flex items-center gap-1"
+                           >
+                             <X className="h-3 w-3" />
+                             Reject
+                           </Button>
+                         </div>
+                       )}
+
+                       {/* Explanation button for approved criteria */}
+                       {criterion.status === 'approved' && criterion.explanation && (
+                         <div className="mt-3">
+                           <Dialog>
+                             <DialogTrigger asChild>
+                               <Button 
+                                 size="sm" 
+                                 variant="outline"
+                                 className="flex items-center gap-1"
+                               >
+                                 <HelpCircle className="h-3 w-3" />
+                                 Explanation
+                               </Button>
+                             </DialogTrigger>
+                             <DialogContent className="max-w-2xl">
+                               <DialogHeader>
+                                 <DialogTitle>
+                                   Criterion {criterion.criteria_number} Explanation
+                                 </DialogTitle>
+                               </DialogHeader>
+                               <div className="space-y-4">
+                                 <div>
+                                   <h4 className="font-medium mb-2">What this criterion means:</h4>
+                                   <p className="text-sm text-muted-foreground border-l-2 border-primary/20 pl-3">
+                                     {criterion.statement}
+                                   </p>
+                                 </div>
+                                 
+                                 <div>
+                                   <h4 className="font-medium mb-2">Evidence Required:</h4>
+                                   <p className="text-sm text-muted-foreground">
+                                     {criterion.evidence_guidance || 'Evidence requirements to be specified during assessment'}
+                                   </p>
+                                 </div>
+                                 
+                                 <div>
+                                   <h4 className="font-medium mb-2">Detailed Explanation:</h4>
+                                   <p className="text-sm text-muted-foreground leading-relaxed">
+                                     {criterion.explanation}
+                                   </p>
+                                 </div>
+                                 
+                                 <div className="pt-4 border-t">
+                                   <p className="text-xs text-muted-foreground italic">
+                                     Ask Maturion if you want to know more.
+                                   </p>
+                                 </div>
+                               </div>
+                             </DialogContent>
+                           </Dialog>
+                         </div>
+                       )}
                     </div>
                   )}
                 </CardContent>
