@@ -158,16 +158,21 @@ export const EnhancedCriterionModal: React.FC<EnhancedCriterionModalProps> = ({
             </Label>
             <Textarea
               id="criterion-statement"
-              placeholder="Enter the criterion statement..."
+              placeholder="A policy shall be in place that describes..."
               value={formData.statement}
               onChange={(e) => setFormData(prev => ({ ...prev, statement: e.target.value }))}
               className="mt-1"
               rows={4}
               disabled={isProcessing}
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Describe what specific requirement or control needs to be assessed
-            </p>
+            <div className="mt-1 space-y-1">
+              <p className="text-xs text-blue-600 font-medium">
+                💡 Format Example: "A policy shall be in place that describes [the organization's X]"
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Describe what specific requirement or control needs to be assessed
+              </p>
+            </div>
           </div>
           
           <div>

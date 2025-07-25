@@ -167,16 +167,19 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
     getMPSByID: (id: string) => mpsList.find(mps => mps.id === id),
     getCriteriaForMPS: (mpsId: string) => getCriteriaForMPS(mpsId),
     checkForDuplicateCriteria: async (statement: string, criteria: Criteria[]) => {
-      // Enhanced duplicate detection with semantic similarity
+      // Enhanced duplicate detection with semantic similarity across ALL criteria
       const normalizedStatement = statement.toLowerCase().trim();
       
-      const isDuplicate = criteria.some(c => {
+      // Check against ALL criteria in the domain, not just current MPS
+      const allCriteria = criteriaList; // Use the full criteria list from state
+      
+      const duplicateFound = allCriteria.find(c => {
         const normalizedExisting = c.statement.toLowerCase().trim();
         
         // Check for exact matches
         if (normalizedStatement === normalizedExisting) return true;
         
-        // Check for high similarity (>80% overlap of key words)
+        // Check for high similarity (≥80% overlap of key words)
         const statementWords = normalizedStatement.split(' ').filter(w => w.length > 3);
         const existingWords = normalizedExisting.split(' ').filter(w => w.length > 3);
         
@@ -187,10 +190,33 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
         );
         
         const similarity = commonWords.length / Math.max(statementWords.length, existingWords.length);
-        return similarity > 0.8;
+        return similarity >= 0.8;
       });
       
-      return !isDuplicate;
+      if (duplicateFound) {
+        // Trigger the placement modal with duplicate scenario
+        const duplicateScenario = {
+          scenario: 'duplicate' as const,
+          suggestion: {
+            duplicateOf: duplicateFound.statement,
+            rationale: `This criterion appears to be very similar to an existing criterion. Similarity: ${Math.round(
+              (duplicateFound.statement.toLowerCase().split(' ').filter(w => w.length > 3).filter(word => 
+                normalizedStatement.split(' ').some(newWord => newWord.includes(word) || word.includes(newWord))
+              ).length / Math.max(
+                duplicateFound.statement.toLowerCase().split(' ').filter(w => w.length > 3).length,
+                normalizedStatement.split(' ').filter(w => w.length > 3).length
+              )) * 100
+            )}%`
+          },
+          originalStatement: statement
+        };
+        
+        setPlacementData(duplicateScenario);
+        setShowPlacementModal(true);
+        return false; // Prevent normal processing
+      }
+      
+      return true; // No duplicates found
     },
     determinePlacementScenario: async (suggestedDomain: string, currentDomain: string) => {
       if (suggestedDomain === currentDomain) return 'same_domain';

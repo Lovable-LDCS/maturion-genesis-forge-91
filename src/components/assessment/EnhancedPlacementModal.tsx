@@ -158,7 +158,7 @@ export const EnhancedPlacementModal: React.FC<EnhancedPlacementModalProps> = ({
 
     if (config.actions.includes('replace')) {
       buttons.push(
-        <Button key="replace" onClick={handleApprove}>
+        <Button key="replace" onClick={handleApprove} className="bg-blue-500 hover:bg-blue-600">
           Replace Existing
         </Button>
       );
@@ -175,7 +175,7 @@ export const EnhancedPlacementModal: React.FC<EnhancedPlacementModalProps> = ({
     if (config.actions.includes('reject')) {
       buttons.push(
         <Button key="reject" variant="outline" onClick={handleReject}>
-          {placementData.scenario === 'duplicate' ? 'Skip Adding' : 'Keep Here'}
+          {placementData.scenario === 'duplicate' ? 'Skip' : 'Keep Here'}
         </Button>
       );
     }
@@ -194,25 +194,45 @@ export const EnhancedPlacementModal: React.FC<EnhancedPlacementModalProps> = ({
         </DialogHeader>
         
         <div className="space-y-4">
-          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-            <div className="flex items-start gap-2 mb-3">
-              <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium text-gray-900 mb-1">
-                  <strong>Maturion detected:</strong> This criterion looks like it fits better under:
-                </p>
-                {placementData.suggestion.targetDomain && (
-                  <div className="space-y-1">
-                    <div className="text-lg font-semibold text-blue-600">
-                      {placementData.suggestion.targetDomain}
-                      {placementData.suggestion.targetMPS && ` - MPS ${placementData.suggestion.targetMPS}`}
+          {placementData.scenario === 'better_placement' && (
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <div className="flex items-start gap-2 mb-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-gray-900 mb-1">
+                    <strong>Maturion detected:</strong> This criterion looks like it fits better under:
+                  </p>
+                  {placementData.suggestion.targetDomain && (
+                    <div className="space-y-1">
+                      <div className="text-lg font-semibold text-blue-600">
+                        {placementData.suggestion.targetDomain}
+                        {placementData.suggestion.targetMPS && ` - MPS ${placementData.suggestion.targetMPS}`}
+                      </div>
+                      <p className="text-sm text-gray-600 font-medium">
+                        {placementData.suggestion.targetDomain.includes('Risk') ? 'Risk Management' : 
+                         placementData.suggestion.targetDomain.includes('Leadership') ? 'Strategic Management' :
+                         placementData.suggestion.targetDomain.includes('Process') ? 'Operational Processes' :
+                         placementData.suggestion.targetDomain.includes('People') ? 'Human Resources' :
+                         placementData.suggestion.targetDomain.includes('Protection') ? 'Security & Compliance' :
+                         placementData.suggestion.targetDomain.includes('Proof') ? 'Measurement & Validation' :
+                         'Domain Management'}
+                      </p>
                     </div>
-                    <p className="text-sm text-gray-600 font-medium">Risk Management</p>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
+
+          {placementData.scenario === 'duplicate' && (
+            <Alert className="border-red-200 bg-red-50">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                <strong>Duplicate Detection:</strong> This criterion appears to be very similar to an existing one. 
+                You can replace the existing criterion, skip adding this one, or revise your entry to be more distinct.
+              </AlertDescription>
+            </Alert>
+          )}
 
           {placementData.suggestion.rationale && (
             <div className="bg-gray-50 p-4 rounded-lg">
