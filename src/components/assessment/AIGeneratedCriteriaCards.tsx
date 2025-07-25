@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Sparkles, CheckCircle2, Edit, X, Loader2, HelpCircle } from 'lucide-react';
+import { Sparkles, CheckCircle2, Edit, X, Loader2, HelpCircle, RefreshCw, Info, Bug } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -44,6 +44,7 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
 }) => {
   const [generatedCriteria, setGeneratedCriteria] = useState<GeneratedCriterion[]>([]);
   const [isGenerating, setIsGenerating] = useState(true);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [editingCriterion, setEditingCriterion] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{ statement: string; summary: string }>({ statement: '', summary: '' });
   const [organizationContext, setOrganizationContext] = useState({
@@ -53,6 +54,15 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
     risk_concerns: [] as string[],
     compliance_commitments: [] as string[]
   });
+  const [debugInfo, setDebugInfo] = useState({
+    criteriaRequested: 0,
+    criteriaReceived: 0,
+    sourcePromptUsed: '',
+    fallbackTriggered: false,
+    truncationWarning: false,
+    generationError: null as string | null
+  });
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
   const { toast } = useToast();
 
   const generateAICriteria = async () => {
@@ -225,6 +235,16 @@ RESPONSE FORMAT - STRICT JSON:
       });
     };
 
+    // Update debug info
+    setDebugInfo({
+      criteriaRequested: 10, // Target from prompt
+      criteriaReceived: 0,
+      sourcePromptUsed: 'AI_Criteria_Generation_Policy_Locked_System_Prompt',
+      fallbackTriggered: false,
+      truncationWarning: false,
+      generationError: null
+    });
+
     try {
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
@@ -240,6 +260,7 @@ RESPONSE FORMAT - STRICT JSON:
 
       if (error) {
         console.error('AI generation error:', error);
+        setDebugInfo(prev => ({ ...prev, generationError: error.message || 'Unknown AI generation error' }));
         throw error;
       }
 
@@ -342,6 +363,9 @@ RESPONSE FORMAT - STRICT JSON:
       if (!criteria || criteria.length === 0) {
         console.warn('AI generation failed, providing policy-aligned minimal fallback criteria');
         
+        // Update debug info to show fallback was triggered
+        setDebugInfo(prev => ({ ...prev, fallbackTriggered: true }));
+        
         criteria = [
           {
             statement: `${organizationContext.name}'s governance framework shall document roles and responsibilities for ${mps.name?.toLowerCase() || 'this practice'} with evidence of formal approval and annual review cycles`,
@@ -367,17 +391,37 @@ RESPONSE FORMAT - STRICT JSON:
         }));
       }
 
+      // Update debug info with actual results (preserve fallback status if it was triggered)
+      setDebugInfo(prev => ({ 
+        ...prev, 
+        criteriaReceived: criteria.length,
+        truncationWarning: criteria.length > 25
+      }));
+
       // Annex 2 Compliance Check: Ensure minimum criteria coverage
       if (criteria.length < 8) {
         console.warn(`⚠️ Annex 2 Compliance Alert: Only ${criteria.length} criteria generated for MPS ${mps.mps_number}. Minimum required: 8`);
         
+        const errorExplanation = criteria.length === 0 
+          ? "AI returned no results due to insufficient signal from uploaded MPS policy or context. Consider enhancing domain input."
+          : `AI returned only ${criteria.length} results due to limited context or processing constraints. This may indicate insufficient MPS detail or knowledge base content.`;
+
         toast({
           title: "Insufficient Criteria Coverage",
-          description: `Only ${criteria.length} criteria generated. Annex 2 requires at least 8-10 criteria for proper MPS coverage. Consider regenerating or manually expanding.`,
+          description: `Only ${criteria.length} criteria generated. Annex 2 requires at least 8-10 criteria for proper MPS coverage.`,
           variant: "destructive"
         });
+
+        // Show explanation toast
+        setTimeout(() => {
+          toast({
+            title: "Generation Analysis",
+            description: errorExplanation,
+            variant: "default"
+          });
+        }, 2000);
         
-        // Log compliance issue
+        // Log compliance issue with explanation
         await supabase.from('ai_upload_audit').insert({
           organization_id: organizationId,
           user_id: organizationId,
@@ -386,7 +430,8 @@ RESPONSE FORMAT - STRICT JSON:
             mps_number: mps.mps_number,
             criteria_generated: criteria.length,
             minimum_required: 8,
-            compliance_status: 'below_threshold'
+            compliance_status: 'below_threshold',
+            explanation: errorExplanation
           }
         });
       } else {
@@ -492,6 +537,37 @@ RESPONSE FORMAT - STRICT JSON:
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  // Regenerate functionality - clear existing and start fresh
+  const handleRegenerate = async () => {
+    setIsRegenerating(true);
+    
+    // Delete any existing unapproved criteria from database
+    try {
+      await supabase
+        .from('criteria')
+        .delete()
+        .eq('mps_id', mps.id)
+        .eq('organization_id', organizationId)
+        .neq('status', 'approved_locked');
+    } catch (error) {
+      console.log('No existing criteria to delete or error occurred:', error);
+    }
+    
+    // Clear local state
+    setGeneratedCriteria([]);
+    
+    // Force regeneration with fresh prompt
+    await generateAICriteria();
+    
+    setIsRegenerating(false);
+    
+    toast({
+      title: "Criteria Regenerated",
+      description: "Fresh criteria have been generated using updated AI policies.",
+      variant: "default"
+    });
   };
 
   useEffect(() => {
@@ -699,18 +775,100 @@ Return as JSON:
             <p className="text-sm text-muted-foreground">
               Review each AI-generated criterion. You can approve, edit, or reject them.
             </p>
-            {pendingCount > 0 && (
+            <div className="flex gap-2">
+              {/* Regenerate Button */}
               <Button 
                 variant="outline" 
                 size="sm" 
-                onClick={handleBulkApprove}
+                onClick={handleRegenerate}
+                disabled={isRegenerating}
                 className="flex items-center gap-1"
               >
-                <CheckCircle2 className="h-3 w-3" />
-                Approve All ({pendingCount})
+                {isRegenerating ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3" />
+                )}
+                Regenerate Criteria
               </Button>
-            )}
+              
+              {/* Debug Panel Toggle (Dev Mode) */}
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setShowDebugPanel(!showDebugPanel)}
+                className="flex items-center gap-1"
+                title="Show debug information"
+              >
+                <Bug className="h-3 w-3" />
+                Debug
+              </Button>
+              
+              {pendingCount > 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleBulkApprove}
+                  className="flex items-center gap-1"
+                >
+                  <CheckCircle2 className="h-3 w-3" />
+                  Approve All ({pendingCount})
+                </Button>
+              )}
+            </div>
           </div>
+
+          {/* Debug Panel */}
+          {showDebugPanel && (
+            <Card className="mb-4 border-orange-200 bg-orange-50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-1">
+                  <Bug className="h-4 w-4" />
+                  Developer Debug Panel
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                  <div>
+                    <span className="font-medium">Criteria Requested:</span>
+                    <div className="text-muted-foreground">{debugInfo.criteriaRequested}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium">Criteria Received:</span>
+                    <div className="text-muted-foreground">{debugInfo.criteriaReceived}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium">Source Prompt:</span>
+                    <div className="text-muted-foreground">{debugInfo.sourcePromptUsed}</div>
+                  </div>
+                  <div>
+                    <span className="font-medium">Fallback Triggered:</span>
+                    <div className={debugInfo.fallbackTriggered ? "text-orange-600" : "text-green-600"}>
+                      {debugInfo.fallbackTriggered ? "Yes" : "No"}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium">Truncation Warning:</span>
+                    <div className={debugInfo.truncationWarning ? "text-orange-600" : "text-green-600"}>
+                      {debugInfo.truncationWarning ? "Yes (>25 criteria)" : "No"}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="font-medium">Generation Error:</span>
+                    <div className={debugInfo.generationError ? "text-red-600" : "text-green-600"}>
+                      {debugInfo.generationError || "None"}
+                    </div>
+                  </div>
+                </div>
+                {debugInfo.generationError && (
+                  <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
+                    <span className="font-medium text-red-700">Error Details:</span>
+                    <div className="text-red-600 mt-1">{debugInfo.generationError}</div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
           
           <div className="space-y-3">
             {generatedCriteria.map((criterion) => (
