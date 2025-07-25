@@ -1859,6 +1859,10 @@ export type Database = {
         Args: { "": string } | { "": unknown } | { "": unknown }
         Returns: unknown
       }
+      log_security_event: {
+        Args: { event_type: string; details?: Json }
+        Returns: undefined
+      }
       reset_failed_document: {
         Args: { doc_id: string }
         Returns: boolean
@@ -1897,6 +1901,10 @@ export type Database = {
       }
       validate_admin_operation: {
         Args: { operation_type: string }
+        Returns: boolean
+      }
+      validate_input_security: {
+        Args: { input_text: string }
         Returns: boolean
       }
       vector_avg: {
