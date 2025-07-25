@@ -1724,6 +1724,39 @@ export type Database = {
         }
         Relationships: []
       }
+      security_exceptions: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          description: string
+          exception_type: string
+          id: string
+          rationale: string
+          review_date: string | null
+          status: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          description: string
+          exception_type: string
+          id?: string
+          rationale: string
+          review_date?: string | null
+          status?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          description?: string
+          exception_type?: string
+          id?: string
+          rationale?: string
+          review_date?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       security_monitoring: {
         Row: {
           id: string
