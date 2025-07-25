@@ -4,7 +4,7 @@ project_id = "dmhlxhatogrrrvuruayv"
 verify_jwt = true
 
 [functions.process-ai-document]
-verify_jwt = false
+verify_jwt = true
 
 [functions.search-ai-context]
-verify_jwt = false
+verify_jwt = true

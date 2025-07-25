@@ -7,6 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useOrganization } from '@/hooks/useOrganization';
 import { MessageCircle, Send, Bot, User, Minimize2, Maximize2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { sanitizeInput, detectPromptInjection } from '@/lib/security';
 
 interface Message {
   id: string;
@@ -92,9 +93,20 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
   const sendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
+    // Security validation
+    const sanitizedInput = sanitizeInput(inputValue);
+    if (detectPromptInjection(sanitizedInput)) {
+      toast({
+        title: "Invalid Input",
+        description: "Please rephrase your question.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
-      content: inputValue,
+      content: sanitizedInput,
       sender: 'user',
       timestamp: new Date()
     };
@@ -106,7 +118,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
     try {
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
-          prompt: inputValue,
+          prompt: sanitizedInput,
           context: context || 'maturity assessment guidance',
           currentDomain: currentDomain || 'general',
           organizationId: currentOrganization?.id
