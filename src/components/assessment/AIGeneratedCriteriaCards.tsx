@@ -127,29 +127,93 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
       console.log('No existing criteria found, generating new ones with AI Criteria Generation Policy');
     }
     
-    // Analyze MPS document to get structured criteria and expected count
-    let expectedCriteriaCount = 10; // Default Annex 2 minimum
-    let sourceMPSDocument = 'Annex 2 Default (8-10 criteria)';
+    // Enhanced MPS Document Analysis with Semantic Topic Detection
+    let expectedCriteriaCount = 10; // Default enhanced minimum for MPS 1
+    let sourceMPSDocument = 'Enhanced Semantic Analysis (10+ criteria)';
     let structuredCriteria: any[] = [];
     let hasStructuredFormat = false;
-    let sourceType = 'fallback_estimation';
+    let sourceType = 'enhanced_semantic_analysis';
+    let semanticTopics: string[] = [];
+    let detectedSections = 0;
     
     try {
-      const mpsAnalysis = await analyzeMPSDocument(organizationId, mps.mps_number);
-      if (mpsAnalysis.foundDocument && mpsAnalysis.documentInfo) {
-        expectedCriteriaCount = mpsAnalysis.documentInfo.expectedCriteriaCount;
-        sourceMPSDocument = mpsAnalysis.documentInfo.documentName;
-        structuredCriteria = mpsAnalysis.documentInfo.structuredCriteria;
-        hasStructuredFormat = mpsAnalysis.documentInfo.hasStructuredFormat;
-        sourceType = mpsAnalysis.documentInfo.sourceType;
+      // Enhanced document analysis with topic boundary detection
+      const { data: docs, error } = await supabase
+        .from('ai_documents')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .eq('document_type', 'mps_document')
+        .eq('processing_status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (docs && docs.length > 0) {
+        const doc = docs[0];
+        const content = (doc.metadata as any)?.content || doc.file_name || '';
         
-        console.log(`📘 AI Conversion Logic Policy: Found ${sourceMPSDocument} with ${expectedCriteriaCount} expected criteria`);
-        console.log(`📘 Structured Format Detected: ${hasStructuredFormat} (${structuredCriteria.length} structured blocks)`);
-        console.log(`📘 Source Type: ${sourceType}`);
+        // Enhanced semantic topic boundary detection for MPS 1 Leadership
+        const leadershipTopics = [
+          'board oversight', 'governance framework', 'executive accountability', 
+          'management responsibility', 'security in business planning', 'organizational communication',
+          'policy framework', 'risk management', 'compliance oversight', 'managerial accountability'
+        ];
         
-        // If structured criteria found, use them directly instead of AI generation
-        if (hasStructuredFormat && structuredCriteria.length > 0) {
-          console.log(`✅ AI Conversion Logic Policy: Converting ${structuredCriteria.length} structured blocks to criteria`);
+        // Detect structured requirements and semantic boundaries
+        const requirementSections = content.split(/(?:\n\s*){2,}/).filter(section => {
+          const sectionLower = section.toLowerCase();
+          return section.trim().length > 50 && 
+                 (section.includes('requirement') || 
+                  section.includes('shall') || 
+                  section.includes('must') ||
+                  /^\s*\d+[\.\)]/m.test(section) ||
+                  leadershipTopics.some(topic => sectionLower.includes(topic.toLowerCase())));
+        });
+
+        // Identify unique semantic topics
+        const detectedTopics = new Set();
+        leadershipTopics.forEach(topic => {
+          if (content.toLowerCase().includes(topic.toLowerCase())) {
+            detectedTopics.add(topic);
+          }
+        });
+
+        // For MPS 1, ensure we capture all 10 expected criteria
+        const topicCount = detectedTopics.size;
+        const sectionCount = requirementSections.length;
+        detectedSections = sectionCount;
+        semanticTopics = Array.from(detectedTopics) as string[];
+        
+        // Use the higher count, with MPS 1 minimum of 10
+        expectedCriteriaCount = mps.mps_number === 1 ? Math.max(Math.max(topicCount, sectionCount), 10) : Math.max(Math.max(topicCount, sectionCount), 8);
+        sourceMPSDocument = doc.file_name || 'MPS Document Analysis';
+        sourceType = 'semantic_boundary_detection';
+        
+        console.log(`📊 Enhanced MPS ${mps.mps_number} Semantic Analysis:`, {
+          documentFound: doc.file_name,
+          contentLength: content.length,
+          requirementSections: sectionCount,
+          semanticTopics: topicCount,
+          estimatedCount: expectedCriteriaCount,
+          detectedTopics: Array.from(detectedTopics).slice(0, 5)
+        });
+        
+        // Check for structured format
+        const structuredMatches = content.match(/requirement\s*:[\s\S]*?evidence\s*:/gi);
+        if (structuredMatches && structuredMatches.length > 0) {
+          hasStructuredFormat = true;
+          structuredCriteria = structuredMatches.map((match, index) => {
+            const requirement = match.match(/requirement\s*:([\s\S]*?)(?=evidence\s*:|$)/i)?.[1]?.trim() || '';
+            const evidence = match.match(/evidence\s*:([\s\S]*?)$/i)?.[1]?.trim() || '';
+            return {
+              requirement: requirement.replace(/^[•\-\d\.\)]+\s*/, ''),
+              evidence: evidence.replace(/^[•\-\d\.\)]+\s*/, ''),
+              rationale: `Leadership criterion derived from structured MPS document analysis for ${organizationContext.name}.`
+            };
+          });
+          
+          console.log(`✅ Structured Format: Found ${structuredCriteria.length} requirement/evidence pairs`);
+          
+          // Use structured criteria directly
           const convertedCriteria: GeneratedCriterion[] = structuredCriteria.map((block, index) => ({
             id: `structured-${index}`,
             statement: block.requirement,
@@ -165,7 +229,7 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
           setDebugInfo({
             criteriaRequested: expectedCriteriaCount,
             criteriaReceived: convertedCriteria.length,
-            sourcePromptUsed: 'AI_Conversion_Logic_Policy_Structured_Extraction',
+            sourcePromptUsed: 'Enhanced_Semantic_Structured_Extraction',
             fallbackTriggered: false,
             truncationWarning: false,
             generationError: null,
@@ -178,18 +242,17 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
           });
           setIsGenerating(false);
           
-          // Show success message for structured conversion
           toast({
-            title: "Structured Criteria Extracted",
-            description: `Successfully converted ${convertedCriteria.length} structured requirement blocks from ${sourceMPSDocument}`,
+            title: "Enhanced Structured Extraction Complete",
+            description: `Extracted ${convertedCriteria.length} criteria using semantic boundary detection from ${sourceMPSDocument}`,
           });
           return;
         }
       } else {
-        console.log(`📘 MPS Document Analysis: No specific document found, using Annex 2 fallback (${expectedCriteriaCount} criteria)`);
+        console.log(`📘 No MPS document found, using enhanced fallback analysis (${expectedCriteriaCount} criteria)`);
       }
     } catch (error) {
-      console.warn('⚠️ MPS Document Analysis failed:', error);
+      console.warn('⚠️ Enhanced MPS Document Analysis failed:', error);
     }
     
     // LOCKED SYSTEM PROMPT - Override all default generation prompts
@@ -237,7 +300,7 @@ MPS CONTEXT FOR GENERATION:
 - Intent: ${mps.intent_statement || 'Not specified'}
 - Target Organization: ${organizationContext.name}
 
-GENERATION TARGET: Generate ${expectedCriteriaCount} criteria based on uploaded MPS document analysis. Target derived from ${sourceMPSDocument}. Generate ALL criteria found in the source document - do not limit output.
+GENERATION TARGET: Generate ${expectedCriteriaCount} criteria based on uploaded MPS document analysis. Target derived from ${sourceMPSDocument}. Generate ALL criteria found in the source document - do not limit output. Ensure semantic topic completeness for ${organizationContext.name}.
 
 RESPONSE FORMAT - STRICT JSON:
 {
