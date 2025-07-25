@@ -77,78 +77,119 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
       console.log('No existing criteria found, generating new ones');
     }
     
-    const prompt = `You are generating formal assessment criteria for a maturity model, following the AI Criteria Generation Policy and Annex 2 AI_Criteria_Evaluation_Guide from the AI Admin Knowledge Base.
+    // LOCKED SYSTEM PROMPT - Override all default generation prompts
+    const systemPrompt = `You are an AI assessment criteria generator operating under strict system constraints from the AI Criteria Generation Policy and Annex 2 AI_Criteria_Evaluation_Guide documents in the AI Admin Knowledge Base.
 
-MPS Details:
+MANDATORY SYSTEM CONSTRAINTS (NON-NEGOTIABLE):
+
+1. PRECISION REQUIREMENT: All criteria must be precise, unambiguous, and fully measurable
+2. EVIDENCE TYPE MANDATE: Include expected evidence type (policy, log, record, system, audit, interview, configuration)
+3. FORMAL LANGUAGE: Use formal, directive language (e.g., "Records shall show...", "System logs must demonstrate...")
+4. RATIONALE INCLUSION: Include rationale sentence explaining necessity below main statement
+5. STRUCTURAL COMPLIANCE: Evidence Type + Verb + Context + Condition/Purpose
+6. ANTI-VAGUENESS: Never use "appropriate," "adequate," or "effective" without specific qualification/measurement
+7. MATURION LINK: End all explanations with: "Ask Maturion if you want to learn more."
+
+HALLUCINATION FILTERS - REJECT ANY CONTENT WITH:
+- Unsupported claims not grounded in MPS context
+- Broad, undefined terms without measurable criteria
+- More than one "A policy shall be in place..." statement per MPS
+- Repetitive or template-like phrasing
+- Vague qualifiers without specific thresholds
+
+CONTROLLED CREATIVITY BOUNDARIES:
+- Variety in evidence types (policies, records, logs, systems, audits, interviews, configurations)
+- Context drawn from uploaded AI Admin Knowledge Base documents
+- Structured creativity mode - NOT freeform generation
+- Clarity prioritized over verbosity
+
+MPS CONTEXT FOR GENERATION:
 - Number: ${mps.mps_number}
 - Title: ${mps.name}
 - Domain: ${domainName}
 - Intent: ${mps.intent_statement || 'Not specified'}
 
-MANDATORY REQUIREMENTS (per AI Criteria Generation Policy and Annex 2):
+GENERATION TARGET: Generate 8-25 criteria based on MPS complexity for comprehensive coverage.
 
-1. Be evidence-based (policies, records, logs, systems, audits, interviews)
-2. Include: Evidence type + Verb + Tailored Context + Condition/Purpose
-3. Be unambiguous and easily understood by all evaluators
-4. Be traceable (e.g., ${mps.mps_number}.X format)
-5. Include a rationale or explanation underneath the main statement
-6. Avoid vague terms like "appropriate" or "effective" unless explicitly defined
-7. Generate as many criteria as required for full domain coverage (8-25 range, not fixed at 10)
-
-EVIDENCE TYPE DIVERSITY (avoid policy-only approach):
-- "Training records shall demonstrate that..." (competency evidence)
-- "System logs must show evidence of..." (technical verification)
-- "Audit reports shall confirm that..." (independent verification)
-- "Configuration settings must ensure..." (technical implementation)
-- "Interview results shall verify that..." (behavioral verification)
-- "Incident response logs must document..." (operational evidence)
-- "Backup verification reports shall prove..." (continuity evidence)
-- "Access control records must demonstrate..." (security evidence)
-
-UNAMBIGUOUS REQUIREMENTS:
-- Use specific, measurable terms (quarterly, 80%+, within 30 days)
-- Avoid vague qualifiers without measurable standards
-- Include clear thresholds and frequencies
-- Ensure 10 different evaluators would interpret identically
-
-DETAILED EVIDENCE GUIDANCE: Specify exactly what evidence is needed:
-- Training: "Signed registers with 80%+ test scores, competency matrices reviewed quarterly, supervisor sign-offs"
-- Policies: "Formally approved documents, version control records, annual review dates, communication logs"
-- Systems: "Configuration screenshots, access logs, automated test results, backup schedules"
-- Audits: "Independent audit reports, finding classifications, corrective action tracking"
-
-Generate comprehensive coverage ensuring:
-- Complete MPS intent fulfillment
-- Varied evidence types and verification methods
-- Implementation, monitoring, and verification aspects
-- Context-appropriate criteria count (complexity-driven)
-
-Return as JSON with this structure:
+RESPONSE FORMAT - STRICT JSON:
 {
   "criteria": [
     {
-      "statement": "[Evidence type] [specific, unambiguous requirement with measurable criteria]",
-      "summary": "brief explanation of what this criterion measures",
-      "rationale": "why this criterion is essential for this MPS",
-      "evidence_guidance": "specific evidence requirements with measurable thresholds",
-      "explanation": "detailed explanation: what it means, expected evidence, why it matters"
+      "statement": "[Evidence Type] [Directive Verb] [Specific Context] [Measurable Condition]",
+      "summary": "Brief, specific measurement description",
+      "rationale": "Clear explanation of necessity for this MPS",
+      "evidence_guidance": "Specific evidence with measurable thresholds (e.g., '90% test scores, quarterly reviews, signed registers')",
+      "explanation": "What it means + expected evidence + importance. Ask Maturion if you want to learn more."
     }
   ],
-  "system_message": "explanation of criteria count and coverage rationale"
-}
+  "generation_metadata": {
+    "criteria_count": "number_generated",
+    "complexity_assessment": "simple|moderate|complex",
+    "evidence_types_used": ["policy", "record", "system", "etc"],
+    "document_references": ["AI_Criteria_Generation_Policy", "Annex_2"]
+  }
+}`;
 
-Add "Ask Maturion if you want to learn more." to every explanation.`;
+    // Log AI generation attempt for audit trail
+    const logGeneration = async (prompt: string, response: any, metadata: any) => {
+      try {
+        await supabase.from('ai_upload_audit').insert({
+          organization_id: organizationId,
+          user_id: organizationId, // Fallback to org ID
+          action: 'ai_criteria_generation',
+          document_id: null,
+          metadata: {
+            mps_number: mps.mps_number,
+            domain: domainName,
+            prompt_used: prompt.substring(0, 500), // First 500 chars
+            criteria_count: metadata?.criteria_count || 0,
+            complexity_assessment: metadata?.complexity_assessment || 'unknown',
+            evidence_types_used: metadata?.evidence_types_used || [],
+            document_references: metadata?.document_references || ['AI_Criteria_Generation_Policy', 'Annex_2'],
+            timestamp: new Date().toISOString()
+          }
+        });
+      } catch (error) {
+        console.log('Failed to log generation attempt:', error);
+      }
+    };
+
+    // Hallucination Filter - validate AI response quality
+    const validateCriteriaQuality = (criteria: any[]): any[] => {
+      return criteria.filter(criterion => {
+        // Filter out vague or problematic content
+        const statement = criterion.statement?.toLowerCase() || '';
+        const hasVagueTerms = /\b(appropriate|adequate|effective|sufficient)\b/.test(statement) && 
+                              !/\b(80%|quarterly|monthly|annually|within \d+|≥|>\s*\d+)\b/.test(statement);
+        
+        if (hasVagueTerms) {
+          console.warn('Filtered out vague criterion:', criterion.statement);
+          return false;
+        }
+        
+        // Check for unsupported claims or overly broad terms
+        const hasBroadTerms = /\b(all|every|always|never|completely|fully)\b/.test(statement) && 
+                              !/\b(documented|recorded|maintained|tracked)\b/.test(statement);
+        
+        if (hasBroadTerms) {
+          console.warn('Filtered out broad criterion:', criterion.statement);
+          return false;
+        }
+        
+        return true;
+      });
+    };
 
     try {
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
-          prompt: prompt,
-          context: 'AI Criteria Generation',
+          prompt: systemPrompt,
+          context: 'AI Criteria Generation - Locked System Prompt',
           currentDomain: domainName,
           organizationId: organizationId,
           allowExternalContext: true,
           knowledgeBaseUsed: true,
-          temperature: 0
+          temperature: 0 // Enforce consistency
         }
       });
 
@@ -182,6 +223,33 @@ Add "Ask Maturion if you want to learn more." to every explanation.`;
                 (criterion.explanation.includes('Ask Maturion') ? criterion.explanation : `${criterion.explanation} Ask Maturion if you want to learn more.`) :
                 `This criterion measures ${criterion.summary}. Evidence requirements and specific implementation details should be documented during the assessment process. Ask Maturion if you want to learn more.`
             }));
+            
+            // Apply hallucination filters before processing
+            criteria = validateCriteriaQuality(criteria);
+            
+            // Check for excessive "policy shall be in place" repetition
+            const policyStatements = criteria.filter(c => 
+              c.statement?.toLowerCase().includes('policy shall be in place')
+            );
+            if (policyStatements.length > 1) {
+              console.warn(`Filtered out ${policyStatements.length - 1} excessive policy statements`);
+              criteria = criteria.filter((c, index) => {
+                if (c.statement?.toLowerCase().includes('policy shall be in place')) {
+                  return index === criteria.findIndex(cr => cr.statement?.toLowerCase().includes('policy shall be in place'));
+                }
+                return true;
+              });
+            }
+            
+            // Log generation attempt with metadata
+            const generationMetadata = parsedData.generation_metadata || {
+              criteria_count: criteria.length,
+              complexity_assessment: 'unknown',
+              evidence_types_used: [],
+              document_references: ['AI_Criteria_Generation_Policy', 'Annex_2']
+            };
+            
+            await logGeneration(systemPrompt, data.content, generationMetadata);
           } else {
             // Fallback: try to parse as array
             const arrayStart = responseContent.indexOf('[');
