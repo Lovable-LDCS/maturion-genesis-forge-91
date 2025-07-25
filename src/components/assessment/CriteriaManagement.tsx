@@ -22,6 +22,7 @@ interface MPS {
   intent_statement?: string;
   summary?: string;
   status: string;
+  domain_id?: string;
 }
 
 interface Criteria {
@@ -163,7 +164,7 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
       if (isOpen && currentOrganization?.id) {
         fetchMPSsAndCriteria();
       }
-    }, [isOpen, currentOrganization?.id, domainName]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [isOpen, currentOrganization?.id, domainName, fetchMPSsAndCriteria]);
 
     // Check for deferred criteria reminders when MPS data loads
     useEffect(() => {
@@ -595,10 +596,11 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
                 </DialogTitle>
               </DialogHeader>
               <AIGeneratedCriteriaCards
-                mps={mpsList.find(m => m.id === showAIGeneration)!}
-                organizationId={currentOrganization?.id || ''}
-                domainName={domainName}
-                onComplete={(approvedCriteria) => 
+                mps={{
+                  ...mpsList.find(m => m.id === showAIGeneration)!,
+                  domain_id: mpsList.find(m => m.id === showAIGeneration)?.domain_id || ''
+                }}
+                onCriteriaChange={(approvedCriteria) => 
                   handleAIGenerationComplete(showAIGeneration, approvedCriteria)
                 }
               />

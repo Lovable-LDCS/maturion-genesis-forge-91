@@ -28,7 +28,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
   className 
 }) => {
   // Debug log to ensure component is rendering
-  console.log('MaturionChat rendering with context:', context, 'domain:', currentDomain);
+  // MaturionChat rendering with context and domain
   
   // Load messages from localStorage or use default
   const [messages, setMessages] = useState<Message[]>(() => {
@@ -169,7 +169,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
   };
 
   if (!isOpen) {
-    console.log('MaturionChat: Rendering closed state');
+    // MaturionChat: Rendering closed state
     return (
       <div className={`fixed bottom-6 right-6 z-[100] ${className}`} style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
         <Button
@@ -185,7 +185,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
     );
   }
 
-  console.log('MaturionChat: Rendering open state');
+  // MaturionChat: Rendering open state
   return (
     <div className={`fixed bottom-6 right-6 z-[100] ${className}`} style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
       <Card className={`w-96 shadow-2xl border-0 bg-white/95 backdrop-blur transition-all duration-300 ${

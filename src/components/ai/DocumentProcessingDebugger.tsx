@@ -32,14 +32,16 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
         return;
       }
 
-      console.log('Triggering processing for document:', pendingDoc.id);
+      // Processing document: ${pendingDoc.title}
 
       // Call the edge function directly
       const { data, error } = await supabase.functions.invoke('process-ai-document', {
         body: { documentId: pendingDoc.id }
       });
 
-      console.log('Processing response:', data, error);
+      if (error) {
+        console.error('Processing error:', error);
+      }
 
       if (error) {
         throw error;
@@ -82,7 +84,7 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
         return;
       }
 
-      console.log(`Processing ${pendingDocs.length} pending documents...`);
+      // Processing ${pendingDocs.length} pending documents
 
       let successful = 0;
       let failed = 0;
@@ -98,7 +100,7 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
             console.error(`Failed to process ${doc.title}:`, error);
             failed++;
           } else {
-            console.log(`Successfully triggered processing for: ${doc.title}`);
+            // Successfully triggered processing for: ${doc.title}
             successful++;
           }
 
