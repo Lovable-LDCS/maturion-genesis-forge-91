@@ -5,14 +5,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Sparkles, AlertTriangle } from 'lucide-react';
 import { AIFeedbackInterface } from './AIFeedbackInterface';
+import { FallbackTraceabilityPanel } from './FallbackTraceabilityPanel';
 import { useBestPracticeComparator } from '@/hooks/useBestPracticeComparator';
-import { useAILearningFeedback } from '@/hooks/useAILearningFeedback';
+import { useSmartFeedbackLoop } from '@/hooks/useSmartFeedbackLoop';
 import { useToast } from '@/hooks/use-toast';
 
 interface EnhancedCriteriaGeneratorProps {
   domainId: string;
   mpsId: string;
-  onCriteriaGenerated: (criteria: string, sourceType: 'internal' | 'best_practice') => void;
+  onCriteriaGenerated: (criteria: string, sourceType: 'internal' | 'best_practice' | 'smart_feedback') => void;
 }
 
 export const EnhancedCriteriaGenerator = ({
@@ -22,12 +23,15 @@ export const EnhancedCriteriaGenerator = ({
 }: EnhancedCriteriaGeneratorProps) => {
   const [userInput, setUserInput] = useState('');
   const [generatedCriteria, setGeneratedCriteria] = useState<string | null>(null);
-  const [sourceType, setSourceType] = useState<'internal' | 'best_practice'>('internal');
+  const [sourceType, setSourceType] = useState<'internal' | 'best_practice' | 'smart_feedback'>('internal');
   const [standardSource, setStandardSource] = useState<string | null>(null);
+  const [fallbackPath, setFallbackPath] = useState<string[]>([]);
+  const [modifications, setModifications] = useState<string[]>([]);
+  const [confidence, setConfidence] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   
   const { compareAgainstBestPractices, isAnalyzing } = useBestPracticeComparator();
-  const { shouldSuppressContent, applyLearningPatterns } = useAILearningFeedback();
+  const { applySmartFeedback } = useSmartFeedbackLoop();
   const { toast } = useToast();
 
   const generateCriteria = useCallback(async () => {
@@ -43,9 +47,10 @@ export const EnhancedCriteriaGenerator = ({
     setIsGenerating(true);
 
     try {
-      // Step 1: Check if similar content should be suppressed due to previous rejections
-      const shouldSuppress = await shouldSuppressContent(userInput);
-      if (shouldSuppress) {
+      // Step 1: Apply smart feedback learning to input
+      const feedbackResult = await applySmartFeedback(userInput, domainId);
+      
+      if (feedbackResult.suppressionApplied) {
         toast({
           title: "Content Suppressed",
           description: "Similar content was previously rejected. Please try a different approach.",
@@ -55,21 +60,28 @@ export const EnhancedCriteriaGenerator = ({
         return;
       }
 
-      // Step 2: Apply learning patterns to improve the input
-      const improvedInput = applyLearningPatterns(userInput);
+      // Step 2: Use improved input with fallback traceability
+      const improvedInput = feedbackResult.modifiedContent;
 
       // Step 3: Check for best practice comparison
       const bestPracticeResult = await compareAgainstBestPractices(improvedInput, domainId);
 
       let criteria: string;
-      let source: 'internal' | 'best_practice' = 'internal';
+      let source: 'internal' | 'best_practice' | 'smart_feedback' = 'internal';
       let standardRef: string | null = null;
+      let finalFallbackPath: string[] = [...feedbackResult.fallbackTraceability];
+      let finalModifications: string[] = [...feedbackResult.modificationsApplied];
 
       if (bestPracticeResult.fallbackUsed && bestPracticeResult.matches.length > 0) {
         // Use best practice recommendation
         criteria = bestPracticeResult.recommendation;
         source = 'best_practice';
         standardRef = bestPracticeResult.matches[0]?.source || 'International Standards';
+        finalFallbackPath.push('Applied international standards fallback');
+      } else if (feedbackResult.modificationsApplied.length > 0) {
+        // Smart feedback was applied
+        criteria = bestPracticeResult.recommendation || await generateFromInternal(improvedInput);
+        source = 'smart_feedback';
       } else {
         // Generate from internal knowledge or basic AI
         criteria = bestPracticeResult.recommendation || await generateFromInternal(improvedInput);
@@ -78,6 +90,9 @@ export const EnhancedCriteriaGenerator = ({
       setGeneratedCriteria(criteria);
       setSourceType(source);
       setStandardSource(standardRef);
+      setFallbackPath(finalFallbackPath);
+      setModifications(finalModifications);
+      setConfidence(bestPracticeResult.matches[0]?.similarity_score || 0.75);
 
     } catch (error) {
       console.error('Error generating criteria:', error);
@@ -89,7 +104,7 @@ export const EnhancedCriteriaGenerator = ({
     } finally {
       setIsGenerating(false);
     }
-  }, [userInput, domainId, compareAgainstBestPractices, shouldSuppressContent, applyLearningPatterns, toast]);
+  }, [userInput, domainId, compareAgainstBestPractices, applySmartFeedback, toast]);
 
   const generateFromInternal = async (input: string): Promise<string> => {
     // This would typically call an AI service or use internal knowledge
@@ -106,6 +121,8 @@ export const EnhancedCriteriaGenerator = ({
       onCriteriaGenerated(generatedCriteria, sourceType);
       setGeneratedCriteria(null);
       setUserInput('');
+      setFallbackPath([]);
+      setModifications([]);
     }
   };
 
@@ -159,6 +176,14 @@ export const EnhancedCriteriaGenerator = ({
             onContentUpdate={handleContentUpdate}
             sourceType={sourceType}
             standardSource={standardSource}
+          />
+          
+          <FallbackTraceabilityPanel
+            fallbackPath={fallbackPath}
+            modifications={modifications}
+            sourceType={sourceType}
+            confidence={confidence}
+            timestamp={new Date().toISOString()}
           />
           
           <div className="flex gap-2">

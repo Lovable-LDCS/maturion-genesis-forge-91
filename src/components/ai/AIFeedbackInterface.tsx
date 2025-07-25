@@ -13,7 +13,7 @@ interface AIFeedbackInterfaceProps {
   contentType: 'criteria' | 'evidence' | 'intent';
   domainId?: string;
   onContentUpdate?: (updatedContent: string) => void;
-  sourceType?: 'internal' | 'best_practice' | 'fallback';
+  sourceType?: 'internal' | 'best_practice' | 'smart_feedback';
   standardSource?: string;
 }
 
