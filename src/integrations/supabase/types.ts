@@ -1866,22 +1866,7 @@ export type Database = {
       }
     }
     Views: {
-      user_organization_invitations: {
-        Row: {
-          created_at: string | null
-          email: string | null
-          expires_at: string | null
-          id: string | null
-          invitation_token: string | null
-          invited_by: string | null
-          organization_id: string | null
-          organization_name: string | null
-          role: string | null
-          status: Database["public"]["Enums"]["invitation_status"] | null
-          updated_at: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       accept_invitation: {
