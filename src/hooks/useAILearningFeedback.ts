@@ -54,16 +54,25 @@ export const useAILearningFeedback = () => {
         throw new Error('User not authenticated');
       }
 
-      // TODO: Temporarily disabled until types are updated
-      // Store feedback in learning log once ai_feedback_log table types are available
-      console.log('Feedback captured:', {
-        rejectedText,
-        replacementText,
-        reason,
-        feedbackType,
-        organizationId: currentOrganization.id,
-        userId: user.id
-      });
+      // Store feedback in learning log
+      const { error } = await supabase
+        .from('ai_feedback_log')
+        .insert({
+          organization_id: currentOrganization.id,
+          domain_id: domainId,
+          user_id: user.id,
+          rejected_text: rejectedText,
+          replacement_text: replacementText,
+          reason: reason,
+          feedback_type: feedbackType,
+          metadata: {
+            timestamp: new Date().toISOString(),
+            domain_context: domainId ? 'domain_specific' : 'general',
+            learning_scope: 'organizational'
+          }
+        });
+
+      if (error) throw error;
 
       // Log audit trail for learning system
       await supabase
