@@ -1,11 +1,20 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+interface StructuredCriterion {
+  requirement: string;
+  evidence: string;
+  rationale?: string;
+}
+
 interface MPSDocumentInfo {
   documentName: string;
   expectedCriteriaCount: number;
   documentType: string;
   processingStatus: string;
+  structuredCriteria: StructuredCriterion[];
+  hasStructuredFormat: boolean;
+  sourceType: 'structured_blocks' | 'pattern_detection' | 'fallback_estimation';
 }
 
 interface MPSAnalysisResult {
@@ -69,15 +78,18 @@ export const useMPSDocumentAnalysis = () => {
         return { foundDocument: false, error: 'No document content found for analysis' };
       }
 
-      // Analyze content to extract criteria count
-      const fullContent = chunks.map(chunk => chunk.content).join(' ');
-      const criteriaCount = extractCriteriaCount(fullContent, mpsNumber);
+      // Analyze content to extract criteria count and structured blocks
+      const fullContent = chunks.map(chunk => chunk.content).join('\n\n');
+      const analysisResult = analyzeDocumentStructure(fullContent, mpsNumber);
 
       const documentInfo: MPSDocumentInfo = {
         documentName: relevantDoc.title || relevantDoc.file_name || 'Unknown Document',
-        expectedCriteriaCount: criteriaCount,
+        expectedCriteriaCount: analysisResult.criteriaCount,
         documentType: relevantDoc.document_type,
-        processingStatus: relevantDoc.processing_status
+        processingStatus: relevantDoc.processing_status,
+        structuredCriteria: analysisResult.structuredCriteria,
+        hasStructuredFormat: analysisResult.hasStructuredFormat,
+        sourceType: analysisResult.sourceType
       };
 
       return { foundDocument: true, documentInfo };
@@ -96,26 +108,124 @@ export const useMPSDocumentAnalysis = () => {
   return { analyzeMPSDocument, isAnalyzing };
 };
 
-// Helper function to extract criteria count from document content
+// AI Conversion Logic Policy - Structured Criteria Interpretation
+interface DocumentAnalysisResult {
+  criteriaCount: number;
+  structuredCriteria: StructuredCriterion[];
+  hasStructuredFormat: boolean;
+  sourceType: 'structured_blocks' | 'pattern_detection' | 'fallback_estimation';
+}
+
+function analyzeDocumentStructure(content: string, mpsNumber: number): DocumentAnalysisResult {
+  // Primary: Detect structured "Requirement:" and "Evidence:" blocks
+  const structuredCriteria = extractStructuredBlocks(content);
+  
+  if (structuredCriteria.length > 0) {
+    return {
+      criteriaCount: structuredCriteria.length,
+      structuredCriteria,
+      hasStructuredFormat: true,
+      sourceType: 'structured_blocks'
+    };
+  }
+
+  // Secondary: Use pattern detection
+  const patternCount = extractCriteriaCount(content, mpsNumber);
+  
+  return {
+    criteriaCount: patternCount,
+    structuredCriteria: [],
+    hasStructuredFormat: false,
+    sourceType: patternCount > 8 ? 'pattern_detection' : 'fallback_estimation'
+  };
+}
+
+function extractStructuredBlocks(content: string): StructuredCriterion[] {
+  const criteria: StructuredCriterion[] = [];
+  
+  // Split content into sections and look for Requirement:/Evidence: patterns
+  const sections = content.split(/\n\s*\n/);
+  
+  for (let i = 0; i < sections.length; i++) {
+    const section = sections[i].trim();
+    
+    // Look for "Requirement:" pattern (case-insensitive)
+    const requirementMatch = section.match(/^Requirement:\s*(.+)/im);
+    if (requirementMatch) {
+      const requirement = requirementMatch[1].trim();
+      
+      // Look for corresponding "Evidence:" in this section or next sections
+      let evidence = '';
+      let rationale = '';
+      
+      // Check current section for evidence
+      const evidenceMatch = section.match(/Evidence:\s*(.+)/im);
+      if (evidenceMatch) {
+        evidence = evidenceMatch[1].trim();
+      } else {
+        // Check next few sections for evidence
+        for (let j = i + 1; j < Math.min(i + 3, sections.length); j++) {
+          const nextSection = sections[j].trim();
+          const nextEvidenceMatch = nextSection.match(/^Evidence:\s*(.+)/im);
+          if (nextEvidenceMatch) {
+            evidence = nextEvidenceMatch[1].trim();
+            break;
+          }
+        }
+      }
+      
+      // Look for rationale (optional)
+      const rationaleMatch = section.match(/(?:Rationale|Justification|Note):\s*(.+)/im);
+      if (rationaleMatch) {
+        rationale = rationaleMatch[1].trim();
+      }
+      
+      if (requirement && evidence) {
+        criteria.push({
+          requirement: cleanText(requirement),
+          evidence: cleanText(evidence),
+          rationale: rationale ? cleanText(rationale) : undefined
+        });
+      }
+    }
+  }
+  
+  // Alternative pattern: Look for numbered requirement/evidence pairs
+  if (criteria.length === 0) {
+    const numberedPattern = /(?:^|\n)\s*\d+[\.\)]\s*(?:Requirement|Req):\s*(.+?)(?:\n\s*Evidence:\s*(.+?))?(?=\n\s*\d+[\.\)]|$)/gim;
+    let match;
+    
+    while ((match = numberedPattern.exec(content)) !== null) {
+      const requirement = match[1]?.trim();
+      const evidence = match[2]?.trim() || 'Evidence to be determined during assessment';
+      
+      if (requirement) {
+        criteria.push({
+          requirement: cleanText(requirement),
+          evidence: cleanText(evidence)
+        });
+      }
+    }
+  }
+  
+  return criteria;
+}
+
+function cleanText(text: string): string {
+  return text
+    .replace(/\s+/g, ' ')
+    .replace(/[\r\n]+/g, ' ')
+    .trim()
+    .replace(/^[•\-\*]\s*/, '') // Remove bullet points
+    .replace(/\.$/, ''); // Remove trailing period
+}
+
+// Fallback function for pattern detection (simplified version of original)
 function extractCriteriaCount(content: string, mpsNumber: number): number {
   const lowerContent = content.toLowerCase();
-  
-  // Look for patterns that indicate criteria structure
-  const patterns = [
-    // Pattern 1: Look for numbered criteria like "4.1", "4.2", etc.
-    new RegExp(`${mpsNumber}\\.(\\d+)`, 'g'),
-    // Pattern 2: Look for bullet points or numbered lists
-    /^\s*[•\-\*]\s+/gm,
-    /^\s*\d+\.\s+/gm,
-    // Pattern 3: Look for "criterion" or "criteria" mentions
-    /criterion|criteria/gi,
-    // Pattern 4: Look for assessment-related keywords
-    /shall\s+(demonstrate|show|provide|maintain|establish)/gi
-  ];
-
   let maxCount = 0;
 
-  // Try pattern 1: numbered criteria specific to this MPS
+  // Try numbered criteria specific to this MPS
   const mpsSpecificMatches = content.match(new RegExp(`${mpsNumber}\\.(\\d+)`, 'g'));
   if (mpsSpecificMatches) {
     const numbers = mpsSpecificMatches.map(match => {
@@ -125,7 +235,7 @@ function extractCriteriaCount(content: string, mpsNumber: number): number {
     maxCount = Math.max(maxCount, Math.max(...numbers));
   }
 
-  // Try pattern 2: Count sections that look like assessment criteria
+  // Count assessment sections
   const assessmentSections = content.split(/\n\s*\n/).filter(section => {
     const sectionLower = section.toLowerCase();
     return (
@@ -134,32 +244,19 @@ function extractCriteriaCount(content: string, mpsNumber: number): number {
       sectionLower.includes('should') ||
       sectionLower.includes('evidence') ||
       sectionLower.includes('demonstrate')
-    ) && section.trim().length > 50; // Filter out short sections
+    ) && section.trim().length > 50;
   });
 
   maxCount = Math.max(maxCount, assessmentSections.length);
 
-  // Try pattern 3: Look for explicit criteria numbering
-  const criteriaLines = content.split('\n').filter(line => {
-    const trimmedLine = line.trim();
-    return (
-      /^\d+\.\d+/.test(trimmedLine) ||
-      /^[A-Z]\d+\.\d+/.test(trimmedLine) ||
-      (trimmedLine.includes('criteria') && trimmedLine.length < 100)
-    );
-  });
-
-  maxCount = Math.max(maxCount, criteriaLines.length);
-
-  // Fallback: If we can't find specific patterns, estimate based on content length
+  // Fallback based on content length
   if (maxCount === 0) {
     const contentLength = content.length;
-    if (contentLength > 10000) maxCount = 12; // Long document, likely complex MPS
-    else if (contentLength > 5000) maxCount = 10; // Medium document
-    else if (contentLength > 2000) maxCount = 8; // Short document
-    else maxCount = 8; // Very short, use minimum
+    if (contentLength > 10000) maxCount = 12;
+    else if (contentLength > 5000) maxCount = 10;
+    else if (contentLength > 2000) maxCount = 8;
+    else maxCount = 8;
   }
 
-  // Ensure we stay within reasonable bounds (8-25 criteria)
   return Math.max(8, Math.min(25, maxCount));
 }

@@ -64,7 +64,10 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
     generationError: null as string | null,
     sourceMPSDocument: null as string | null,
     expectedCriteriaCount: null as number | null,
-    gap: null as number | null
+    gap: null as number | null,
+    sourceType: null as string | null,
+    hasStructuredFormat: false,
+    structuredCriteria: [] as any[]
   });
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const { toast } = useToast();
@@ -124,16 +127,64 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
       console.log('No existing criteria found, generating new ones with AI Criteria Generation Policy');
     }
     
-    // Analyze MPS document to get expected criteria count
+    // Analyze MPS document to get structured criteria and expected count
     let expectedCriteriaCount = 10; // Default Annex 2 minimum
     let sourceMPSDocument = 'Annex 2 Default (8-10 criteria)';
+    let structuredCriteria: any[] = [];
+    let hasStructuredFormat = false;
+    let sourceType = 'fallback_estimation';
     
     try {
       const mpsAnalysis = await analyzeMPSDocument(organizationId, mps.mps_number);
       if (mpsAnalysis.foundDocument && mpsAnalysis.documentInfo) {
         expectedCriteriaCount = mpsAnalysis.documentInfo.expectedCriteriaCount;
         sourceMPSDocument = mpsAnalysis.documentInfo.documentName;
-        console.log(`📘 MPS Document Analysis: Found ${sourceMPSDocument} with ${expectedCriteriaCount} expected criteria`);
+        structuredCriteria = mpsAnalysis.documentInfo.structuredCriteria;
+        hasStructuredFormat = mpsAnalysis.documentInfo.hasStructuredFormat;
+        sourceType = mpsAnalysis.documentInfo.sourceType;
+        
+        console.log(`📘 AI Conversion Logic Policy: Found ${sourceMPSDocument} with ${expectedCriteriaCount} expected criteria`);
+        console.log(`📘 Structured Format Detected: ${hasStructuredFormat} (${structuredCriteria.length} structured blocks)`);
+        console.log(`📘 Source Type: ${sourceType}`);
+        
+        // If structured criteria found, use them directly instead of AI generation
+        if (hasStructuredFormat && structuredCriteria.length > 0) {
+          console.log(`✅ AI Conversion Logic Policy: Converting ${structuredCriteria.length} structured blocks to criteria`);
+          const convertedCriteria: GeneratedCriterion[] = structuredCriteria.map((block, index) => ({
+            id: `structured-${index}`,
+            statement: block.requirement,
+            summary: `Structured requirement extracted from ${sourceMPSDocument}`,
+            rationale: block.rationale || `This criterion is derived from structured documentation in the uploaded MPS document for ${organizationContext.name}.`,
+            status: 'pending' as const,
+            criteria_number: `${mps.mps_number}.${index + 1}`,
+            evidence_guidance: block.evidence,
+            explanation: `This criterion was extracted from structured "Requirement:" and "Evidence:" blocks in the uploaded MPS document. It provides clear guidance for ${organizationContext.name}'s assessment. Ask Maturion if you want to learn more.`
+          }));
+          
+          setGeneratedCriteria(convertedCriteria);
+          setDebugInfo({
+            criteriaRequested: expectedCriteriaCount,
+            criteriaReceived: convertedCriteria.length,
+            sourcePromptUsed: 'AI_Conversion_Logic_Policy_Structured_Extraction',
+            fallbackTriggered: false,
+            truncationWarning: false,
+            generationError: null,
+            sourceMPSDocument: sourceMPSDocument,
+            expectedCriteriaCount: expectedCriteriaCount,
+            gap: Math.max(0, expectedCriteriaCount - convertedCriteria.length),
+            sourceType: sourceType,
+            hasStructuredFormat: hasStructuredFormat,
+            structuredCriteria: structuredCriteria
+          });
+          setIsGenerating(false);
+          
+          // Show success message for structured conversion
+          toast({
+            title: "Structured Criteria Extracted",
+            description: `Successfully converted ${convertedCriteria.length} structured requirement blocks from ${sourceMPSDocument}`,
+          });
+          return;
+        }
       } else {
         console.log(`📘 MPS Document Analysis: No specific document found, using Annex 2 fallback (${expectedCriteriaCount} criteria)`);
       }
@@ -268,7 +319,10 @@ RESPONSE FORMAT - STRICT JSON:
       generationError: null,
       sourceMPSDocument: sourceMPSDocument,
       expectedCriteriaCount: expectedCriteriaCount,
-      gap: null
+      gap: null,
+      sourceType: sourceType,
+      hasStructuredFormat: hasStructuredFormat,
+      structuredCriteria: structuredCriteria
     });
 
     try {
@@ -286,7 +340,10 @@ RESPONSE FORMAT - STRICT JSON:
 
       if (error) {
         console.error('AI generation error:', error);
-        setDebugInfo(prev => ({ ...prev, generationError: error.message || 'Unknown AI generation error' }));
+        setDebugInfo(prev => ({ 
+          ...prev, 
+          generationError: error.message || 'Unknown AI generation error' 
+        }));
         throw error;
       }
 
@@ -878,7 +935,7 @@ Return as JSON:
                      </div>
                    </div>
                    <div>
-                     <span className="font-medium">Source Prompt:</span>
+                     <span className="font-medium">Source Prompt Used:</span>
                      <div className="text-muted-foreground">{debugInfo.sourcePromptUsed}</div>
                    </div>
                    <div>
@@ -887,6 +944,32 @@ Return as JSON:
                        {debugInfo.fallbackTriggered ? "Yes" : "No"}
                      </div>
                    </div>
+                   {debugInfo.sourceType && (
+                     <div className="col-span-2">
+                       <span className="font-medium">AI Conversion Logic:</span>
+                       <div className="text-muted-foreground">
+                         {debugInfo.sourceType === 'structured_blocks' ? 
+                           `✅ Structured blocks detected (${debugInfo.structuredCriteria.length} Requirement/Evidence pairs)` :
+                           debugInfo.sourceType === 'pattern_detection' ? 
+                           '📋 Pattern-based analysis used' :
+                           '⚠️ Fallback estimation applied'
+                         }
+                       </div>
+                     </div>
+                   )}
+                   {debugInfo.hasStructuredFormat && (
+                     <div className="col-span-3">
+                       <span className="font-medium">Structured Format Details:</span>
+                       <div className="text-muted-foreground mt-1">
+                         {debugInfo.structuredCriteria.map((block, index) => (
+                           <div key={index} className="mb-1 p-1 bg-green-50 border border-green-200 rounded text-xs">
+                             <div><span className="font-medium">Block {index + 1}:</span> {block.requirement?.substring(0, 80)}...</div>
+                             <div><span className="font-medium">Evidence:</span> {block.evidence?.substring(0, 60)}...</div>
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   )}
                  </div>
                 {debugInfo.generationError && (
                   <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
