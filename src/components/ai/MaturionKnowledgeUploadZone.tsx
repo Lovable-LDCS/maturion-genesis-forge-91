@@ -30,7 +30,8 @@ const documentTypeLabels: Record<MaturionDocument['document_type'], string> = {
   iso_alignment: 'ISO Alignment',
   assessment_framework_component: 'Assessment Framework Component',
   ai_logic_rule_global: 'AI Logic Rule – Global',
-  system_instruction: 'System Instruction – Global'
+  system_instruction: 'System Instruction – Global',
+  threat_intelligence_profile: 'Threat Intelligence Profile'
 };
 
 // Domain options for MPS documents
