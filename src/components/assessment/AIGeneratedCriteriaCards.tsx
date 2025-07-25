@@ -154,7 +154,7 @@ MPS CONTEXT FOR GENERATION:
 - Intent: ${mps.intent_statement || 'Not specified'}
 - Target Organization: ${organizationContext.name}
 
-GENERATION TARGET: Generate 8-25 criteria based on MPS complexity for comprehensive coverage.
+GENERATION TARGET: Generate 10-25 criteria based on MPS complexity for comprehensive coverage. MINIMUM 10 criteria required per Annex 2 guidelines.
 
 RESPONSE FORMAT - STRICT JSON:
 {
@@ -367,7 +367,31 @@ RESPONSE FORMAT - STRICT JSON:
         }));
       }
 
-      // Note: No minimum threshold check - generate as many as needed for coverage
+      // Annex 2 Compliance Check: Ensure minimum criteria coverage
+      if (criteria.length < 8) {
+        console.warn(`⚠️ Annex 2 Compliance Alert: Only ${criteria.length} criteria generated for MPS ${mps.mps_number}. Minimum required: 8`);
+        
+        toast({
+          title: "Insufficient Criteria Coverage",
+          description: `Only ${criteria.length} criteria generated. Annex 2 requires at least 8-10 criteria for proper MPS coverage. Consider regenerating or manually expanding.`,
+          variant: "destructive"
+        });
+        
+        // Log compliance issue
+        await supabase.from('ai_upload_audit').insert({
+          organization_id: organizationId,
+          user_id: organizationId,
+          action: 'annex_2_compliance_warning',
+          metadata: {
+            mps_number: mps.mps_number,
+            criteria_generated: criteria.length,
+            minimum_required: 8,
+            compliance_status: 'below_threshold'
+          }
+        });
+      } else {
+        console.log(`✅ Annex 2 Compliance: ${criteria.length} criteria generated for MPS ${mps.mps_number}`);
+      }
 
       // Save criteria to database and add unique IDs, status, and numbering
       const processedCriteria: GeneratedCriterion[] = [];
@@ -798,21 +822,22 @@ Return as JSON:
                              Reject
                            </Button>
                          </div>
-                       )}
+                        )}
 
-                       {/* Explanation button for approved criteria */}
-                       {criterion.status === 'approved' && criterion.explanation && (
+                        {/* Help/Info button for all criteria */}
+                        {criterion.explanation && (
                          <div className="mt-3">
                            <Dialog>
                              <DialogTrigger asChild>
-                               <Button 
-                                 size="sm" 
-                                 variant="outline"
-                                 className="flex items-center gap-1"
-                               >
-                                 <HelpCircle className="h-3 w-3" />
-                                 Explanation
-                               </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  className="flex items-center gap-1"
+                                  title="Get plain-language explanation and evidence guidance"
+                                >
+                                  <HelpCircle className="h-3 w-3" />
+                                  Help/Info
+                                </Button>
                              </DialogTrigger>
                              <DialogContent className="max-w-2xl">
                                <DialogHeader>
@@ -842,11 +867,14 @@ Return as JSON:
                                    </p>
                                  </div>
                                  
-                                 <div className="pt-4 border-t">
-                                   <p className="text-xs text-muted-foreground italic">
-                                     Ask Maturion if you want to know more.
-                                   </p>
-                                 </div>
+                                  <div className="pt-4 border-t bg-muted/30 p-3 rounded">
+                                    <p className="text-sm font-medium text-primary mb-1">
+                                      Need more help?
+                                    </p>
+                                    <p className="text-xs text-muted-foreground italic">
+                                      Ask Maturion if you want to learn more.
+                                    </p>
+                                  </div>
                                </div>
                              </DialogContent>
                            </Dialog>
