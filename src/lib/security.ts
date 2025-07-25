@@ -72,6 +72,26 @@ export const validateSecureInput = (input: string, maxLength: number = 1000): { 
   // Check for prompt injection
   if (detectPromptInjection(input)) {
     errors.push('Input contains potentially malicious content');
+    logSecurityEvent('PROMPT_INJECTION_ATTEMPT', { input: input.substring(0, 100) });
+    return { isValid: false, sanitized: '', errors };
+  }
+
+  // Additional XSS pattern detection
+  const xssPatterns = [
+    /<script[^>]*>.*?<\/script>/gi,
+    /javascript:/gi,
+    /on\w+\s*=/gi,
+    /<iframe[^>]*>/gi,
+    /<object[^>]*>/gi,
+    /<embed[^>]*>/gi,
+    /data:text\/html/gi,
+    /vbscript:/gi
+  ];
+
+  const hasXSS = xssPatterns.some(pattern => pattern.test(input));
+  if (hasXSS) {
+    errors.push('Input contains potentially malicious code');
+    logSecurityEvent('XSS_ATTEMPT', { input: input.substring(0, 100) });
     return { isValid: false, sanitized: '', errors };
   }
 

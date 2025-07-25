@@ -47,10 +47,12 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useMilestones, MilestoneWithTasks, MilestoneTestNoteInsert } from '@/hooks/useMilestones';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useAuth } from '@/contexts/AuthContext';
 import { Tables } from '@/integrations/supabase/types';
 import { MilestoneDataSeeder } from '@/components/milestones/MilestoneDataSeeder';
 import { MaturionComplianceCheck } from '@/components/qa/MaturionComplianceCheck';
 import WebhookTester from '@/components/webhook/WebhookTester';
+import { validateSecureInput } from '@/lib/security';
 
 type MilestoneStatus = Tables<'milestone_tasks'>['status'];
 
@@ -63,6 +65,7 @@ const QASignOffDynamic: React.FC = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { currentOrganization } = useOrganization();
+  const { user } = useAuth();
   
   const { 
     milestones, 
@@ -130,15 +133,26 @@ const QASignOffDynamic: React.FC = () => {
   };
 
   const addTestNoteHandler = async () => {
-    if (!selectedTask || !testNotes.trim() || !currentOrganization) return;
+    if (!selectedTask || !testNotes.trim() || !currentOrganization || !user) return;
+
+    // Validate test notes input
+    const validation = validateSecureInput(testNotes, 2000);
+    if (!validation.isValid) {
+      toast({
+        title: "Invalid Input",
+        description: validation.errors.join(', '),
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       // Add test note
       const noteInsert: MilestoneTestNoteInsert = {
         milestone_task_id: selectedTask.id,
         organization_id: currentOrganization.id,
-        created_by: currentOrganization.owner_id, // In real app, use auth.uid()
-        note_content: testNotes,
+        created_by: user.id,
+        note_content: validation.sanitized,
         status_at_time: testStatus,
       };
 
@@ -150,17 +164,27 @@ const QASignOffDynamic: React.FC = () => {
           selectedTask.id, 
           {
             status: testStatus,
-            updated_by: currentOrganization.owner_id, // In real app, use auth.uid()
+            updated_by: user.id,
           },
           selectedTask.name, // task name
           selectedMilestone?.name // milestone name
         );
       }
 
+      toast({
+        title: "Success",
+        description: "Test note added and task status updated",
+      });
+
       setTestNotes('');
       setSelectedTask(null);
     } catch (error) {
       console.error('Error adding test note:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update task. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
