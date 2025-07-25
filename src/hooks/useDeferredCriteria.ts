@@ -279,7 +279,22 @@ export const useDeferredCriteria = (organizationId: string) => {
         console.log('🔍 Processing approval for deferral:', deferral);
         
         if (deferral) {
-          // First, find the target domain
+          // First, fetch the original criterion content
+          console.log(`🔍 Fetching original criterion content for ID: ${deferral.criteriaId}`);
+          const { data: originalCriterion, error: criterionError } = await supabase
+            .from('criteria')
+            .select('statement, summary')
+            .eq('id', deferral.criteriaId)
+            .single();
+
+          console.log('🔍 Original criterion query result:', { originalCriterion, criterionError });
+
+          if (!originalCriterion || criterionError) {
+            console.error('❌ Could not fetch original criterion:', criterionError);
+            return { success: false };
+          }
+
+          // Now find the target domain
           console.log(`🎯 Looking for target domain: "${deferral.targetDomain}"`);
           const { data: targetDomainData, error: domainError } = await supabase
             .from('domains')
@@ -306,14 +321,14 @@ export const useDeferredCriteria = (organizationId: string) => {
             if (suggestedMPS && !mpsError) {
               console.log(`✅ Found target MPS: ${suggestedMPS.name} (ID: ${suggestedMPS.id})`);
 
-              // Create new criterion in suggested MPS
+              // Create new criterion in suggested MPS using original content
               const { data: newCriterion, error: insertError } = await supabase
                 .from('criteria')
                 .insert({
                   mps_id: suggestedMPS.id,
                   organization_id: organizationId,
-                  statement: updatedContent?.statement || deferral.originalStatement,
-                  summary: updatedContent?.summary || deferral.originalSummary,
+                  statement: updatedContent?.statement || originalCriterion.statement,
+                  summary: updatedContent?.summary || originalCriterion.summary,
                   status: 'not_started',
                   created_by: deferral.deferredBy,
                   updated_by: deferral.deferredBy,
@@ -321,6 +336,12 @@ export const useDeferredCriteria = (organizationId: string) => {
                 })
                 .select()
                 .single();
+
+              console.log('📋 Inserting criterion with data:', {
+                mps_id: suggestedMPS.id,
+                statement: updatedContent?.statement || originalCriterion.statement,
+                summary: updatedContent?.summary || originalCriterion.summary
+              });
 
               if (insertError) {
                 console.error('❌ Error creating criterion in suggested MPS:', insertError);
