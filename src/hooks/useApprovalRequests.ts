@@ -49,15 +49,30 @@ export const useApprovalRequests = () => {
     if (!user) return false;
 
     try {
+      // Validate admin operation before proceeding
+      const { data: isValidAdmin, error: validationError } = await supabase.rpc('validate_admin_operation', {
+        operation_type: 'APPROVAL_REQUEST'
+      });
+
+      if (validationError || !isValidAdmin) {
+        toast({
+          title: "Security Error",
+          description: "Unauthorized admin operation attempt. This incident has been logged.",
+          variant: "destructive",
+        });
+        return false;
+      }
+
       const request = requests.find(r => r.id === requestId);
       if (!request) {
         throw new Error('Request not found');
       }
 
+      // Database trigger will prevent self-approval, but we check here too for UX
       if (request.requested_by === user.id) {
         toast({
-          title: "Error",
-          description: "You cannot approve your own request",
+          title: "Security Error",
+          description: "You cannot approve your own request. This violation has been logged.",
           variant: "destructive",
         });
         return false;

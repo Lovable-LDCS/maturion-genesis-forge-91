@@ -16,14 +16,18 @@ export const useAdminAccess = () => {
       }
 
       try {
-        // Check if user exists in admin_users table (database-driven)
-        const { data: adminUser } = await supabase
-          .from('admin_users')
-          .select('id')
-          .eq('user_id', user.id)
-          .single();
+        // Use secure database function to check admin status
+        const { data, error } = await supabase.rpc('user_has_role', {
+          user_uuid: user.id,
+          required_role: 'admin'
+        });
 
-        setIsAdmin(!!adminUser);
+        if (error) {
+          console.error('Error checking admin access:', error);
+          setIsAdmin(false);
+        } else {
+          setIsAdmin(data || false);
+        }
       } catch (error) {
         console.error('Error checking admin access:', error);
         setIsAdmin(false);

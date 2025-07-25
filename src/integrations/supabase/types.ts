@@ -1691,6 +1691,36 @@ export type Database = {
         }
         Relationships: []
       }
+      security_rate_limits: {
+        Row: {
+          attempt_count: number
+          blocked_until: string | null
+          created_at: string
+          id: string
+          operation_type: string
+          user_id: string
+          window_start: string
+        }
+        Insert: {
+          attempt_count?: number
+          blocked_until?: string | null
+          created_at?: string
+          id?: string
+          operation_type: string
+          user_id: string
+          window_start?: string
+        }
+        Update: {
+          attempt_count?: number
+          blocked_until?: string | null
+          created_at?: string
+          id?: string
+          operation_type?: string
+          user_id?: string
+          window_start?: string
+        }
+        Relationships: []
+      }
       subscription_modules: {
         Row: {
           bundle_discount_percentage: number
@@ -1859,6 +1889,14 @@ export type Database = {
       }
       user_can_view_organization: {
         Args: { org_id: string }
+        Returns: boolean
+      }
+      user_has_role: {
+        Args: { user_uuid: string; required_role?: string }
+        Returns: boolean
+      }
+      validate_admin_operation: {
+        Args: { operation_type: string }
         Returns: boolean
       }
       vector_avg: {

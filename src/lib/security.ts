@@ -59,6 +59,69 @@ export const detectPromptInjection = (input: string): boolean => {
 };
 
 /**
+ * Enhanced input validation with security checks
+ */
+export const validateSecureInput = (input: string, maxLength: number = 1000): { isValid: boolean; sanitized: string; errors: string[] } => {
+  const errors: string[] = [];
+  
+  if (!input || typeof input !== 'string') {
+    errors.push('Input must be a valid string');
+    return { isValid: false, sanitized: '', errors };
+  }
+
+  // Check for prompt injection
+  if (detectPromptInjection(input)) {
+    errors.push('Input contains potentially malicious content');
+    return { isValid: false, sanitized: '', errors };
+  }
+
+  // Sanitize and validate length
+  const sanitized = sanitizeInput(input);
+  if (sanitized.length > maxLength) {
+    errors.push(`Input exceeds maximum length of ${maxLength} characters`);
+    return { isValid: false, sanitized: sanitized.slice(0, maxLength), errors };
+  }
+
+  return { isValid: errors.length === 0, sanitized, errors };
+};
+
+/**
+ * Role hierarchy validation
+ */
+export const validateRoleHierarchy = (currentUserRole: string, targetRole: string): boolean => {
+  const roleHierarchy = {
+    'super_admin': 3,
+    'admin': 2,
+    'moderator': 1,
+    'user': 0
+  };
+
+  const currentLevel = roleHierarchy[currentUserRole as keyof typeof roleHierarchy] || 0;
+  const targetLevel = roleHierarchy[targetRole as keyof typeof roleHierarchy] || 0;
+
+  return currentLevel > targetLevel;
+};
+
+/**
+ * Security audit logger for client-side events
+ */
+export const logSecurityEvent = (eventType: string, details: Record<string, any>) => {
+  const event = {
+    timestamp: new Date().toISOString(),
+    type: eventType,
+    user_agent: navigator.userAgent,
+    url: window.location.href,
+    details
+  };
+  
+  // Log to console for development
+  console.warn('SECURITY EVENT:', event);
+  
+  // In production, this would send to a security monitoring service
+  return event;
+};
+
+/**
  * Rate limiting helper for client-side
  */
 export const createRateLimiter = (maxRequests: number, windowMs: number) => {
@@ -72,6 +135,12 @@ export const createRateLimiter = (maxRequests: number, windowMs: number) => {
     const validRequests = userRequests.filter(time => now - time < windowMs);
     
     if (validRequests.length >= maxRequests) {
+      logSecurityEvent('RATE_LIMIT_EXCEEDED', {
+        identifier,
+        requestCount: validRequests.length,
+        maxRequests,
+        windowMs
+      });
       return false; // Rate limit exceeded
     }
     
