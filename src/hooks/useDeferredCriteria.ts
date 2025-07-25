@@ -33,10 +33,17 @@ export const useDeferredCriteria = (organizationId: string) => {
 
   // Load deferred criteria from database
   const loadDeferredCriteria = async () => {
-    if (!organizationId) return;
+    console.log('🔍 useDeferredCriteria: Starting loadDeferredCriteria with organizationId:', organizationId);
+    
+    if (!organizationId) {
+      console.log('⚠️ useDeferredCriteria: No organizationId provided, skipping load');
+      return;
+    }
 
     try {
       setIsLoading(true);
+      console.log('🔍 useDeferredCriteria: Querying criteria_deferrals table...');
+      
       const { data, error } = await supabase
         .from('criteria_deferrals')
         .select('*')
@@ -45,37 +52,67 @@ export const useDeferredCriteria = (organizationId: string) => {
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error('Error loading deferred criteria:', error);
+        console.error('❌ useDeferredCriteria: Error loading deferred criteria:', error);
+        setDeferredQueue([]);
         return;
       }
 
-      if (data) {
-        console.log('🔍 Raw criteria_deferrals data:', data);
-        
-        const formattedData: DeferredCriterion[] = data.map(item => ({
-          id: item.id,
-          criteriaId: item.proposed_criteria_id,
-          originalStatement: '', // Will be populated from criteria table
-          originalSummary: '',
-          sourceDomain: '', // Will be derived from original MPS
-          sourceMPS: item.original_mps_id || '',
-          targetDomain: item.suggested_domain || '',
-          targetMPS: item.suggested_mps_number ? item.suggested_mps_number.toString() : '',
-          deferralReason: item.reason || 'Better domain alignment',
-          deferralType: 'correct_domain', // Default type
-          status: 'pending',
-          organizationId: item.organization_id,
-          createdAt: item.created_at,
-          deferredBy: item.user_id
-        }));
+      console.log('🔍 useDeferredCriteria: Raw query result:', { data, count: data?.length || 0 });
 
+      if (data && Array.isArray(data)) {
+        console.log('🔍 useDeferredCriteria: Processing data array with length:', data.length);
+        
+        const formattedData: DeferredCriterion[] = data
+          .filter(item => {
+            // Safety check: ensure item exists and has required fields
+            if (!item || typeof item !== 'object') {
+              console.warn('⚠️ useDeferredCriteria: Invalid item in data array:', item);
+              return false;
+            }
+            if (!item.id || !item.proposed_criteria_id || !item.organization_id) {
+              console.warn('⚠️ useDeferredCriteria: Item missing required fields:', item);
+              return false;
+            }
+            return true;
+          })
+          .map(item => {
+            const formattedItem = {
+              id: String(item.id || ''),
+              criteriaId: String(item.proposed_criteria_id || ''),
+              originalStatement: '', // Will be populated from criteria table
+              originalSummary: '',
+              sourceDomain: '', // Will be derived from original MPS
+              sourceMPS: String(item.original_mps_id || ''),
+              targetDomain: String(item.suggested_domain || ''),
+              targetMPS: item.suggested_mps_number ? String(item.suggested_mps_number) : '',
+              deferralReason: String(item.reason || 'Better domain alignment'),
+              deferralType: 'correct_domain' as const,
+              status: 'pending' as const,
+              organizationId: String(item.organization_id || ''),
+              createdAt: String(item.created_at || new Date().toISOString()),
+              deferredBy: String(item.user_id || '')
+            };
+            
+            console.log('🔍 useDeferredCriteria: Formatted item:', formattedItem);
+            return formattedItem;
+          });
+
+        console.log('🔍 useDeferredCriteria: Final formatted data:', { 
+          count: formattedData.length, 
+          items: formattedData 
+        });
+        
         setDeferredQueue(formattedData);
-        console.log('📋 Loaded deferred criteria:', formattedData.length, formattedData);
+      } else {
+        console.log('🔍 useDeferredCriteria: No data or data is not an array, setting empty queue');
+        setDeferredQueue([]);
       }
     } catch (error) {
-      console.error('Error in loadDeferredCriteria:', error);
+      console.error('❌ useDeferredCriteria: Exception in loadDeferredCriteria:', error);
+      setDeferredQueue([]);
     } finally {
       setIsLoading(false);
+      console.log('🔍 useDeferredCriteria: loadDeferredCriteria completed');
     }
   };
 
@@ -124,49 +161,80 @@ export const useDeferredCriteria = (organizationId: string) => {
 
   // Get reminders for a specific MPS
   const getRemindersForMPS = (targetDomain: string, targetMPS: string): DeferredCriteriaReminder | null => {
-    console.log('🔍 Checking reminders for:', { targetDomain, targetMPS });
-    console.log('🔍 Available deferrals:', deferredQueue.map(d => ({ 
-      id: d.id, 
-      targetDomain: d.targetDomain, 
-      targetMPS: d.targetMPS, 
-      status: d.status 
-    })));
-    
-    // Normalize domain names for comparison (handle different formats)
-    const normalizeTarget = targetDomain.toLowerCase().replace(/[^\w]/g, '');
-    
-    const relevantDeferrals = deferredQueue.filter(def => {
-      const normalizedDefDomain = def.targetDomain.toLowerCase().replace(/[^\w]/g, '');
-      const domainMatch = normalizedDefDomain === normalizeTarget;
-      const mpsMatch = def.targetMPS === targetMPS;
-      const statusMatch = def.status === 'pending';
+    try {
+      console.log('🔍 useDeferredCriteria: getRemindersForMPS called with:', { targetDomain, targetMPS });
       
-      console.log('🔍 Checking deferral:', {
-        deferralId: def.id,
-        targetDomain: def.targetDomain,
-        normalizedDefDomain,
-        normalizeTarget,
-        domainMatch,
-        targetMPS: def.targetMPS,
-        mpsMatch,
-        status: def.status,
-        statusMatch,
-        overallMatch: domainMatch && mpsMatch && statusMatch
+      // Safety checks for inputs
+      if (!targetDomain || !targetMPS) {
+        console.warn('⚠️ useDeferredCriteria: Invalid inputs to getRemindersForMPS:', { targetDomain, targetMPS });
+        return null;
+      }
+      
+      // Safety check for deferredQueue
+      if (!Array.isArray(deferredQueue)) {
+        console.warn('⚠️ useDeferredCriteria: deferredQueue is not an array:', deferredQueue);
+        return null;
+      }
+      
+      console.log('🔍 useDeferredCriteria: Available deferrals:', deferredQueue.map(d => ({ 
+        id: d?.id || 'NO_ID', 
+        targetDomain: d?.targetDomain || 'NO_DOMAIN', 
+        targetMPS: d?.targetMPS || 'NO_MPS', 
+        status: d?.status || 'NO_STATUS'
+      })));
+      
+      // Normalize domain names for comparison (handle different formats)
+      const normalizeTarget = String(targetDomain || '').toLowerCase().replace(/[^\w]/g, '');
+      
+      const relevantDeferrals = deferredQueue.filter(def => {
+        // Safety check for each deferral item
+        if (!def || typeof def !== 'object') {
+          console.warn('⚠️ useDeferredCriteria: Invalid deferral item:', def);
+          return false;
+        }
+        
+        const defTargetDomain = String(def.targetDomain || '');
+        const defTargetMPS = String(def.targetMPS || '');
+        const defStatus = String(def.status || '');
+        
+        const normalizedDefDomain = defTargetDomain.toLowerCase().replace(/[^\w]/g, '');
+        const domainMatch = normalizedDefDomain === normalizeTarget;
+        const mpsMatch = defTargetMPS === String(targetMPS);
+        const statusMatch = defStatus === 'pending';
+        
+        console.log('🔍 useDeferredCriteria: Checking deferral:', {
+          deferralId: def.id || 'NO_ID',
+          targetDomain: defTargetDomain,
+          normalizedDefDomain,
+          normalizeTarget,
+          domainMatch,
+          targetMPS: defTargetMPS,
+          inputTargetMPS: String(targetMPS),
+          mpsMatch,
+          status: defStatus,
+          statusMatch,
+          overallMatch: domainMatch && mpsMatch && statusMatch
+        });
+        
+        return domainMatch && mpsMatch && statusMatch;
       });
-      
-      return domainMatch && mpsMatch && statusMatch;
-    });
 
-    console.log('🔔 Found relevant deferrals:', relevantDeferrals.length);
+      console.log('🔔 useDeferredCriteria: Found relevant deferrals:', relevantDeferrals.length);
 
-    if (relevantDeferrals.length === 0) return null;
+      if (!relevantDeferrals || relevantDeferrals.length === 0) {
+        return null;
+      }
 
-    return {
-      targetDomain,
-      targetMPS,
-      deferrals: relevantDeferrals,
-      reminderCount: relevantDeferrals.length
-    };
+      return {
+        targetDomain: String(targetDomain),
+        targetMPS: String(targetMPS),
+        deferrals: relevantDeferrals,
+        reminderCount: relevantDeferrals.length
+      };
+    } catch (error) {
+      console.error('❌ useDeferredCriteria: Exception in getRemindersForMPS:', error);
+      return null;
+    }
   };
 
   // Handle deferred criterion action

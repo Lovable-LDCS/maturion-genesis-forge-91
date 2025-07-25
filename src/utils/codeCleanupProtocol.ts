@@ -34,6 +34,13 @@
  * 
  * DEV_NOTE: LegacyCodeScanCompleted ✅
  * 
+ * CRITICAL FIXES APPLIED 2025-01-25:
+ * - ✅ Fixed null reference errors in useDeferredCriteria.ts
+ * - ✅ Added comprehensive error logging and safety checks
+ * - ✅ Temporarily disabled DeferredCriteriaReminder for debugging
+ * - ✅ Added try-catch error boundary to CriteriaManagement.tsx
+ * - ✅ Hardened all .map(), .filter(), .toString() operations with null checks
+ * 
  * === PROTOCOL ESTABLISHED ===
  * 
  * Going forward, every code change MUST include:
