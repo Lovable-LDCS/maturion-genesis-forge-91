@@ -237,7 +237,7 @@ MPS CONTEXT FOR GENERATION:
 - Intent: ${mps.intent_statement || 'Not specified'}
 - Target Organization: ${organizationContext.name}
 
-GENERATION TARGET: Generate ${expectedCriteriaCount} criteria based on uploaded MPS document analysis. Target derived from ${sourceMPSDocument}. MINIMUM 8 criteria required per Annex 2 if no document signal available.
+GENERATION TARGET: Generate ${expectedCriteriaCount} criteria based on uploaded MPS document analysis. Target derived from ${sourceMPSDocument}. Generate ALL criteria found in the source document - do not limit output.
 
 RESPONSE FORMAT - STRICT JSON:
 {
@@ -649,8 +649,8 @@ RESPONSE FORMAT - STRICT JSON:
           }
         ];
         
-        // Generate criteria up to the expected count
-        const targetCount = Math.min(expectedCriteriaCount, baseTemplates.length);
+        // Generate criteria up to the expected count - remove artificial cap
+        const targetCount = expectedCriteriaCount;
         
         for (let i = 0; i < targetCount; i++) {
           const template = baseTemplates[i % baseTemplates.length];
@@ -682,7 +682,7 @@ RESPONSE FORMAT - STRICT JSON:
       }));
 
       // MPS Document-Informed Compliance Check
-      const minRequired = Math.max(8, Math.floor(expectedCriteriaCount * 0.8)); // At least 80% of expected or minimum 8
+      const minRequired = Math.floor(expectedCriteriaCount * 0.8); // At least 80% of expected count
       if (criteria.length < minRequired) {
         console.warn(`⚠️ Coverage Alert: Only ${criteria.length} criteria generated for MPS ${mps.mps_number}. Expected: ${expectedCriteriaCount}, Minimum: ${minRequired}`);
         
