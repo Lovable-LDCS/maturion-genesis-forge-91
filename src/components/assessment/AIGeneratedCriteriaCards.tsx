@@ -354,8 +354,15 @@ RESPONSE FORMAT - STRICT JSON:
       if (data?.content) {
         try {
           const responseContent = data.content;
-          console.log('Raw AI response length:', responseContent.length);
-          console.log('Raw AI response preview:', responseContent.substring(0, 500) + '...');
+          
+          // Enhanced debugging - log the FULL raw response
+          console.log('🔍 FULL RAW AI RESPONSE:', responseContent);
+          console.log('📏 Response length:', responseContent.length);
+          console.log('🔧 Response character codes around position 3845:', 
+            responseContent.substring(3840, 3850).split('').map((char, i) => 
+              `${3840 + i}: "${char}" (${char.charCodeAt(0)})`
+            )
+          );
           
           // Helper function to clean and repair JSON
           const cleanJSON = (jsonStr: string): string => {
@@ -379,7 +386,7 @@ RESPONSE FORMAT - STRICT JSON:
             // Fix missing quotes around property names
             cleaned = cleaned.replace(/(\w+):\s*"/g, '"$1": "');
             
-            // Fix unescaped quotes in strings
+            // Fix unescaped quotes in strings  
             cleaned = cleaned.replace(/"([^"]*)"([^",:}\]]*)"([^",:}\]]*)?"/g, (match, p1, p2, p3) => {
               if (p2 && p2.trim()) {
                 return `"${p1}${p2.replace(/"/g, '\\"')}${p3 || ''}"`;
@@ -398,9 +405,30 @@ RESPONSE FORMAT - STRICT JSON:
           try {
             parsedData = JSON.parse(responseContent);
             parseStrategy = 'direct';
+            console.log('✅ Direct JSON parsing successful');
             console.log('✅ JSON parsed using direct strategy');
           } catch (directError) {
-            console.log('Direct parsing failed, trying extraction strategies...');
+            console.error('❌ Direct JSON parsing failed:', directError.message);
+            console.log('🔧 JSON validation error details:', {
+              name: directError.name,
+              message: directError.message,
+              position: directError.message.match(/position (\d+)/)?.[1],
+              line: directError.message.match(/line (\d+)/)?.[1],
+              column: directError.message.match(/column (\d+)/)?.[1]
+            });
+            
+            // Show the problematic section of JSON
+            const errorPosition = parseInt(directError.message.match(/position (\d+)/)?.[1] || '0');
+            if (errorPosition > 0) {
+              const start = Math.max(0, errorPosition - 100);
+              const end = Math.min(responseContent.length, errorPosition + 100);
+              console.log('🚨 Problematic JSON section:', responseContent.substring(start, end));
+              console.log('🎯 Error position marked:', 
+                responseContent.substring(start, errorPosition) + '<<<ERROR>>>' + responseContent.substring(errorPosition, end)
+              );
+            }
+            
+            console.log('🔄 Trying extraction strategies...');
             
             // Strategy 2: Extract JSON object
             try {
@@ -543,9 +571,19 @@ RESPONSE FORMAT - STRICT JSON:
         }
       }
 
-      // Policy-aligned fallback criteria if AI fails - generate comprehensive coverage
+      // Policy-aligned fallback criteria if AI fails - generate comprehensive coverage  
       if (!criteria || criteria.length === 0) {
-        console.warn('AI generation failed, providing policy-aligned comprehensive fallback criteria');
+        console.error('❌ COMPLETE AI GENERATION FAILURE - No criteria extracted by any method');
+        console.error('🔍 Raw response that failed all parsing attempts:', data?.content || 'No content received');
+        
+        // Show detailed error toast for debugging
+        toast({
+          title: 'AI Generation Complete Failure',
+          description: "No criteria could be extracted by any parsing method. Check console for full raw response.",
+          duration: 10000
+        });
+        
+        console.warn('🔄 Providing policy-aligned comprehensive fallback criteria');
         
         // Update debug info to show fallback was triggered
         setDebugInfo(prev => ({ ...prev, fallbackTriggered: true }));
