@@ -48,33 +48,76 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
   const generateAICriteria = async () => {
     setIsGenerating(true);
     
-    const prompt = `Generate at least 10 well-defined and distinct assessment criteria for this MPS, covering its full intent. Avoid unnecessary duplication or fragmentation.
+    // Check if criteria already exist for this MPS
+    try {
+      const { data: existingCriteria } = await supabase
+        .from('criteria')
+        .select('*')
+        .eq('mps_id', mps.id)
+        .eq('organization_id', organizationId);
+
+      if (existingCriteria && existingCriteria.length > 0) {
+        console.log(`Found ${existingCriteria.length} existing criteria for MPS ${mps.mps_number}`);
+        const processedCriteria: GeneratedCriterion[] = existingCriteria.map((criterion, index) => ({
+          id: criterion.id,
+          statement: criterion.statement || '',
+          summary: criterion.summary || '',
+          rationale: 'Existing criterion from database',
+          status: criterion.status === 'not_started' ? 'pending' as const : 'approved' as const,
+          criteria_number: criterion.criteria_number || `${mps.mps_number}.${index + 1}`
+        }));
+        setGeneratedCriteria(processedCriteria);
+        setIsGenerating(false);
+        return;
+      }
+    } catch (error) {
+      console.log('No existing criteria found, generating new ones');
+    }
+    
+    const prompt = `Generate comprehensive assessment criteria for this MPS to achieve complete coverage of its intent. The number of criteria should be based on the complexity and scope of the MPS, not a fixed number.
 
 MPS ${mps.mps_number}: ${mps.name}
 Intent: ${mps.intent_statement || 'Not specified'}
 Domain: ${domainName}
 
-Requirements:
-- Generate at least 10 distinct criteria
-- Each criterion MUST follow this exact format: "A policy shall be in place that describes [the organization's specific requirement]."
-- Each criterion must be specific to this MPS and auditable
-- Focus on measurable outcomes and evidence requirements
-- Use professional audit language
-- Ensure criteria are distinct from each other
-- Base on organizational best practices for ${domainName}
+CRITICAL REQUIREMENTS:
+1. EVIDENCE TYPE VARIATION: Use different evidence types based on what's most appropriate:
+   - "A policy shall be in place that..." (for governance/procedural requirements)
+   - "Records shall demonstrate that..." (for documentation/tracking requirements)
+   - "Training records shall show that..." (for competency requirements)
+   - "An automated system must..." (for technology/tool requirements)
+   - "Audit results must confirm that..." (for verification requirements)
+   - "A log shall be maintained that..." (for monitoring requirements)
+   - "Evidence must show that..." (for outcome-based requirements)
 
-If fewer than 10 criteria are appropriate, include a "system_message" field explaining why.
+2. COMPREHENSIVE COVERAGE: Generate as many criteria as needed to fully cover:
+   - All aspects of the MPS intent statement
+   - Different operational contexts and scenarios
+   - Various evidence types and verification methods
+   - Implementation, monitoring, and verification requirements
+
+3. QUALITY OVER QUANTITY: Focus on:
+   - Specific, auditable requirements
+   - Measurable outcomes
+   - Clear evidence expectations
+   - Professional audit language
+   - Distinct, non-overlapping criteria
+
+4. DYNAMIC SCOPE: The number of criteria should vary based on MPS complexity:
+   - Simple MPS: 8-12 criteria
+   - Complex MPS: 15-25 criteria
+   - Generate as many as needed for complete coverage
 
 Return as JSON:
 {
   "criteria": [
     {
-      "statement": "A policy shall be in place that describes [specific requirement]",
+      "statement": "[appropriate evidence type] [specific requirement]",
       "summary": "brief explanation of what this measures", 
       "rationale": "why this criterion is important for this MPS"
     }
   ],
-  "system_message": "explanation if fewer than 10 criteria (optional)"
+  "system_message": "explanation of criteria count and coverage approach"
 }`;
 
     try {
@@ -125,76 +168,112 @@ Return as JSON:
         }
       }
 
-      // Generate minimum 10 fallback criteria if AI fails
+      // Generate varied fallback criteria if AI fails
       if (!criteria || criteria.length === 0) {
         criteria = [
           {
-            statement: `Establish leadership commitment to ${mps.name?.toLowerCase() || 'this practice'}`,
-            summary: `Evaluate leadership's commitment to implementing ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Leadership commitment is fundamental to successful implementation'
+            statement: `A policy shall be in place that establishes ${mps.name?.toLowerCase() || 'this practice'} governance framework`,
+            summary: `Evaluate the governance framework for ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Clear governance framework is fundamental to successful implementation'
           },
           {
-            statement: `Develop and maintain documented procedures for ${mps.name?.toLowerCase() || 'this practice'}`,
-            summary: `Assess the existence and quality of documented procedures for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Documented procedures provide clear guidance and consistency'
+            statement: `Records shall demonstrate implementation of ${mps.name?.toLowerCase() || 'this practice'} activities`,
+            summary: `Assess documented evidence of ${mps.name?.toLowerCase() || 'this practice'} implementation`,
+            rationale: 'Documentation provides evidence of systematic implementation'
           },
           {
-            statement: `Implement training and awareness programs for ${mps.name?.toLowerCase() || 'this practice'}`,
-            summary: `Evaluate training programs and awareness initiatives for ${mps.name?.toLowerCase() || 'this practice'}`,
+            statement: `Training records shall show personnel competency in ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Evaluate training programs and competency records for ${mps.name?.toLowerCase() || 'this practice'}`,
             rationale: 'Training ensures personnel understand and can execute requirements'
           },
           {
-            statement: `Establish monitoring and measurement capabilities for ${mps.name?.toLowerCase() || 'this practice'}`,
+            statement: `A monitoring system must track performance of ${mps.name?.toLowerCase() || 'this practice'}`,
             summary: `Assess monitoring and measurement processes for ${mps.name?.toLowerCase() || 'this practice'}`,
             rationale: 'Monitoring ensures ongoing effectiveness and compliance'
           },
           {
-            statement: `Conduct risk assessments related to ${mps.name?.toLowerCase() || 'this practice'}`,
-            summary: `Evaluate risk assessment processes for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Risk assessment identifies potential issues and mitigation strategies'
+            statement: `Audit results must confirm effectiveness of ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Evaluate audit findings and verification activities for ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Independent verification confirms operational effectiveness'
           },
           {
-            statement: `Implement incident response procedures for ${mps.name?.toLowerCase() || 'this practice'}`,
-            summary: `Assess incident response capabilities for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Incident response ensures quick resolution of issues'
+            statement: `A log shall be maintained that tracks incidents related to ${mps.name?.toLowerCase() || 'this practice'}`,
+            summary: `Assess incident tracking and response capabilities for ${mps.name?.toLowerCase() || 'this practice'}`,
+            rationale: 'Incident tracking enables continuous improvement and risk management'
           },
           {
-            statement: `Establish continuous improvement processes for ${mps.name?.toLowerCase() || 'this practice'}`,
+            statement: `Evidence must show continuous improvement in ${mps.name?.toLowerCase() || 'this practice'}`,
             summary: `Evaluate continuous improvement mechanisms for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Continuous improvement ensures ongoing enhancement'
+            rationale: 'Continuous improvement ensures ongoing enhancement and adaptation'
           },
           {
-            statement: `Allocate adequate resources for ${mps.name?.toLowerCase() || 'this practice'}`,
+            statement: `Resource allocation records must demonstrate adequate support for ${mps.name?.toLowerCase() || 'this practice'}`,
             summary: `Assess resource allocation and management for ${mps.name?.toLowerCase() || 'this practice'}`,
             rationale: 'Adequate resources are essential for effective implementation'
-          },
-          {
-            statement: `Implement communication strategies for ${mps.name?.toLowerCase() || 'this practice'}`,
-            summary: `Evaluate communication strategies and channels for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Clear communication ensures stakeholder understanding and buy-in'
-          },
-          {
-            statement: `Define and track performance metrics for ${mps.name?.toLowerCase() || 'this practice'}`,
-            summary: `Assess performance metrics and KPIs for ${mps.name?.toLowerCase() || 'this practice'}`,
-            rationale: 'Performance metrics provide objective measures of success'
           }
         ];
       }
 
-      // Check minimum criteria threshold
-      if (criteria.length < 10 && !systemMessage) {
-        systemMessage = `AI generated ${criteria.length} criteria. Minimum threshold of 10 criteria recommended for comprehensive assessment.`;
-      }
+      // Note: No minimum threshold check - generate as many as needed for coverage
 
-      // Add unique IDs, status, and numbering to each criterion
-      const processedCriteria: GeneratedCriterion[] = criteria.map((criterion, index) => ({
-        id: `ai-${mps.id}-${index}`,
-        statement: criterion.statement || '',
-        summary: criterion.summary || '',
-        rationale: criterion.rationale || 'AI-generated criterion',
-        status: 'pending' as const,
-        criteria_number: `${mps.mps_number}.${index + 1}`
-      }));
+      // Save criteria to database and add unique IDs, status, and numbering
+      const processedCriteria: GeneratedCriterion[] = [];
+      
+      for (let index = 0; index < criteria.length; index++) {
+        const criterion = criteria[index];
+        
+        try {
+          // Insert criterion into database
+          const { data: insertedCriterion, error: insertError } = await supabase
+            .from('criteria')
+            .insert({
+              mps_id: mps.id,
+              organization_id: organizationId,
+              statement: criterion.statement || '',
+              summary: criterion.summary || '',
+              criteria_number: `${mps.mps_number}.${index + 1}`,
+              status: 'not_started',
+              created_by: organizationId, // Using org ID as fallback for user ID
+              updated_by: organizationId
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('Error inserting criterion:', insertError);
+            // Fallback to local state if database insert fails
+            processedCriteria.push({
+              id: `ai-${mps.id}-${index}`,
+              statement: criterion.statement || '',
+              summary: criterion.summary || '',
+              rationale: criterion.rationale || 'AI-generated criterion',
+              status: 'pending' as const,
+              criteria_number: `${mps.mps_number}.${index + 1}`
+            });
+          } else {
+            // Use database record
+            processedCriteria.push({
+              id: insertedCriterion.id,
+              statement: insertedCriterion.statement || '',
+              summary: insertedCriterion.summary || '',
+              rationale: criterion.rationale || 'AI-generated criterion',
+              status: 'pending' as const,
+              criteria_number: insertedCriterion.criteria_number || `${mps.mps_number}.${index + 1}`
+            });
+          }
+        } catch (error) {
+          console.error('Database insert failed:', error);
+          // Fallback to local state
+          processedCriteria.push({
+            id: `ai-${mps.id}-${index}`,
+            statement: criterion.statement || '',
+            summary: criterion.summary || '',
+            rationale: criterion.rationale || 'AI-generated criterion',
+            status: 'pending' as const,
+            criteria_number: `${mps.mps_number}.${index + 1}`
+          });
+        }
+      }
 
       setGeneratedCriteria(processedCriteria);
       
@@ -236,13 +315,33 @@ Return as JSON:
     generateAICriteria();
   }, [mps.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleApprove = (criterionId: string) => {
+  const handleApprove = async (criterionId: string) => {
+    // Update database if criterion exists in DB
+    try {
+      await supabase
+        .from('criteria')
+        .update({ status: 'approved_locked' })
+        .eq('id', criterionId);
+    } catch (error) {
+      console.log('Criterion not in database, updating local state only');
+    }
+    
     setGeneratedCriteria(prev => 
       prev.map(c => c.id === criterionId ? { ...c, status: 'approved' } : c)
     );
   };
 
-  const handleReject = (criterionId: string) => {
+  const handleReject = async (criterionId: string) => {
+    // Remove from database if criterion exists in DB
+    try {
+      await supabase
+        .from('criteria')
+        .delete()
+        .eq('id', criterionId);
+    } catch (error) {
+      console.log('Criterion not in database, updating local state only');
+    }
+    
     setGeneratedCriteria(prev => 
       prev.map(c => c.id === criterionId ? { ...c, status: 'rejected' } : c)
     );
