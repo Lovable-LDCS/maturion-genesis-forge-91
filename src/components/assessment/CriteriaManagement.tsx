@@ -302,10 +302,6 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
     return result;
   };
 
-  const handlePlacementData = (data: any) => {
-    setPlacementData(data);
-    setShowPlacementModal(true);
-  };
 
   const handleFinalizeCriteria = () => {
     const approvedCriteria = criteriaList.filter(criteria => criteria.status === 'approved_locked');
