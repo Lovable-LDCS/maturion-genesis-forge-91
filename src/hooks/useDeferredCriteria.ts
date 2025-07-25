@@ -60,7 +60,7 @@ export const useDeferredCriteria = (organizationId: string) => {
           sourceDomain: '', // Will be derived from original MPS
           sourceMPS: item.original_mps_id || '',
           targetDomain: item.suggested_domain || '',
-          targetMPS: item.suggested_mps_number?.toString() || '',
+          targetMPS: item.suggested_mps_number ? item.suggested_mps_number.toString() : '',
           deferralReason: item.reason || 'Better domain alignment',
           deferralType: 'correct_domain', // Default type
           status: 'pending',

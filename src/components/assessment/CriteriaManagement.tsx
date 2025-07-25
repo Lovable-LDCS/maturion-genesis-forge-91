@@ -679,17 +679,19 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
       />
 
       {/* Deferred Criteria Reminder Modal */}
-      <DeferredCriteriaReminder
-        isOpen={showReminderModal}
-        onClose={() => setShowReminderModal(false)}
-        targetDomain={currentReminderData?.targetDomain || ''}
-        targetMPS={currentReminderData?.targetMPS || ''}
-        deferrals={currentReminderData?.deferrals || []}
-        onView={handleReminderView}
-        onApprove={handleReminderApprove}
-        onEdit={handleReminderEdit}
-        onDiscard={handleReminderDiscard}
-      />
+      {showReminderModal && currentReminderData && (
+        <DeferredCriteriaReminder
+          isOpen={showReminderModal}
+          onClose={() => setShowReminderModal(false)}
+          targetDomain={currentReminderData?.targetDomain || ''}
+          targetMPS={currentReminderData?.targetMPS || ''}
+          deferrals={currentReminderData?.deferrals || []}
+          onView={handleReminderView}
+          onApprove={handleReminderApprove}
+          onEdit={handleReminderEdit}
+          onDiscard={handleReminderDiscard}
+        />
+      )}
     </>
   );
 };
