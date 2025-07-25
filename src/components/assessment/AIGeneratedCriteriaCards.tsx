@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Sparkles, CheckCircle2, Edit, X, Loader2, HelpCircle, RefreshCw, Info, Bug } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useMPSDocumentAnalysis } from '@/hooks/useMPSDocumentAnalysis';
 
 interface GeneratedCriterion {
   id: string;
@@ -60,10 +61,14 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
     sourcePromptUsed: '',
     fallbackTriggered: false,
     truncationWarning: false,
-    generationError: null as string | null
+    generationError: null as string | null,
+    sourceMPSDocument: null as string | null,
+    expectedCriteriaCount: null as number | null,
+    gap: null as number | null
   });
   const [showDebugPanel, setShowDebugPanel] = useState(false);
   const { toast } = useToast();
+  const { analyzeMPSDocument, isAnalyzing } = useMPSDocumentAnalysis();
 
   const generateAICriteria = async () => {
     setIsGenerating(true);
@@ -119,6 +124,23 @@ export const AIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCardsProps> =
       console.log('No existing criteria found, generating new ones with AI Criteria Generation Policy');
     }
     
+    // Analyze MPS document to get expected criteria count
+    let expectedCriteriaCount = 10; // Default Annex 2 minimum
+    let sourceMPSDocument = 'Annex 2 Default (8-10 criteria)';
+    
+    try {
+      const mpsAnalysis = await analyzeMPSDocument(organizationId, mps.mps_number);
+      if (mpsAnalysis.foundDocument && mpsAnalysis.documentInfo) {
+        expectedCriteriaCount = mpsAnalysis.documentInfo.expectedCriteriaCount;
+        sourceMPSDocument = mpsAnalysis.documentInfo.documentName;
+        console.log(`📘 MPS Document Analysis: Found ${sourceMPSDocument} with ${expectedCriteriaCount} expected criteria`);
+      } else {
+        console.log(`📘 MPS Document Analysis: No specific document found, using Annex 2 fallback (${expectedCriteriaCount} criteria)`);
+      }
+    } catch (error) {
+      console.warn('⚠️ MPS Document Analysis failed:', error);
+    }
+    
     // LOCKED SYSTEM PROMPT - Override all default generation prompts
     // Organization Name Injection Policy Applied
     const systemPrompt = `You are an AI assessment criteria generator operating under strict system constraints from the AI Criteria Generation Policy, Annex 2 AI_Criteria_Evaluation_Guide, and AI Criteria Tailoring Policy – Organization Name Injection documents in the AI Admin Knowledge Base.
@@ -164,7 +186,7 @@ MPS CONTEXT FOR GENERATION:
 - Intent: ${mps.intent_statement || 'Not specified'}
 - Target Organization: ${organizationContext.name}
 
-GENERATION TARGET: Generate 10-25 criteria based on MPS complexity for comprehensive coverage. MINIMUM 10 criteria required per Annex 2 guidelines.
+GENERATION TARGET: Generate ${expectedCriteriaCount} criteria based on uploaded MPS document analysis. Target derived from ${sourceMPSDocument}. MINIMUM 8 criteria required per Annex 2 if no document signal available.
 
 RESPONSE FORMAT - STRICT JSON:
 {
@@ -235,14 +257,18 @@ RESPONSE FORMAT - STRICT JSON:
       });
     };
 
-    // Update debug info
+
+    // Update debug info with MPS document analysis
     setDebugInfo({
-      criteriaRequested: 10, // Target from prompt
+      criteriaRequested: expectedCriteriaCount,
       criteriaReceived: 0,
       sourcePromptUsed: 'AI_Criteria_Generation_Policy_Locked_System_Prompt',
       fallbackTriggered: false,
       truncationWarning: false,
-      generationError: null
+      generationError: null,
+      sourceMPSDocument: sourceMPSDocument,
+      expectedCriteriaCount: expectedCriteriaCount,
+      gap: null
     });
 
     try {
@@ -395,24 +421,26 @@ RESPONSE FORMAT - STRICT JSON:
       setDebugInfo(prev => ({ 
         ...prev, 
         criteriaReceived: criteria.length,
-        truncationWarning: criteria.length > 25
+        truncationWarning: criteria.length > 25,
+        gap: Math.max(0, expectedCriteriaCount - criteria.length)
       }));
 
-      // Annex 2 Compliance Check: Ensure minimum criteria coverage
-      if (criteria.length < 8) {
-        console.warn(`⚠️ Annex 2 Compliance Alert: Only ${criteria.length} criteria generated for MPS ${mps.mps_number}. Minimum required: 8`);
+      // MPS Document-Informed Compliance Check
+      const minRequired = Math.max(8, Math.floor(expectedCriteriaCount * 0.8)); // At least 80% of expected or minimum 8
+      if (criteria.length < minRequired) {
+        console.warn(`⚠️ Coverage Alert: Only ${criteria.length} criteria generated for MPS ${mps.mps_number}. Expected: ${expectedCriteriaCount}, Minimum: ${minRequired}`);
         
         const errorExplanation = criteria.length === 0 
-          ? "AI returned no results due to insufficient signal from uploaded MPS policy or context. Consider enhancing domain input."
-          : `AI returned only ${criteria.length} results due to limited context or processing constraints. This may indicate insufficient MPS detail or knowledge base content.`;
+          ? `AI returned no results due to insufficient signal from ${sourceMPSDocument}. Consider enhancing domain input or checking uploaded MPS documents.`
+          : `AI returned only ${criteria.length} results while ${sourceMPSDocument} suggests ${expectedCriteriaCount} criteria. This may indicate insufficient MPS detail or knowledge base content.`;
 
         toast({
           title: "Insufficient Criteria Coverage",
-          description: `Only ${criteria.length} criteria generated. Annex 2 requires at least 8-10 criteria for proper MPS coverage.`,
+          description: `Only ${criteria.length} criteria generated. ${sourceMPSDocument} expects ${expectedCriteriaCount} criteria for proper MPS coverage.`,
           variant: "destructive"
         });
 
-        // Show explanation toast
+        // Show explanation toast with MPS context
         setTimeout(() => {
           toast({
             title: "Generation Analysis",
@@ -421,21 +449,23 @@ RESPONSE FORMAT - STRICT JSON:
           });
         }, 2000);
         
-        // Log compliance issue with explanation
+        // Log compliance issue with MPS document context
         await supabase.from('ai_upload_audit').insert({
           organization_id: organizationId,
           user_id: organizationId,
-          action: 'annex_2_compliance_warning',
+          action: 'mps_document_compliance_warning',
           metadata: {
             mps_number: mps.mps_number,
             criteria_generated: criteria.length,
-            minimum_required: 8,
+            expected_from_document: expectedCriteriaCount,
+            minimum_required: minRequired,
+            source_document: sourceMPSDocument,
             compliance_status: 'below_threshold',
             explanation: errorExplanation
           }
         });
       } else {
-        console.log(`✅ Annex 2 Compliance: ${criteria.length} criteria generated for MPS ${mps.mps_number}`);
+        console.log(`✅ MPS Document Compliance: ${criteria.length} criteria generated for MPS ${mps.mps_number} (Expected: ${expectedCriteriaCount})`);
       }
 
       // Save criteria to database and add unique IDs, status, and numbering
@@ -827,39 +857,37 @@ Return as JSON:
                   Developer Debug Panel
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-                  <div>
-                    <span className="font-medium">Criteria Requested:</span>
-                    <div className="text-muted-foreground">{debugInfo.criteriaRequested}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium">Criteria Received:</span>
-                    <div className="text-muted-foreground">{debugInfo.criteriaReceived}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium">Source Prompt:</span>
-                    <div className="text-muted-foreground">{debugInfo.sourcePromptUsed}</div>
-                  </div>
-                  <div>
-                    <span className="font-medium">Fallback Triggered:</span>
-                    <div className={debugInfo.fallbackTriggered ? "text-orange-600" : "text-green-600"}>
-                      {debugInfo.fallbackTriggered ? "Yes" : "No"}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="font-medium">Truncation Warning:</span>
-                    <div className={debugInfo.truncationWarning ? "text-orange-600" : "text-green-600"}>
-                      {debugInfo.truncationWarning ? "Yes (>25 criteria)" : "No"}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="font-medium">Generation Error:</span>
-                    <div className={debugInfo.generationError ? "text-red-600" : "text-green-600"}>
-                      {debugInfo.generationError || "None"}
-                    </div>
-                  </div>
-                </div>
+               <CardContent className="pt-0">
+                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-xs">
+                   <div>
+                     <span className="font-medium">Source MPS Document:</span>
+                     <div className="text-muted-foreground">{debugInfo.sourceMPSDocument || 'Not found'}</div>
+                   </div>
+                   <div>
+                     <span className="font-medium">Expected Criteria Count:</span>
+                     <div className="text-muted-foreground">{debugInfo.expectedCriteriaCount || 'Unknown'}</div>
+                   </div>
+                   <div>
+                     <span className="font-medium">Generated:</span>
+                     <div className="text-muted-foreground">{debugInfo.criteriaReceived}</div>
+                   </div>
+                   <div>
+                     <span className="font-medium">Gap:</span>
+                     <div className={debugInfo.gap && debugInfo.gap > 0 ? "text-orange-600" : "text-green-600"}>
+                       {debugInfo.gap !== null ? debugInfo.gap : 'Unknown'}
+                     </div>
+                   </div>
+                   <div>
+                     <span className="font-medium">Source Prompt:</span>
+                     <div className="text-muted-foreground">{debugInfo.sourcePromptUsed}</div>
+                   </div>
+                   <div>
+                     <span className="font-medium">Fallback Triggered:</span>
+                     <div className={debugInfo.fallbackTriggered ? "text-orange-600" : "text-green-600"}>
+                       {debugInfo.fallbackTriggered ? "Yes" : "No"}
+                     </div>
+                   </div>
+                 </div>
                 {debugInfo.generationError && (
                   <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
                     <span className="font-medium text-red-700">Error Details:</span>
