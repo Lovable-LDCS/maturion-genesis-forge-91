@@ -174,6 +174,9 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
   const checkForDeferredReminders = () => {
     if (!domainName) return;
     
+    console.log('🔍 Checking for deferred reminders in domain:', domainName);
+    console.log('🔍 Available MPS list:', mpsList.map(m => ({ id: m.id, number: m.mps_number, name: m.name })));
+    
     // Check each MPS for deferred criteria
     mpsList.forEach(mps => {
       const reminder = getRemindersForMPS(domainName, mps.mps_number.toString());
@@ -183,6 +186,7 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
         if (!showReminderModal) {
           setCurrentReminderData(reminder);
           setShowReminderModal(true);
+          return; // Exit early after showing first reminder
         }
       }
     });

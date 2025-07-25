@@ -50,6 +50,8 @@ export const useDeferredCriteria = (organizationId: string) => {
       }
 
       if (data) {
+        console.log('🔍 Raw criteria_deferrals data:', data);
+        
         const formattedData: DeferredCriterion[] = data.map(item => ({
           id: item.id,
           criteriaId: item.proposed_criteria_id,
@@ -57,8 +59,8 @@ export const useDeferredCriteria = (organizationId: string) => {
           originalSummary: '',
           sourceDomain: '', // Will be derived from original MPS
           sourceMPS: item.original_mps_id || '',
-          targetDomain: item.suggested_domain,
-          targetMPS: item.suggested_mps_number.toString(),
+          targetDomain: item.suggested_domain || '',
+          targetMPS: item.suggested_mps_number?.toString() || '',
           deferralReason: item.reason || 'Better domain alignment',
           deferralType: 'correct_domain', // Default type
           status: 'pending',
@@ -68,7 +70,7 @@ export const useDeferredCriteria = (organizationId: string) => {
         }));
 
         setDeferredQueue(formattedData);
-        console.log('📋 Loaded deferred criteria:', formattedData.length);
+        console.log('📋 Loaded deferred criteria:', formattedData.length, formattedData);
       }
     } catch (error) {
       console.error('Error in loadDeferredCriteria:', error);
@@ -122,11 +124,40 @@ export const useDeferredCriteria = (organizationId: string) => {
 
   // Get reminders for a specific MPS
   const getRemindersForMPS = (targetDomain: string, targetMPS: string): DeferredCriteriaReminder | null => {
-    const relevantDeferrals = deferredQueue.filter(
-      def => def.targetDomain === targetDomain && 
-             def.targetMPS === targetMPS && 
-             def.status === 'pending'
-    );
+    console.log('🔍 Checking reminders for:', { targetDomain, targetMPS });
+    console.log('🔍 Available deferrals:', deferredQueue.map(d => ({ 
+      id: d.id, 
+      targetDomain: d.targetDomain, 
+      targetMPS: d.targetMPS, 
+      status: d.status 
+    })));
+    
+    // Normalize domain names for comparison (handle different formats)
+    const normalizeTarget = targetDomain.toLowerCase().replace(/[^\w]/g, '');
+    
+    const relevantDeferrals = deferredQueue.filter(def => {
+      const normalizedDefDomain = def.targetDomain.toLowerCase().replace(/[^\w]/g, '');
+      const domainMatch = normalizedDefDomain === normalizeTarget;
+      const mpsMatch = def.targetMPS === targetMPS;
+      const statusMatch = def.status === 'pending';
+      
+      console.log('🔍 Checking deferral:', {
+        deferralId: def.id,
+        targetDomain: def.targetDomain,
+        normalizedDefDomain,
+        normalizeTarget,
+        domainMatch,
+        targetMPS: def.targetMPS,
+        mpsMatch,
+        status: def.status,
+        statusMatch,
+        overallMatch: domainMatch && mpsMatch && statusMatch
+      });
+      
+      return domainMatch && mpsMatch && statusMatch;
+    });
+
+    console.log('🔔 Found relevant deferrals:', relevantDeferrals.length);
 
     if (relevantDeferrals.length === 0) return null;
 
