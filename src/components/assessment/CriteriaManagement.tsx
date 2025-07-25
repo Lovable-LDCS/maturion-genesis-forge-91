@@ -11,7 +11,9 @@ import { useToast } from '@/hooks/use-toast';
 import { AIGeneratedCriteriaCards } from './AIGeneratedCriteriaCards';
 import { EnhancedCriterionModal } from './EnhancedCriterionModal';
 import { EnhancedPlacementModal } from './EnhancedPlacementModal';
+import { DeferredCriteriaReminder } from './DeferredCriteriaReminder';
 import { useCustomCriterion } from '@/hooks/useCustomCriterion';
+import { useDeferredCriteria } from '@/hooks/useDeferredCriteria';
 
 interface MPS {
   id: string;
@@ -56,11 +58,22 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
   const [showManualModal, setShowManualModal] = useState<string | null>(null);
   const [showPlacementModal, setShowPlacementModal] = useState(false);
   const [placementData, setPlacementData] = useState<any>(null);
+  const [showReminderModal, setShowReminderModal] = useState(false);
+  const [currentReminderData, setCurrentReminderData] = useState<any>(null);
   const [aiPhaseCompleted, setAIPhaseCompleted] = useState<Set<string>>(new Set());
   const [collapsedMPS, setCollapsedMPS] = useState<Set<string>>(new Set());
   
   const { currentOrganization } = useOrganization();
   const { toast } = useToast();
+
+  // Deferred criteria management
+  const {
+    deferredQueue,
+    addDeferredCriterion,
+    getRemindersForMPS,
+    handleDeferredAction,
+    refreshQueue
+  } = useDeferredCriteria(currentOrganization?.id || '');
 
   const fetchMPSsAndCriteria = async () => {
     if (!currentOrganization?.id) return;
@@ -150,6 +163,30 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
       fetchMPSsAndCriteria();
     }
   }, [isOpen, currentOrganization?.id, domainName]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Check for deferred criteria reminders when MPS data loads
+  useEffect(() => {
+    if (mpsList.length > 0 && currentOrganization?.id) {
+      checkForDeferredReminders();
+    }
+  }, [mpsList, currentOrganization?.id]);
+
+  const checkForDeferredReminders = () => {
+    if (!domainName) return;
+    
+    // Check each MPS for deferred criteria
+    mpsList.forEach(mps => {
+      const reminder = getRemindersForMPS(domainName, mps.mps_number.toString());
+      if (reminder && reminder.reminderCount > 0) {
+        console.log('🔔 Found deferred criteria reminder for MPS', mps.mps_number, ':', reminder);
+        // Show reminder for the first MPS with deferrals
+        if (!showReminderModal) {
+          setCurrentReminderData(reminder);
+          setShowReminderModal(true);
+        }
+      }
+    });
+  };
 
   const getCriteriaForMPS = (mpsId: string): Criteria[] => {
     return criteriaList.filter(criteria => criteria.mps_id === mpsId);
@@ -302,6 +339,36 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
     return result;
   };
 
+
+  // Deferred criteria handlers
+  const handleReminderView = (deferral: any) => {
+    console.log('👁️ Viewing deferred criterion:', deferral);
+    // Could open a detailed view modal
+  };
+
+  const handleReminderApprove = async (deferral: any) => {
+    const result = await handleDeferredAction(deferral.id, 'approve');
+    if (result.success) {
+      await fetchMPSsAndCriteria();
+      await refreshQueue();
+    }
+  };
+
+  const handleReminderEdit = async (deferral: any) => {
+    const result = await handleDeferredAction(deferral.id, 'edit');
+    if (result.success && result.requiresEdit) {
+      // Open edit modal with deferred criterion data
+      console.log('📝 Opening edit modal for deferred criterion');
+      // Could trigger the enhanced criterion modal with pre-filled data
+    }
+  };
+
+  const handleReminderDiscard = async (deferral: any) => {
+    const result = await handleDeferredAction(deferral.id, 'discard');
+    if (result.success) {
+      await refreshQueue();
+    }
+  };
 
   const handleFinalizeCriteria = () => {
     const approvedCriteria = criteriaList.filter(criteria => criteria.status === 'approved_locked');
@@ -502,32 +569,79 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
         isOpen={showPlacementModal}
         onClose={() => setShowPlacementModal(false)}
         placementData={placementData}
-        onApprove={(data) => {
-          // Don't wipe existing criteria, just add the new criterion to suggested location
-          if (data.suggestion.targetMPS && data.criteriaId) {
-            const newCriterion = {
-              id: `placed-${data.criteriaId}-${Date.now()}`,
-              mps_id: data.suggestion.targetMPS,
-              criteria_number: `${mpsList.find(m => m.id === data.suggestion.targetMPS)?.mps_number || 1}.${getCriteriaForMPS(data.suggestion.targetMPS).length + 1}`,
-              statement: data.originalStatement || '',
-              summary: data.originalSummary || '',
-              status: 'approved_locked'
-            };
-            setCriteriaList(prev => [...prev, newCriterion]);
+        onApprove={async (data) => {
+          // Add to deferred queue for tracking
+          if (currentOrganization?.owner_id) {
+            await addDeferredCriterion({
+              criteriaId: data.criteriaId,
+              originalStatement: data.originalStatement,
+              originalSummary: data.originalSummary,
+              sourceDomain: domainName || '',
+              sourceMPS: '', // Will be populated
+              targetDomain: data.suggestion.targetDomain,
+              targetMPS: data.suggestion.targetMPS,
+              deferralReason: data.suggestion.rationale,
+              deferralType: 'correct_domain',
+              organizationId: currentOrganization.id,
+              deferredBy: currentOrganization.owner_id
+            });
+          }
+
+          toast({
+            title: "✅ Criterion Deferred",
+            description: `Will remind you when you reach ${data.suggestion.targetDomain}`,
+          });
+          setShowPlacementModal(false);
+          await fetchMPSsAndCriteria();
+        }}
+        onDefer={async (data) => {
+          // Add to deferred queue for review
+          if (currentOrganization?.owner_id) {
+            await addDeferredCriterion({
+              criteriaId: data.criteriaId,
+              originalStatement: data.originalStatement,
+              originalSummary: data.originalSummary,
+              sourceDomain: domainName || '',
+              sourceMPS: '', // Will be populated
+              targetDomain: data.suggestion.targetDomain || domainName || '',
+              targetMPS: data.suggestion.targetMPS || '1',
+              deferralReason: 'Deferred for manual review',
+              deferralType: 'review',
+              organizationId: currentOrganization.id,
+              deferredBy: currentOrganization.owner_id
+            });
+          }
+
+          toast({
+            title: "⏸️ Deferred for Review", 
+            description: "Criterion marked for later review",
+          });
+          setShowPlacementModal(false);
+        }}
+        onReject={async (data) => {
+          // Update the criterion to remove pending placement status
+          try {
+            const { error } = await supabase
+              .from('criteria')
+              .update({ 
+                deferral_status: null,
+                status: 'not_started'
+              })
+              .eq('id', data.criteriaId);
+
+            if (error) {
+              console.error('Error updating criterion status:', error);
+            }
+            
+            toast({
+              title: "✅ Kept in Current Location",
+              description: "Criterion will remain in the current MPS",
+            });
+            await fetchMPSsAndCriteria();
+          } catch (error) {
+            console.error('Error in handlePlacementReject:', error);
           }
           setShowPlacementModal(false);
-          toast({ title: "Criterion Placed", description: "Criterion has been placed in the suggested location." });
-        }}
-        onDefer={(data) => {
-          // Create deferred entry for later review
-          console.log('Deferred placement:', data);
-          setShowPlacementModal(false);
-          toast({ title: "Criterion Deferred", description: "Criterion has been deferred for later review." });
-        }}
-        onReject={(data) => {
-          console.log('Rejected placement:', data);
-          setShowPlacementModal(false);
-          toast({ title: "Placement Rejected", description: "The suggested placement has been rejected." });
         }}
         onSplit={(data) => {
           // Handle splitting the criterion into two separate criteria
@@ -558,6 +672,19 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
           setShowPlacementModal(false);
           toast({ title: "Criterion Split", description: "The criterion has been split into two separate criteria." });
         }}
+      />
+
+      {/* Deferred Criteria Reminder Modal */}
+      <DeferredCriteriaReminder
+        isOpen={showReminderModal}
+        onClose={() => setShowReminderModal(false)}
+        targetDomain={currentReminderData?.targetDomain || ''}
+        targetMPS={currentReminderData?.targetMPS || ''}
+        deferrals={currentReminderData?.deferrals || []}
+        onView={handleReminderView}
+        onApprove={handleReminderApprove}
+        onEdit={handleReminderEdit}
+        onDiscard={handleReminderDiscard}
       />
     </>
   );
