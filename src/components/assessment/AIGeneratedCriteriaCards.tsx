@@ -347,24 +347,123 @@ RESPONSE FORMAT - STRICT JSON:
         throw error;
       }
 
-      // Parse AI response
+      // Parse AI response with robust error handling
       let criteria: any[] = [];
       let systemMessage = '';
       
       if (data?.content) {
         try {
           const responseContent = data.content;
-          const jsonStart = responseContent.indexOf('{');
-          const jsonEnd = responseContent.lastIndexOf('}');
+          console.log('Raw AI response length:', responseContent.length);
+          console.log('Raw AI response preview:', responseContent.substring(0, 500) + '...');
           
-          if (jsonStart !== -1 && jsonEnd !== -1) {
-            const jsonString = responseContent.substring(jsonStart, jsonEnd + 1);
-            const parsedData = JSON.parse(jsonString);
+          // Helper function to clean and repair JSON
+          const cleanJSON = (jsonStr: string): string => {
+            // Remove any leading/trailing non-JSON content
+            let cleaned = jsonStr.trim();
             
+            // Find the actual JSON boundaries more carefully
+            const jsonStart = cleaned.indexOf('{');
+            const jsonEnd = cleaned.lastIndexOf('}');
+            
+            if (jsonStart === -1 || jsonEnd === -1) {
+              throw new Error('No valid JSON object found');
+            }
+            
+            cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
+            
+            // Fix common JSON issues
+            // Remove trailing commas before closing brackets/braces
+            cleaned = cleaned.replace(/,(\s*[}\]])/g, '$1');
+            
+            // Fix missing quotes around property names
+            cleaned = cleaned.replace(/(\w+):\s*"/g, '"$1": "');
+            
+            // Fix unescaped quotes in strings
+            cleaned = cleaned.replace(/"([^"]*)"([^",:}\]]*)"([^",:}\]]*)?"/g, (match, p1, p2, p3) => {
+              if (p2 && p2.trim()) {
+                return `"${p1}${p2.replace(/"/g, '\\"')}${p3 || ''}"`;
+              }
+              return match;
+            });
+            
+            return cleaned;
+          };
+          
+          // Try multiple parsing strategies
+          let parsedData: any = null;
+          let parseStrategy = 'unknown';
+          
+          // Strategy 1: Direct parsing
+          try {
+            parsedData = JSON.parse(responseContent);
+            parseStrategy = 'direct';
+            console.log('✅ JSON parsed using direct strategy');
+          } catch (directError) {
+            console.log('Direct parsing failed, trying extraction strategies...');
+            
+            // Strategy 2: Extract JSON object
+            try {
+              const jsonStart = responseContent.indexOf('{');
+              const jsonEnd = responseContent.lastIndexOf('}');
+              
+              if (jsonStart !== -1 && jsonEnd !== -1) {
+                const jsonString = responseContent.substring(jsonStart, jsonEnd + 1);
+                const cleanedJSON = cleanJSON(jsonString);
+                parsedData = JSON.parse(cleanedJSON);
+                parseStrategy = 'extracted_and_cleaned';
+                console.log('✅ JSON parsed using extraction and cleaning strategy');
+              }
+            } catch (extractError) {
+              console.log('Extraction strategy failed, trying array fallback...');
+              
+              // Strategy 3: Array fallback
+              try {
+                const arrayStart = responseContent.indexOf('[');
+                const arrayEnd = responseContent.lastIndexOf(']');
+                if (arrayStart !== -1 && arrayEnd !== -1) {
+                  const arrayString = responseContent.substring(arrayStart, arrayEnd + 1);
+                  const cleanedArray = cleanJSON(`{"criteria": ${arrayString}}`);
+                  parsedData = JSON.parse(cleanedArray);
+                  parseStrategy = 'array_fallback';
+                  console.log('✅ JSON parsed using array fallback strategy');
+                }
+              } catch (arrayError) {
+                console.log('All parsing strategies failed, trying manual criteria extraction...');
+                
+                // Strategy 4: Manual criteria extraction
+                try {
+                  const criteriaMatches = responseContent.match(/"statement":\s*"[^"]+"/g);
+                  if (criteriaMatches && criteriaMatches.length > 0) {
+                    criteria = criteriaMatches.map((match, index) => {
+                      const statement = match.match(/"statement":\s*"([^"]+)"/)?.[1] || '';
+                      return {
+                        statement,
+                        summary: `Assessment criterion ${index + 1} for ${mps.name}`,
+                        rationale: 'Extracted from AI response due to parsing issues',
+                        evidence_guidance: 'Evidence requirements to be specified during assessment',
+                        explanation: `This criterion was extracted from the AI response. Ask Maturion if you want to learn more.`
+                      };
+                    });
+                    parseStrategy = 'manual_extraction';
+                    console.log(`✅ Manually extracted ${criteria.length} criteria from malformed response`);
+                  }
+                } catch (manualError) {
+                  console.error('Manual extraction also failed:', manualError);
+                  throw new Error('All parsing strategies exhausted');
+                }
+              }
+            }
+          }
+          
+          // Process parsed data if we have it
+          if (parsedData && parsedData.criteria) {
             criteria = parsedData.criteria || [];
             systemMessage = parsedData.system_message || '';
             
-            // Ensure all criteria have evidence_guidance and explanation with Maturion link
+            console.log(`✅ Successfully parsed ${criteria.length} criteria using ${parseStrategy} strategy`);
+            
+            // Ensure all criteria have required fields
             criteria = criteria.map(criterion => ({
               ...criterion,
               evidence_guidance: criterion.evidence_guidance || 'Evidence requirements to be specified during assessment',
@@ -395,7 +494,8 @@ RESPONSE FORMAT - STRICT JSON:
               criteria_count: criteria.length,
               complexity_assessment: 'unknown',
               evidence_types_used: [],
-              document_references: ['AI_Criteria_Generation_Policy', 'Annex_2', 'AI_Criteria_Tailoring_Policy_Organization_Name_Injection']
+              document_references: ['AI_Criteria_Generation_Policy', 'Annex_2', 'AI_Criteria_Tailoring_Policy_Organization_Name_Injection'],
+              parse_strategy: parseStrategy
             };
             
             // QA Validation: Track organization name injection compliance
@@ -416,7 +516,8 @@ RESPONSE FORMAT - STRICT JSON:
                   organization_name: organizationContext.name,
                   criteria_missing_name: orgNameMissing.length,
                   total_criteria: criteria.length,
-                  compliance_percentage: ((criteria.length - orgNameMissing.length) / criteria.length * 100).toFixed(2)
+                  compliance_percentage: ((criteria.length - orgNameMissing.length) / criteria.length * 100).toFixed(2),
+                  parse_strategy: parseStrategy
                 }
               });
             } else {
@@ -428,17 +529,17 @@ RESPONSE FORMAT - STRICT JSON:
               organization_name_injection_compliance: orgNameMissing.length === 0,
               organization_name_used: organizationContext.name
             });
-          } else {
-            // Fallback: try to parse as array
-            const arrayStart = responseContent.indexOf('[');
-            const arrayEnd = responseContent.lastIndexOf(']');
-            if (arrayStart !== -1 && arrayEnd !== -1) {
-              const arrayString = responseContent.substring(arrayStart, arrayEnd + 1);
-              criteria = JSON.parse(arrayString);
-            }
           }
+          
         } catch (parseError) {
-          console.error('Failed to parse AI response:', parseError);
+          console.error('Failed to parse AI response with all strategies:', parseError);
+          console.error('Raw response causing parse error:', data?.content?.substring(0, 1000));
+          
+          // Update debug info with parse error details
+          setDebugInfo(prev => ({ 
+            ...prev, 
+            generationError: `Parse Error: ${parseError.message}. Response length: ${data?.content?.length || 0}` 
+          }));
         }
       }
 
