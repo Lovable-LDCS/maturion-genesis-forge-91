@@ -10,13 +10,15 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button as ClearButton } from '@/components/ui/button';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock, Tag, FolderOpen, X, Edit3, Save, XCircle, History } from 'lucide-react';
+import { Upload, FileText, Trash2, CheckCircle, AlertCircle, Clock, Tag, FolderOpen, X, Edit3, Save, XCircle, History, Download, Eye } from 'lucide-react';
 import { useMaturionDocuments, MaturionDocument } from '@/hooks/useMaturionDocuments';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import { DocumentVersionDialog } from './DocumentVersionDialog';
 import { DocumentProcessingVerificationBlock } from './DocumentProcessingVerificationBlock';
+import { DocumentContentViewer } from './DocumentContentViewer';
 
 const documentTypeLabels: Record<MaturionDocument['document_type'], string> = {
   maturity_model: 'Maturity Model',
@@ -81,6 +83,10 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
   // Version history dialog state
   const [versionDialogDocument, setVersionDialogDocument] = useState<MaturionDocument | null>(null);
   const [showVersionDialog, setShowVersionDialog] = useState(false);
+  
+  // Content viewer dialog state
+  const [contentViewerDocument, setContentViewerDocument] = useState<MaturionDocument | null>(null);
+  const [showContentViewer, setShowContentViewer] = useState(false);
 
   // Check if user is admin
   const isAdmin = currentOrganization?.user_role === 'admin' || currentOrganization?.user_role === 'owner';
@@ -230,6 +236,55 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
   const handleVersionDialogClose = () => {
     setShowVersionDialog(false);
     setVersionDialogDocument(null);
+  };
+
+  const handleShowContent = (doc: MaturionDocument) => {
+    setContentViewerDocument(doc);
+    setShowContentViewer(true);
+  };
+
+  const handleContentViewerClose = () => {
+    setShowContentViewer(false);
+    setContentViewerDocument(null);
+  };
+
+  const handleDownloadDocument = async (doc: MaturionDocument) => {
+    try {
+      const { data, error } = await supabase.storage
+        .from('ai-documents')
+        .download(doc.file_path);
+
+      if (error) {
+        toast({
+          title: "Download failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Create download link
+      const url = URL.createObjectURL(data);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = doc.file_name;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      toast({
+        title: "Download started",
+        description: `${doc.file_name} is being downloaded`,
+      });
+    } catch (error) {
+      console.error('Download error:', error);
+      toast({
+        title: "Download failed",
+        description: "An error occurred while downloading the file",
+        variant: "destructive",
+      });
+    }
   };
 
   if (!isAdmin) {
@@ -484,6 +539,24 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
                       <Button
                         variant="outline"
                         size="sm"
+                        onClick={() => handleShowContent(doc)}
+                        className="text-blue-600 hover:text-blue-600"
+                        title="View document content"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDownloadDocument(doc)}
+                        className="text-green-600 hover:text-green-600"
+                        title="Download document"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
                         onClick={() => handleShowVersionHistory(doc)}
                         className="text-blue-600 hover:text-blue-600"
                         title="View version history"
@@ -667,6 +740,13 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
           // Refresh the documents list after rollback
           window.location.reload(); // Simple refresh for now
         }}
+      />
+
+      {/* Content Viewer Dialog */}
+      <DocumentContentViewer
+        document={contentViewerDocument}
+        open={showContentViewer}
+        onClose={handleContentViewerClose}
       />
     </div>
   );
