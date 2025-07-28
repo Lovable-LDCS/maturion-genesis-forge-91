@@ -1,5 +1,6 @@
 /**
  * Utility functions for AI prompt generation and validation
+ * CRITICAL: This is the ONLY place for prompt logic - no duplication allowed
  */
 
 export interface MPSContext {
@@ -19,118 +20,151 @@ export interface OrganizationContext {
   custom_industry: string;
 }
 
-/**
- * Generates a clean, MPS-specific prompt for AI criteria generation
- * Ensures no hardcoded fallbacks and proper context binding
- */
-export const buildAICriteriaPrompt = (mpsContext: MPSContext, orgContext: OrganizationContext): string => {
-  return `GENERATE CRITERIA FOR SPECIFIC MPS: ${mpsContext.mpsNumber} - ${mpsContext.mpsTitle}
-
-CRITICAL CONTEXT BINDING:
-- Target MPS: ${mpsContext.mpsNumber}
-- MPS Title: ${mpsContext.mpsTitle}
-- Organization: ${orgContext.name}
-- Domain: Leadership & Governance
-- MPS ID: ${mpsContext.mpsId}
-
-MANDATORY REQUIREMENTS FOR MPS ${mpsContext.mpsNumber}:
-- ONLY generate criteria related to "${mpsContext.mpsTitle}"
-- Extract content from uploaded "MPS ${mpsContext.mpsNumber} - ${mpsContext.mpsTitle}.docx" document
-- NO fallback to other MPS documents
-- ALL criteria must be specific to ${mpsContext.mpsTitle} domain
-
-EVIDENCE-FIRST FORMAT (MANDATORY):
-Every criterion MUST start with evidence type and relate to ${mpsContext.mpsTitle}:
-- "A documented risk register identifies, categorizes, and prioritizes operational risks across all ${orgContext.name} business units."
-- "A formal policy that is approved by senior management defines the roles and responsibilities for ${mpsContext.mpsTitle.toLowerCase()} within ${orgContext.name}."
-- "A quarterly report submitted to the board documents the effectiveness of ${mpsContext.mpsTitle.toLowerCase()} controls implemented across ${orgContext.name}."
-
-ANNEX 2 COMPLIANCE (ALL 7 RULES):
-1. Evidence-first format - Start with document/policy/register/report/procedure
-2. Single evidence per criterion - No compound verbs like "establish and maintain"
-3. Measurable verbs - Use "identifies", "defines", "documents", "tracks", "outlines", "assigns"
-4. Unambiguous context - Be specific about scope and requirements for ${mpsContext.mpsTitle}
-5. Organizational tailoring - Reference ${orgContext.name} throughout
-6. No duplicates - Different evidence types or contexts are allowed
-7. Complete structure - All fields must be fully populated
-
-OUTPUT STRUCTURE FOR MPS ${mpsContext.mpsNumber}:
-{
-  "statement": "A [evidence_type] that is [qualifier] [verb] the [requirement] of [stakeholder] for ${mpsContext.mpsTitle.toLowerCase()} at ${orgContext.name}.",
-  "summary": "[10-15 word description related to ${mpsContext.mpsTitle}]",
-  "rationale": "[Why critical for ${orgContext.name}'s ${mpsContext.mpsTitle.toLowerCase()} - max 25 words]",
-  "evidence_guidance": "[Specific ${mpsContext.mpsTitle} document requirements from MPS ${mpsContext.mpsNumber}]",
-  "explanation": "[Detailed explanation with ${orgContext.name} context for ${mpsContext.mpsTitle}]"
+export interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  validCriteria: any[];
+  hasAnnex1Fallback: boolean;
+  hasPlaceholders: boolean;
+  hasEvidenceFirstViolations: boolean;
 }
 
-ORGANIZATIONAL CONTEXT:
-- Organization: ${orgContext.name}
-- Industry: ${orgContext.industry_tags.join(', ') || orgContext.custom_industry}
-- Region: ${orgContext.region_operating}
-- Compliance: ${orgContext.compliance_commitments.join(', ')}
-
-STRICT REQUIREMENTS:
-- Source: ONLY MPS ${mpsContext.mpsNumber} document content
-- Topic: ONLY ${mpsContext.mpsTitle} related criteria
-- Count: Generate 8-12 criteria based on MPS ${mpsContext.mpsNumber} document content
-- Format: Evidence-first format for all statements
-- Context: Include ${orgContext.name} and ${mpsContext.mpsTitle} throughout
-- Validation: NO placeholder text, NO generic templates
-
-Return JSON array of ${mpsContext.mpsTitle}-specific criteria objects.`;
+/**
+ * CRITICAL: Hard block for Annex 1 fallback detection
+ * This is the primary defense against wrong document usage
+ */
+export const detectAnnex1Fallback = (content: string, mpsNumber: number): boolean => {
+  if (mpsNumber === 1) return false; // Allow Annex 1 only for MPS 1
+  
+  const annex1Indicators = [
+    'annex 1',
+    'annex i',
+    'leadership and governance',
+    'governance framework',
+    'board oversight',
+    'strategic planning'
+  ];
+  
+  const contentLower = content.toLowerCase();
+  return annex1Indicators.some(indicator => contentLower.includes(indicator));
 };
 
 /**
- * Validates generated criteria against all compliance rules
+ * SINGLE SOURCE: AI criteria prompt generation
+ * All MPS-specific binding happens here - no fallbacks allowed
  */
-export const validateCriteria = (criteria: any[], orgContext: OrganizationContext): { 
-  isValid: boolean; 
-  errors: string[]; 
-  validCriteria: any[] 
-} => {
-  const errors: string[] = [];
-  
-  // Check for prohibited placeholder text
-  const hasProhibitedPlaceholders = criteria.some(criterion => 
-    criterion.statement?.includes('Assessment criterion') ||
-    criterion.statement?.includes('Criterion ') ||
-    criterion.summary?.includes('Summary for criterion') ||
-    criterion.statement?.startsWith(orgContext.name + ' must')
-  );
+export const buildAICriteriaPrompt = (mpsContext: MPSContext, orgContext: OrganizationContext): string => {
+  // HARD ABORT: Prevent any Annex 1 fallback for non-MPS 1
+  if (mpsContext.mpsNumber !== 1) {
+    return `CRITICAL MPS BINDING: Generate criteria ONLY for MPS ${mpsContext.mpsNumber} - ${mpsContext.mpsTitle}
 
-  if (hasProhibitedPlaceholders) {
-    errors.push('AI generated prohibited placeholder text');
+HARD REQUIREMENTS:
+- SOURCE: Only "MPS ${mpsContext.mpsNumber} - ${mpsContext.mpsTitle}.docx" document
+- TARGET: ${mpsContext.mpsTitle} domain EXCLUSIVELY
+- ABORT: If no MPS ${mpsContext.mpsNumber} document context available, return: "ERROR: No MPS ${mpsContext.mpsNumber} document context available"
+- FORBIDDEN: Any reference to Annex 1, Leadership & Governance, or other MPS content
+
+EVIDENCE-FIRST FORMAT (MANDATORY):
+Every criterion MUST start with evidence type:
+- "A documented [document_type] that [action_verb] the [requirement] for ${mpsContext.mpsTitle.toLowerCase()} at ${orgContext.name}."
+
+Examples for ${mpsContext.mpsTitle}:
+- "A formal risk register that identifies and categorizes all operational risks for ${mpsContext.mpsTitle.toLowerCase()} at ${orgContext.name}."
+- "A documented policy that defines roles and responsibilities for ${mpsContext.mpsTitle.toLowerCase()} at ${orgContext.name}."
+
+VALIDATION RULES:
+1. Evidence-first format (start with "A documented/formal/quarterly...")
+2. Single action verbs only (no "establish and maintain")
+3. Organization name: ${orgContext.name}
+4. MPS-specific content only: ${mpsContext.mpsTitle}
+5. No placeholder text like "Assessment criterion" or "Criterion X"
+
+OUTPUT: JSON array of 8-12 criteria objects with statement, summary, rationale, evidence_guidance, explanation fields.
+
+CONTEXT: ${orgContext.name} operates in ${orgContext.industry_tags.join(', ') || orgContext.custom_industry}, region: ${orgContext.region_operating}`;
   }
+
+  // Special handling for MPS 1 (Leadership & Governance)
+  return `Generate criteria for MPS 1 - Leadership & Governance at ${orgContext.name}
+
+EVIDENCE-FIRST FORMAT (MANDATORY):
+Every criterion MUST start with evidence type:
+- "A documented governance charter that defines the board structure and oversight responsibilities at ${orgContext.name}."
+- "A formal strategic plan that outlines the organizational direction and priorities for ${orgContext.name}."
+
+OUTPUT: JSON array of 8-12 criteria objects with statement, summary, rationale, evidence_guidance, explanation fields.`;
+};
+
+/**
+ * COMPREHENSIVE VALIDATION: Single validation engine
+ * Detects all violation types and provides detailed feedback
+ */
+export const validateCriteria = (criteria: any[], orgContext: OrganizationContext, mpsContext: MPSContext): ValidationResult => {
+  const errors: string[] = [];
+  let hasAnnex1Fallback = false;
+  let hasPlaceholders = false;
+  let hasEvidenceFirstViolations = false;
+
+  // HARD CHECK: Annex 1 fallback detection
+  criteria.forEach((criterion, index) => {
+    if (detectAnnex1Fallback(criterion.statement || '', mpsContext.mpsNumber)) {
+      hasAnnex1Fallback = true;
+      errors.push(`Criterion ${index + 1}: BLOCKED - Annex 1 fallback detected for MPS ${mpsContext.mpsNumber}`);
+    }
+  });
+
+  // Check for prohibited placeholder text
+  criteria.forEach((criterion, index) => {
+    const statement = criterion.statement || '';
+    const summary = criterion.summary || '';
+    
+    if (statement.includes('Assessment criterion') ||
+        statement.includes('Criterion ') ||
+        summary.includes('Summary for criterion') ||
+        statement.startsWith(orgContext.name + ' must')) {
+      hasPlaceholders = true;
+      errors.push(`Criterion ${index + 1}: BLOCKED - Placeholder text detected`);
+    }
+  });
 
   // Validate evidence-first format compliance
-  const nonCompliantCriteria = criteria.filter(criterion =>
-    !criterion.statement?.match(/^A\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline)/i)
-  );
+  criteria.forEach((criterion, index) => {
+    const statement = criterion.statement || '';
+    const evidenceFirstPattern = /^A\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline|charter|plan)/i;
+    
+    if (!evidenceFirstPattern.test(statement)) {
+      hasEvidenceFirstViolations = true;
+      errors.push(`Criterion ${index + 1}: BLOCKED - Evidence-first format violation`);
+    }
+  });
 
-  if (nonCompliantCriteria.length > 0) {
-    errors.push(`${nonCompliantCriteria.length} criteria failed evidence-first format validation`);
+  // HARD ABORT conditions
+  if (hasAnnex1Fallback || hasPlaceholders || hasEvidenceFirstViolations) {
+    return {
+      isValid: false,
+      errors,
+      validCriteria: [],
+      hasAnnex1Fallback,
+      hasPlaceholders,
+      hasEvidenceFirstViolations
+    };
   }
 
-  // Check organization context integration
-  const hasOrgContextIntegration = criteria.every(criterion => 
-    criterion.explanation?.includes(orgContext.name) ||
-    criterion.statement?.includes(orgContext.name)
-  );
-
-  if (!hasOrgContextIntegration) {
-    // Enhance with organization context where needed
-    criteria = criteria.map(criterion => ({
-      ...criterion,
-      explanation: criterion.explanation?.includes(orgContext.name) 
-        ? criterion.explanation 
-        : `This criterion ensures ${orgContext.name} ${criterion.explanation || 'meets the required standards'}.`
-    }));
-  }
+  // Enhance with organization context if needed
+  const enhancedCriteria = criteria.map(criterion => ({
+    ...criterion,
+    explanation: criterion.explanation?.includes(orgContext.name) 
+      ? criterion.explanation 
+      : `This criterion ensures ${orgContext.name} ${criterion.explanation || 'meets the required standards'}.`
+  }));
 
   return {
-    isValid: errors.length === 0,
-    errors,
-    validCriteria: criteria
+    isValid: true,
+    errors: [],
+    validCriteria: enhancedCriteria,
+    hasAnnex1Fallback: false,
+    hasPlaceholders: false,
+    hasEvidenceFirstViolations: false
   };
 };
 
