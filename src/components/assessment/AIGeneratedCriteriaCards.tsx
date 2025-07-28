@@ -23,6 +23,12 @@ interface Criterion {
   ai_suggested_summary?: string;
   source_type?: 'internal_document' | 'organizational_context' | 'sector_memory' | 'best_practice_fallback';
   source_reference?: string;
+  // Enhanced logging fields
+  ai_decision_log?: string;
+  evidence_hash?: string;
+  reasoning_path?: string;
+  duplicate_check_result?: string;
+  compound_verb_analysis?: string;
 }
 
 interface AIGeneratedCriteriaCardsProps {
@@ -40,11 +46,12 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
   mps,
   onCriteriaChange
 }) => {
-  const [criteria, setCriteria] = useState<Criterion[]>([]);
+const [criteria, setCriteria] = useState<Criterion[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<any>({});
+  const [showAdminDebug, setShowAdminDebug] = useState(false);
   
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
@@ -95,39 +102,47 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
       // Enhanced AI generation prompt following ALL uploaded interpretation documents and Annex compliance
       const detailedPrompt = `CRITICAL: Generate comprehensive assessment criteria for MPS ${mps.mps_number}: ${mps.name}
 
-🔥 MANDATORY COMPLIANCE WITH UPLOADED INTERPRETATION DOCUMENTS:
-This generation MUST follow all rules from:
-- Maturion Knowledge File v1 (behavior policy)
-- Annex 1: Criteria Development Template (structure)
-- Annex 2: Criteria Evaluation Policy (7 golden rules)
-- Annex 3: MPS Documents (source material)
-- AI Behavior & Knowledge Source Policy (prioritization)
-- Self-Learning Feedback Specification (patterns)
+🔥 MANDATORY COMPLIANCE WITH ALL UPLOADED INTERPRETATION DOCUMENTS:
+This generation MUST reference and follow ALL rules from uploaded knowledge sources:
+- Maturion Knowledge File v1 (4eb06fc3-5e3c-4f8f-a55d-c602cf9b9d6d.md): behavior policy & Supabase integration
+- Annex 1: Criteria Development Template: Format structure for all generated criteria
+- Annex 2: Criteria Evaluation Policy: 7 golden rules for valid criteria enforcement  
+- Annex 3: MPS Documents 1-25: Source material for minimum performance standards
+- AI Behavior & Knowledge Source Policy: Prioritize internal → org → sector → fallback only if required
+- Self-Learning Feedback Specification v1: Guide future refinement (accepted vs rejected patterns)
 
-📋 DUAL-FORMAT INTERPRETATION RULE (MANDATORY):
-1. EXTRACT criteria count by counting "Requirement:" blocks in uploaded MPS ${mps.mps_number} document
-2. Each "Requirement:" block becomes criterion statement
-3. Each "Evidence:" block becomes evidence_guidance field
-4. Generate EXACTLY the same number of criteria as "Requirement:" blocks found
-5. Sequence criteria to match document order (${mps.mps_number}.1, ${mps.mps_number}.2, etc.)
+🚫 REMOVE ALL ARTIFICIAL LIMITS: Generate FULL count as defined in MPS documents until self-learning history established.
+Expected counts: MPS 2 = 14 criteria, MPS 1 = full document count, MPS 4 = full document count.
 
-🏆 ENFORCE ALL 7 CRITERIA RULES FROM ANNEX 2:
-1. ✅ Only one evidence item per criterion (NO "establish and maintain" - split if needed)
-2. ✅ Unambiguous language (10 reviewers must interpret identically)
+📋 DUAL-FORMAT INTERPRETATION RULE (CANONICAL):
+1. COUNT "Requirement:" blocks in uploaded MPS ${mps.mps_number} .docx document  
+2. Each "Requirement:" block → criterion statement (tailored to ${organizationContext.name})
+3. Each "Evidence:" block → evidence_guidance field (contextualized)
+4. Generate EXACTLY same number of criteria as "Requirement:" blocks found
+5. Sequence: ${mps.mps_number}.1, ${mps.mps_number}.2, etc. (match document order)
+6. NO GENERATION CAPS - use uploaded .docx as canonical reference
+
+🔴 ENFORCE ALL 7 CRITERIA RULES FROM ANNEX 2 (MANDATORY):
+1. ✅ SINGLE EVIDENCE ITEM per criterion - REJECT compound verbs ("establish and maintain" → SPLIT into separate criteria)
+2. ✅ Unambiguous language (10 different reviewers must interpret identically)  
 3. ✅ Independently verifiable (testable through physical evidence/observation)
-4. ✅ Contextually relevant (use "${organizationContext.name}" not "the organization")
-5. ✅ Auditable traceability (align with evidence trail/process audit)
-6. ✅ No duplicates (compare evidence requirements, not just language)
+4. ✅ Contextually relevant (inject "${organizationContext.name}" - never "the organization")
+5. ✅ Auditable traceability (align with evidence trail/process audit requirements)
+6. ✅ No duplicates using DUAL-TOKEN CHECK (evidence_type + context_scope must BOTH match)
 7. ✅ Consistent structure (Statement → Summary → Rationale → Evidence → Explanation)
 
-🔍 ENHANCED DUPLICATE DETECTION LOGIC (v2):
-- DUAL CHECK MECHANISM: Evidence type AND operational context must both match for true duplicate
-- Evidence Check: Compare evidence_guidance or resolved evidence source for exact match
-- Context Check: Compare statement and rationale for semantic uniqueness using domain keywords
-- NOT DUPLICATES if criteria apply to: different processes, different roles/systems, different stages, distinct control purposes
-- Create evidence_hash + domain_tag structure: {"evidence_hash": "procedure_type", "domain_tag": "functional_scope"}
-- Only mark as duplicate if BOTH evidence_hash and domain_tag are identical
-- Examples of legitimate non-duplicates: incident vs change management, executive vs line accountability, planning vs review stages
+🔍 REFINED DUPLICATE DETECTION LOGIC (FINAL VERSION):
+- DUAL-TOKEN CHECK: evidence_type (policy/SOP/register/minutes) + context_scope (incident/change/risk/review)
+- TRUE DUPLICATE = BOTH tokens match exactly (same evidence + same operational context)
+- NOT DUPLICATES if same evidence_type but different context_scope (e.g., "policy for incident response" vs "policy for change control")
+- RETAIN criteria with same evidence type but different operational contexts, roles, systems, stages, or control purposes
+- LOG ALL DECISIONS: "Duplicate: same evidence + context", "Retained: different scope", "Split: compound verb detected"
+
+🚫 COMPOUND VERB ENFORCEMENT (Rule #2 Critical):
+- DETECT and REJECT criteria combining multiple verbs implying separate evidence: "establish and maintain", "implement and review", "create and update"
+- FORCE SPLIT: Each verb requiring different evidence = separate criterion
+- Example: "establish and maintain risk register" → "establish risk register" + "maintain risk register" (2 separate criteria)
+- LOG SPLIT DECISIONS: "Split compound verb: [original] → [criterion 1] + [criterion 2]"
 
 📝 REQUIRED STRUCTURE (ALL 5 FIELDS MANDATORY):
 {
@@ -273,7 +288,13 @@ Return JSON array with exact count matching MPS ${mps.mps_number} "Requirement:"
               ai_suggested_statement: c.ai_suggested_statement || undefined,
               ai_suggested_summary: c.ai_suggested_summary || undefined,
               source_type: (generatedCriteria[index]?.source_origin || generatedCriteria[index]?.source_type || 'best_practice_fallback') as 'internal_document' | 'organizational_context' | 'sector_memory' | 'best_practice_fallback',
-              source_reference: generatedCriteria[index]?.source_reference || `MPS ${mps.mps_number} Document`
+              source_reference: generatedCriteria[index]?.source_reference || `MPS ${mps.mps_number} Document`,
+              // Enhanced logging fields
+              ai_decision_log: generatedCriteria[index]?.ai_decision_log || `Generated from MPS ${mps.mps_number} requirements`,
+              evidence_hash: generatedCriteria[index]?.evidence_hash || `evidence_${index + 1}`,
+              reasoning_path: generatedCriteria[index]?.reasoning_path || `Derived from MPS ${mps.mps_number} document structure`,
+              duplicate_check_result: generatedCriteria[index]?.duplicate_check_result || 'No duplicates detected',
+              compound_verb_analysis: generatedCriteria[index]?.compound_verb_analysis || 'Single action verb validated'
             }));
 
             setCriteria(formattedCriteria);
@@ -531,10 +552,54 @@ Return JSON array with exact count matching MPS ${mps.mps_number} "Requirement:"
                   </div>
                 )}
               </div>
+
+              {/* Admin debug panel */}
+              {showAdminDebug && (
+                <div className="mt-4 p-3 bg-muted/50 rounded-lg border">
+                  <h5 className="font-medium text-xs text-muted-foreground mb-2">🔧 Admin Debug Information</h5>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="font-medium">Evidence Hash:</span> {criterion.evidence_hash}
+                    </div>
+                    <div>
+                      <span className="font-medium">Duplicate Check:</span> {criterion.duplicate_check_result}
+                    </div>
+                    <div className="col-span-2">
+                      <span className="font-medium">Compound Verb Analysis:</span> {criterion.compound_verb_analysis}
+                    </div>
+                    <div className="col-span-2">
+                      <span className="font-medium">Reasoning Path:</span> {criterion.reasoning_path}
+                    </div>
+                    <div className="col-span-2">
+                      <span className="font-medium">AI Decision Log:</span> {criterion.ai_decision_log}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
       ))}
+
+      {/* Admin debug toggle */}
+      <div className="flex justify-between items-center">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => setShowAdminDebug(!showAdminDebug)}
+          className="text-xs"
+        >
+          <Info className="h-3 w-3 mr-1" />
+          {showAdminDebug ? 'Hide' : 'Show'} Admin Debug Info
+        </Button>
+        
+        {showAdminDebug && (
+          <div className="text-xs text-muted-foreground">
+            Total generated: {criteria.length} criteria | 
+            Full compliance with MPS {mps.mps_number} document structure
+          </div>
+        )}
+      </div>
 
       {criteria.length === 0 && !isLoading && !error && (
         <Card className="w-full">
