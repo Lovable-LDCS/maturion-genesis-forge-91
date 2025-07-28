@@ -341,11 +341,6 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
         title: "AI Criteria Added",
         description: `${approvedCriteria.length} AI-generated criteria have been added.`,
       });
-
-      // Auto-trigger manual modal after AI completion
-      setTimeout(() => {
-        setShowManualModal(mpsId);
-      }, 500);
     };
 
     const handleOpenManualModal = (mpsId: string) => {

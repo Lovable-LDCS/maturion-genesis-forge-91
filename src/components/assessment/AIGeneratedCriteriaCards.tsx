@@ -89,8 +89,8 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
         return;
       }
 
-      // Generate new criteria using AI
-      const expectedCriteriaCount = Math.min(Math.max(2, Math.floor(Math.random() * 3) + 2), 4);
+      // Generate new criteria using AI - target 8-12 criteria based on Annex 1 requirements
+      const expectedCriteriaCount = 10;
 
       // Enhanced system prompt for AI generation
       const systemPrompt = `You are an AI assessment criteria generator operating under strict system constraints from the AI Criteria Generation Policy.
