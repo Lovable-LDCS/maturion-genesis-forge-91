@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Settings, TestTube, FileText, CheckCircle } from 'lucide-react';
 import { QADebugHub, RegressionTestMode } from '@/components/qa';
+import { QASystemTest } from '@/components/qa/QASystemTest';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 
@@ -102,12 +103,27 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
       </Alert>
 
       {/* QA Tools Tabs */}
-      <Tabs defaultValue="debug" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="system-test" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="system-test">System Test</TabsTrigger>
           <TabsTrigger value="debug">QA Debug Hub</TabsTrigger>
           <TabsTrigger value="regression">Regression Tests</TabsTrigger>
           <TabsTrigger value="settings">QA Settings</TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="system-test" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>System Diagnostic Test</CardTitle>
+              <CardDescription>
+                Comprehensive validation of all QA fixes and system components
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <QASystemTest />
+            </CardContent>
+          </Card>
+        </TabsContent>
         
         <TabsContent value="debug" className="space-y-4">
           <Card>
