@@ -56,26 +56,26 @@ serve(async (req) => {
     console.log('Fetching chunks with embeddings for semantic search');
     
     let baseQuery = supabase
-      .from('criteria_chunks')
+      .from('ai_document_chunks')
       .select(`
         id,
         content,
         chunk_index,
         embedding,
-        mps_documents!inner(
+        ai_documents!inner(
           id,
           title,
           organization_id,
           document_type
         )
       `)
-      .eq('mps_documents.organization_id', organizationId)
+      .eq('ai_documents.organization_id', organizationId)
       .not('embedding', 'is', null); // Only get chunks with embeddings
 
     // Filter by document types if specified
     if (documentTypes.length > 0) {
       console.log('Filtering by document types:', documentTypes);
-      baseQuery = baseQuery.in('mps_documents.document_type', documentTypes);
+      baseQuery = baseQuery.in('ai_documents.document_type', documentTypes);
     }
 
     // Get all relevant chunks for semantic comparison
@@ -104,20 +104,20 @@ serve(async (req) => {
         
         // Try to find chunks in any of these organizations
         const { data: altChunks, error: altFetchError } = await supabase
-          .from('criteria_chunks')
+          .from('ai_document_chunks')
           .select(`
             id,
             content,
             chunk_index,
             embedding,
-            mps_documents!inner(
+            ai_documents!inner(
               id,
               title,
               organization_id,
               document_type
             )
           `)
-          .in('mps_documents.organization_id', orgIds)
+          .in('ai_documents.organization_id', orgIds)
           .not('embedding', 'is', null)
           .limit(100);
           
@@ -140,22 +140,22 @@ serve(async (req) => {
       
       // Fallback to simple text search with safer approach
       if (searchTerms.length > 0) {
-        console.log('Attempting text search on criteria_chunks...');
+        console.log('Attempting text search on ai_document_chunks...');
         
         let textQuery = supabase
-          .from('criteria_chunks')
+          .from('ai_document_chunks')
           .select(`
             id,
             content,
             chunk_index,
-            mps_documents!inner(
+            ai_documents!inner(
               id,
               title,
               organization_id,
               document_type
             )
           `)
-          .eq('mps_documents.organization_id', organizationId);
+          .eq('ai_documents.organization_id', organizationId);
 
         // Use safer text search - apply each term individually
         searchTerms.forEach(term => {
@@ -163,7 +163,7 @@ serve(async (req) => {
         });
 
         if (documentTypes.length > 0) {
-          textQuery = textQuery.in('mps_documents.document_type', documentTypes);
+          textQuery = textQuery.in('ai_documents.document_type', documentTypes);
         }
 
         const { data: textChunks, error: textError } = await textQuery.limit(limit);
@@ -174,26 +174,26 @@ serve(async (req) => {
           // Final fallback - try searching without document type filter
           console.log('Attempting simpler search...');
           const { data: simpleChunks, error: simpleError } = await supabase
-            .from('criteria_chunks')
+            .from('ai_document_chunks')
             .select(`
               id,
               content,
               chunk_index,
-              mps_documents!inner(
+              ai_documents!inner(
                 id,
                 title,
                 organization_id
               )
             `)
-            .eq('mps_documents.organization_id', organizationId)
+            .eq('ai_documents.organization_id', organizationId)
             .ilike('content', `%${searchTerms[0]}%`)
             .limit(10);
 
           if (!simpleError && simpleChunks && simpleChunks.length > 0) {
             const simpleResults = simpleChunks.map(chunk => ({
               chunk_id: chunk.id,
-              document_id: chunk.mps_documents?.id || '',
-              document_name: chunk.mps_documents?.title || 'Unknown',
+              document_id: chunk.ai_documents?.id || '',
+              document_name: chunk.ai_documents?.title || 'Unknown',
               document_type: 'mps',
               content: chunk.content,
               similarity: 0.5,
@@ -231,9 +231,9 @@ serve(async (req) => {
         
         const textResults = textChunks?.map(chunk => ({
           chunk_id: chunk.id,
-          document_id: chunk.mps_documents?.id || '',
-          document_name: chunk.mps_documents?.title || 'Unknown',
-          document_type: chunk.mps_documents?.document_type || 'mps',
+          document_id: chunk.ai_documents?.id || '',
+          document_name: chunk.ai_documents?.title || 'Unknown',
+          document_type: chunk.ai_documents?.document_type || 'mps',
           content: chunk.content,
           similarity: 0.7, // Default similarity for text search
           metadata: { chunk_index: chunk.chunk_index }
@@ -299,9 +299,9 @@ serve(async (req) => {
         if (similarity >= threshold) {
           results.push({
             chunk_id: chunk.id,
-            document_id: chunk.mps_documents?.id || '',
-            document_name: chunk.mps_documents?.title || 'Unknown',
-            document_type: chunk.mps_documents?.document_type || 'mps',
+            document_id: chunk.ai_documents?.id || '',
+            document_name: chunk.ai_documents?.title || 'Unknown',
+            document_type: chunk.ai_documents?.document_type || 'mps',
             content: chunk.content,
             similarity: similarity,
             metadata: { chunk_index: chunk.chunk_index }
@@ -318,20 +318,19 @@ serve(async (req) => {
 
     // Create access audit log
     await supabase
-      .from('audit_logs')
+      .from('audit_trail')
       .insert({
-        user_id: 'system',
+        organization_id: organizationId,
+        table_name: 'ai_document_chunks',
+        record_id: organizationId,
         action: 'search_ai_context_semantic',
-        table_name: 'criteria_chunks',
-        record_id: null,
-        old_values: null,
-        new_values: {
+        changed_by: '00000000-0000-0000-0000-000000000001',
+        change_reason: JSON.stringify({
           query: query,
-          organization_id: organizationId,
           results_count: results.length,
           document_types: documentTypes,
           search_timestamp: new Date().toISOString()
-        }
+        })
       });
 
     console.log(`Returning ${results.length} relevant results`);

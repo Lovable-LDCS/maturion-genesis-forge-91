@@ -981,6 +981,7 @@ export type Database = {
           intent_approved_by: string | null
           intent_statement: string | null
           name: string
+          order_index: number | null
           organization_id: string
           status: Database["public"]["Enums"]["assessment_status"]
           updated_at: string
@@ -996,6 +997,7 @@ export type Database = {
           intent_approved_by?: string | null
           intent_statement?: string | null
           name: string
+          order_index?: number | null
           organization_id: string
           status?: Database["public"]["Enums"]["assessment_status"]
           updated_at?: string
@@ -1011,6 +1013,7 @@ export type Database = {
           intent_approved_by?: string | null
           intent_statement?: string | null
           name?: string
+          order_index?: number | null
           organization_id?: string
           status?: Database["public"]["Enums"]["assessment_status"]
           updated_at?: string
