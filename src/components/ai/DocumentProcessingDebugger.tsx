@@ -118,12 +118,19 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
       const result = await processWithTimeout(pendingDoc.id, pendingDoc.title) as any;
       
       if (result.error) {
+        // Enhanced error logging with specific failure details
+        const errorMsg = result.error.message || result.error || 'Processing failed';
+        const isCorrupted = errorMsg.includes('corrupted') || errorMsg.includes('Invalid docx file signature');
+        const isTimeout = errorMsg.includes('timeout');
+        const isUnsupported = errorMsg.includes('unsupported features') || errorMsg.includes('password-protected');
+        
         addLog({
           timestamp: new Date().toLocaleTimeString(),
           documentTitle: pendingDoc.title,
           status: 'error',
-          message: result.error.message || 'Processing failed'
+          message: `${errorMsg}${isCorrupted ? ' (File may be corrupted)' : ''}${isTimeout ? ' (Processing timed out)' : ''}${isUnsupported ? ' (Unsupported format)' : ''}`
         });
+        
         throw result.error;
       }
 
@@ -252,11 +259,17 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
           const result = await processWithTimeout(doc.id, doc.title, 90000) as any; // 90 second timeout for batch
 
           if (result.error) {
+            // Enhanced error logging with specific failure details  
+            const errorMsg = result.error.message || result.error || 'Processing failed';
+            const isCorrupted = errorMsg.includes('corrupted') || errorMsg.includes('Invalid docx file signature');
+            const isTimeout = errorMsg.includes('timeout');
+            const isUnsupported = errorMsg.includes('unsupported features') || errorMsg.includes('password-protected');
+            
             addLog({
               timestamp: new Date().toLocaleTimeString(),
               documentTitle: doc.title,
               status: 'error',
-              message: result.error.message || 'Processing failed'
+              message: `${errorMsg}${isCorrupted ? ' (File may be corrupted)' : ''}${isTimeout ? ' (Processing timed out)' : ''}${isUnsupported ? ' (Unsupported format)' : ''}`
             });
             failed++;
           } else {

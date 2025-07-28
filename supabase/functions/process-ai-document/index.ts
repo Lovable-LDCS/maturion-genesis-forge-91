@@ -343,6 +343,7 @@ function sanitizeTextForJson(text: string): string {
 async function extractTextContent(fileData: Blob, mimeType: string, fileName: string): Promise<string> {
   try {
     console.log(`🔍 Extracting content from ${fileName} (${mimeType})`);
+    console.log(`📊 File size: ${fileData.size} bytes`);
     
     // Handle text files
     if (mimeType.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
@@ -365,47 +366,191 @@ async function extractTextContent(fileData: Blob, mimeType: string, fileName: st
       
       console.log(`📄 Processing Word document: ${fileName}`);
       
-      // For now, extract raw text content - this is a simplified approach
-      // In production, you'd want to use a proper docx parser
-      const text = await extractDocxText(fileData);
-      const sanitized = sanitizeTextForJson(text);
-      
-      console.log(`📄 Word document extracted: ${sanitized.length} characters`);
-      
-      if (isPlaceholderContent(sanitized, fileName)) {
-        throw new Error(`Placeholder content detected in ${fileName}`);
+      try {
+        // Enhanced docx extraction with better error handling
+        const text = await extractDocxTextEnhanced(fileData, fileName);
+        const sanitized = sanitizeTextForJson(text);
+        
+        console.log(`📄 Word document extracted: ${sanitized.length} characters`);
+        
+        if (isPlaceholderContent(sanitized, fileName)) {
+          throw new Error(`Placeholder content detected in ${fileName}`);
+        }
+        
+        return sanitized;
+      } catch (docxError) {
+        console.error(`❌ Word extraction failed for ${fileName}:`, docxError);
+        
+        // Try fallback text extraction
+        console.log(`🔄 Attempting fallback extraction for ${fileName}...`);
+        const fallbackText = await extractFallbackText(fileData, fileName);
+        
+        if (fallbackText && fallbackText.length > 100) {
+          console.log(`✅ Fallback extraction successful: ${fallbackText.length} characters`);
+          return fallbackText;
+        }
+        
+        throw new Error(`Failed to extract text from Word document ${fileName}: ${docxError.message}. File may be corrupted or use unsupported features.`);
       }
-      
-      return sanitized;
     }
     
     // Handle PDF files
     if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
       console.log(`📄 Processing PDF document: ${fileName}`);
       
-      // For now, we'll extract what we can as text
-      // In production, you'd want to use a proper PDF parser
-      const text = await extractPdfText(fileData);
-      const sanitized = sanitizeTextForJson(text);
-      
-      console.log(`📄 PDF extracted: ${sanitized.length} characters`);
-      
-      if (isPlaceholderContent(sanitized, fileName)) {
-        throw new Error(`Placeholder content detected in ${fileName}`);
+      try {
+        const text = await extractPdfText(fileData);
+        const sanitized = sanitizeTextForJson(text);
+        
+        console.log(`📄 PDF extracted: ${sanitized.length} characters`);
+        
+        if (isPlaceholderContent(sanitized, fileName)) {
+          throw new Error(`Placeholder content detected in ${fileName}`);
+        }
+        
+        return sanitized;
+      } catch (pdfError) {
+        console.error(`❌ PDF extraction failed for ${fileName}:`, pdfError);
+        throw new Error(`Failed to extract text from PDF ${fileName}: ${pdfError.message}`);
       }
-      
-      return sanitized;
     }
     
     // For unsupported file types
     throw new Error(`Unsupported file type: ${mimeType} for file: ${fileName}. Supported types: .txt, .md, .docx, .pdf`);
   } catch (error) {
-    console.error('Error extracting text:', error);
+    console.error(`❌ Text extraction failed for ${fileName}:`, error);
     throw error;
   }
 }
 
-// Simple docx text extraction (for demonstration - in production use a proper library)
+// Enhanced docx text extraction with detailed error handling
+async function extractDocxTextEnhanced(fileData: Blob, fileName: string): Promise<string> {
+  try {
+    console.log(`🔧 Enhanced docx extraction for: ${fileName}`);
+    
+    const arrayBuffer = await fileData.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Check if file starts with PK (ZIP signature) - valid docx files are ZIP archives
+    if (uint8Array[0] !== 0x50 || uint8Array[1] !== 0x4B) {
+      throw new Error(`Invalid docx file signature. File may be corrupted or not a valid Word document.`);
+    }
+    
+    console.log(`✅ Valid ZIP signature detected for ${fileName}`);
+    
+    // Try multiple text decoders for different encodings
+    const decoders = [
+      new TextDecoder('utf-8', { ignoreBOM: true, fatal: false }),
+      new TextDecoder('utf-16', { ignoreBOM: true, fatal: false }),
+      new TextDecoder('windows-1252', { ignoreBOM: true, fatal: false })
+    ];
+    
+    let bestText = '';
+    let bestScore = 0;
+    
+    for (const decoder of decoders) {
+      try {
+        let text = decoder.decode(uint8Array);
+        
+        // Clean up XML tags and extract readable content
+        text = text
+          .replace(/<w:t[^>]*>/g, ' ') // Word text elements
+          .replace(/<\/w:t>/g, ' ')
+          .replace(/<[^>]*>/g, ' ') // All other XML tags
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&amp;/g, '&')
+          .replace(/&quot;/g, '"')
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        // Score this extraction attempt
+        const words = text.split(/\s+/).filter(word => word.length > 2);
+        const readableWords = words.filter(word => /^[a-zA-Z0-9]+$/.test(word));
+        const score = readableWords.length;
+        
+        console.log(`📊 Decoder ${decoder.encoding}: ${score} readable words from ${words.length} total`);
+        
+        if (score > bestScore) {
+          bestScore = score;
+          bestText = text;
+        }
+      } catch (decoderError) {
+        console.log(`⚠️ Decoder ${decoder.encoding} failed:`, decoderError.message);
+        continue;
+      }
+    }
+    
+    if (bestText.length < 50) {
+      throw new Error(`Insufficient readable text extracted. Only ${bestText.length} characters found. File may be corrupted, password-protected, or contain only images/tables.`);
+    }
+    
+    console.log(`✅ Best extraction result: ${bestText.length} characters with ${bestScore} readable words`);
+    return bestText;
+    
+  } catch (error) {
+    console.error(`❌ Enhanced docx extraction failed for ${fileName}:`, error);
+    throw error;
+  }
+}
+
+// Fallback text extraction for problematic files
+async function extractFallbackText(fileData: Blob, fileName: string): Promise<string> {
+  try {
+    console.log(`🆘 Attempting fallback text extraction for: ${fileName}`);
+    
+    const arrayBuffer = await fileData.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    
+    // Try to find any readable ASCII text in the binary data
+    let extractedText = '';
+    let currentWord = '';
+    
+    for (let i = 0; i < uint8Array.length; i++) {
+      const byte = uint8Array[i];
+      
+      // Check if byte represents a printable ASCII character
+      if (byte >= 32 && byte <= 126) {
+        currentWord += String.fromCharCode(byte);
+      } else {
+        // Non-printable character - save current word if it's meaningful
+        if (currentWord.length >= 3 && /[a-zA-Z]/.test(currentWord)) {
+          extractedText += currentWord + ' ';
+        }
+        currentWord = '';
+      }
+      
+      // Prevent excessive memory usage
+      if (extractedText.length > 50000) {
+        break;
+      }
+    }
+    
+    // Add any remaining word
+    if (currentWord.length >= 3 && /[a-zA-Z]/.test(currentWord)) {
+      extractedText += currentWord;
+    }
+    
+    // Clean up the extracted text
+    extractedText = extractedText
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    console.log(`🔍 Fallback extraction result: ${extractedText.length} characters`);
+    
+    if (extractedText.length < 100) {
+      throw new Error(`Fallback extraction insufficient: only ${extractedText.length} characters found`);
+    }
+    
+    return extractedText;
+    
+  } catch (error) {
+    console.error(`❌ Fallback extraction failed for ${fileName}:`, error);
+    throw error;
+  }
+}
+
+// Simple docx text extraction (legacy function - kept for compatibility)
 async function extractDocxText(fileData: Blob): Promise<string> {
   try {
     // This is a very basic approach - in production you'd use a proper docx parser
