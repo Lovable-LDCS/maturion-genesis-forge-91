@@ -15,13 +15,46 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
   const triggerProcessing = async () => {
     setProcessing(true);
     try {
-      // Get a pending document
-      const { data: pendingDoc, error: fetchError } = await supabase
+      // Get a pending or failed document (try pending first, then failed)
+      let pendingDoc;
+      let fetchError;
+      
+      // First try pending documents
+      const { data: pendingData, error: pendingError } = await supabase
         .from('ai_documents')
-        .select('id, title')
+        .select('id, title, processing_status')
         .eq('processing_status', 'pending')
         .limit(1)
         .single();
+        
+      if (!pendingError && pendingData) {
+        pendingDoc = pendingData;
+      } else {
+        // If no pending, try failed documents
+        const { data: failedData, error: failedError } = await supabase
+          .from('ai_documents')
+          .select('id, title, processing_status')
+          .eq('processing_status', 'failed')
+          .limit(1)
+          .single();
+          
+        if (!failedError && failedData) {
+          pendingDoc = failedData;
+          
+          // Reset the failed document to pending first
+          await supabase
+            .from('ai_documents')
+            .update({ 
+              processing_status: 'pending', 
+              total_chunks: 0, 
+              processed_at: null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', failedData.id);
+        }
+        
+        fetchError = failedError;
+      }
 
       if (fetchError || !pendingDoc) {
         toast({
@@ -68,20 +101,38 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
   const processAllPending = async () => {
     setProcessing(true);
     try {
-      // Get all pending documents
-      const { data: pendingDocs, error: fetchError } = await supabase
+      // Get all pending and failed documents
+      const { data: pendingDocs, error: pendingError } = await supabase
         .from('ai_documents')
-        .select('id, title')
-        .eq('processing_status', 'pending');
+        .select('id, title, processing_status')
+        .in('processing_status', ['pending', 'failed']);
 
-      if (fetchError) throw fetchError;
+      if (pendingError) throw pendingError;
 
       if (!pendingDocs || pendingDocs.length === 0) {
         toast({
-          title: "No pending documents",
+          title: "No documents to process",
           description: "All documents have been processed",
         });
         return;
+      }
+
+      // Reset all failed documents to pending first
+      const failedDocs = pendingDocs.filter(doc => doc.processing_status === 'failed');
+      if (failedDocs.length > 0) {
+        console.log(`Resetting ${failedDocs.length} failed documents to pending status`);
+        
+        for (const doc of failedDocs) {
+          await supabase
+            .from('ai_documents')
+            .update({ 
+              processing_status: 'pending', 
+              total_chunks: 0, 
+              processed_at: null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', doc.id);
+        }
       }
 
       // Processing ${pendingDocs.length} pending documents

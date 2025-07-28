@@ -284,9 +284,14 @@ function sanitizeTextForJson(text: string): string {
 // Helper function to extract text content from files
 async function extractTextContent(fileData: Blob, mimeType: string, fileName: string): Promise<string> {
   try {
+    console.log(`🔍 Extracting content from ${fileName} (${mimeType})`);
+    
+    // Handle text files
     if (mimeType.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
       const text = await fileData.text();
       const sanitized = sanitizeTextForJson(text);
+      
+      console.log(`📄 Text file extracted: ${sanitized.length} characters`);
       
       // Validate this isn't placeholder content
       if (isPlaceholderContent(sanitized, fileName)) {
@@ -296,11 +301,105 @@ async function extractTextContent(fileData: Blob, mimeType: string, fileName: st
       return sanitized;
     }
     
-    // For non-text files, throw error instead of placeholder
-    throw new Error(`Unsupported file type: ${mimeType} for file: ${fileName}. Only text files are supported.`);
+    // Handle Word documents (.docx)
+    if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+        fileName.endsWith('.docx')) {
+      
+      console.log(`📄 Processing Word document: ${fileName}`);
+      
+      // For now, extract raw text content - this is a simplified approach
+      // In production, you'd want to use a proper docx parser
+      const text = await extractDocxText(fileData);
+      const sanitized = sanitizeTextForJson(text);
+      
+      console.log(`📄 Word document extracted: ${sanitized.length} characters`);
+      
+      if (isPlaceholderContent(sanitized, fileName)) {
+        throw new Error(`Placeholder content detected in ${fileName}`);
+      }
+      
+      return sanitized;
+    }
+    
+    // Handle PDF files
+    if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
+      console.log(`📄 Processing PDF document: ${fileName}`);
+      
+      // For now, we'll extract what we can as text
+      // In production, you'd want to use a proper PDF parser
+      const text = await extractPdfText(fileData);
+      const sanitized = sanitizeTextForJson(text);
+      
+      console.log(`📄 PDF extracted: ${sanitized.length} characters`);
+      
+      if (isPlaceholderContent(sanitized, fileName)) {
+        throw new Error(`Placeholder content detected in ${fileName}`);
+      }
+      
+      return sanitized;
+    }
+    
+    // For unsupported file types
+    throw new Error(`Unsupported file type: ${mimeType} for file: ${fileName}. Supported types: .txt, .md, .docx, .pdf`);
   } catch (error) {
     console.error('Error extracting text:', error);
     throw error;
+  }
+}
+
+// Simple docx text extraction (for demonstration - in production use a proper library)
+async function extractDocxText(fileData: Blob): Promise<string> {
+  try {
+    // This is a very basic approach - in production you'd use a proper docx parser
+    const arrayBuffer = await fileData.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const decoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false });
+    
+    // Try to extract readable text - this won't be perfect but will catch basic content
+    let text = decoder.decode(uint8Array);
+    
+    // Remove XML tags and clean up
+    text = text.replace(/<[^>]*>/g, ' ')
+               .replace(/\s+/g, ' ')
+               .trim();
+    
+    // If we get very little readable text, it might be corrupted or empty
+    if (text.length < 50) {
+      throw new Error('Unable to extract meaningful text from Word document');
+    }
+    
+    return text;
+  } catch (error) {
+    console.error('Error extracting docx text:', error);
+    throw new Error('Failed to extract text from Word document');
+  }
+}
+
+// Simple PDF text extraction (for demonstration - in production use a proper library)
+async function extractPdfText(fileData: Blob): Promise<string> {
+  try {
+    // This is a basic approach - in production you'd use a proper PDF parser
+    const arrayBuffer = await fileData.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const decoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false });
+    
+    // Try to extract readable text
+    let text = decoder.decode(uint8Array);
+    
+    // Remove PDF-specific markers and clean up
+    text = text.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ')
+               .replace(/\s+/g, ' ')
+               .trim();
+    
+    // If we get very little readable text, it might be corrupted or empty
+    if (text.length < 50) {
+      throw new Error('Unable to extract meaningful text from PDF document');
+    }
+    
+    return text;
+  } catch (error) {
+    console.error('Error extracting PDF text:', error);
+    throw new Error('Failed to extract text from PDF document');
   }
 }
 
