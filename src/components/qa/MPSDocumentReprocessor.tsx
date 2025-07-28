@@ -35,28 +35,107 @@ export const MPSDocumentReprocessor: React.FC = () => {
     try {
       console.log('🔄 Starting MPS document reset...');
       
-      const { data, error } = await supabase.rpc('reset_my_mps_documents');
-      
-      if (error) {
-        console.error('❌ Reset failed:', error);
-        throw error;
+      // Get current user and organization context first
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        throw new Error('User not authenticated');
       }
       
-      console.log('✅ Reset result:', data);
+      console.log('✅ User authenticated:', user.id);
+
+      // Get user's organization - try multiple approaches
+      let organizationId: string;
       
-      // Type-safe data access
-      const resetResult = data as any;
-      
-      if (resetResult?.success) {
+      try {
+        const { data: orgMember, error: orgError } = await supabase
+          .from('organization_members')
+          .select('organization_id, role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (orgMember?.organization_id) {
+          organizationId = orgMember.organization_id;
+          console.log('✅ Organization ID from members:', organizationId);
+        } else {
+          throw new Error('No membership found');
+        }
+      } catch (memberError: any) {
+        console.warn('⚠️ organization_members table issue, trying organizations table:', memberError.message);
+        
+        // Fallback: try to get organization where user is owner
+        const { data: ownedOrg, error: ownedError } = await supabase
+          .from('organizations')
+          .select('id')
+          .eq('owner_id', user.id)
+          .maybeSingle();
+
+        if (ownedError || !ownedOrg) {
+          throw new Error('No organization found - user must be a member or owner of an organization to reprocess MPS documents');
+        }
+        
+        organizationId = ownedOrg.id;
+        console.log('✅ Organization ID from ownership:', organizationId);
+      }
+
+      // Direct reset instead of using RPC
+      // 1. Count what we're about to reset
+      const { data: docCount } = await supabase
+        .from('ai_documents')
+        .select('id', { count: 'exact' })
+        .eq('organization_id', organizationId)
+        .eq('document_type', 'mps_document');
+
+      console.log(`📄 Found ${docCount?.length || 0} MPS documents to reset`);
+
+      // 2. Clear document chunks for MPS documents
+      const { data: mpsDocIds } = await supabase
+        .from('ai_documents')
+        .select('id')
+        .eq('organization_id', organizationId)
+        .eq('document_type', 'mps_document');
+
+      if (mpsDocIds && mpsDocIds.length > 0) {
+        const docIds = mpsDocIds.map(doc => doc.id);
+        
+        // Delete chunks
+        const { error: deleteChunksError } = await supabase
+          .from('ai_document_chunks')
+          .delete()
+          .in('document_id', docIds);
+
+        if (deleteChunksError) {
+          console.error('Failed to delete chunks:', deleteChunksError);
+          throw new Error(`Failed to delete chunks: ${deleteChunksError.message}`);
+        }
+
+        // Reset document status
+        const { error: resetDocsError } = await supabase
+          .from('ai_documents')
+          .update({
+            processing_status: 'pending',
+            processed_at: null,
+            total_chunks: 0
+          })
+          .in('id', docIds);
+
+        if (resetDocsError) {
+          console.error('Failed to reset documents:', resetDocsError);
+          throw new Error(`Failed to reset documents: ${resetDocsError.message}`);
+        }
+
+        console.log(`✅ Reset ${docIds.length} documents and cleared chunks`);
+
         toast({
           title: "MPS Documents Reset",
-          description: `Successfully reset ${resetResult.documents_reset} documents and cleared ${resetResult.criteria_cleared} criteria.`,
+          description: `Successfully reset ${docIds.length} documents and cleared their chunks.`,
         });
+
+        return { success: true, documents_reset: docIds.length };
       } else {
-        throw new Error(resetResult?.error || 'Reset failed');
+        console.log('ℹ️ No MPS documents found to reset');
+        return { success: true, documents_reset: 0 };
       }
       
-      return resetResult;
     } catch (error: any) {
       console.error('❌ Reset error:', error);
       toast({
