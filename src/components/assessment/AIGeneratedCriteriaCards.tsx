@@ -21,6 +21,8 @@ interface Criterion {
   status: 'not_started' | 'in_progress' | 'approved_locked';
   ai_suggested_statement?: string;
   ai_suggested_summary?: string;
+  source_type?: 'internal_document' | 'organizational_context' | 'sector_memory' | 'best_practice_fallback';
+  source_reference?: string;
 }
 
 interface AIGeneratedCriteriaCardsProps {
@@ -49,7 +51,7 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
   const { context } = useMaturionContext();
   const { toast } = useToast();
 
-  // Optimized AI criteria generation
+  // Dynamic AI criteria generation based on uploaded documents and organizational context
   const generateAICriteria = useCallback(async () => {
     if (!currentOrganization?.id || !user || isGenerating) return;
 
@@ -57,13 +59,14 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
     setError(null);
 
     try {
-      // Load organization context for AI tailoring
+      // Load comprehensive organization context for AI tailoring
       const organizationContext = {
         id: currentOrganization.id,
         name: currentOrganization.name || 'your organization',
         industry_tags: currentOrganization.industry_tags || [],
         region_operating: currentOrganization.region_operating || '',
-        compliance_commitments: currentOrganization.compliance_commitments || []
+        compliance_commitments: currentOrganization.compliance_commitments || [],
+        custom_industry: currentOrganization.custom_industry || ''
       };
 
       // Check for existing criteria
@@ -89,40 +92,56 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
         return;
       }
 
-      // Generate new criteria using AI - target 8-12 criteria based on Annex 1 requirements
-      const expectedCriteriaCount = 10;
+      // Enhanced AI generation prompt following backoffice specification
+      const detailedPrompt = `CRITICAL: Generate comprehensive assessment criteria for MPS ${mps.mps_number}: ${mps.name}
 
-      // Enhanced system prompt for AI generation
-      const systemPrompt = `You are an AI assessment criteria generator operating under strict system constraints from the AI Criteria Generation Policy.
+MANDATORY REQUIREMENTS:
+1. MUST use uploaded MPS documents as PRIMARY source
+2. MUST tailor to ${organizationContext.name} organizational context
+3. MUST consider industry: ${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry || 'General'}
+4. MUST include ALL required fields for each criterion
 
-CRITICAL REQUIREMENTS:
-1. Generate EXACTLY ${expectedCriteriaCount} criteria for MPS ${mps.mps_number}: ${mps.name}
-2. MUST inject organization name "${organizationContext.name}" naturally into each criterion
-3. Focus on measurable, evidence-based requirements
-4. Each criterion must have: statement, summary, rationale, evidence_guidance, explanation
-5. Return ONLY valid JSON array format
-6. No repetitive or template-like phrasing
+REQUIRED STRUCTURE for each criterion:
+{
+  "statement": "Clear, measurable requirement statement",
+  "summary": "Brief overview of what this criterion addresses", 
+  "rationale": "Why this criterion is important for ${organizationContext.name}",
+  "evidence_guidance": "Specific evidence types and documentation needed",
+  "explanation": "Detailed explanation with ${organizationContext.name} context",
+  "source_type": "internal_document|organizational_context|sector_memory|best_practice_fallback",
+  "source_reference": "Specific document or knowledge source used"
+}
 
-Organization Context:
-- Name: ${organizationContext.name}
-- Industry: ${organizationContext.industry_tags.join(', ') || 'General'}
-- Region: ${organizationContext.region_operating || 'Global'}
-- Compliance: ${organizationContext.compliance_commitments.join(', ') || 'Standard'}
+DYNAMIC CRITERIA COUNT:
+- Generate the optimal number of criteria based on MPS complexity and organizational needs
+- Typical range: 8-14 criteria depending on content depth
+- Quality and coverage over fixed quantity
+- Each criterion must add unique value
 
-MPS Context: ${mps.summary || mps.name}
+ORGANIZATIONAL CONTEXT:
+- Organization: ${organizationContext.name}
+- Industry/Sector: ${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry}
+- Region: ${organizationContext.region_operating}
+- Compliance frameworks: ${organizationContext.compliance_commitments.join(', ')}
 
-Return format: [{"statement": "...", "summary": "...", "rationale": "...", "evidence_guidance": "...", "explanation": "..."}]`;
+KNOWLEDGE SOURCE PRIORITY:
+1. Internal uploaded documents (highest priority)
+2. Organizational profile and context
+3. Sector-specific requirements
+4. Best practice fallbacks (only when above insufficient)
 
-      // Call AI generation
+Return a JSON array of criteria objects with all required fields. Include source tracking for audit trail.`;
+
+      // Call AI generation with enhanced parameters
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
-          prompt: `Generate ${expectedCriteriaCount} detailed assessment criteria for MPS ${mps.mps_number}: ${mps.name}. Each criterion must include: statement, summary, rationale, evidence_guidance, and explanation. Return as JSON array.`,
+          prompt: detailedPrompt,
           context: 'Criteria generation',
           organizationId: currentOrganization.id,
           currentDomain: 'Leadership & Governance',
-          systemPrompt,
-          model: 'gpt-4o-mini',
-          temperature: 0
+          model: 'gpt-4.1-2025-04-14',
+          temperature: 0,
+          requiresInternalSecure: true
         }
       });
 
@@ -213,7 +232,9 @@ Return format: [{"statement": "...", "summary": "...", "rationale": "...", "evid
               explanation: generatedCriteria[index]?.explanation || undefined,
               status: c.status as 'not_started' | 'in_progress' | 'approved_locked',
               ai_suggested_statement: c.ai_suggested_statement || undefined,
-              ai_suggested_summary: c.ai_suggested_summary || undefined
+              ai_suggested_summary: c.ai_suggested_summary || undefined,
+              source_type: generatedCriteria[index]?.source_type || 'best_practice_fallback',
+              source_reference: generatedCriteria[index]?.source_reference || 'AI Generated'
             }));
 
             setCriteria(formattedCriteria);
@@ -419,23 +440,58 @@ Return format: [{"statement": "...", "summary": "...", "rationale": "...", "evid
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3">
-              <div>
-                <h4 className="font-medium text-sm text-muted-foreground">Statement</h4>
-                <p className="text-sm">{criterion.statement}</p>
+            <div className="space-y-4">
+              {/* Source tracking badge */}
+              <div className="flex items-center gap-2">
+                <Badge variant={criterion.source_type === 'internal_document' ? 'default' : 
+                              criterion.source_type === 'organizational_context' ? 'secondary' :
+                              criterion.source_type === 'sector_memory' ? 'outline' : 'destructive'}>
+                  {criterion.source_type === 'internal_document' ? '📄 Internal Doc' :
+                   criterion.source_type === 'organizational_context' ? '🏢 Org Context' :
+                   criterion.source_type === 'sector_memory' ? '🧠 Sector Memory' : '⚠️ Fallback'}
+                </Badge>
+                {criterion.source_reference && (
+                  <span className="text-xs text-muted-foreground">
+                    Source: {criterion.source_reference}
+                  </span>
+                )}
               </div>
-              {criterion.summary && (
+
+              {/* Required fields */}
+              <div className="space-y-3">
                 <div>
-                  <h4 className="font-medium text-sm text-muted-foreground">Summary</h4>
-                  <p className="text-sm">{criterion.summary}</p>
+                  <h4 className="font-medium text-sm text-muted-foreground">Statement</h4>
+                  <p className="text-sm">{criterion.statement}</p>
                 </div>
-              )}
-              {criterion.explanation && (
-                <div>
-                  <h4 className="font-medium text-sm text-muted-foreground">Explanation</h4>
-                  <p className="text-sm text-muted-foreground">{criterion.explanation}</p>
-                </div>
-              )}
+                
+                {criterion.summary && (
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground">Summary</h4>
+                    <p className="text-sm">{criterion.summary}</p>
+                  </div>
+                )}
+                
+                {criterion.rationale && (
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground">Rationale</h4>
+                    <p className="text-sm">{criterion.rationale}</p>
+                  </div>
+                )}
+                
+                {criterion.evidence_guidance && (
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground">Evidence Guidance</h4>
+                    <p className="text-sm">{criterion.evidence_guidance}</p>
+                  </div>
+                )}
+                
+                {criterion.explanation && (
+                  <div>
+                    <h4 className="font-medium text-sm text-muted-foreground">Explanation</h4>
+                    <p className="text-sm text-muted-foreground">{criterion.explanation}</p>
+                  </div>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>
