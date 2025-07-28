@@ -35,106 +35,152 @@ export const MPSDocumentReprocessor: React.FC = () => {
     try {
       console.log('🔄 Starting MPS document reset...');
       
-      // Get current user and organization context first
+      // Get current user and detailed session context
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
-        throw new Error('User not authenticated');
+        console.error('❌ Authentication failed:', userError);
+        throw new Error(`User not authenticated: ${userError?.message || 'No user found'}`);
       }
       
-      console.log('✅ User authenticated:', user.id);
+      console.log('✅ User authenticated:', {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        app_metadata: user.app_metadata
+      });
 
-      // Get user's organization - try multiple approaches
+      // First, let's check what organizations exist and debug the queries
+      console.log('🔍 Debugging organization queries...');
+      
+      // Check organizations table directly
+      const { data: allOrgs, error: allOrgsError } = await supabase
+        .from('organizations')
+        .select('id, name, owner_id')
+        .limit(10);
+      
+      console.log('📊 All organizations sample:', { data: allOrgs, error: allOrgsError });
+      
+      // Check if user owns any organization
+      const { data: ownedOrgs, error: ownedError } = await supabase
+        .from('organizations')
+        .select('id, name, owner_id')
+        .eq('owner_id', user.id);
+      
+      console.log('👤 Organizations owned by user:', { data: ownedOrgs, error: ownedError });
+
+      // Check organization_members table
+      const { data: memberships, error: memberError } = await supabase
+        .from('organization_members')
+        .select('organization_id, role, user_id')
+        .eq('user_id', user.id);
+      
+      console.log('👥 User memberships:', { data: memberships, error: memberError });
+
+      // Determine organization ID with multiple fallback strategies
       let organizationId: string;
       
-      try {
-        const { data: orgMember, error: orgError } = await supabase
-          .from('organization_members')
-          .select('organization_id, role')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (orgMember?.organization_id) {
-          organizationId = orgMember.organization_id;
-          console.log('✅ Organization ID from members:', organizationId);
-        } else {
-          throw new Error('No membership found');
-        }
-      } catch (memberError: any) {
-        console.warn('⚠️ organization_members table issue, trying organizations table:', memberError.message);
-        
-        // Fallback: try to get organization where user is owner
-        const { data: ownedOrg, error: ownedError } = await supabase
-          .from('organizations')
-          .select('id')
-          .eq('owner_id', user.id)
-          .maybeSingle();
-
-        if (ownedError || !ownedOrg) {
-          throw new Error('No organization found - user must be a member or owner of an organization to reprocess MPS documents');
-        }
-        
-        organizationId = ownedOrg.id;
+      if (memberships && memberships.length > 0) {
+        organizationId = memberships[0].organization_id;
+        console.log('✅ Organization ID from membership:', organizationId);
+      } else if (ownedOrgs && ownedOrgs.length > 0) {
+        organizationId = ownedOrgs[0].id;
         console.log('✅ Organization ID from ownership:', organizationId);
+      } else {
+        // Last resort: try to find any organization this user has access to via RLS
+        console.log('🔍 Trying RLS-based organization lookup...');
+        const { data: accessibleOrgs, error: accessError } = await supabase
+          .from('organizations')
+          .select('id, name')
+          .limit(1);
+        
+        console.log('🔐 RLS accessible organizations:', { data: accessibleOrgs, error: accessError });
+        
+        if (accessibleOrgs && accessibleOrgs.length > 0) {
+          organizationId = accessibleOrgs[0].id;
+          console.log('✅ Organization ID from RLS access:', organizationId);
+        } else {
+          console.error('❌ No organization access found through any method');
+          console.log('📋 Debug summary:', {
+            user_id: user.id,
+            memberError: memberError?.message,
+            ownedError: ownedError?.message,
+            accessError: accessError?.message,
+            membershipCount: memberships?.length || 0,
+            ownedCount: ownedOrgs?.length || 0,
+            accessibleCount: accessibleOrgs?.length || 0
+          });
+          
+          throw new Error(`No organization access found. Debug info: User ${user.id} has ${memberships?.length || 0} memberships, owns ${ownedOrgs?.length || 0} organizations, and can access ${accessibleOrgs?.length || 0} via RLS. Errors: member(${memberError?.message}), owned(${ownedError?.message}), access(${accessError?.message})`);
+        }
       }
 
-      // Direct reset instead of using RPC
-      // 1. Count what we're about to reset
-      const { data: docCount } = await supabase
+      console.log('🎯 Final organization ID:', organizationId);
+
+      // Now proceed with document reset using the found organization
+      console.log('📄 Fetching MPS documents for organization:', organizationId);
+
+      // Count what we're about to reset
+      const { data: mpsDocuments, error: docFetchError } = await supabase
         .from('ai_documents')
-        .select('id', { count: 'exact' })
+        .select('id, file_name, processing_status')
         .eq('organization_id', organizationId)
         .eq('document_type', 'mps_document');
 
-      console.log(`📄 Found ${docCount?.length || 0} MPS documents to reset`);
+      if (docFetchError) {
+        console.error('❌ Failed to fetch MPS documents:', docFetchError);
+        throw new Error(`Failed to fetch MPS documents: ${docFetchError.message}`);
+      }
 
-      // 2. Clear document chunks for MPS documents
-      const { data: mpsDocIds } = await supabase
-        .from('ai_documents')
-        .select('id')
-        .eq('organization_id', organizationId)
-        .eq('document_type', 'mps_document');
-
-      if (mpsDocIds && mpsDocIds.length > 0) {
-        const docIds = mpsDocIds.map(doc => doc.id);
-        
-        // Delete chunks
-        const { error: deleteChunksError } = await supabase
-          .from('ai_document_chunks')
-          .delete()
-          .in('document_id', docIds);
-
-        if (deleteChunksError) {
-          console.error('Failed to delete chunks:', deleteChunksError);
-          throw new Error(`Failed to delete chunks: ${deleteChunksError.message}`);
-        }
-
-        // Reset document status
-        const { error: resetDocsError } = await supabase
-          .from('ai_documents')
-          .update({
-            processing_status: 'pending',
-            processed_at: null,
-            total_chunks: 0
-          })
-          .in('id', docIds);
-
-        if (resetDocsError) {
-          console.error('Failed to reset documents:', resetDocsError);
-          throw new Error(`Failed to reset documents: ${resetDocsError.message}`);
-        }
-
-        console.log(`✅ Reset ${docIds.length} documents and cleared chunks`);
-
+      if (!mpsDocuments || mpsDocuments.length === 0) {
+        console.log('ℹ️ No MPS documents found for this organization');
         toast({
-          title: "MPS Documents Reset",
-          description: `Successfully reset ${docIds.length} documents and cleared their chunks.`,
+          title: "No MPS Documents",
+          description: "No MPS documents found for reprocessing in this organization.",
+          variant: "destructive",
         });
-
-        return { success: true, documents_reset: docIds.length };
-      } else {
-        console.log('ℹ️ No MPS documents found to reset');
         return { success: true, documents_reset: 0 };
       }
+
+      console.log(`📄 Found ${mpsDocuments.length} MPS documents:`, mpsDocuments.map(d => ({ id: d.id, name: d.file_name, status: d.processing_status })));
+
+      const docIds = mpsDocuments.map(doc => doc.id);
+      
+      // Delete chunks for all found documents
+      console.log(`🗑️ Deleting chunks for ${docIds.length} documents...`);
+      const { error: deleteChunksError } = await supabase
+        .from('ai_document_chunks')
+        .delete()
+        .in('document_id', docIds);
+
+      if (deleteChunksError) {
+        console.error('Failed to delete chunks:', deleteChunksError);
+        throw new Error(`Failed to delete chunks: ${deleteChunksError.message}`);
+      }
+
+      // Reset document status
+      console.log(`🔄 Resetting document status for ${docIds.length} documents...`);
+      const { error: resetDocsError } = await supabase
+        .from('ai_documents')
+        .update({
+          processing_status: 'pending',
+          processed_at: null,
+          total_chunks: 0
+        })
+        .in('id', docIds);
+
+      if (resetDocsError) {
+        console.error('Failed to reset documents:', resetDocsError);
+        throw new Error(`Failed to reset documents: ${resetDocsError.message}`);
+      }
+
+      console.log(`✅ Reset ${docIds.length} documents and cleared chunks`);
+
+      toast({
+        title: "MPS Documents Reset",
+        description: `Successfully reset ${docIds.length} documents and cleared their chunks.`,
+      });
+
+      return { success: true, documents_reset: docIds.length };
       
     } catch (error: any) {
       console.error('❌ Reset error:', error);
