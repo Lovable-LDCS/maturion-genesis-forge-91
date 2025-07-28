@@ -3,7 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileText, CheckCircle, XCircle, AlertTriangle, Eye } from 'lucide-react';
+import { FileText, CheckCircle, XCircle, AlertTriangle, Eye, Shield } from 'lucide-react';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
 
 interface DocumentPreviewPaneProps {
   file: File;
@@ -22,6 +23,7 @@ interface PreviewResult {
     headings: boolean;
     paragraphs: boolean;
     paragraphCount: number;
+    semanticParagraphs?: number;
   };
   qualityMetrics: {
     binaryRatio: number;
@@ -31,9 +33,11 @@ interface PreviewResult {
     hasNonLatinText: boolean;
     qualityScore: number;
     detectedIssues: string[];
+    formatOnlyViolation?: boolean;
   };
   validationHash: string;
   validationOverride: boolean;
+  overrideReason?: string;
   error?: string;
   warnings: string[];
 }
@@ -45,6 +49,7 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
 }) => {
   const [isExtracting, setIsExtracting] = useState(false);
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
+  const { isAdmin, loading: adminLoading } = useAdminAccess();
 
   // Enhanced sanitization function for unified content assurance
   const sanitizeBeforeChunking = (text: string): string => {
@@ -71,6 +76,25 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
       .replace(/[ \t]+/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
+  };
+
+  // Semantic paragraph detection for fallback validation
+  const detectSemanticParagraphs = (text: string): number => {
+    // Split by double newlines or significant line breaks
+    const potentialParagraphs = text.split(/\n\s*\n/);
+    
+    let validParagraphs = 0;
+    
+    for (const block of potentialParagraphs) {
+      const trimmedBlock = block.trim();
+      
+      // Check if block has minimum 40 characters and ends with punctuation
+      if (trimmedBlock.length >= 40 && /[.!?:]$/.test(trimmedBlock)) {
+        validParagraphs++;
+      }
+    }
+    
+    return validParagraphs;
   };
 
   // Generate validation hash
@@ -157,6 +181,7 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
       const unicodeChars = (sanitizedText.match(/[\u0080-\uFFFF]/g) || []).length;
       const nonLatinChars = (sanitizedText.match(/[^\u0000-\u007F\u0080-\u00FF]/g) || []).length;
       const paragraphCount = sanitizedText.split(/\n\s*\n/).length;
+      const semanticParagraphs = detectSemanticParagraphs(sanitizedText);
       
       // Enhanced XML artifacts detection
       const hasXmlArtifacts = sanitizedText.includes('_rels/') || 
@@ -176,7 +201,7 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
       const detectedIssues: string[] = [];
       if (characterCount < 800) detectedIssues.push('text_too_short');
       if (alphabeticRatio < 0.7) detectedIssues.push('low_alphabetic_ratio');
-      if (paragraphCount < 3) detectedIssues.push('insufficient_paragraphs');
+      if (paragraphCount < 3 && semanticParagraphs < 2) detectedIssues.push('insufficient_paragraphs');
       if (hasXmlArtifacts) detectedIssues.push('xml_artifacts');
       if (binaryRatio >= 0.3) detectedIssues.push('high_binary_content');
       if (!hasSentenceMarkers) detectedIssues.push('no_sentence_markers');
@@ -184,7 +209,9 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
       // Calculate quality score (0-100)
       let qualityScore = 100;
       qualityScore -= Math.max(0, (0.7 - alphabeticRatio) * 100); // Alphabetic ratio penalty
-      qualityScore -= Math.max(0, (3 - paragraphCount) * 10); // Paragraph penalty
+      // Use semantic paragraphs as fallback
+      const effectiveParagraphs = Math.max(paragraphCount, semanticParagraphs);
+      qualityScore -= Math.max(0, (3 - effectiveParagraphs) * 10); // Paragraph penalty
       qualityScore -= Math.max(0, (800 - characterCount) / 10); // Length penalty
       qualityScore -= hasXmlArtifacts ? 30 : 0; // XML artifacts penalty
       qualityScore -= binaryRatio * 50; // Binary content penalty
@@ -204,14 +231,15 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
       const hasStructure = {
         bullets: /[•\-\*○◦▪▫‣⁃]\s+/.test(sanitizedText) || /^\s*[\-\*•○◦▪▫‣⁃]\s+/m.test(sanitizedText),
         headings: /^#+\s+/m.test(sanitizedText) || /^[A-Z][^.]*:$/m.test(sanitizedText),
-        paragraphs: paragraphCount > 2,
-        paragraphCount
+        paragraphs: Math.max(paragraphCount, semanticParagraphs) > 2,
+        paragraphCount,
+        semanticParagraphs
       };
 
       // Generate warnings array
       const warnings: string[] = [];
       if (characterCount < 1000) warnings.push('⚠️ Document is shorter than recommended (1000+ characters)');
-      if (paragraphCount < 3) warnings.push('📦 Low document structure detected (needs 3+ paragraphs)');
+      if (paragraphCount < 3 && semanticParagraphs < 2) warnings.push('📦 Low document structure detected (needs 3+ paragraphs)');
       if (alphabeticRatio < 0.7) warnings.push('⚠️ Low text quality (needs 70%+ alphabetic content)');
       if (!hasSentenceMarkers) warnings.push('📝 No sentence structure detected');
 
@@ -220,12 +248,21 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
       const validationHash = generateValidationHash(sanitizedText);
 
       // Unified validation criteria (all must pass)
+      const effectiveParagraphCount = Math.max(paragraphCount, semanticParagraphs);
       const passesValidation = alphabeticRatio >= 0.7 && 
-                              paragraphCount >= 3 && 
+                              effectiveParagraphCount >= 2 && 
                               characterCount >= 800 && 
                               !hasXmlArtifacts && 
                               binaryRatio < 0.3 && 
                               hasSentenceMarkers;
+
+      // Check if this is a format-only violation (eligible for superuser override)
+      const formatOnlyViolation = alphabeticRatio >= 0.7 && 
+                                  characterCount >= 800 && 
+                                  !hasXmlArtifacts && 
+                                  binaryRatio < 0.3 && 
+                                  hasSentenceMarkers && 
+                                  (paragraphCount < 3 && semanticParagraphs < 2);
 
       const previewResult: PreviewResult = {
         success: true,
@@ -234,7 +271,10 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
         wordCount,
         characterCount,
         hasStructure,
-        qualityMetrics,
+        qualityMetrics: {
+          ...qualityMetrics,
+          formatOnlyViolation
+        },
         validationHash,
         validationOverride: false,
         warnings
@@ -290,8 +330,27 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
 
   const handleProceed = async (forceUAT = false) => {
     if (previewResult) {
-      const action = forceUAT ? 'proceed_anyway_uat' : 'proceed_validated';
-      await logUploadAttempt(previewResult, action);
+      let action = 'proceed_validated';
+      let overrideReason = '';
+
+      if (forceUAT) {
+        if (previewResult.qualityMetrics.formatOnlyViolation) {
+          action = 'proceed_superuser_override';
+          overrideReason = 'format_only_violation';
+        } else {
+          action = 'proceed_anyway_uat';
+          overrideReason = 'general_override';
+        }
+      }
+
+      // Update preview result with override info
+      const updatedResult = {
+        ...previewResult,
+        validationOverride: forceUAT,
+        overrideReason
+      };
+
+      await logUploadAttempt(updatedResult, action);
       
       onPreviewComplete(
         previewResult.success && (!previewResult.error || forceUAT),
@@ -301,6 +360,7 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
   };
 
   const isValid = previewResult?.success && !previewResult?.error;
+  const canOverride = isAdmin && previewResult?.qualityMetrics?.formatOnlyViolation;
 
   return (
     <Card className="w-full max-w-4xl">
@@ -426,10 +486,17 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
                 </Button>
               ) : (
                 <>
-                  <Button variant="secondary" onClick={() => handleProceed(true)}>
-                    <AlertTriangle className="h-4 w-4 mr-2" />
-                    Continue Anyway (UAT)
-                  </Button>
+                  {canOverride ? (
+                    <Button variant="secondary" onClick={() => handleProceed(true)}>
+                      <Shield className="h-4 w-4 mr-2" />
+                      Superuser Override (Format Only)
+                    </Button>
+                  ) : (
+                    <Button variant="secondary" onClick={() => handleProceed(true)}>
+                      <AlertTriangle className="h-4 w-4 mr-2" />
+                      Continue Anyway (UAT)
+                    </Button>
+                  )}
                 </>
               )}
             </div>
