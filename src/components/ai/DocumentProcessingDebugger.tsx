@@ -2,6 +2,17 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { AlertCircle, CheckCircle, Clock, X } from 'lucide-react';
+
+interface ProcessingLog {
+  timestamp: string;
+  documentTitle: string;
+  status: 'processing' | 'success' | 'error';
+  message: string;
+  chunks?: number;
+}
 
 interface DocumentProcessingDebuggerProps {
   onProcessingComplete?: () => void;
@@ -11,9 +22,37 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
   onProcessingComplete
 }) => {
   const [processing, setProcessing] = useState(false);
+  const [logs, setLogs] = useState<ProcessingLog[]>([]);
+  const [currentDocument, setCurrentDocument] = useState<string>('');
+  const [processedCount, setProcessedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+
+  const addLog = (log: ProcessingLog) => {
+    setLogs(prev => [...prev, log]);
+  };
+
+  const clearLogs = () => {
+    setLogs([]);
+    setCurrentDocument('');
+    setProcessedCount(0);
+    setTotalCount(0);
+  };
+
+  const processWithTimeout = async (documentId: string, title: string, timeout = 60000) => {
+    return Promise.race([
+      supabase.functions.invoke('process-ai-document', {
+        body: { documentId }
+      }),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Processing timeout')), timeout)
+      )
+    ]);
+  };
 
   const triggerProcessing = async () => {
     setProcessing(true);
+    clearLogs();
+    
     try {
       // Get a pending or failed document (try pending first, then failed)
       let pendingDoc;
@@ -65,41 +104,87 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
         return;
       }
 
-      // Processing document: ${pendingDoc.title}
-
-      // Call the edge function directly
-      const { data, error } = await supabase.functions.invoke('process-ai-document', {
-        body: { documentId: pendingDoc.id }
+      setCurrentDocument(pendingDoc.title);
+      setTotalCount(1);
+      
+      addLog({
+        timestamp: new Date().toLocaleTimeString(),
+        documentTitle: pendingDoc.title,
+        status: 'processing',
+        message: 'Starting document processing...'
       });
 
-      if (error) {
-        console.error('Processing error:', error);
+      // Call the edge function with timeout
+      const result = await processWithTimeout(pendingDoc.id, pendingDoc.title) as any;
+      
+      if (result.error) {
+        addLog({
+          timestamp: new Date().toLocaleTimeString(),
+          documentTitle: pendingDoc.title,
+          status: 'error',
+          message: result.error.message || 'Processing failed'
+        });
+        throw result.error;
       }
 
-      if (error) {
-        throw error;
-      }
+      // Check final status
+      const { data: finalDoc } = await supabase
+        .from('ai_documents')
+        .select('processing_status, total_chunks')
+        .eq('id', pendingDoc.id)
+        .single();
+
+      const chunks = finalDoc?.total_chunks || 0;
+      setProcessedCount(1);
+      
+      addLog({
+        timestamp: new Date().toLocaleTimeString(),
+        documentTitle: pendingDoc.title,
+        status: chunks > 0 ? 'success' : 'error',
+        message: chunks > 0 
+          ? `Successfully processed: ${chunks} chunks created`
+          : 'Processing completed but no valid chunks created',
+        chunks
+      });
 
       toast({
-        title: "Processing triggered",
-        description: `Successfully triggered processing for: ${pendingDoc.title}`,
+        title: chunks > 0 ? "Processing successful" : "Processing warning",
+        description: chunks > 0 
+          ? `${pendingDoc.title}: ${chunks} chunks created`
+          : `${pendingDoc.title}: No valid chunks created`,
+        variant: chunks > 0 ? "default" : "destructive"
       });
 
       onProcessingComplete?.();
     } catch (error: any) {
-      console.error('Processing failed:', error);
+      const isTimeout = error.message === 'Processing timeout';
+      
+      addLog({
+        timestamp: new Date().toLocaleTimeString(),
+        documentTitle: currentDocument || 'Unknown',
+        status: 'error',
+        message: isTimeout 
+          ? 'Processing timed out after 60 seconds'
+          : error.message || 'Processing failed'
+      });
+      
       toast({
-        title: "Processing failed",
-        description: error.message || "Failed to trigger document processing",
+        title: isTimeout ? "Processing timeout" : "Processing failed",
+        description: isTimeout 
+          ? "Processing took too long. Try processing individual documents."
+          : error.message || "Failed to trigger document processing",
         variant: "destructive"
       });
     } finally {
       setProcessing(false);
+      setCurrentDocument('');
     }
   };
 
   const processAllPending = async () => {
     setProcessing(true);
+    clearLogs();
+    
     try {
       // Get all pending and failed documents
       const { data: pendingDocs, error: pendingError } = await supabase
@@ -117,10 +202,24 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
         return;
       }
 
+      setTotalCount(pendingDocs.length);
+      
+      addLog({
+        timestamp: new Date().toLocaleTimeString(),
+        documentTitle: 'System',
+        status: 'processing',
+        message: `Starting batch processing of ${pendingDocs.length} documents...`
+      });
+
       // Reset all failed documents to pending first
       const failedDocs = pendingDocs.filter(doc => doc.processing_status === 'failed');
       if (failedDocs.length > 0) {
-        console.log(`Resetting ${failedDocs.length} failed documents to pending status`);
+        addLog({
+          timestamp: new Date().toLocaleTimeString(),
+          documentTitle: 'System',
+          status: 'processing',
+          message: `Resetting ${failedDocs.length} failed documents to pending status`
+        });
         
         for (const doc of failedDocs) {
           await supabase
@@ -135,42 +234,101 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
         }
       }
 
-      // Processing ${pendingDocs.length} pending documents
-
       let successful = 0;
       let failed = 0;
 
       // Process documents one by one to avoid overwhelming the system
       for (const doc of pendingDocs) {
-        try {
-          const { error } = await supabase.functions.invoke('process-ai-document', {
-            body: { documentId: doc.id }
-          });
+        setCurrentDocument(doc.title);
+        
+        addLog({
+          timestamp: new Date().toLocaleTimeString(),
+          documentTitle: doc.title,
+          status: 'processing',
+          message: 'Processing document...'
+        });
 
-          if (error) {
-            console.error(`Failed to process ${doc.title}:`, error);
+        try {
+          const result = await processWithTimeout(doc.id, doc.title, 90000) as any; // 90 second timeout for batch
+
+          if (result.error) {
+            addLog({
+              timestamp: new Date().toLocaleTimeString(),
+              documentTitle: doc.title,
+              status: 'error',
+              message: result.error.message || 'Processing failed'
+            });
             failed++;
           } else {
-            // Successfully triggered processing for: ${doc.title}
-            successful++;
+            // Check final status to get chunk count
+            const { data: finalDoc } = await supabase
+              .from('ai_documents')
+              .select('processing_status, total_chunks')
+              .eq('id', doc.id)
+              .single();
+
+            const chunks = finalDoc?.total_chunks || 0;
+            
+            addLog({
+              timestamp: new Date().toLocaleTimeString(),
+              documentTitle: doc.title,
+              status: chunks > 0 ? 'success' : 'error',
+              message: chunks > 0 
+                ? `Successfully processed: ${chunks} chunks created`
+                : 'Processing completed but no valid chunks created',
+              chunks
+            });
+            
+            if (chunks > 0) {
+              successful++;
+            } else {
+              failed++;
+            }
           }
 
+          setProcessedCount(prev => prev + 1);
+          
           // Small delay between requests
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        } catch (error) {
-          console.error(`Error processing ${doc.title}:`, error);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        } catch (error: any) {
+          const isTimeout = error.message === 'Processing timeout';
+          
+          addLog({
+            timestamp: new Date().toLocaleTimeString(),
+            documentTitle: doc.title,
+            status: 'error',
+            message: isTimeout 
+              ? 'Processing timed out after 90 seconds'
+              : error.message || 'Processing failed'
+          });
+          
           failed++;
+          setProcessedCount(prev => prev + 1);
         }
       }
 
+      addLog({
+        timestamp: new Date().toLocaleTimeString(),
+        documentTitle: 'System',
+        status: successful > failed ? 'success' : 'error',
+        message: `Batch processing complete: ${successful} successful, ${failed} failed`
+      });
+
       toast({
         title: "Batch processing complete",
-        description: `Successfully triggered: ${successful}, Failed: ${failed}`,
+        description: `Successfully processed: ${successful}, Failed: ${failed}`,
+        variant: successful > 0 ? "default" : "destructive"
       });
 
       onProcessingComplete?.();
     } catch (error: any) {
-      console.error('Batch processing failed:', error);
+      addLog({
+        timestamp: new Date().toLocaleTimeString(),
+        documentTitle: 'System',
+        status: 'error',
+        message: error.message || 'Batch processing failed'
+      });
+      
       toast({
         title: "Batch processing failed",
         description: error.message || "Failed to trigger batch processing",
@@ -178,33 +336,129 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
       });
     } finally {
       setProcessing(false);
+      setCurrentDocument('');
+    }
+  };
+
+  const getStatusIcon = (status: ProcessingLog['status']) => {
+    switch (status) {
+      case 'processing':
+        return <Clock className="h-4 w-4 text-blue-500 animate-spin" />;
+      case 'success':
+        return <CheckCircle className="h-4 w-4 text-green-500" />;
+      case 'error':
+        return <AlertCircle className="h-4 w-4 text-red-500" />;
     }
   };
 
   return (
-    <div className="bg-card border rounded-lg p-4 space-y-4">
-      <h3 className="text-lg font-semibold text-foreground">Processing Debugger</h3>
-      <p className="text-sm text-muted-foreground">
-        Manually trigger document processing to test edge function
-      </p>
-      
-      <div className="flex gap-2">
-        <Button 
-          onClick={triggerProcessing}
-          disabled={processing}
-          variant="outline"
-        >
-          {processing ? 'Processing...' : 'Process One Document'}
-        </Button>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center justify-between">
+            Document Processing Debugger
+            {logs.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearLogs}
+                disabled={processing}
+              >
+                <X className="h-4 w-4" />
+                Clear Logs
+              </Button>
+            )}
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Manually trigger document processing with real-time feedback and timeout protection
+          </p>
+        </CardHeader>
         
-        <Button 
-          onClick={processAllPending}
-          disabled={processing}
-          variant="default"
-        >
-          {processing ? 'Processing...' : 'Process All Pending'}
-        </Button>
-      </div>
+        <CardContent className="space-y-4">
+          {/* Progress Indicator */}
+          {processing && totalCount > 0 && (
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Progress: {processedCount}/{totalCount}</span>
+                <span>{Math.round((processedCount / totalCount) * 100)}%</span>
+              </div>
+              <div className="w-full bg-secondary rounded-full h-2">
+                <div 
+                  className="bg-primary h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${(processedCount / totalCount) * 100}%` }}
+                />
+              </div>
+              {currentDocument && (
+                <p className="text-sm text-muted-foreground">
+                  Currently processing: <strong>{currentDocument}</strong>
+                </p>
+              )}
+            </div>
+          )}
+          
+          {/* Control Buttons */}
+          <div className="flex gap-2">
+            <Button 
+              onClick={triggerProcessing}
+              disabled={processing}
+              variant="outline"
+            >
+              {processing ? 'Processing...' : 'Process One Document'}
+            </Button>
+            
+            <Button 
+              onClick={processAllPending}
+              disabled={processing}
+              variant="default"
+            >
+              {processing ? 'Processing...' : 'Process All Pending'}
+            </Button>
+          </div>
+          
+          {/* Real-time Logs */}
+          {logs.length > 0 && (
+            <Card className="border-dashed">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Processing Logs</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-64 w-full">
+                  <div className="space-y-2">
+                    {logs.map((log, index) => (
+                      <div 
+                        key={index}
+                        className={`flex items-start gap-2 p-2 rounded text-sm ${
+                          log.status === 'success' ? 'bg-green-50 dark:bg-green-950' :
+                          log.status === 'error' ? 'bg-red-50 dark:bg-red-950' :
+                          'bg-blue-50 dark:bg-blue-950'
+                        }`}
+                      >
+                        {getStatusIcon(log.status)}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start">
+                            <span className="font-medium truncate">
+                              {log.documentTitle}
+                            </span>
+                            <span className="text-xs text-muted-foreground ml-2">
+                              {log.timestamp}
+                            </span>
+                          </div>
+                          <p className="text-xs mt-1">{log.message}</p>
+                          {log.chunks !== undefined && (
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Chunks: {log.chunks}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </CardContent>
+            </Card>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

@@ -19,6 +19,13 @@ serve(async (req) => {
 
   let documentId: string | undefined;
   
+  // Set up timeout for the entire operation (90 seconds)
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => reject(new Error('Processing timeout after 90 seconds')), 90000);
+  });
+
+  const processingPromise = (async () => {
+  
   try {
     console.log('=== Document Processing Started ===');
     
@@ -252,6 +259,57 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       }
     );
+  }
+  })();
+
+  // Race between processing and timeout
+  try {
+    return await Promise.race([processingPromise, timeoutPromise]);
+  } catch (error: any) {
+    // Handle timeout error specifically
+    if (error.message === 'Processing timeout after 90 seconds') {
+      console.error('=== Processing timed out ===');
+      
+      // Try to update document status to failed due to timeout
+      if (documentId) {
+        try {
+          const supabaseUrl = Deno.env.get('SUPABASE_URL');
+          const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+          
+          if (supabaseUrl && supabaseServiceRoleKey) {
+            const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
+            
+            await supabase
+              .from('ai_documents')
+              .update({ 
+                processing_status: 'failed',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', documentId);
+              
+            console.log(`Updated document ${documentId} status to failed due to timeout`);
+          }
+        } catch (updateError) {
+          console.error('Failed to update document status after timeout:', updateError);
+        }
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Processing timeout after 90 seconds',
+          documentId: documentId,
+          timeout: true
+        }),
+        { 
+          status: 408, // Request Timeout
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+    
+    // Re-throw other errors to be handled by the main catch block
+    throw error;
   }
 });
 
