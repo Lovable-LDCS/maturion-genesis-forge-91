@@ -1664,6 +1664,59 @@ export type Database = {
         }
         Relationships: []
       }
+      policy_change_log: {
+        Row: {
+          created_at: string
+          domain_scope: string
+          id: string
+          linked_document_id: string | null
+          logged_by: string
+          metadata: Json | null
+          organization_id: string | null
+          summary: string
+          tags: string[] | null
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          domain_scope: string
+          id?: string
+          linked_document_id?: string | null
+          logged_by: string
+          metadata?: Json | null
+          organization_id?: string | null
+          summary: string
+          tags?: string[] | null
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          domain_scope?: string
+          id?: string
+          linked_document_id?: string | null
+          logged_by?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          summary?: string
+          tags?: string[] | null
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_change_log_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1951,6 +2004,20 @@ export type Database = {
       l2_normalize: {
         Args: { "": string } | { "": unknown } | { "": unknown }
         Returns: unknown
+      }
+      log_policy_change: {
+        Args: {
+          title_param: string
+          type_param: string
+          domain_scope_param: string
+          summary_param: string
+          linked_document_id_param?: string
+          tags_param?: string[]
+          logged_by_param?: string
+          organization_id_param?: string
+          metadata_param?: Json
+        }
+        Returns: string
       }
       log_security_event: {
         Args: { event_type: string; details?: Json }
