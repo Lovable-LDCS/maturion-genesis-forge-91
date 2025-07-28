@@ -59,8 +59,8 @@ export const buildAICriteriaPrompt = (mpsContext: MPSContext, orgContext: Organi
     return `CRITICAL MPS BINDING: Generate criteria ONLY for MPS ${mpsContext.mpsNumber} - ${mpsContext.mpsTitle}
 
 HARD REQUIREMENTS:
-- SOURCE: Only "MPS ${mpsContext.mpsNumber} - ${mpsContext.mpsTitle}.docx" document
-- TARGET: ${mpsContext.mpsTitle} domain EXCLUSIVELY
+- SOURCE: Only "MPS ${mpsContext.mpsNumber}" document content
+- TARGET: ${mpsContext.mpsTitle} domain EXCLUSIVELY  
 - ABORT: If no MPS ${mpsContext.mpsNumber} document context available, return: "ERROR: No MPS ${mpsContext.mpsNumber} document context available"
 - FORBIDDEN: Any reference to Annex 1, Leadership & Governance, or other MPS content
 
