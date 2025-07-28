@@ -99,83 +99,53 @@ const [criteria, setCriteria] = useState<Criterion[]>([]);
         return;
       }
 
-      // ENHANCED AI GENERATION PROMPT - EVIDENCE-FIRST COMPLIANCE AND FALLBACK PREVENTION
-      const detailedPrompt = `🔥 CRITICAL CRITERIA GENERATION FOR MPS ${mps.mps_number}: ${mps.name}
+      // CLEAN AI GENERATION PROMPT - EVIDENCE-FIRST COMPLIANCE
+      const detailedPrompt = `Generate comprehensive assessment criteria for MPS ${mps.mps_number}: ${mps.name}
 
-🚫 ABSOLUTE PROHIBITIONS (WILL CAUSE REJECTION):
-❌ NEVER start criteria with organization name: "${organizationContext.name} must..."
-❌ NEVER generate placeholder text: "Assessment criterion X for Y", "Summary for criterion X"
-❌ NEVER use vague verbs: "ensure", "appropriate", "effective" (without definition)
-❌ NEVER combine multiple evidence types in one criterion
-❌ NEVER generate fewer criteria than required by uploaded MPS document
-
-✅ MANDATORY EVIDENCE-FIRST FORMAT (NON-NEGOTIABLE):
+EVIDENCE-FIRST FORMAT (MANDATORY):
 Every criterion MUST start with evidence type:
 - "A documented risk register identifies, categorizes, and prioritizes operational risks across all ${organizationContext.name} business units."
 - "A formal policy that is approved by senior management defines the roles and responsibilities for incident response within ${organizationContext.name}."
 - "A quarterly report submitted to the board documents the effectiveness of cybersecurity controls implemented across ${organizationContext.name}."
 
-🔴 ENFORCE ALL 7 ANNEX 2 RULES (MANDATORY COMPLIANCE):
-1. ✅ EVIDENCE-FIRST: Criterion MUST start with evidence type (document/policy/register/report/procedure)
-2. ✅ SINGLE EVIDENCE: Only ONE evidence type per criterion - split compound verbs into separate criteria
-3. ✅ MEASURABLE VERBS: Use "identifies", "defines", "documents", "tracks", "outlines", "assigns" - NO vague terms
-4. ✅ UNAMBIGUOUS CONTEXT: 10 different people must interpret identically - be specific about scope and requirements
-5. ✅ ORGANIZATIONAL TAILORING: Reference "${organizationContext.name}" and ${organizationContext.industry_tags.join('/')} context throughout
-6. ✅ DUPLICATE PREVENTION: Remove only if BOTH evidence_type AND context_scope match exactly
-7. ✅ COMPLETE STRUCTURE: All 5 fields (statement, summary, rationale, evidence_guidance, explanation) MUST be fully populated
+ANNEX 2 COMPLIANCE (ALL 7 RULES):
+1. Evidence-first format - Start with document/policy/register/report/procedure
+2. Single evidence per criterion - No compound verbs like "establish and maintain"
+3. Measurable verbs - Use "identifies", "defines", "documents", "tracks", "outlines", "assigns"
+4. Unambiguous context - Be specific about scope and requirements
+5. Organizational tailoring - Reference ${organizationContext.name} throughout
+6. No duplicates - Different evidence types or contexts are allowed
+7. Complete structure - All fields must be fully populated
 
-🔍 ENHANCED DUPLICATE DETECTION (CRITICAL LOGIC):
-MARK AS DUPLICATE only if:
-- Evidence Type matches exactly (policy = policy, register = register) AND
-- Operational Context matches exactly (risk management = risk management, incident response = incident response)
-
-NOT DUPLICATES if:
-- Same evidence type but different contexts: "policy for risk management" vs "policy for incident response"
-- Same evidence type but different roles: "register maintained by IT" vs "register maintained by security"
-- Same evidence type but different purposes: "document for planning" vs "document for review"
-
-📋 FULL MPS DOCUMENT COMPLIANCE:
-- Extract ALL requirements from uploaded MPS ${mps.mps_number} document
-- Generate EXACTLY the number of criteria as requirements found (no artificial limits)
-- Map each requirement block to evidence-first criterion statement
-- Extract evidence guidance from corresponding evidence blocks
-- Maintain document sequence order: ${mps.mps_number}.1, ${mps.mps_number}.2, etc.
-
-🎯 ORGANIZATIONAL CONTEXT INTEGRATION:
-- Organization: ${organizationContext.name} (${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry})
-- Region: ${organizationContext.region_operating}
-- Compliance Requirements: ${organizationContext.compliance_commitments.join(', ')}
-- Scale all evidence requirements to ${organizationContext.name}'s operational context
-
-🔧 MANDATORY OUTPUT STRUCTURE:
+OUTPUT STRUCTURE:
 {
-  "statement": "A [evidence_type] that is [availability_qualifier] [specific_verb] the [requirement] of [explicit_stakeholder] [context_at_organization].",
-  "summary": "[Concise 10-15 word description of what this criterion validates]",
-  "rationale": "[Why this is critical for ${organizationContext.name}'s ${organizationContext.industry_tags.join('/')} operations - max 25 words]",
-  "evidence_guidance": "[Specific document/artifact requirements extracted from MPS evidence block]",
-  "explanation": "[Detailed explanation with ${organizationContext.name} context and operational implications]",
-  "source_origin": "internal_document",
-  "source_reference": "MPS ${mps.mps_number}, Section X.Y",
-  "evidence_hash": "[unique_evidence_identifier]",
-  "reasoning_path": "Generated from MPS ${mps.mps_number} requirement block requiring [evidence_type]",
-  "duplicate_check_result": "No duplicates - unique evidence+context combination",
-  "compound_verb_analysis": "Single action verb validated"
+  "statement": "A [evidence_type] that is [qualifier] [verb] the [requirement] of [stakeholder] at ${organizationContext.name}.",
+  "summary": "[10-15 word description]",
+  "rationale": "[Why critical for ${organizationContext.name} - max 25 words]",
+  "evidence_guidance": "[Specific document requirements from MPS]",
+  "explanation": "[Detailed explanation with ${organizationContext.name} context]"
 }
 
-⚡ KNOWLEDGE SOURCE PRIORITY (STRICT ENFORCEMENT):
-1. PRIMARY: Uploaded MPS ${mps.mps_number} document content (MUST BE USED)
-2. SECONDARY: ${organizationContext.name} organizational profile and industry context
-3. TERTIARY: Sector-specific compliance requirements
-4. FALLBACK: Only if above sources insufficient (LOG WHY)
+ORGANIZATIONAL CONTEXT:
+- Organization: ${organizationContext.name}
+- Industry: ${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry}
+- Region: ${organizationContext.region_operating}
+- Compliance: ${organizationContext.compliance_commitments.join(', ')}
 
-🚨 QUALITY ASSURANCE CHECKS:
-- Every criterion must pass independent audit verification
-- All statements must be ${organizationContext.name}-specific (never generic)
-- Evidence requirements must be realistic for ${organizationContext.industry_tags.join('/')} operations
-- Source attribution must be explicit and traceable
-- NO generic templates or placeholder text allowed
+REQUIREMENTS:
+- Extract from uploaded MPS ${mps.mps_number} document
+- Generate 8-12 criteria based on document content
+- Use evidence-first format for all statements
+- Include ${organizationContext.name} context throughout
+- No placeholder text or generic templates
 
-Generate comprehensive criteria array with full compliance to evidence-first format and complete elimination of fallback placeholders.`;
+Return JSON array of criteria objects.`;
+
+      // Debug logging for admin mode
+      if (showAdminDebug) {
+        console.log('🔧 DEBUG: AI Prompt being sent:', detailedPrompt);
+        setDebugInfo(prev => ({ ...prev, promptSent: detailedPrompt }));
+      }
 
       // Call AI generation with enhanced parameters
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
@@ -189,6 +159,12 @@ Generate comprehensive criteria array with full compliance to evidence-first for
           requiresInternalSecure: true
         }
       });
+
+      // Debug logging for raw AI response
+      if (showAdminDebug && data?.content) {
+        console.log('🔧 DEBUG: Raw AI Response:', data.content);
+        setDebugInfo(prev => ({ ...prev, rawResponse: data.content }));
+      }
 
       if (error) {
         throw error;
