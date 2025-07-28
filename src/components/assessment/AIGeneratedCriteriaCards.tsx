@@ -6,10 +6,11 @@ import { CheckCircle, XCircle, RotateCcw, Wand2, AlertTriangle, Info } from 'luc
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
-import { useMaturionContext } from '@/hooks/useMaturionContext';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validateSecureInput } from '@/lib/security';
+import { buildAICriteriaPrompt, validateCriteria, cleanJSON, type MPSContext, type OrganizationContext } from '@/lib/promptUtils';
+import { logCriticalError, logDebugInfo, logWarning } from '@/lib/errorUtils';
 
 interface Criterion {
   id: string;
@@ -41,22 +42,7 @@ interface AIGeneratedCriteriaCardsProps {
   onCriteriaChange?: (criteria: Criterion[]) => void;
 }
 
-interface OrganizationContext {
-  id: string;
-  name: string;
-  industry_tags: string[];
-  region_operating: string;
-  compliance_commitments: string[];
-  custom_industry: string;
-}
-
-interface MPSContext {
-  mpsId: string;
-  mpsNumber: number;
-  mpsTitle: string;
-  domainId: string;
-  organizationId: string;
-}
+// Types moved to /lib/promptUtils.ts
 
 interface DebugInfo {
   mpsContext?: MPSContext;
@@ -85,7 +71,6 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
   
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
-  const { context } = useMaturionContext();
   const { toast } = useToast();
 
   // Check for dev mode toggle
@@ -95,66 +80,7 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
     setShowAdminDebug(devMode);
   }, []);
 
-  /**
-   * Generates a clean, MPS-specific prompt for AI criteria generation
-   * Ensures no hardcoded fallbacks and proper context binding
-   */
-  const generatePrompt = useCallback((mpsContext: MPSContext, orgContext: OrganizationContext): string => {
-    return `GENERATE CRITERIA FOR SPECIFIC MPS: ${mpsContext.mpsNumber} - ${mpsContext.mpsTitle}
-
-CRITICAL CONTEXT BINDING:
-- Target MPS: ${mpsContext.mpsNumber}
-- MPS Title: ${mpsContext.mpsTitle}
-- Organization: ${orgContext.name}
-- Domain: Leadership & Governance
-- MPS ID: ${mpsContext.mpsId}
-
-MANDATORY REQUIREMENTS FOR MPS ${mpsContext.mpsNumber}:
-- ONLY generate criteria related to "${mpsContext.mpsTitle}"
-- Extract content from uploaded "MPS ${mpsContext.mpsNumber} - ${mpsContext.mpsTitle}.docx" document
-- NO fallback to other MPS documents
-- ALL criteria must be specific to ${mpsContext.mpsTitle} domain
-
-EVIDENCE-FIRST FORMAT (MANDATORY):
-Every criterion MUST start with evidence type and relate to ${mpsContext.mpsTitle}:
-- "A documented risk register identifies, categorizes, and prioritizes operational risks across all ${orgContext.name} business units."
-- "A formal policy that is approved by senior management defines the roles and responsibilities for ${mpsContext.mpsTitle.toLowerCase()} within ${orgContext.name}."
-- "A quarterly report submitted to the board documents the effectiveness of ${mpsContext.mpsTitle.toLowerCase()} controls implemented across ${orgContext.name}."
-
-ANNEX 2 COMPLIANCE (ALL 7 RULES):
-1. Evidence-first format - Start with document/policy/register/report/procedure
-2. Single evidence per criterion - No compound verbs like "establish and maintain"
-3. Measurable verbs - Use "identifies", "defines", "documents", "tracks", "outlines", "assigns"
-4. Unambiguous context - Be specific about scope and requirements for ${mpsContext.mpsTitle}
-5. Organizational tailoring - Reference ${orgContext.name} throughout
-6. No duplicates - Different evidence types or contexts are allowed
-7. Complete structure - All fields must be fully populated
-
-OUTPUT STRUCTURE FOR MPS ${mpsContext.mpsNumber}:
-{
-  "statement": "A [evidence_type] that is [qualifier] [verb] the [requirement] of [stakeholder] for ${mpsContext.mpsTitle.toLowerCase()} at ${orgContext.name}.",
-  "summary": "[10-15 word description related to ${mpsContext.mpsTitle}]",
-  "rationale": "[Why critical for ${orgContext.name}'s ${mpsContext.mpsTitle.toLowerCase()} - max 25 words]",
-  "evidence_guidance": "[Specific ${mpsContext.mpsTitle} document requirements from MPS ${mpsContext.mpsNumber}]",
-  "explanation": "[Detailed explanation with ${orgContext.name} context for ${mpsContext.mpsTitle}]"
-}
-
-ORGANIZATIONAL CONTEXT:
-- Organization: ${orgContext.name}
-- Industry: ${orgContext.industry_tags.join(', ') || orgContext.custom_industry}
-- Region: ${orgContext.region_operating}
-- Compliance: ${orgContext.compliance_commitments.join(', ')}
-
-STRICT REQUIREMENTS:
-- Source: ONLY MPS ${mpsContext.mpsNumber} document content
-- Topic: ONLY ${mpsContext.mpsTitle} related criteria
-- Count: Generate 8-12 criteria based on MPS ${mpsContext.mpsNumber} document content
-- Format: Evidence-first format for all statements
-- Context: Include ${orgContext.name} and ${mpsContext.mpsTitle} throughout
-- Validation: NO placeholder text, NO generic templates
-
-Return JSON array of ${mpsContext.mpsTitle}-specific criteria objects.`;
-  }, []);
+  // TODO: Move prompt builder into /lib/promptUtils - DONE
 
   /**
    * Tests document context retrieval for debugging purposes
@@ -170,77 +96,23 @@ Return JSON array of ${mpsContext.mpsTitle}-specific criteria objects.`;
         }
       });
       
-      if (showAdminDebug) {
-        console.log('🔧 DEBUG - Context Search Results:', {
-          success: contextTest.data?.success,
-          results_count: contextTest.data?.results?.length || 0,
-          search_type: contextTest.data?.search_type,
-          error: contextTest.error?.message,
-          debug_info: contextTest.data?.debug,
-          first_result: contextTest.data?.results?.[0]
-        });
-      }
+      logDebugInfo('Context Search Results', {
+        success: contextTest.data?.success,
+        results_count: contextTest.data?.results?.length || 0,
+        search_type: contextTest.data?.search_type,
+        error: contextTest.error?.message,
+        debug_info: contextTest.data?.debug,
+        first_result: contextTest.data?.results?.[0]
+      }, showAdminDebug);
       
       return contextTest;
     } catch (searchError) {
-      console.error('🚨 Context search failed:', searchError);
+      logCriticalError('Context search failed', searchError);
       return { error: searchError };
     }
   }, [showAdminDebug]);
 
-  /**
-   * Validates generated criteria against all compliance rules
-   */
-  const validateCriteria = useCallback((criteria: any[], orgContext: OrganizationContext): { 
-    isValid: boolean; 
-    errors: string[]; 
-    validCriteria: any[] 
-  } => {
-    const errors: string[] = [];
-    
-    // Check for prohibited placeholder text
-    const hasProhibitedPlaceholders = criteria.some(criterion => 
-      criterion.statement?.includes('Assessment criterion') ||
-      criterion.statement?.includes('Criterion ') ||
-      criterion.summary?.includes('Summary for criterion') ||
-      criterion.statement?.startsWith(orgContext.name + ' must')
-    );
-
-    if (hasProhibitedPlaceholders) {
-      errors.push('AI generated prohibited placeholder text');
-    }
-
-    // Validate evidence-first format compliance
-    const nonCompliantCriteria = criteria.filter(criterion =>
-      !criterion.statement?.match(/^A\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline)/i)
-    );
-
-    if (nonCompliantCriteria.length > 0) {
-      errors.push(`${nonCompliantCriteria.length} criteria failed evidence-first format validation`);
-    }
-
-    // Check organization context integration
-    const hasOrgContextIntegration = criteria.every(criterion => 
-      criterion.explanation?.includes(orgContext.name) ||
-      criterion.statement?.includes(orgContext.name)
-    );
-
-    if (!hasOrgContextIntegration) {
-      // Enhance with organization context where needed
-      criteria = criteria.map(criterion => ({
-        ...criterion,
-        explanation: criterion.explanation?.includes(orgContext.name) 
-          ? criterion.explanation 
-          : `This criterion ensures ${orgContext.name} ${criterion.explanation || 'meets the required standards'}.`
-      }));
-    }
-
-    return {
-      isValid: errors.length === 0,
-      errors,
-      validCriteria: criteria
-    };
-  }, []);
+  // TODO: Consolidate evidence validation into shared module - DONE
 
   /**
    * Main criteria generation function with comprehensive error handling
@@ -295,46 +167,44 @@ Return JSON array of ${mpsContext.mpsTitle}-specific criteria objects.`;
       };
 
       // Debug logging for admin mode
-      if (showAdminDebug) {
-        console.log('🔧 DEBUG MODE - Criteria Generation for:', {
-          mps_id: mps.id,
-          mps_number: mps.mps_number,
-          mps_title: mps.name,
-          organization_id: currentOrganization.id,
-          expected_document: `MPS ${mps.mps_number} – ${mps.name}`
-        });
+      logDebugInfo('Criteria Generation for', {
+        mps_id: mps.id,
+        mps_number: mps.mps_number,
+        mps_title: mps.name,
+        organization_id: currentOrganization.id,
+        expected_document: `MPS ${mps.mps_number} – ${mps.name}`
+      }, showAdminDebug);
 
-        // Test document context retrieval
-        const contextTest = await testContextRetrieval(mpsContext);
-        
-        if (contextTest.data?.results?.length === 0) {
-          console.warn('⚠️ WARNING: No document context found for MPS', mps.mps_number, {
-            organizationId: currentOrganization.id,
-            search_query: `MPS ${mps.mps_number} ${mps.name}`,
-            context_debug: contextTest.data?.debug
-          });
-        }
-        
-        setDebugInfo(prev => ({ 
-          ...prev, 
-          mpsContext,
-          contextSearch: {
-            query: `MPS ${mps.mps_number} ${mps.name}`,
-            results: contextTest.data?.results || [],
-            searchType: contextTest.data?.search_type || 'unknown',
-            debugInfo: contextTest.data?.debug,
-            error: contextTest.error?.message
-          },
-          timestamp: new Date().toISOString()
-        }));
+      // Test document context retrieval
+      const contextTest = await testContextRetrieval(mpsContext);
+      
+      if (contextTest.data?.results?.length === 0) {
+        logWarning('No document context found for MPS', `MPS ${mps.mps_number}`, {
+          organizationId: currentOrganization.id,
+          search_query: `MPS ${mps.mps_number} ${mps.name}`,
+          context_debug: contextTest.data?.debug
+        });
       }
+      
+      setDebugInfo(prev => ({ 
+        ...prev, 
+        mpsContext,
+        contextSearch: {
+          query: `MPS ${mps.mps_number} ${mps.name}`,
+          results: contextTest.data?.results || [],
+          searchType: contextTest.data?.search_type || 'unknown',
+          debugInfo: contextTest.data?.debug,
+          error: contextTest.error?.message
+        },
+        timestamp: new Date().toISOString()
+      }));
 
       // Generate clean prompt
-      const detailedPrompt = generatePrompt(mpsContext, organizationContext);
+      const detailedPrompt = buildAICriteriaPrompt(mpsContext, organizationContext);
 
       // Debug logging for prompt
+      logDebugInfo('AI Prompt being sent', detailedPrompt, showAdminDebug);
       if (showAdminDebug) {
-        console.log('🔧 DEBUG: AI Prompt being sent:', detailedPrompt);
         setDebugInfo(prev => ({ ...prev, promptSent: detailedPrompt }));
       }
 
@@ -356,9 +226,11 @@ Return JSON array of ${mpsContext.mpsTitle}-specific criteria objects.`;
       }
 
       // Debug logging for raw AI response
-      if (showAdminDebug && data?.content) {
-        console.log('🔧 DEBUG: Raw AI Response:', data.content);
-        setDebugInfo(prev => ({ ...prev, rawResponse: data.content }));
+      if (data?.content) {
+        logDebugInfo('Raw AI Response', data.content, showAdminDebug);
+        if (showAdminDebug) {
+          setDebugInfo(prev => ({ ...prev, rawResponse: data.content }));
+        }
       }
 
       // Parse and validate AI response
@@ -372,19 +244,7 @@ Return JSON array of ${mpsContext.mpsTitle}-specific criteria objects.`;
             return;
           }
           
-          // Clean and parse JSON response
-          const cleanJSON = (jsonStr: string): string => {
-            let cleaned = jsonStr.trim();
-            const jsonStart = cleaned.indexOf('[') !== -1 ? cleaned.indexOf('[') : cleaned.indexOf('{');
-            const jsonEnd = cleaned.lastIndexOf(']') !== -1 ? cleaned.lastIndexOf(']') : cleaned.lastIndexOf('}');
-            
-            if (jsonStart === -1 || jsonEnd === -1) {
-              throw new Error('No valid JSON found');
-            }
-            
-            cleaned = cleaned.substring(jsonStart, jsonEnd + 1);
-            return cleaned.replace(/,(\s*[}\]])/g, '$1');
-          };
+          // TODO: Move cleanJSON to /lib/ utility - DONE
 
           let generatedCriteria: any[] = [];
           try {
@@ -460,7 +320,7 @@ Return JSON array of ${mpsContext.mpsTitle}-specific criteria objects.`;
       }
 
     } catch (error: any) {
-      console.error('Generation failed:', error);
+      logCriticalError('Generation failed', error);
       const errorMessage = error.message || 'Unknown error occurred';
       setError(errorMessage);
       toast({
@@ -471,7 +331,7 @@ Return JSON array of ${mpsContext.mpsTitle}-specific criteria objects.`;
     } finally {
       setIsGenerating(false);
     }
-  }, [currentOrganization, user, mps, onCriteriaChange, toast, generatePrompt, testContextRetrieval, validateCriteria, showAdminDebug]);
+  }, [currentOrganization, user, mps, onCriteriaChange, toast, testContextRetrieval, showAdminDebug]);
 
   const handleRegenerateCriteria = useCallback(async () => {
     if (!currentOrganization?.id) return;
@@ -485,7 +345,7 @@ Return JSON array of ${mpsContext.mpsTitle}-specific criteria objects.`;
       setCriteria([]);
       await generateAICriteria();
     } catch (error) {
-      console.error('Regeneration failed:', error);
+      logCriticalError('Regeneration failed', error);
       toast({
         title: "Regeneration Failed",
         description: "Failed to regenerate criteria. Please try again.",
