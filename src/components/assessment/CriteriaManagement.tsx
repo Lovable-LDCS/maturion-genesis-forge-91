@@ -164,7 +164,7 @@ export const CriteriaManagement: React.FC<CriteriaManagementProps> = ({
       if (isOpen && currentOrganization?.id) {
         fetchMPSsAndCriteria();
       }
-    }, [isOpen, currentOrganization?.id, domainName, fetchMPSsAndCriteria]);
+    }, [isOpen, currentOrganization?.id, domainName]);
 
     // Check for deferred criteria reminders when MPS data loads
     useEffect(() => {
