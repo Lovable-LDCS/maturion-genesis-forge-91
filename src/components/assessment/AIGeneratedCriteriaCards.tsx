@@ -176,8 +176,8 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
         console.log(`📝 Context fallback mode activated for MPS ${mps.mps_number}`);
       }
 
-      // Get document chunks first to build context-aware prompt
-      console.log(`🔍 Fetching document chunks for MPS ${mps.mps_number} before prompt construction`);
+      // ✅ VALIDATION 1: Chunk Injection Verification
+      console.log(`🔍 VALIDATION 1: Fetching chunks for MPS ${mps.mps_number}`);
       
       const contextSearch = await supabase.functions.invoke('search-ai-context', {
         body: {
@@ -190,76 +190,107 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
         }
       });
 
-      console.log(`📊 Context search response:`, {
-        success: contextSearch.data?.success,
-        resultCount: contextSearch.data?.results?.length || 0,
-        error: contextSearch.error?.message
+      // Detailed chunk validation logging
+      console.log(`📊 CHUNK RETRIEVAL RESULTS:`, {
+        searchSuccess: contextSearch.data?.success,
+        totalChunks: contextSearch.data?.results?.length || 0,
+        searchError: contextSearch.error?.message,
+        searchType: contextSearch.data?.search_type
       });
 
       let actualDocumentContent = '';
       let hasValidContext = false;
+      let chunkValidationDetails = [];
 
       if (contextSearch.data?.success && contextSearch.data.results?.length > 0) {
-        hasValidContext = true;
-        console.log(`✅ Found ${contextSearch.data.results.length} chunks for prompt construction`);
+        console.log(`✅ CHUNKS FOUND: ${contextSearch.data.results.length} chunks retrieved`);
         
-        // Use actual document content in prompt
-        actualDocumentContent = contextSearch.data.results
-          .slice(0, 5) // Use top 5 most relevant chunks
-          .map((chunk: any, index: number) => 
-            `CHUNK ${index + 1} (similarity: ${chunk.similarity?.toFixed(3)}): ${chunk.content.slice(0, 300)}...`
-          ).join('\n\n');
+        // Validate each chunk for content quality
+        for (let i = 0; i < contextSearch.data.results.length; i++) {
+          const chunk = contextSearch.data.results[i];
+          const validation = {
+            index: i,
+            contentLength: chunk.content?.length || 0,
+            hasMinContent: (chunk.content?.length || 0) >= 1500,
+            similarity: chunk.similarity,
+            source: chunk.document_name,
+            isMetadataOnly: chunk.content?.length < 100,
+            preview: chunk.content?.slice(0, 200) || 'NO CONTENT'
+          };
+          chunkValidationDetails.push(validation);
           
-        console.log(`📝 Document content preview:`, actualDocumentContent.slice(0, 200) + '...');
+          if (validation.hasMinContent) {
+            hasValidContext = true;
+            actualDocumentContent += `CHUNK ${i + 1} (${validation.contentLength} chars, similarity: ${chunk.similarity?.toFixed(3)}): ${chunk.content}\n\n`;
+          }
+        }
+        
+        console.log(`📋 CHUNK VALIDATION DETAILS:`, chunkValidationDetails);
+        console.log(`✅ VALID CONTENT STATUS: ${hasValidContext ? 'YES' : 'NO'} (${chunkValidationDetails.filter(c => c.hasMinContent).length} chunks with ≥1500 chars)`);
+        
+        if (actualDocumentContent.length > 0) {
+          console.log(`📝 DOCUMENT CONTENT PREVIEW (first 300 chars):`, actualDocumentContent.slice(0, 300) + '...');
+        }
       } else {
-        console.warn(`⚠️ No valid chunks found - will use enhanced reasoning fallback`);
+        console.error(`❌ NO CHUNKS RETRIEVED - Search failed or returned empty results`);
+        console.log(`🔍 Search details:`, {
+          organizationId: currentOrganization.id,
+          mpsNumber: mps.mps_number,
+          query: `MPS ${mps.mps_number} Leadership`
+        });
       }
 
-      // Build prompt based on whether we have actual document content
-      const enhancedPrompt = customPrompt || (hasValidContext ? `
+      // ✅ VALIDATION 2: Prompt Construction Integrity
+      console.log(`🔍 VALIDATION 2: Constructing prompt with content validation`);
+      
+      let finalPrompt = '';
+      
+      if (hasValidContext && actualDocumentContent.length > 0) {
+        console.log(`✅ USING DOCUMENT-BASED PROMPT (${actualDocumentContent.length} chars of content)`);
+        
+        finalPrompt = customPrompt || `
 DOCUMENT-BASED CRITERIA GENERATION for MPS ${mps.mps_number} - ${mps.name}
 
-ACTUAL DOCUMENT CONTENT:
+ACTUAL MPS DOCUMENT CONTENT:
 ${actualDocumentContent}
 
-REQUIREMENTS:
+STRICT REQUIREMENTS:
 - Generate criteria ONLY based on the above MPS ${mps.mps_number} document content
 - Target organization: ${organizationContext.name}
-- FORBIDDEN: Any placeholder text like "Criterion A", "Criterion B", etc.
+- ABSOLUTE PROHIBITION: Never use placeholder patterns like "Criterion A", "Criterion B", "Criterion [Letter]"
 - EVIDENCE-FIRST FORMAT (MANDATORY): Every criterion MUST start with evidence type:
   "A documented [document_type] that [action_verb] the [requirement] for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 
-Generate 8-12 criteria in JSON format based ONLY on the document content above:
-[{"statement": "evidence-first statement here", "summary": "brief explanation"}]` : `
-ENHANCED REASONING MODE for MPS ${mps.mps_number} - ${mps.name}
-(Limited document context - using organizational intelligence)
+Example format:
+- "A formal policy that establishes governance oversight for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+- "A documented procedure that defines risk assessment processes for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 
-TARGET: ${mpsContext.mpsTitle} for ${organizationContext.name}
-INDUSTRY: ${organizationContext.industry_tags.join(', ') || 'General'}
-REGION: ${organizationContext.region_operating || 'Global'}
+Generate 8-12 specific criteria in JSON format based ONLY on the document content above:
+[{"statement": "evidence-first statement here", "summary": "brief explanation"}]`;
 
-REQUIREMENTS:
-- Generate evidence-based criteria for ${mpsContext.mpsTitle}
-- Target organization: ${organizationContext.name}
-- FORBIDDEN: Any placeholder text like "Criterion A", "Criterion B", etc.
-- EVIDENCE-FIRST FORMAT (MANDATORY): Every criterion MUST start with evidence type:
-  "A documented [document_type] that [action_verb] the [requirement] for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+      } else {
+        // ✅ VALIDATION 3: Fallback Override Enforcement
+        console.error(`❌ VALIDATION 3 TRIGGERED: No valid content available - BLOCKING GENERATION`);
+        console.log(`🚫 Fallback prevention: Returning error instead of generating placeholder content`);
+        
+        throw new Error(`No criteria generated. Document chunks unavailable or insufficient content quality. Please check document visibility, processing status, or contact support. Chunks found: ${contextSearch.data?.results?.length || 0}, Valid chunks: ${chunkValidationDetails.filter(c => c.hasMinContent).length}`);
+      }
 
-Examples:
-- "A formal policy that establishes governance framework for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
-- "A documented procedure that defines risk management processes for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
-
-Generate 8-12 criteria in JSON format:
-[{"statement": "evidence-first statement here", "summary": "brief explanation"}]`);
-
-      const prompt = enhancedPrompt;
+      // ✅ VALIDATION 4: Strict QA Block Validation  
+      console.log(`🔍 VALIDATION 4: Final prompt QA validation before AI call`);
+      console.log(`🎯 FINAL PROMPT LENGTH: ${finalPrompt.length} characters`);
+      console.log(`🎯 FINAL PROMPT PREVIEW (first 500 chars):`, finalPrompt.slice(0, 500) + '...');
       
-      console.log(`🎯 FINAL PROMPT BEING SENT TO AI:`, {
-        promptLength: prompt.length,
-        hasDocumentContent: hasValidContext,
-        mpsNumber: mps.mps_number,
-        promptPreview: prompt.slice(0, 300) + '...'
-      });
+      // Check for any placeholder patterns in our own prompt
+      const placeholderCheck = /Criterion\s+[A-Z]/i.test(finalPrompt);
+      if (placeholderCheck) {
+        console.error(`🚨 CRITICAL: Our own prompt contains placeholder patterns!`);
+        throw new Error(`PROMPT VALIDATION FAILED: Placeholder pattern detected in generated prompt. This should never happen.`);
+      } else {
+        console.log(`✅ PROMPT VALIDATION PASSED: No placeholder patterns detected in our prompt`);
+      }
+
+      const prompt = finalPrompt;
       
       // QA Framework: Red Alert Monitoring
       const alerts = validateForRedAlerts(prompt, mps.mps_number, { organizationContext, mpsContext });
