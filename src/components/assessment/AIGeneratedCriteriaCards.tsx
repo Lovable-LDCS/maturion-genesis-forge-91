@@ -116,7 +116,7 @@ Return format: [{"statement": "...", "summary": "...", "rationale": "...", "evid
       // Call AI generation
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
-          message: `Generate ${expectedCriteriaCount} assessment criteria for MPS ${mps.mps_number}`,
+          prompt: `Generate ${expectedCriteriaCount} assessment criteria for MPS ${mps.mps_number}`,
           context: JSON.stringify({ mps, organization: organizationContext }),
           systemPrompt,
           model: 'gpt-4o-mini',
