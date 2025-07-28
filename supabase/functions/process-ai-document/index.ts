@@ -67,7 +67,7 @@ serve(async (req) => {
     // Download file from storage
     console.log('Downloading file from storage...');
     const { data: fileData, error: downloadError } = await supabase.storage
-      .from('ai-documents')
+      .from('maturion-documents')
       .download(document.file_path);
 
     if (downloadError || !fileData) {
@@ -286,15 +286,55 @@ async function extractTextContent(fileData: Blob, mimeType: string, fileName: st
   try {
     if (mimeType.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
       const text = await fileData.text();
-      return sanitizeTextForJson(text);
+      const sanitized = sanitizeTextForJson(text);
+      
+      // Validate this isn't placeholder content
+      if (isPlaceholderContent(sanitized, fileName)) {
+        throw new Error(`Placeholder content detected in ${fileName}`);
+      }
+      
+      return sanitized;
     }
     
-    // For other file types, return placeholder
-    return `Content extracted from ${fileName}. File type: ${mimeType}. This document has been processed for AI analysis.`;
+    // For non-text files, throw error instead of placeholder
+    throw new Error(`Unsupported file type: ${mimeType} for file: ${fileName}. Only text files are supported.`);
   } catch (error) {
     console.error('Error extracting text:', error);
-    return `Failed to extract content from ${fileName}. File type: ${mimeType}.`;
+    throw error;
   }
+}
+
+// Function to detect placeholder content
+function isPlaceholderContent(content: string, fileName: string): boolean {
+  const placeholderPatterns = [
+    /Criterion [A-Z]/gi,
+    /\[document_type\]/gi,
+    /\[action_verb\]/gi,
+    /placeholder/gi,
+    /lorem ipsum/gi,
+    /This document has been processed for AI analysis/gi,
+    /Content extracted from.*File type:/gi
+  ];
+  
+  const words = content.split(/\s+/).length;
+  console.log(`Content analysis for ${fileName}: ${words} words`);
+  
+  // Too short to be real content
+  if (words < 100) {
+    console.log(`⚠️ Content too short: ${words} words`);
+    return true;
+  }
+  
+  // Check for placeholder patterns
+  const hasPlaceholders = placeholderPatterns.some(pattern => {
+    const matches = pattern.test(content);
+    if (matches) {
+      console.log(`⚠️ Placeholder pattern detected: ${pattern}`);
+    }
+    return matches;
+  });
+  
+  return hasPlaceholders;
 }
 
 

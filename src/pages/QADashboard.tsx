@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Settings, TestTube, FileText, CheckCircle } from 'lucide-react';
 import { QADebugHub, RegressionTestMode } from '@/components/qa';
 import { QASystemTest } from '@/components/qa/QASystemTest';
+import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 
@@ -101,6 +102,19 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           </div>
         </AlertDescription>
       </Alert>
+
+      {/* Document Processing Debugger */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Document Processing Status</CardTitle>
+          <CardDescription>
+            Monitor and debug MPS document processing pipeline
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DocumentProcessingDebugger />
+        </CardContent>
+      </Card>
 
       {/* QA Tools Tabs */}
       <Tabs defaultValue="system-test" className="w-full">
