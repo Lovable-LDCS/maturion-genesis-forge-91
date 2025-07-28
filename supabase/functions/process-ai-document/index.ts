@@ -606,59 +606,105 @@ async function extractPdfText(fileData: Blob): Promise<string> {
   }
 }
 
-// Function to detect placeholder content
+// Function to detect placeholder content with detailed reporting
 function isPlaceholderContent(content: string, fileName: string): boolean {
   const placeholderPatterns = [
-    /Criterion [A-Z]/gi,
-    /\[document_type\]/gi,
-    /\[action_verb\]/gi,
-    /placeholder/gi,
-    /lorem ipsum/gi,
-    /This document has been processed for AI analysis/gi,
-    /Content extracted from.*File type:/gi,
-    /Annex\s*1/gi, // Block Annex 1 references
-    /fallback/gi,
-    /generic\s+mining/gi,
-    /template/gi
+    { pattern: /Criterion [A-Z]/gi, name: 'Generic criteria markers' },
+    { pattern: /\[document_type\]/gi, name: 'Document type placeholders' },
+    { pattern: /\[action_verb\]/gi, name: 'Action verb placeholders' },
+    { pattern: /placeholder/gi, name: 'Placeholder text' },
+    { pattern: /lorem ipsum/gi, name: 'Lorem ipsum text' },
+    { pattern: /This document has been processed for AI analysis/gi, name: 'AI processing text' },
+    { pattern: /Content extracted from.*File type:/gi, name: 'Extraction metadata' },
+    { pattern: /fallback/gi, name: 'Fallback content' },
+    { pattern: /template/gi, name: 'Template text' }
   ];
   
-  const words = content.split(/\s+/).length;
+  // More lenient Annex 1 pattern - only reject if it's predominantly Annex 1 content
+  const annexPattern = /Annex\s*1/gi;
+  
+  const words = content.split(/\s+/).filter(w => w.length > 0).length;
   const lines = content.split(/\n/).length;
   
   console.log(`📊 Content analysis for ${fileName}:`);
   console.log(`   Words: ${words}, Lines: ${lines}`);
-  console.log(`   Sample: "${content.substring(0, 200)}..."`);
+  console.log(`   Sample: "${content.substring(0, 300)}..."`);
   
-  // Too short to be real content - more lenient threshold
-  if (words < 50) {
-    console.log(`❌ Content too short: ${words} words (minimum 50)`);
+  // More lenient threshold for knowledge base documents
+  const isKnowledgeBase = fileName.toLowerCase().includes('knowledge') || 
+                         fileName.toLowerCase().includes('guidance') ||
+                         fileName.toLowerCase().includes('criteria');
+  
+  const minWords = isKnowledgeBase ? 30 : 50; // Lower threshold for knowledge docs
+  
+  // Too short to be real content
+  if (words < minWords) {
+    console.log(`❌ Content too short: ${words} words (minimum ${minWords})`);
     return true;
   }
   
-  // Check for placeholder patterns
+  // Check for placeholder patterns with detailed reporting
   const detectedPatterns: string[] = [];
-  const hasPlaceholders = placeholderPatterns.some(pattern => {
-    const matches = pattern.test(content);
-    if (matches) {
-      detectedPatterns.push(pattern.toString());
+  let totalMatches = 0;
+  
+  placeholderPatterns.forEach(({ pattern, name }) => {
+    const matches = (content.match(pattern) || []).length;
+    if (matches > 0) {
+      detectedPatterns.push(`${name} (${matches} matches)`);
+      totalMatches += matches;
     }
-    return matches;
   });
   
-  if (hasPlaceholders) {
+  // Check Annex 1 separately - only reject if it's more than 30% of content
+  const annexMatches = (content.match(annexPattern) || []).length;
+  if (annexMatches > 0) {
+    const annexRatio = annexMatches / words;
+    console.log(`📋 Annex 1 references: ${annexMatches} matches (${(annexRatio * 100).toFixed(2)}% of content)`);
+    
+    if (annexRatio > 0.3) { // Only reject if Annex 1 dominates the content
+      detectedPatterns.push(`Annex 1 dominance (${annexMatches} matches, ${(annexRatio * 100).toFixed(2)}%)`);
+      totalMatches += annexMatches;
+    }
+  }
+  
+  // For knowledge base documents, be more tolerant of some patterns
+  if (isKnowledgeBase && totalMatches < 5) {
+    console.log(`ℹ️ Knowledge base document with minor placeholder patterns (${totalMatches} matches) - allowing`);
+    detectedPatterns.length = 0; // Clear patterns for knowledge docs with few matches
+    totalMatches = 0;
+  }
+  
+  if (detectedPatterns.length > 0) {
     console.log(`❌ Placeholder patterns detected: ${detectedPatterns.join(', ')}`);
+    console.log(`📊 Total pattern matches: ${totalMatches} out of ${words} words`);
+    
+    // Only reject if there are significant placeholder patterns
+    if (totalMatches > 10 || detectedPatterns.length > 3) {
+      return true;
+    }
+  }
+  
+  // Check for suspiciously repetitive content (more lenient for knowledge docs)
+  const uniqueWords = new Set(content.toLowerCase().split(/\s+/)).size;
+  const repetitionRatio = uniqueWords / words;
+  const minRepetitionRatio = isKnowledgeBase ? 0.2 : 0.3; // More tolerant for knowledge docs
+  
+  if (repetitionRatio < minRepetitionRatio) {
+    console.log(`❌ Content too repetitive: ${uniqueWords} unique words out of ${words} (ratio: ${repetitionRatio.toFixed(2)}, minimum: ${minRepetitionRatio})`);
     return true;
   }
   
-  // Check for suspiciously repetitive content
-  const uniqueWords = new Set(content.toLowerCase().split(/\s+/)).size;
-  const repetitionRatio = uniqueWords / words;
-  if (repetitionRatio < 0.3) {
-    console.log(`❌ Content too repetitive: ${uniqueWords} unique words out of ${words} (ratio: ${repetitionRatio.toFixed(2)})`);
+  // Check if content is mostly non-alphabetic characters
+  const alphabeticChars = (content.match(/[a-zA-Z]/g) || []).length;
+  const alphabeticRatio = alphabeticChars / content.length;
+  
+  if (alphabeticRatio < 0.3) {
+    console.log(`❌ Content mostly non-alphabetic: ${alphabeticRatio.toFixed(2)} ratio`);
     return true;
   }
   
   console.log(`✅ Content validation passed for ${fileName}`);
+  console.log(`📈 Quality metrics: ${words} words, ${uniqueWords} unique (${repetitionRatio.toFixed(2)} ratio), ${(alphabeticRatio * 100).toFixed(1)}% alphabetic`);
   return false;
 }
 

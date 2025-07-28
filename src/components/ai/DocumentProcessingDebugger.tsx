@@ -305,14 +305,28 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
           await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (error: any) {
           const isTimeout = error.message === 'Processing timeout';
+          const errorMsg = error.message || 'Processing failed';
+          const isPlaceholder = errorMsg.includes('Placeholder content detected');
+          const isCorrupted = errorMsg.includes('corrupted') || errorMsg.includes('Invalid docx file signature');
+          const isUnsupported = errorMsg.includes('unsupported features') || errorMsg.includes('password-protected');
+          
+          let detailedMessage = errorMsg;
+          
+          if (isPlaceholder) {
+            detailedMessage = `${errorMsg} - This document appears to contain template or placeholder text rather than real MPS content. Consider reviewing the document or uploading a different version.`;
+          } else if (isCorrupted) {
+            detailedMessage = `${errorMsg} - The file may be corrupted or not a valid document format. Try re-uploading the document.`;
+          } else if (isTimeout) {
+            detailedMessage = `${errorMsg} - The document took too long to process. Try processing it individually or check if it's very large.`;
+          } else if (isUnsupported) {
+            detailedMessage = `${errorMsg} - The document format or features are not supported by the current processor.`;
+          }
           
           addLog({
             timestamp: new Date().toLocaleTimeString(),
             documentTitle: doc.title,
             status: 'error',
-            message: isTimeout 
-              ? 'Processing timed out after 90 seconds'
-              : error.message || 'Processing failed'
+            message: detailedMessage
           });
           
           failed++;
