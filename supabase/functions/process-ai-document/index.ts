@@ -606,21 +606,21 @@ async function extractPdfText(fileData: Blob): Promise<string> {
   }
 }
 
-// Function to detect placeholder content with detailed reporting
+// Function to detect placeholder content with intelligent knowledge document handling
 function isPlaceholderContent(content: string, fileName: string): boolean {
   const placeholderPatterns = [
-    { pattern: /Criterion [A-Z]/gi, name: 'Generic criteria markers' },
-    { pattern: /\[document_type\]/gi, name: 'Document type placeholders' },
-    { pattern: /\[action_verb\]/gi, name: 'Action verb placeholders' },
-    { pattern: /placeholder/gi, name: 'Placeholder text' },
-    { pattern: /lorem ipsum/gi, name: 'Lorem ipsum text' },
-    { pattern: /This document has been processed for AI analysis/gi, name: 'AI processing text' },
-    { pattern: /Content extracted from.*File type:/gi, name: 'Extraction metadata' },
-    { pattern: /fallback/gi, name: 'Fallback content' },
-    { pattern: /template/gi, name: 'Template text' }
+    { pattern: /Criterion [A-Z]/gi, name: 'Generic criteria markers', weight: 2 },
+    { pattern: /\[document_type\]/gi, name: 'Document type placeholders', weight: 3 },
+    { pattern: /\[action_verb\]/gi, name: 'Action verb placeholders', weight: 3 },
+    { pattern: /placeholder/gi, name: 'Placeholder text', weight: 2 },
+    { pattern: /lorem ipsum/gi, name: 'Lorem ipsum text', weight: 5 },
+    { pattern: /This document has been processed for AI analysis/gi, name: 'AI processing text', weight: 4 },
+    { pattern: /Content extracted from.*File type:/gi, name: 'Extraction metadata', weight: 4 },
+    { pattern: /fallback/gi, name: 'Fallback content', weight: 2 },
+    { pattern: /template/gi, name: 'Template text', weight: 1 }
   ];
   
-  // More lenient Annex 1 pattern - only reject if it's predominantly Annex 1 content
+  // More nuanced Annex 1 pattern - check context
   const annexPattern = /Annex\s*1/gi;
   
   const words = content.split(/\s+/).filter(w => w.length > 0).length;
@@ -628,83 +628,144 @@ function isPlaceholderContent(content: string, fileName: string): boolean {
   
   console.log(`📊 Content analysis for ${fileName}:`);
   console.log(`   Words: ${words}, Lines: ${lines}`);
-  console.log(`   Sample: "${content.substring(0, 300)}..."`);
+  console.log(`   Sample: "${content.substring(0, 400)}..."`);
   
-  // More lenient threshold for knowledge base documents
-  const isKnowledgeBase = fileName.toLowerCase().includes('knowledge') || 
-                         fileName.toLowerCase().includes('guidance') ||
-                         fileName.toLowerCase().includes('criteria');
+  // Identify knowledge documents
+  const isKnowledgeDocument = fileName.toLowerCase().includes('knowledge') || 
+                             fileName.toLowerCase().includes('guidance') ||
+                             fileName.toLowerCase().includes('criteria') ||
+                             fileName.toLowerCase().includes('handbook') ||
+                             fileName.toLowerCase().includes('manual');
   
-  const minWords = isKnowledgeBase ? 30 : 50; // Lower threshold for knowledge docs
+  console.log(`📚 Document type: ${isKnowledgeDocument ? 'Knowledge Document' : 'Regular Document'}`);
   
-  // Too short to be real content
+  // Enhanced content structure analysis
+  const hasStructure = {
+    bullets: /[•\-\*]\s+/.test(content) || /^\s*[\-\*•]\s+/m.test(content),
+    headings: /^#+\s+/m.test(content) || /^[A-Z][^.]*:$/m.test(content),
+    paragraphs: content.split(/\n\s*\n/).length > 2,
+    verbs: (content.match(/\b(implement|establish|develop|ensure|define|create|manage|monitor|evaluate|assess|review|update|maintain|provide|support|identify|analyze|document|track|report|compliance|requirement|process|procedure|policy|standard|guideline|framework|approach|method|technique|practice|control|measure|action|step|phase|stage|level|category|type|kind|example|instance|case|scenario|situation|context|environment|system|application|tool|resource|reference|source|evidence|proof|demonstration|verification|validation|testing|audit|inspection|examination|investigation|analysis|study|research|survey|assessment|evaluation|review|measurement|metric|indicator|criteria|threshold|target|objective|goal|purpose|scope|boundary|limitation|constraint|assumption|dependency|risk|issue|challenge|problem|solution|recommendation|suggestion|advice|guidance|instruction|direction|procedure|process|workflow|sequence|order|priority|importance|significance|relevance|applicability|suitability|appropriateness|effectiveness|efficiency|quality|performance|capability|capacity|ability|skill|competence|expertise|knowledge|understanding|awareness|recognition|identification|classification|categorization|organization|structure|hierarchy|relationship|connection|association|correlation|dependency|interaction|integration|coordination|collaboration|cooperation|communication|information|data|details|specifics|particulars|characteristics|features|attributes|properties|qualities|aspects|elements|components|parts|sections|subsections|chapters|appendices|references|sources|citations|footnotes|endnotes|bibliography|glossary|index|table|figure|diagram|chart|graph|illustration|image|picture|photo)\b/gi) || []).length,
+    realWords: (content.match(/\b[a-zA-Z]{4,}\b/g) || []).length
+  };
+  
+  console.log(`🔍 Content structure analysis:`);
+  console.log(`   Has bullets: ${hasStructure.bullets}`);
+  console.log(`   Has headings: ${hasStructure.headings}`);
+  console.log(`   Has paragraphs: ${hasStructure.paragraphs}`);
+  console.log(`   Business verbs: ${hasStructure.verbs}`);
+  console.log(`   Real words (4+ chars): ${hasStructure.realWords}`);
+  
+  // Apply fallback rule for substantial knowledge documents
+  const isSubstantialContent = words >= 500 && 
+                              (hasStructure.bullets || hasStructure.headings || hasStructure.paragraphs) &&
+                              hasStructure.verbs >= 10 &&
+                              hasStructure.realWords >= 100;
+  
+  if (isKnowledgeDocument && isSubstantialContent) {
+    console.log(`✅ Fallback rule applied: Substantial knowledge document (${words} words, structured content, ${hasStructure.verbs} business verbs)`);
+  }
+  
+  // Basic length check with different thresholds
+  const minWords = isKnowledgeDocument ? 30 : 50;
   if (words < minWords) {
-    console.log(`❌ Content too short: ${words} words (minimum ${minWords})`);
+    console.log(`❌ Content too short: ${words} words (minimum ${minWords} for ${isKnowledgeDocument ? 'knowledge' : 'regular'} documents)`);
     return true;
   }
   
-  // Check for placeholder patterns with detailed reporting
+  // Weighted placeholder pattern analysis
   const detectedPatterns: string[] = [];
+  let totalWeight = 0;
   let totalMatches = 0;
   
-  placeholderPatterns.forEach(({ pattern, name }) => {
+  placeholderPatterns.forEach(({ pattern, name, weight }) => {
     const matches = (content.match(pattern) || []).length;
     if (matches > 0) {
-      detectedPatterns.push(`${name} (${matches} matches)`);
+      const patternWeight = matches * weight;
+      detectedPatterns.push(`${name} (${matches} matches, weight: ${patternWeight})`);
+      totalWeight += patternWeight;
       totalMatches += matches;
     }
   });
   
-  // Check Annex 1 separately - only reject if it's more than 30% of content
+  // Annex 1 analysis with context
   const annexMatches = (content.match(annexPattern) || []).length;
   if (annexMatches > 0) {
     const annexRatio = annexMatches / words;
     console.log(`📋 Annex 1 references: ${annexMatches} matches (${(annexRatio * 100).toFixed(2)}% of content)`);
     
-    if (annexRatio > 0.3) { // Only reject if Annex 1 dominates the content
-      detectedPatterns.push(`Annex 1 dominance (${annexMatches} matches, ${(annexRatio * 100).toFixed(2)}%)`);
+    // Only flag as problematic if Annex 1 dominates AND there's no other substantial content
+    if (annexRatio > 0.3 && !isSubstantialContent) {
+      detectedPatterns.push(`Annex 1 dominance (${annexMatches} matches, ${(annexRatio * 100).toFixed(2)}%, no substantial content)`);
+      totalWeight += annexMatches * 3;
       totalMatches += annexMatches;
+    } else if (annexMatches > 0) {
+      console.log(`ℹ️ Annex 1 references present but content appears substantial - allowing`);
     }
   }
   
-  // For knowledge base documents, be more tolerant of some patterns
-  if (isKnowledgeBase && totalMatches < 5) {
-    console.log(`ℹ️ Knowledge base document with minor placeholder patterns (${totalMatches} matches) - allowing`);
-    detectedPatterns.length = 0; // Clear patterns for knowledge docs with few matches
-    totalMatches = 0;
-  }
+  // Calculate placeholder percentage
+  const placeholderPercentage = (totalMatches / words) * 100;
+  
+  console.log(`📊 Placeholder analysis:`);
+  console.log(`   Total patterns detected: ${detectedPatterns.length}`);
+  console.log(`   Total matches: ${totalMatches}`);
+  console.log(`   Total weight: ${totalWeight}`);
+  console.log(`   Placeholder percentage: ${placeholderPercentage.toFixed(2)}%`);
   
   if (detectedPatterns.length > 0) {
-    console.log(`❌ Placeholder patterns detected: ${detectedPatterns.join(', ')}`);
-    console.log(`📊 Total pattern matches: ${totalMatches} out of ${words} words`);
-    
-    // Only reject if there are significant placeholder patterns
-    if (totalMatches > 10 || detectedPatterns.length > 3) {
-      return true;
+    console.log(`⚠️ Detected patterns: ${detectedPatterns.join(', ')}`);
+  }
+  
+  // Enhanced decision logic
+  if (isKnowledgeDocument && isSubstantialContent) {
+    // Fallback rule: substantial knowledge documents with <20% placeholder patterns pass
+    if (placeholderPercentage < 20) {
+      console.log(`✅ ALLOWED: Knowledge document with ${placeholderPercentage.toFixed(2)}% placeholder content (under 20% threshold)`);
+      return false;
     }
   }
   
-  // Check for suspiciously repetitive content (more lenient for knowledge docs)
-  const uniqueWords = new Set(content.toLowerCase().split(/\s+/)).size;
-  const repetitionRatio = uniqueWords / words;
-  const minRepetitionRatio = isKnowledgeBase ? 0.2 : 0.3; // More tolerant for knowledge docs
+  // Warning mode for borderline cases (8-12 pattern matches or moderate weight)
+  if (totalMatches >= 8 && totalMatches <= 12 && totalWeight < 30) {
+    console.log(`⚠️ WARNING: Borderline placeholder detection - allowing with warning (${totalMatches} matches, weight: ${totalWeight})`);
+    if (isKnowledgeDocument) {
+      console.log(`ℹ️ Knowledge document benefit of doubt applied`);
+      return false;
+    }
+  }
   
-  if (repetitionRatio < minRepetitionRatio) {
-    console.log(`❌ Content too repetitive: ${uniqueWords} unique words out of ${words} (ratio: ${repetitionRatio.toFixed(2)}, minimum: ${minRepetitionRatio})`);
+  // Strict rejection criteria
+  const shouldReject = totalWeight > 25 || 
+                      placeholderPercentage > 30 || 
+                      (totalMatches > 15 && !isSubstantialContent);
+  
+  if (shouldReject) {
+    console.log(`❌ REJECTED: Excessive placeholder content (weight: ${totalWeight}, percentage: ${placeholderPercentage.toFixed(2)}%, matches: ${totalMatches})`);
     return true;
   }
   
-  // Check if content is mostly non-alphabetic characters
+  // Check repetition with knowledge-aware thresholds
+  const uniqueWords = new Set(content.toLowerCase().split(/\s+/)).size;
+  const repetitionRatio = uniqueWords / words;
+  const minRepetitionRatio = isKnowledgeDocument ? 0.15 : 0.25;
+  
+  if (repetitionRatio < minRepetitionRatio) {
+    console.log(`❌ Content too repetitive: ${uniqueWords} unique words out of ${words} (ratio: ${repetitionRatio.toFixed(3)}, minimum: ${minRepetitionRatio})`);
+    return true;
+  }
+  
+  // Check alphabetic content ratio
   const alphabeticChars = (content.match(/[a-zA-Z]/g) || []).length;
   const alphabeticRatio = alphabeticChars / content.length;
   
-  if (alphabeticRatio < 0.3) {
-    console.log(`❌ Content mostly non-alphabetic: ${alphabeticRatio.toFixed(2)} ratio`);
+  if (alphabeticRatio < 0.25) {
+    console.log(`❌ Content mostly non-alphabetic: ${alphabeticRatio.toFixed(3)} ratio (minimum: 0.25)`);
     return true;
   }
   
-  console.log(`✅ Content validation passed for ${fileName}`);
-  console.log(`📈 Quality metrics: ${words} words, ${uniqueWords} unique (${repetitionRatio.toFixed(2)} ratio), ${(alphabeticRatio * 100).toFixed(1)}% alphabetic`);
+  console.log(`✅ CONTENT VALIDATION PASSED for ${fileName}`);
+  console.log(`📈 Final metrics: ${words} words, ${uniqueWords} unique (${repetitionRatio.toFixed(3)} ratio), ${(alphabeticRatio * 100).toFixed(1)}% alphabetic, ${placeholderPercentage.toFixed(2)}% placeholder patterns`);
+  
   return false;
 }
 
