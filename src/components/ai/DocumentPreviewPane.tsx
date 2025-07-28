@@ -14,6 +14,7 @@ interface DocumentPreviewPaneProps {
 interface PreviewResult {
   success: boolean;
   preview: string;
+  sanitizedPreview?: string;
   wordCount: number;
   characterCount: number;
   hasStructure: {
@@ -25,7 +26,10 @@ interface PreviewResult {
     binaryRatio: number;
     xmlArtifacts: boolean;
     alphabeticRatio: number;
+    unicodeRatio: number;
+    hasNonLatinText: boolean;
   };
+  validationHash: string;
   error?: string;
 }
 
@@ -37,14 +41,71 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
   const [isExtracting, setIsExtracting] = useState(false);
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
 
+  // Sanitization function for mild corruption repair
+  const sanitizeBeforeChunking = (text: string): string => {
+    return text
+      // Remove null bytes and control characters
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      // Fix common encoding issues
+      .replace(/â€™/g, "'")
+      .replace(/â€œ/g, '"')
+      .replace(/â€/g, '"')
+      .replace(/â€¢/g, '•')
+      // Normalize whitespace but preserve structure
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  };
+
+  // Generate validation hash
+  const generateValidationHash = (content: string): string => {
+    let hash = 0;
+    for (let i = 0; i < content.length; i++) {
+      const char = content.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash).toString(16);
+  };
+
+  // Log upload attempt
+  const logUploadAttempt = async (result: PreviewResult, action: string) => {
+    try {
+      const logEntry = {
+        filename: file.name,
+        fileSize: file.size,
+        action,
+        timestamp: new Date().toISOString(),
+        validationHash: result.validationHash,
+        wordCount: result.wordCount,
+        characterCount: result.characterCount,
+        qualityMetrics: result.qualityMetrics,
+        previewSnippet: result.preview.substring(0, 200),
+        hasError: !!result.error
+      };
+      
+      console.log('📋 Document Upload Log:', logEntry);
+      
+      // Store in localStorage for debugging
+      const logs = JSON.parse(localStorage.getItem('document_upload_log') || '[]');
+      logs.push(logEntry);
+      localStorage.setItem('document_upload_log', JSON.stringify(logs.slice(-50)));
+    } catch (err) {
+      console.warn('Failed to log upload attempt:', err);
+    }
+  };
+
   const extractPreview = async () => {
     setIsExtracting(true);
 
     try {
       console.log(`🔍 Extracting preview from ${file.name}`);
 
-      // Only handle .docx files for now (can extend to other types)
+      // Extended file type support
       if (!file.name.endsWith('.docx') && !file.type.includes('wordprocessingml')) {
+        if (file.name.endsWith('.pdf')) {
+          throw new Error('PDF files require OCR processing - not yet implemented');
+        }
         throw new Error('Only .docx files are supported for preview extraction');
       }
 
@@ -59,7 +120,7 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
 
       let cleanText = result.value;
 
-      // Apply the same cleaning logic as the server
+      // Apply enhanced cleaning logic
       cleanText = cleanText
         .replace(/<[^>]*>/g, ' ')
         .replace(/[A-Z]:\\[^\\s]*/g, ' ')
@@ -69,39 +130,51 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
         .replace(/\s+/g, ' ')
         .trim();
 
-      // Quality analysis
-      const wordCount = cleanText.split(/\s+/).filter(w => w.length > 0).length;
-      const characterCount = cleanText.length;
+      // Apply sanitization
+      const sanitizedText = sanitizeBeforeChunking(cleanText);
 
+      // Unicode-aware quality analysis
+      const wordCount = sanitizedText.split(/\s+/).filter(w => w.length > 0).length;
+      const characterCount = sanitizedText.length;
+      
+      // Enhanced quality metrics with Unicode awareness
+      const unicodeChars = (sanitizedText.match(/[\u0080-\uFFFF]/g) || []).length;
+      const nonLatinChars = (sanitizedText.match(/[^\u0000-\u007F\u0080-\u00FF]/g) || []).length;
+      
       const qualityMetrics = {
-        binaryRatio: (cleanText.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / cleanText.length,
-        xmlArtifacts: cleanText.includes('_rels/') || cleanText.includes('customXml/') || cleanText.includes('word/_rels'),
-        alphabeticRatio: (cleanText.match(/[a-zA-Z]/g) || []).length / cleanText.length
+        binaryRatio: (sanitizedText.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / sanitizedText.length,
+        xmlArtifacts: sanitizedText.includes('_rels/') || sanitizedText.includes('customXml/') || sanitizedText.includes('word/_rels'),
+        alphabeticRatio: (sanitizedText.match(/[a-zA-Z]/g) || []).length / sanitizedText.length,
+        unicodeRatio: unicodeChars / sanitizedText.length,
+        hasNonLatinText: nonLatinChars > 0
       };
 
       const hasStructure = {
-        bullets: /[•\-\*]\s+/.test(cleanText) || /^\s*[\-\*•]\s+/m.test(cleanText),
-        headings: /^#+\s+/m.test(cleanText) || /^[A-Z][^.]*:$/m.test(cleanText),
-        paragraphs: cleanText.split(/\n\s*\n/).length > 2
+        bullets: /[•\-\*○◦▪▫‣⁃]\s+/.test(sanitizedText) || /^\s*[\-\*•○◦▪▫‣⁃]\s+/m.test(sanitizedText),
+        headings: /^#+\s+/m.test(sanitizedText) || /^[A-Z][^.]*:$/m.test(sanitizedText),
+        paragraphs: sanitizedText.split(/\n\s*\n/).length > 2
       };
 
-      // Generate preview (first 800 characters as requested)
-      const preview = cleanText.substring(0, 800);
+      // Generate preview and hash
+      const preview = sanitizedText.substring(0, 800);
+      const validationHash = generateValidationHash(sanitizedText);
 
-      // Validation checks
+      // Enhanced validation checks
       const isValid = wordCount >= 50 && 
                      characterCount >= 100 && 
                      !qualityMetrics.xmlArtifacts && 
                      qualityMetrics.binaryRatio < 0.1 && 
-                     qualityMetrics.alphabeticRatio > 0.25;
+                     (qualityMetrics.alphabeticRatio > 0.25 || qualityMetrics.hasNonLatinText);
 
       const previewResult: PreviewResult = {
         success: true,
         preview,
+        sanitizedPreview: sanitizedText !== cleanText ? sanitizedText.substring(0, 800) : undefined,
         wordCount,
         characterCount,
         hasStructure,
         qualityMetrics,
+        validationHash
       };
 
       if (!isValid) {
@@ -109,23 +182,30 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
           wordCount < 50 ? 'insufficient words, ' : ''
         }${qualityMetrics.xmlArtifacts ? 'XML artifacts present, ' : ''
         }${qualityMetrics.binaryRatio >= 0.1 ? 'high binary content, ' : ''
-        }${qualityMetrics.alphabeticRatio <= 0.25 ? 'low alphabetic content' : ''
+        }${qualityMetrics.alphabeticRatio <= 0.25 && !qualityMetrics.hasNonLatinText ? 'low readable content' : ''
         }`.replace(/, $/, '');
       }
+
+      // Log the extraction attempt
+      await logUploadAttempt(previewResult, 'preview_extracted');
 
       setPreviewResult(previewResult);
 
     } catch (error: any) {
       console.error('Preview extraction failed:', error);
-      setPreviewResult({
+      const failedResult: PreviewResult = {
         success: false,
         preview: '',
         wordCount: 0,
         characterCount: 0,
         hasStructure: { bullets: false, headings: false, paragraphs: false },
-        qualityMetrics: { binaryRatio: 0, xmlArtifacts: false, alphabeticRatio: 0 },
+        qualityMetrics: { binaryRatio: 0, xmlArtifacts: false, alphabeticRatio: 0, unicodeRatio: 0, hasNonLatinText: false },
+        validationHash: '0',
         error: error.message
-      });
+      };
+      
+      await logUploadAttempt(failedResult, 'preview_failed');
+      setPreviewResult(failedResult);
     } finally {
       setIsExtracting(false);
     }
@@ -135,11 +215,14 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
     extractPreview();
   }, [file]);
 
-  const handleProceed = () => {
+  const handleProceed = async (forceUAT = false) => {
     if (previewResult) {
+      const action = forceUAT ? 'proceed_anyway_uat' : 'proceed_validated';
+      await logUploadAttempt(previewResult, action);
+      
       onPreviewComplete(
-        previewResult.success && !previewResult.error,
-        previewResult.preview
+        previewResult.success && (!previewResult.error || forceUAT),
+        previewResult.sanitizedPreview || previewResult.preview
       );
     }
   };
@@ -246,15 +329,15 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
               </Button>
               
               {isValid ? (
-                <Button onClick={handleProceed}>
+                <Button onClick={() => handleProceed(false)}>
                   <CheckCircle className="h-4 w-4 mr-2" />
                   Proceed with Upload
                 </Button>
               ) : (
                 <>
-                  <Button variant="secondary" onClick={handleProceed}>
+                  <Button variant="secondary" onClick={() => handleProceed(true)}>
                     <AlertTriangle className="h-4 w-4 mr-2" />
-                    Upload Anyway (Not Recommended)
+                    Continue Anyway (UAT)
                   </Button>
                 </>
               )}
