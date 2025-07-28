@@ -8,6 +8,7 @@ import { Shield, Settings, TestTube, FileText, CheckCircle } from 'lucide-react'
 import { QADebugHub, RegressionTestMode } from '@/components/qa';
 import { EdgeFunctionLinter } from '@/components/qa/EdgeFunctionLinter';
 import { MPSLinkageRebuilder } from '@/components/qa/MPSLinkageRebuilder';
+import { MPSDocumentReprocessor } from '@/components/qa/MPSDocumentReprocessor';
 import { QASystemTest } from '@/components/qa/QASystemTest';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
 import { useAuth } from '@/contexts/AuthContext';
@@ -140,6 +141,7 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
             </CardContent>
           </Card>
           
+          <MPSDocumentReprocessor />
           <MPSLinkageRebuilder />
           <EdgeFunctionLinter />
         </TabsContent>

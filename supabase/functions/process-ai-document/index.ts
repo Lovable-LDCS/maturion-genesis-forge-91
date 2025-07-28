@@ -97,16 +97,16 @@ serve(async (req) => {
       throw new Error(`No extractable text content found in ${document.file_name}`);
     }
 
-    // Split text into smaller chunks (very conservative approach)
-    const chunkSize = 300; // Smaller chunks
-    const overlap = 50;
-    const maxChunks = 20; // Limit chunks to prevent memory issues
+    // Split text into meaningful chunks for MPS content analysis
+    const chunkSize = 1500; // Larger chunks for comprehensive MPS content
+    const overlap = 200;
+    const maxChunks = 100; // Allow more chunks for comprehensive coverage
     
     const chunks = splitTextIntoChunks(textContent, chunkSize, overlap).slice(0, maxChunks);
-    console.log(`Created ${chunks.length} chunks (limited to ${maxChunks})`);
+    console.log(`Created ${chunks.length} chunks for comprehensive MPS analysis (up to ${maxChunks} allowed)`);
 
-    // Process chunks in small batches
-    const batchSize = 3; // Very small batches
+    // Process chunks in optimized batches
+    const batchSize = 8; // Better batch size for comprehensive content processing
     let totalProcessed = 0;
     
     for (let i = 0; i < chunks.length; i += batchSize) {
