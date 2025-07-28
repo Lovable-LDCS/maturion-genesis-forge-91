@@ -32,12 +32,19 @@ serve(async (req) => {
     // Parse request body first
     const requestBody = await req.json();
     documentId = requestBody.documentId;
+    const corruptionRecovery = requestBody.corruptionRecovery || false;
+    const validateTextOnly = requestBody.validateTextOnly || false;
+    const targetChunkSize = requestBody.targetChunkSize || 1500;
+    const minChunkSize = requestBody.minChunkSize || 800;
     
     if (!documentId) {
       throw new Error('documentId is required');
     }
 
     console.log(`Processing document: ${documentId}`);
+    console.log(`Corruption recovery mode: ${corruptionRecovery}`);
+    console.log(`Text validation: ${validateTextOnly}`);
+    console.log(`Target chunk size: ${targetChunkSize}, Min: ${minChunkSize}`);
 
     // Check environment variables
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
@@ -97,13 +104,32 @@ serve(async (req) => {
       throw new Error(`No extractable text content found in ${document.file_name}`);
     }
 
-    // Split text into meaningful chunks for MPS content analysis
-    const chunkSize = 1500; // Larger chunks for comprehensive MPS content
-    const overlap = 200;
+    // Enhanced chunking for corruption recovery mode
+    const chunkSize = corruptionRecovery ? targetChunkSize : 1500;
+    const overlap = corruptionRecovery ? 200 : 200;
     const maxChunks = 100; // Allow more chunks for comprehensive coverage
     
+    console.log(`🔧 Chunking parameters: size=${chunkSize}, overlap=${overlap}, corruptionRecovery=${corruptionRecovery}`);
+    
+    // Enhanced text validation for corruption recovery
+    if (corruptionRecovery && validateTextOnly) {
+      console.log(`🔍 Corruption recovery: Validating text-only content`);
+      
+      // Check for XML artifacts and binary data
+      const xmlArtifacts = textContent.includes('_rels/') || textContent.includes('customXml/') || 
+                          textContent.includes('word/_rels') || textContent.includes('.xml.rels');
+      const binaryRatio = (textContent.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / textContent.length;
+      const questionMarkRatio = (textContent.match(/\?/g) || []).length / textContent.length;
+      
+      if (xmlArtifacts || binaryRatio > 0.3 || (questionMarkRatio > 0.2 && textContent.includes('\\\\\\\\'))) {
+        throw new Error(`Corruption detected in extracted text: XML artifacts=${xmlArtifacts}, binary ratio=${binaryRatio.toFixed(3)}, question marks=${questionMarkRatio.toFixed(3)}`);
+      }
+      
+      console.log(`✅ Text validation passed: clean content detected`);
+    }
+    
     const chunks = splitTextIntoChunks(textContent, chunkSize, overlap).slice(0, maxChunks);
-    console.log(`Created ${chunks.length} chunks for comprehensive MPS analysis (up to ${maxChunks} allowed)`);
+    console.log(`Created ${chunks.length} chunks for ${corruptionRecovery ? 'corruption recovery' : 'standard'} processing (up to ${maxChunks} allowed)`);
 
     // Process chunks in optimized batches
     const batchSize = 8; // Better batch size for comprehensive content processing

@@ -22,6 +22,8 @@ interface ChunkAnalysis {
   largestChunk: number;
   averageChunk: number;
   hasValidContent: boolean;
+  isCorrupted: boolean;
+  corruptionType?: 'xml_artifacts' | 'binary_data' | 'encoding_error' | 'metadata_only';
   samples: string[];
 }
 
@@ -38,6 +40,33 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
   const { currentOrganization } = useOrganization();
   const { toast } = useToast();
 
+  // 🔍 Corruption Detection Function
+  const detectCorruption = (content: string): { isCorrupted: boolean; corruptionType?: string } => {
+    if (!content || content.length < 10) return { isCorrupted: true, corruptionType: 'metadata_only' };
+    
+    // Check for XML artifacts
+    if (content.includes('_rels/') || content.includes('customXml/') || content.includes('word/_rels') || 
+        content.includes('.xml.rels') || content.includes('tomXml/')) {
+      return { isCorrupted: true, corruptionType: 'xml_artifacts' };
+    }
+    
+    // Check for binary data (excessive non-printable characters)
+    const binaryCharCount = (content.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length;
+    const binaryRatio = binaryCharCount / content.length;
+    if (binaryRatio > 0.3) {
+      return { isCorrupted: true, corruptionType: 'binary_data' };
+    }
+    
+    // Check for encoding errors (excessive ? characters and garbled patterns)
+    const questionMarkCount = (content.match(/\?/g) || []).length;
+    const questionMarkRatio = questionMarkCount / content.length;
+    if (questionMarkRatio > 0.2 && content.includes('\\\\\\\\')) {
+      return { isCorrupted: true, corruptionType: 'encoding_error' };
+    }
+    
+    return { isCorrupted: false };
+  };
+
   const analyzeCurrentChunks = async () => {
     if (!currentOrganization?.id) return;
     
@@ -45,7 +74,7 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
     setError(null);
     
     try {
-      console.log(`🔍 Analyzing chunks for MPS ${mpsNumber}`);
+      console.log(`🔍 Analyzing chunks for MPS ${mpsNumber} with corruption detection`);
       
       // Search for existing chunks
       const contextSearch = await supabase.functions.invoke('search-ai-context', {
@@ -75,20 +104,45 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
           largestChunk: 0,
           averageChunk: 0,
           hasValidContent: false,
+          isCorrupted: false,
           samples: ['No chunks found - document may not be processed yet']
         });
         return;
       }
       
-      // Analyze chunk quality
-      const validChunks = chunks.filter(chunk => (chunk.content?.length || 0) >= 1500);
+      // Enhanced chunk analysis with corruption detection
+      let corruptedChunks = 0;
+      let detectedCorruptionType: string | undefined;
+      
+      const validChunks = chunks.filter(chunk => {
+        const content = chunk.content || '';
+        const corruption = detectCorruption(content);
+        
+        if (corruption.isCorrupted) {
+          corruptedChunks++;
+          if (!detectedCorruptionType) detectedCorruptionType = corruption.corruptionType;
+          console.log(`🚨 CORRUPTION DETECTED in chunk:`, {
+            type: corruption.corruptionType,
+            contentLength: content.length,
+            sample: content.slice(0, 100)
+          });
+        }
+        
+        return content.length >= 1500 && !corruption.isCorrupted;
+      });
+      
       const chunkSizes = chunks.map(chunk => chunk.content?.length || 0);
       const largestChunk = Math.max(...chunkSizes);
       const averageChunk = chunkSizes.reduce((a, b) => a + b, 0) / chunkSizes.length;
       
-      const samples = chunks.slice(0, 3).map((chunk, index) => 
-        `CHUNK ${index + 1} (${chunk.content?.length || 0} chars): ${(chunk.content || '').slice(0, 200)}...`
-      );
+      const samples = chunks.slice(0, 3).map((chunk, index) => {
+        const content = chunk.content || '';
+        const corruption = detectCorruption(content);
+        const corruptionNote = corruption.isCorrupted ? ` [CORRUPTED: ${corruption.corruptionType}]` : '';
+        return `CHUNK ${index + 1} (${content.length} chars)${corruptionNote}: ${content.slice(0, 200)}...`;
+      });
+      
+      const isCorrupted = corruptedChunks > 0;
       
       setAnalysis({
         documentId: chunks[0]?.document_id || '',
@@ -97,13 +151,17 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
         validChunks: validChunks.length,
         largestChunk,
         averageChunk: Math.round(averageChunk),
-        hasValidContent: validChunks.length > 0,
+        hasValidContent: validChunks.length > 0 && !isCorrupted,
+        isCorrupted,
+        corruptionType: detectedCorruptionType as any,
         samples
       });
       
       console.log(`📋 Analysis complete:`, {
         totalChunks: chunks.length,
         validChunks: validChunks.length,
+        corruptedChunks,
+        detectedCorruptionType,
         largestChunk,
         averageChunk: Math.round(averageChunk)
       });
@@ -116,6 +174,54 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
     }
   };
 
+  // 🔄 Step 1: Forced Deletion of Corrupted Chunks
+  const forceDeleteCorruptedChunks = async () => {
+    if (!currentOrganization?.id || !analysis?.documentId) return;
+    
+    setIsReprocessing(true);
+    setError(null);
+    
+    try {
+      console.log(`🗑️ Force deleting corrupted chunks for MPS ${mpsNumber}`);
+      
+      // Delete corrupted chunks via direct SQL
+      const deleteResult = await supabase.functions.invoke('delete-corrupted-chunks', {
+        body: {
+          documentId: analysis.documentId,
+          organizationId: currentOrganization.id,
+          mpsNumber: mpsNumber
+        }
+      });
+      
+      if (deleteResult.error) {
+        throw new Error(`Chunk deletion failed: ${deleteResult.error.message}`);
+      }
+      
+      console.log(`✅ Corrupted chunks deleted successfully`);
+      
+      toast({
+        title: "Corrupted Chunks Cleared",
+        description: `Deleted corrupted chunks for MPS ${mpsNumber}. Ready for clean reprocessing.`,
+      });
+      
+      // Re-analyze to confirm deletion
+      setTimeout(() => {
+        analyzeCurrentChunks();
+      }, 1000);
+      
+    } catch (error: any) {
+      console.error('Chunk deletion failed:', error);
+      setError(error.message);
+      toast({
+        title: "Deletion Failed",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setIsReprocessing(false);
+    }
+  };
+
   const forceReprocessDocument = async () => {
     if (!currentOrganization?.id || !analysis?.documentId) return;
     
@@ -123,7 +229,7 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
     setError(null);
     
     try {
-      console.log(`🔧 Force reprocessing MPS ${mpsNumber} document`);
+      console.log(`🔧 Force reprocessing MPS ${mpsNumber} document with corruption recovery`);
       
       // First, get the document details
       const { data: document, error: docError } = await supabase
@@ -138,7 +244,7 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
       
       console.log(`📄 Found document: ${document.title} (${document.file_name})`);
       
-      // Reset the document for reprocessing
+      // Reset the document for reprocessing (clears existing chunks)
       const resetResult = await supabase.functions.invoke('reset-failed-document', {
         body: { documentId: analysis.documentId }
       });
@@ -149,15 +255,17 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
       
       console.log(`✅ Document reset successfully`);
       
-      // Trigger reprocessing
+      // Trigger enhanced reprocessing with corruption protection
       const processResult = await supabase.functions.invoke('process-ai-document', {
         body: {
           documentId: analysis.documentId,
           organizationId: currentOrganization.id,
           forceReprocess: true,
-          targetChunkSize: 1500, // Ensure larger chunks
-          minChunkSize: 800,     // Minimum viable chunk size
-          overlapSize: 200       // Good overlap for context
+          corruptionRecovery: true,    // Enable corruption recovery mode
+          targetChunkSize: 1500,       // Ensure larger chunks
+          minChunkSize: 800,           // Minimum viable chunk size
+          overlapSize: 200,            // Good overlap for context
+          validateTextOnly: true       // Ensure only text content is processed
         }
       });
       
@@ -165,17 +273,17 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
         throw new Error(`Reprocessing failed: ${processResult.error.message}`);
       }
       
-      console.log(`✅ Reprocessing initiated successfully`);
+      console.log(`✅ Corruption recovery reprocessing initiated successfully`);
       
       toast({
-        title: "Reprocessing Started",
-        description: `MPS ${mpsNumber} document is being reprocessed with enhanced chunking.`,
+        title: "Corruption Recovery Started",
+        description: `MPS ${mpsNumber} document is being reprocessed with enhanced text extraction and corruption protection.`,
       });
       
-      // Wait a moment then re-analyze
+      // Wait longer for corruption recovery processing
       setTimeout(() => {
         analyzeCurrentChunks();
-      }, 3000);
+      }, 5000);
       
     } catch (error: any) {
       console.error('Reprocessing failed:', error);
@@ -199,7 +307,7 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button 
             onClick={analyzeCurrentChunks} 
             disabled={isAnalyzing}
@@ -209,6 +317,18 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
             {isAnalyzing ? 'Analyzing...' : 'Analyze Chunks'}
           </Button>
           
+          {analysis?.isCorrupted && (
+            <Button 
+              onClick={forceDeleteCorruptedChunks} 
+              disabled={isReprocessing}
+              variant="destructive"
+              size="sm"
+            >
+              <XCircle className={`h-4 w-4 mr-2 ${isReprocessing ? 'animate-spin' : ''}`} />
+              Clear Corrupted Data
+            </Button>
+          )}
+          
           {analysis && !analysis.hasValidContent && (
             <Button 
               onClick={forceReprocessDocument} 
@@ -216,7 +336,7 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
               variant="default"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isReprocessing ? 'animate-spin' : ''}`} />
-              {isReprocessing ? 'Reprocessing...' : 'Force Reprocess'}
+              {isReprocessing ? 'Reprocessing...' : analysis.isCorrupted ? 'Corruption Recovery' : 'Force Reprocess'}
             </Button>
           )}
         </div>
@@ -251,7 +371,7 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge variant={analysis.hasValidContent ? "default" : "destructive"}>
                 {analysis.hasValidContent ? (
                   <><CheckCircle className="h-3 w-3 mr-1" /> Ready for AI</>
@@ -259,10 +379,33 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
                   <><XCircle className="h-3 w-3 mr-1" /> Needs Reprocessing</>
                 )}
               </Badge>
+              
+              {analysis.isCorrupted && (
+                <Badge variant="destructive" className="bg-red-600">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  CORRUPTED: {analysis.corruptionType?.replace('_', ' ').toUpperCase()}
+                </Badge>
+              )}
+              
               <span className="text-sm text-muted-foreground">
                 Document: {analysis.documentName}
               </span>
             </div>
+
+            {/* 🚨 Corruption-Specific Alerts */}
+            {analysis.isCorrupted && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>🚨 Data Corruption Detected:</strong> The chunks contain {analysis.corruptionType === 'xml_artifacts' ? 'XML metadata' : 
+                    analysis.corruptionType === 'binary_data' ? 'binary data' : 
+                    analysis.corruptionType === 'encoding_error' ? 'encoding errors' : 'invalid content'} 
+                  instead of readable text. 
+                  <br />
+                  <strong>Required Action:</strong> Clear corrupted data and run corruption recovery to extract clean text from the source document.
+                </AlertDescription>
+              </Alert>
+            )}
 
             {analysis.samples.length > 0 && (
               <div>

@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.send-webhook]
 verify_jwt = false
+
+[functions.delete-corrupted-chunks]
+verify_jwt = true
