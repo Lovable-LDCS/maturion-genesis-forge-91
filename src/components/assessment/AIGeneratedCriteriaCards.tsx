@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, RotateCcw, Wand2, AlertTriangle, Info, Shield } from 'lucide-react';
+import { CheckCircle, XCircle, RotateCcw, Wand2, AlertTriangle, Info, Shield, Settings } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -71,6 +71,8 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
   const [showQAHub, setShowQAHub] = useState(false);
   const [redAlerts, setRedAlerts] = useState<any[]>([]);
   const [showRedAlert, setShowRedAlert] = useState(false);
+  const [manualOverrides, setManualOverrides] = useState<Set<number>>(new Set());
+  const [forceGenerationMode, setForceGenerationMode] = useState(false);
   
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
@@ -273,14 +275,44 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
             isValid: isValidChunk,
             contentPreview: validation.preview,
             fullSample: validation.fullContentSample
-          });
-          
-          // Add valid chunks to prompt with special MPS 1 handling
-          if (isValidChunk) {
-            hasValidContext = true;
-            actualDocumentContent += `CHUNK ${i + 1} (${validation.contentLength} chars, similarity: ${chunk.similarity?.toFixed(3)}${validation.hasStructuredContent ? ', structured content' : ''}): ${content}\n\n`;
-            console.log(`✅ Using chunk ${i + 1} for prompt${mps.mps_number === 1 ? ' (MPS 1 relaxed criteria)' : ''}`);
-          }
+           });
+           
+           // Check for manual override for this chunk
+           const isManuallyOverridden = manualOverrides.has(i);
+           const shouldUseChunk = isValidChunk || isManuallyOverridden || forceGenerationMode;
+           
+           // 🔧 FORCE LOG for MPS 1 - Full Debug Block
+           if (mps.mps_number === 1) {
+             console.log(`🚨 FORCE DEBUG BLOCK for MPS 1 - CHUNK ${i + 1}:`, {
+               source: validation.source,
+               contentLength: validation.contentLength,
+               minRequired: minChunkLength,
+               hasStructuredContent: validation.hasStructuredContent,
+               relaxedRuleTriggered: validation.hasStructuredContent && validation.contentLength >= 500,
+               similarity: validation.similarity,
+               rejectionReason: validation.rejectionReason || 'ACCEPTED',
+               isNaturallyValid: isValidChunk,
+               isManuallyOverridden,
+               forceGenerationMode,
+               willBeUsed: shouldUseChunk,
+               fullContent: content.slice(0, 2000) + (content.length > 2000 ? '...' : ''), // Extended preview
+               chunkId: chunk.id
+             });
+           }
+           
+           // Add chunks to prompt based on validation or overrides
+           if (shouldUseChunk) {
+             hasValidContext = true;
+             const overrideNote = isManuallyOverridden ? ' [MANUAL OVERRIDE]' : 
+                                forceGenerationMode ? ' [FORCE MODE]' : '';
+             actualDocumentContent += `CHUNK ${i + 1} (${validation.contentLength} chars, similarity: ${chunk.similarity?.toFixed(3)}${validation.hasStructuredContent ? ', structured content' : ''}${overrideNote}): ${content}\n\n`;
+             console.log(`✅ Using chunk ${i + 1} for prompt${mps.mps_number === 1 ? ' (MPS 1 special handling)' : ''}${overrideNote}`);
+             
+             // Log manual override usage
+             if (isManuallyOverridden) {
+               console.log(`🔧 Manual override used to include chunk ID [${chunk.id}] into MPS ${mps.mps_number} criteria prompt`);
+             }
+           }
         }
         
         console.log(`📋 CHUNK VALIDATION DETAILS:`, chunkValidationDetails);
@@ -623,10 +655,45 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
                       🔒 Security violation detected - This prevents incorrect content generation.
                     </div>
                   )}
-                  <Button onClick={handleRegenerateCriteria} size="sm" variant="outline" className="mt-2" disabled={isGenerating}>
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Retry Generation
-                  </Button>
+                  <div className="flex gap-2 mt-3">
+                    <Button onClick={handleRegenerateCriteria} size="sm" variant="outline" disabled={isGenerating}>
+                      <RotateCcw className="h-4 w-4 mr-2" />
+                      Retry Generation
+                    </Button>
+                    
+                    {/* QA Force Generation Option */}
+                    {mps.mps_number === 1 && error.includes('Valid chunks: 0') && (
+                      <>
+                        <Button 
+                          onClick={() => setForceGenerationMode(true)} 
+                          size="sm" 
+                          variant="secondary"
+                          disabled={isGenerating || forceGenerationMode}
+                        >
+                          <Settings className="h-4 w-4 mr-2" />
+                          {forceGenerationMode ? 'Force Mode Active' : 'Proceed Anyway (Force)'}
+                        </Button>
+                        
+                        {forceGenerationMode && (
+                          <Button 
+                            onClick={() => generateAICriteria()} 
+                            size="sm" 
+                            variant="default"
+                            disabled={isGenerating}
+                          >
+                            <Wand2 className="h-4 w-4 mr-2" />
+                            Generate with Force
+                          </Button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  
+                  {forceGenerationMode && (
+                    <div className="text-xs mt-2 p-2 bg-orange-50 rounded border border-orange-200">
+                      🔧 Force Mode: Will accept any available chunks for controlled UAT testing. Manual QA oversight required.
+                    </div>
+                  )}
                 </AlertDescription>
               </Alert>
               
