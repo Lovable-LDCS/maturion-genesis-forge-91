@@ -116,7 +116,7 @@ Expected counts: MPS 2 = 14 criteria, MPS 1 = full document count, MPS 4 = full 
 
 📋 DUAL-FORMAT INTERPRETATION RULE (CANONICAL):
 1. COUNT "Requirement:" blocks in uploaded MPS ${mps.mps_number} .docx document  
-2. Each "Requirement:" block → criterion statement (tailored to ${organizationContext.name})
+2. Each "Requirement:" block → criterion statement (evidence-first format)
 3. Each "Evidence:" block → evidence_guidance field (contextualized)
 4. Generate EXACTLY same number of criteria as "Requirement:" blocks found
 5. Sequence: ${mps.mps_number}.1, ${mps.mps_number}.2, etc. (match document order)
@@ -126,7 +126,7 @@ Expected counts: MPS 2 = 14 criteria, MPS 1 = full document count, MPS 4 = full 
 1. ✅ SINGLE EVIDENCE ITEM per criterion - REJECT compound verbs ("establish and maintain" → SPLIT into separate criteria)
 2. ✅ Unambiguous language (10 different reviewers must interpret identically)  
 3. ✅ Independently verifiable (testable through physical evidence/observation)
-4. ✅ Contextually relevant (inject "${organizationContext.name}" - never "the organization")
+4. ✅ Contextually relevant (reference organization where needed, but not as leading token)
 5. ✅ Auditable traceability (align with evidence trail/process audit requirements)
 6. ✅ No duplicates using DUAL-TOKEN CHECK (evidence_type + context_scope must BOTH match)
 7. ✅ Consistent structure (Statement → Summary → Rationale → Evidence → Explanation)
@@ -144,13 +144,31 @@ Expected counts: MPS 2 = 14 criteria, MPS 1 = full document count, MPS 4 = full 
 - Example: "establish and maintain risk register" → "establish risk register" + "maintain risk register" (2 separate criteria)
 - LOG SPLIT DECISIONS: "Split compound verb: [original] → [criterion 1] + [criterion 2]"
 
+🔧 REQUIRED EVIDENCE-FIRST FORMAT (MANDATORY STRUCTURE):
+Every criterion MUST follow this format:
+"[Evidence Type] that is [availability qualifier], [verb/action] the [responsibility/requirement] of [stakeholder/subject], [context of use]."
+
+PROHIBITED format: "${organizationContext.name} must [do something]..."
+REQUIRED format examples:
+- "A policy that is approved and published outlines the roles and responsibilities of stakeholders by clearly defining separation of duties in all critical business processes."
+- "A register containing all current incidents is maintained by the security team to track and analyze security events."
+- "A report that is submitted quarterly documents the effectiveness of risk management controls implemented by the organization."
+
+🎯 EVIDENCE-FIRST TEMPLATE RULES:
+1. Start with evidence type: "A document", "A policy", "A register", "A report", "A procedure"
+2. Add availability qualifier: "that is readily available", "that is approved and published", "that is maintained"
+3. Use specific verbs: "describes", "defines", "assigns", "documents", "outlines", "identifies", "tracks"
+4. Replace weak verbs: "ensure" → "describe/define/assign/document", "appropriate" → specify condition, "effective" → tie to outcome
+5. Make stakeholder role explicit: "staff", "supervisors", "Security Control Committee", "Procurement Team", "IT Department"
+6. Add context expansion where relevant: "(Critical functions refers to those rated 'High' on the risk register)"
+
 📝 REQUIRED STRUCTURE (ALL 5 FIELDS MANDATORY):
 {
-  "statement": "${organizationContext.name} must [single clear action from Requirement: block]",
+  "statement": "[Evidence Type] that is [qualifier], [specific verb] the [requirement] of [explicit stakeholder] in [context].",
   "summary": "Brief overview (max 15 words)",
-  "rationale": "Why important for ${organizationContext.name}'s ${organizationContext.industry_tags.join('/')} operations (max 25 words)",
-  "evidence_guidance": "[Exact extraction from Evidence: block, tailored to ${organizationContext.name}]",
-  "explanation": "Detailed explanation with ${organizationContext.name} context and ${organizationContext.industry_tags.join('/')} industry considerations",
+  "rationale": "Why important for organizational operations (max 25 words)",
+  "evidence_guidance": "[Exact extraction from Evidence: block, with specific document requirements]",
+  "explanation": "Detailed explanation with organizational context and industry considerations",
   "source_origin": "internal_document|organizational_context|sector_memory|best_practice_fallback",
   "source_reference": "MPS ${mps.mps_number}, Section X.Y - [specific clause reference]",
   "evidence_hash": "[unique identifier for evidence type required]",
