@@ -116,9 +116,10 @@ Return format: [{"statement": "...", "summary": "...", "rationale": "...", "evid
       // Call AI generation
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
-          prompt: `Generate ${expectedCriteriaCount} assessment criteria for MPS ${mps.mps_number}`,
-          context: JSON.stringify({ mps, organization: organizationContext }),
+          prompt: `Generate ${expectedCriteriaCount} detailed assessment criteria for MPS ${mps.mps_number}: ${mps.name}. Each criterion must include: statement, summary, rationale, evidence_guidance, and explanation. Return as JSON array.`,
+          context: 'Criteria generation',
           organizationId: currentOrganization.id,
+          currentDomain: 'Leadership & Governance',
           systemPrompt,
           model: 'gpt-4o-mini',
           temperature: 0
