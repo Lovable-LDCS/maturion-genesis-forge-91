@@ -486,7 +486,8 @@ serve(async (req) => {
       allowExternalContext = false,
       knowledgeBaseUsed = false,
       sourceDocuments = [],
-      organizationProfile = null
+      organizationProfile = null,
+      mpsNumber = undefined
     } = await req.json();
 
     console.log('📥 Request details:', {
