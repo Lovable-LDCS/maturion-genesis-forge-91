@@ -13,6 +13,7 @@ interface SearchRequest {
   documentTypes?: string[];
   limit?: number;
   threshold?: number;
+  mpsNumber?: number;
 }
 
 interface SearchResult {
@@ -43,10 +44,11 @@ serve(async (req) => {
       organizationId, 
       documentTypes = [], 
       limit = 10, 
-      threshold = 0.7 
+      threshold = 0.7,
+      mpsNumber
     }: SearchRequest = await req.json();
 
-    console.log(`Searching for: "${query}" in organization: ${organizationId}`);
+    console.log(`Searching for: "${query}" in organization: ${organizationId}${mpsNumber ? ` (MPS ${mpsNumber} specific)` : ''}`);
 
     // Generate embedding for the search query
     const queryEmbedding = await generateEmbedding(query, openaiApiKey);
@@ -300,7 +302,21 @@ serve(async (req) => {
         }
         
         // Calculate cosine similarity with query embedding
-        const similarity = cosineSimilarity(queryEmbedding, chunkEmbedding);
+        let similarity = cosineSimilarity(queryEmbedding, chunkEmbedding);
+        
+        // Boost similarity for MPS-specific content if MPS number is provided
+        if (mpsNumber) {
+          const mpsMatch = chunk.content.toLowerCase().includes(`mps ${mpsNumber}`) ||
+                          chunk.content.toLowerCase().includes(`mps${mpsNumber}`) ||
+                          chunk.content.includes(`${mpsNumber}.`) ||
+                          (chunk.ai_documents?.title || '').toLowerCase().includes(`mps ${mpsNumber}`) ||
+                          (chunk.ai_documents?.title || '').toLowerCase().includes(`mps${mpsNumber}`);
+          
+          if (mpsMatch) {
+            similarity = Math.min(1.0, similarity * 1.5); // Boost MPS-specific content
+            console.log(`Boosted similarity for MPS ${mpsNumber} content: ${similarity.toFixed(3)}`);
+          }
+        }
         
         // Only include results above threshold
         if (similarity >= threshold) {
@@ -311,7 +327,12 @@ serve(async (req) => {
             document_type: chunk.ai_documents?.document_type || 'mps',
             content: chunk.content,
             similarity: similarity,
-            metadata: { chunk_index: chunk.chunk_index }
+            metadata: { 
+              chunk_index: chunk.chunk_index,
+              mps_match: mpsNumber ? (chunk.content.toLowerCase().includes(`mps ${mpsNumber}`) || 
+                                     chunk.content.toLowerCase().includes(`mps${mpsNumber}`) ||
+                                     chunk.content.includes(`${mpsNumber}.`)) : false
+            }
           });
         }
       } catch (embeddingError) {
@@ -320,8 +341,18 @@ serve(async (req) => {
       }
     }
 
-    // Sort by similarity (highest first)
-    results.sort((a, b) => b.similarity - a.similarity);
+    // Sort by MPS-specific relevance first, then similarity
+    results.sort((a, b) => {
+      if (mpsNumber) {
+        const aMpsMatch = a.metadata?.mps_match || false;
+        const bMpsMatch = b.metadata?.mps_match || false;
+        
+        if (aMpsMatch && !bMpsMatch) return -1;
+        if (bMpsMatch && !aMpsMatch) return 1;
+      }
+      
+      return b.similarity - a.similarity;
+    });
 
     // Create access audit log
     await supabase
@@ -336,6 +367,7 @@ serve(async (req) => {
           query: query,
           results_count: results.length,
           document_types: documentTypes,
+          mps_number: mpsNumber,
           search_timestamp: new Date().toISOString()
         })
       });

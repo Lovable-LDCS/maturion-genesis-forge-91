@@ -8,3 +8,12 @@ verify_jwt = true
 
 [functions.search-ai-context]
 verify_jwt = true
+
+[functions.rebuild-mps-linkage]
+verify_jwt = false
+
+[functions.send-invitation]
+verify_jwt = false
+
+[functions.send-webhook]
+verify_jwt = false

@@ -101,15 +101,15 @@ async function getInternalDocuments(organizationId: string, context: string) {
   }
 }
 
-// Enhanced function to get relevant document chunks using semantic search
-async function getDocumentContext(organizationId: string, query: string, domain?: string) {
+// Enhanced function to get MPS-specific document context
+async function getDocumentContext(organizationId: string, query: string, domain?: string, mpsNumber?: number) {
   try {
-    console.log('Fetching document context for organization:', organizationId, 'Query:', query);
+    console.log('Fetching document context for organization:', organizationId, 'Query:', query, 'MPS Number:', mpsNumber);
     
     // First check if there are any completed documents
     const { data: completedDocs, error: docsError } = await supabase
       .from('ai_documents')
-      .select('id, title, processing_status')
+      .select('id, title, processing_status, document_type, metadata')
       .eq('organization_id', organizationId)
       .eq('processing_status', 'completed');
     
@@ -130,15 +130,28 @@ async function getDocumentContext(organizationId: string, query: string, domain?
       return '';
     }
     
-    console.log(`Found ${completedDocs.length} completed documents. Using enhanced search...`);
+    console.log(`Found ${completedDocs.length} completed documents. Using enhanced MPS-specific search...`);
     
-    // Use the enhanced search-ai-context function for semantic search
-    const searchQueries = [
+    // Build search queries with MPS-specific context
+    const searchQueries = [];
+    
+    // If MPS number is specified, prioritize MPS-specific content
+    if (mpsNumber) {
+      searchQueries.push(
+        `MPS ${mpsNumber}`,
+        `MPS${mpsNumber}`,
+        `${mpsNumber}.`,
+        query + ` MPS ${mpsNumber}`,
+        domain ? `${domain} MPS ${mpsNumber}` : `MPS ${mpsNumber} requirements`
+      );
+    }
+    
+    // Add general search queries
+    searchQueries.push(
       query,
       domain ? `${domain} MPS Mini Performance Standards` : 'MPS standards',
-      'Annex 1 MPS list requirements',
       domain ? `${domain} domain audit criteria` : 'audit criteria'
-    ];
+    );
     
     let searchResults: any[] = [];
     
@@ -154,9 +167,10 @@ async function getDocumentContext(organizationId: string, query: string, domain?
           body: JSON.stringify({
             query: searchQuery,
             organizationId: organizationId,
-            documentTypes: ['mps', 'standard', 'audit', 'criteria', 'annex'],
-            limit: 15,
-            threshold: 0.6
+            documentTypes: ['mps_document', 'mps', 'standard', 'audit', 'criteria'],
+            limit: mpsNumber ? 20 : 15, // More results for MPS-specific searches
+            threshold: mpsNumber ? 0.5 : 0.6, // Lower threshold for MPS-specific searches
+            mpsNumber: mpsNumber // Pass MPS number for specialized filtering
           })
         });
         
@@ -172,23 +186,51 @@ async function getDocumentContext(organizationId: string, query: string, domain?
       }
     }
     
-    // Remove duplicates and prioritize high-similarity results
+    // Remove duplicates and prioritize MPS-specific content, then similarity
     const uniqueResults = searchResults
       .filter((result, index, self) => 
         index === self.findIndex(r => r.chunk_id === result.chunk_id)
       )
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, 25); // Top 25 most relevant chunks
+      .sort((a, b) => {
+        // Prioritize MPS-specific content first
+        if (mpsNumber) {
+          const aMpsMatch = a.content.toLowerCase().includes(`mps ${mpsNumber}`) || 
+                           a.content.toLowerCase().includes(`mps${mpsNumber}`) ||
+                           a.content.includes(`${mpsNumber}.`);
+          const bMpsMatch = b.content.toLowerCase().includes(`mps ${mpsNumber}`) || 
+                           b.content.toLowerCase().includes(`mps${mpsNumber}`) ||
+                           b.content.includes(`${mpsNumber}.`);
+          
+          if (aMpsMatch && !bMpsMatch) return -1;
+          if (bMpsMatch && !aMpsMatch) return 1;
+        }
+        
+        // Then sort by similarity
+        return b.similarity - a.similarity;
+      })
+      .slice(0, 30); // Top 30 most relevant chunks for better context
     
     if (uniqueResults.length === 0) {
-      console.log('No semantic search results found, falling back to basic content search...');
+      console.log('No semantic search results found, falling back to MPS-specific content search...');
       
-      // Fallback to basic content search
-      const { data: chunks, error } = await supabase
+      // MPS-specific fallback search
+      let fallbackQuery = supabase
         .from('ai_document_chunks')
-        .select('content, metadata, ai_documents!inner(title, domain)')
-        .eq('organization_id', organizationId)
-        .or('content.ilike.%MPS%,content.ilike.%Annex%,content.ilike.%Mini Performance Standard%')
+        .select('content, metadata, ai_documents!inner(title, document_type)')
+        .eq('organization_id', organizationId);
+      
+      if (mpsNumber) {
+        fallbackQuery = fallbackQuery.or(
+          `content.ilike.%MPS ${mpsNumber}%,content.ilike.%MPS${mpsNumber}%,content.ilike.%${mpsNumber}.%`
+        );
+      } else {
+        fallbackQuery = fallbackQuery.or(
+          'content.ilike.%MPS%,content.ilike.%Mini Performance Standard%'
+        );
+      }
+      
+      const { data: chunks, error } = await fallbackQuery
+        .eq('ai_documents.document_type', 'mps_document')
         .limit(20);
       
       if (error) {
@@ -201,18 +243,38 @@ async function getDocumentContext(organizationId: string, query: string, domain?
     
     console.log(`Found ${uniqueResults.length} unique semantic search results`);
     
-    // Build structured context from search results
+    // Build structured context from search results with MPS-specific prioritization
     let contextSections: string[] = [];
     let sourceDocuments = new Set<string>();
     
-    // Prioritize Annex 1 or explicit MPS list content
+    // Prioritize MPS-specific content if MPS number is provided
+    if (mpsNumber) {
+      const mpsSpecificResults = uniqueResults.filter(result => 
+        result.content.toLowerCase().includes(`mps ${mpsNumber}`) ||
+        result.content.toLowerCase().includes(`mps${mpsNumber}`) ||
+        result.content.includes(`${mpsNumber}.`) ||
+        result.document_name.toLowerCase().includes(`mps ${mpsNumber}`) ||
+        result.document_name.toLowerCase().includes(`mps${mpsNumber}`)
+      );
+      
+      if (mpsSpecificResults.length > 0) {
+        contextSections.push(`=== MPS ${mpsNumber} SPECIFIC CONTENT ===`);
+        mpsSpecificResults.forEach(result => {
+          contextSections.push(`[Document: ${result.document_name}] ${result.content}`);
+          sourceDocuments.add(result.document_name);
+        });
+        contextSections.push('');
+      }
+    }
+    
+    // Check for Annex 1 content (only if not MPS-specific or as supplementary)
     const annex1Results = uniqueResults.filter(result => 
-      result.content.toLowerCase().includes('annex 1') ||
-      result.content.toLowerCase().includes('annex i') ||
-      result.content.includes('MPS 1') && result.content.includes('MPS 2')
+      (result.content.toLowerCase().includes('annex 1') ||
+       result.content.toLowerCase().includes('annex i')) &&
+      (!mpsNumber || !result.content.toLowerCase().includes(`mps ${mpsNumber}`))
     );
     
-    if (annex1Results.length > 0) {
+    if (annex1Results.length > 0 && (!mpsNumber || mpsNumber === 1)) {
       contextSections.push('=== AUTHORITATIVE MPS SOURCE (Annex 1) ===');
       annex1Results.forEach(result => {
         contextSections.push(`[Document: ${result.document_name}] ${result.content}`);
@@ -239,14 +301,21 @@ async function getDocumentContext(organizationId: string, query: string, domain?
     }
     
     // Add remaining high-relevance content
+    const usedResults = [...(mpsNumber ? uniqueResults.filter(r => 
+      r.content.toLowerCase().includes(`mps ${mpsNumber}`) ||
+      r.content.toLowerCase().includes(`mps${mpsNumber}`) ||
+      r.content.includes(`${mpsNumber}.`)
+    ) : []), ...annex1Results];
+    
     const remainingResults = uniqueResults.filter(result => 
-      !annex1Results.includes(result) && 
-      (!domain || !result.content.toLowerCase().includes(domain.toLowerCase()))
+      !usedResults.includes(result) && 
+      (!domain || !result.content.toLowerCase().includes(domain.toLowerCase()) || 
+       result.content.toLowerCase().includes(domain.toLowerCase()))
     );
     
     if (remainingResults.length > 0) {
       contextSections.push('=== ADDITIONAL RELEVANT CONTENT ===');
-      remainingResults.slice(0, 10).forEach(result => {
+      remainingResults.slice(0, 12).forEach(result => {
         contextSections.push(`[Document: ${result.document_name}] ${result.content}`);
         sourceDocuments.add(result.document_name);
       });
@@ -254,6 +323,10 @@ async function getDocumentContext(organizationId: string, query: string, domain?
     
     const finalContext = contextSections.join('\n');
     console.log(`Built context from ${sourceDocuments.size} source documents: ${Array.from(sourceDocuments).join(', ')}`);
+    
+    if (mpsNumber && sourceDocuments.size === 0) {
+      console.warn(`No MPS ${mpsNumber} specific content found despite having ${completedDocs.length} completed documents`);
+    }
     
     return finalContext;
   } catch (error) {
@@ -533,8 +606,12 @@ ${websiteMetadata}
       behaviorPolicy = await getAIBehaviorPolicy(organizationId);
       intentPromptLogic = await getIntentPromptLogic(organizationId);
       
-      // Get document context for the specific request
-      documentContext = await getDocumentContext(organizationId, prompt, currentDomain);
+      // Extract MPS number from prompt for targeted search
+      const mpsNumberMatch = prompt.match(/MPS\s*(\d+)/i);
+      const mpsNumber = mpsNumberMatch ? parseInt(mpsNumberMatch[1]) : undefined;
+      
+      // Get document context for the specific request with MPS targeting
+      documentContext = await getDocumentContext(organizationId, prompt, currentDomain, mpsNumber);
       sourceType = 'internal';
       
       console.log(`Knowledge base context length: ${documentContext.length} characters`);
