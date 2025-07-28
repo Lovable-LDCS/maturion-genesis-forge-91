@@ -96,41 +96,44 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
       const detailedPrompt = `CRITICAL: Generate comprehensive assessment criteria for MPS ${mps.mps_number}: ${mps.name}
 
 MANDATORY REQUIREMENTS:
-1. MUST use uploaded MPS documents as PRIMARY source
-2. MUST tailor to ${organizationContext.name} organizational context
+1. MUST use uploaded MPS documents as PRIMARY source - extract ALL criteria from the uploaded document
+2. MUST tailor to ${organizationContext.name} organizational context (use organization name, not "the organization")
 3. MUST consider industry: ${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry || 'General'}
 4. MUST include ALL required fields for each criterion
+5. MUST generate ALL criteria found in the source document (do not limit to 10 criteria)
 
 REQUIRED STRUCTURE for each criterion:
 {
-  "statement": "Clear, measurable requirement statement",
+  "statement": "${organizationContext.name} must [specific requirement from uploaded document]",
   "summary": "Brief overview of what this criterion addresses", 
-  "rationale": "Why this criterion is important for ${organizationContext.name}",
-  "evidence_guidance": "Specific evidence types and documentation needed",
-  "explanation": "Detailed explanation with ${organizationContext.name} context",
-  "source_type": "internal_document|organizational_context|sector_memory|best_practice_fallback",
-  "source_reference": "Specific document or knowledge source used"
+  "rationale": "Why this criterion is important for ${organizationContext.name}'s [industry context]",
+  "evidence_guidance": "Specific evidence types and documentation ${organizationContext.name} needs to provide",
+  "explanation": "Detailed explanation with ${organizationContext.name} context and industry considerations",
+  "source_origin": "internal_document|organizational_context|sector_memory|best_practice_fallback"
 }
 
 DYNAMIC CRITERIA COUNT:
-- Generate the optimal number of criteria based on MPS complexity and organizational needs
-- Typical range: 8-14 criteria depending on content depth
-- Quality and coverage over fixed quantity
-- Each criterion must add unique value
+- Extract and generate ALL criteria from the uploaded MPS document
+- If MPS 2 has 14 sub-requirements (2.1 through 2.14), generate all 14 criteria
+- Do NOT limit to 8-10 criteria - use the full document scope
+- Each criterion should map to a specific requirement in the source document
+- Number criteria appropriately (e.g., 2.1, 2.2, 2.3... for MPS 2)
 
-ORGANIZATIONAL CONTEXT:
+ORGANIZATIONAL CONTEXT TAILORING:
 - Organization: ${organizationContext.name}
 - Industry/Sector: ${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry}
 - Region: ${organizationContext.region_operating}
 - Compliance frameworks: ${organizationContext.compliance_commitments.join(', ')}
+- Replace all generic references with ${organizationContext.name}
+- Tailor evidence requirements to ${organizationContext.name}'s industry and scale
 
-KNOWLEDGE SOURCE PRIORITY:
-1. Internal uploaded documents (highest priority)
-2. Organizational profile and context
-3. Sector-specific requirements
-4. Best practice fallbacks (only when above insufficient)
+KNOWLEDGE SOURCE PRIORITY & ATTRIBUTION:
+1. Internal uploaded documents (highest priority) → source_origin: "internal_document"
+2. Organizational profile and context → source_origin: "organizational_context"  
+3. Sector-specific requirements → source_origin: "sector_memory"
+4. Best practice fallbacks (only when above insufficient) → source_origin: "best_practice_fallback"
 
-Return a JSON array of criteria objects with all required fields. Include source tracking for audit trail.`;
+Return a JSON array of criteria objects with all required fields and proper source attribution. Extract ALL criteria from the uploaded document.`;
 
       // Call AI generation with enhanced parameters
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
@@ -226,15 +229,15 @@ Return a JSON array of criteria objects with all required fields. Include source
             const formattedCriteria: Criterion[] = (insertedCriteria || []).map((c, index) => ({
               id: c.id,
               statement: c.statement,
-              summary: c.summary || undefined,
+              summary: generatedCriteria[index]?.summary || c.summary || undefined,
               rationale: generatedCriteria[index]?.rationale || undefined,
               evidence_guidance: generatedCriteria[index]?.evidence_guidance || undefined,
               explanation: generatedCriteria[index]?.explanation || undefined,
               status: c.status as 'not_started' | 'in_progress' | 'approved_locked',
               ai_suggested_statement: c.ai_suggested_statement || undefined,
               ai_suggested_summary: c.ai_suggested_summary || undefined,
-              source_type: generatedCriteria[index]?.source_type || 'best_practice_fallback',
-              source_reference: generatedCriteria[index]?.source_reference || 'AI Generated'
+              source_type: (generatedCriteria[index]?.source_origin || generatedCriteria[index]?.source_type || 'best_practice_fallback') as 'internal_document' | 'organizational_context' | 'sector_memory' | 'best_practice_fallback',
+              source_reference: generatedCriteria[index]?.source_reference || `MPS ${mps.mps_number} Document`
             }));
 
             setCriteria(formattedCriteria);
