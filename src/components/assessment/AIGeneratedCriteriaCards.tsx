@@ -99,31 +99,61 @@ const [criteria, setCriteria] = useState<Criterion[]>([]);
         return;
       }
 
-      // CLEAN AI GENERATION PROMPT - EVIDENCE-FIRST COMPLIANCE
-      const detailedPrompt = `Generate comprehensive assessment criteria for MPS ${mps.mps_number}: ${mps.name}
+      // ENHANCED MPS-SPECIFIC CONTEXT BINDING
+      const mpsContext = {
+        mpsId: mps.id,
+        mpsNumber: mps.mps_number,
+        mpsTitle: mps.name,
+        domainId: mps.domain_id,
+        organizationId: currentOrganization.id
+      };
+
+      // Debug logging for MPS context binding
+      console.log('🎯 MPS Context Binding:', mpsContext);
+      setDebugInfo(prev => ({ 
+        ...prev, 
+        mpsContext,
+        timestamp: new Date().toISOString()
+      }));
+
+      // CLEAN AI GENERATION PROMPT - MPS-SPECIFIC WITH HARD CONTEXT BINDING
+      const detailedPrompt = `GENERATE CRITERIA FOR SPECIFIC MPS: ${mps.mps_number} - ${mps.name}
+
+CRITICAL CONTEXT BINDING:
+- Target MPS: ${mps.mps_number}
+- MPS Title: ${mps.name}
+- Organization: ${organizationContext.name}
+- Domain: Leadership & Governance
+- MPS ID: ${mps.id}
+
+MANDATORY REQUIREMENTS FOR MPS ${mps.mps_number}:
+- ONLY generate criteria related to "${mps.name}"
+- Extract content from uploaded "MPS ${mps.mps_number} - ${mps.name}.docx" document
+- NO fallback to other MPS documents or Annex 1 content
+- ALL criteria must be specific to ${mps.name} domain
 
 EVIDENCE-FIRST FORMAT (MANDATORY):
-Every criterion MUST start with evidence type:
+Every criterion MUST start with evidence type and relate to ${mps.name}:
 - "A documented risk register identifies, categorizes, and prioritizes operational risks across all ${organizationContext.name} business units."
-- "A formal policy that is approved by senior management defines the roles and responsibilities for incident response within ${organizationContext.name}."
-- "A quarterly report submitted to the board documents the effectiveness of cybersecurity controls implemented across ${organizationContext.name}."
+- "A formal policy that is approved by senior management defines the roles and responsibilities for ${mps.name.toLowerCase()} within ${organizationContext.name}."
+- "A quarterly report submitted to the board documents the effectiveness of ${mps.name.toLowerCase()} controls implemented across ${organizationContext.name}."
 
 ANNEX 2 COMPLIANCE (ALL 7 RULES):
 1. Evidence-first format - Start with document/policy/register/report/procedure
 2. Single evidence per criterion - No compound verbs like "establish and maintain"
 3. Measurable verbs - Use "identifies", "defines", "documents", "tracks", "outlines", "assigns"
-4. Unambiguous context - Be specific about scope and requirements
+4. Unambiguous context - Be specific about scope and requirements for ${mps.name}
 5. Organizational tailoring - Reference ${organizationContext.name} throughout
 6. No duplicates - Different evidence types or contexts are allowed
 7. Complete structure - All fields must be fully populated
 
-OUTPUT STRUCTURE:
+OUTPUT STRUCTURE FOR MPS ${mps.mps_number}:
 {
-  "statement": "A [evidence_type] that is [qualifier] [verb] the [requirement] of [stakeholder] at ${organizationContext.name}.",
-  "summary": "[10-15 word description]",
-  "rationale": "[Why critical for ${organizationContext.name} - max 25 words]",
-  "evidence_guidance": "[Specific document requirements from MPS]",
-  "explanation": "[Detailed explanation with ${organizationContext.name} context]"
+  "statement": "A [evidence_type] that is [qualifier] [verb] the [requirement] of [stakeholder] for ${mps.name.toLowerCase()} at ${organizationContext.name}.",
+  "summary": "[10-15 word description related to ${mps.name}]",
+  "rationale": "[Why critical for ${organizationContext.name}'s ${mps.name.toLowerCase()} - max 25 words]",
+  "evidence_guidance": "[Specific ${mps.name} document requirements from MPS ${mps.mps_number}]",
+  "explanation": "[Detailed explanation with ${organizationContext.name} context for ${mps.name}]"
 }
 
 ORGANIZATIONAL CONTEXT:
@@ -132,14 +162,21 @@ ORGANIZATIONAL CONTEXT:
 - Region: ${organizationContext.region_operating}
 - Compliance: ${organizationContext.compliance_commitments.join(', ')}
 
-REQUIREMENTS:
-- Extract from uploaded MPS ${mps.mps_number} document
-- Generate 8-12 criteria based on document content
-- Use evidence-first format for all statements
-- Include ${organizationContext.name} context throughout
-- No placeholder text or generic templates
+STRICT REQUIREMENTS:
+- Source: ONLY MPS ${mps.mps_number} document content
+- Topic: ONLY ${mps.name} related criteria
+- Count: Generate 8-12 criteria based on MPS ${mps.mps_number} document content
+- Format: Evidence-first format for all statements
+- Context: Include ${organizationContext.name} and ${mps.name} throughout
+- Validation: NO placeholder text, NO generic templates, NO Annex 1 fallback
 
-Return JSON array of criteria objects.`;
+Return JSON array of ${mps.name}-specific criteria objects.`;
+
+      // SANITY CHECK: Abort if prompt contains Annex 1 fallback when not MPS 1
+      if (detailedPrompt.includes("Annex 1") && mps.mps_number !== 1) {
+        console.error('🚨 CRITICAL: Annex 1 fallback detected for non-MPS 1 generation');
+        throw new Error(`Invalid fallback to Annex 1 detected for MPS ${mps.mps_number}. Aborting generation.`);
+      }
 
       // Debug logging for admin mode
       if (showAdminDebug) {
