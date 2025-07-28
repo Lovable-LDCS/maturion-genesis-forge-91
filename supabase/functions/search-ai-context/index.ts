@@ -288,14 +288,14 @@ serve(async (req) => {
     
     for (const chunk of chunks) {
       try {
-        // Parse the stored embedding
+        // Parse the stored embedding - Supabase vector type is already an array
         let chunkEmbedding: number[];
         
-        if (typeof chunk.embedding === 'string') {
-          // Parse vector string format like "[0.1, 0.2, ...]"
-          chunkEmbedding = JSON.parse(chunk.embedding.replace(/^\[|\]$/g, '').split(',').map(n => parseFloat(n.trim())));
-        } else if (Array.isArray(chunk.embedding)) {
+        if (Array.isArray(chunk.embedding)) {
           chunkEmbedding = chunk.embedding;
+        } else if (chunk.embedding && typeof chunk.embedding === 'object') {
+          // Handle case where embedding might be stored as object with numeric keys
+          chunkEmbedding = Object.values(chunk.embedding as Record<string, number>);
         } else {
           console.warn(`Chunk ${chunk.id} has invalid embedding format, skipping`);
           continue;
