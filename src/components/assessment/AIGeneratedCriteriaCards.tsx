@@ -120,11 +120,14 @@ This generation MUST follow all rules from:
 6. ✅ No duplicates (compare evidence requirements, not just language)
 7. ✅ Consistent structure (Statement → Summary → Rationale → Evidence → Explanation)
 
-🔍 DUPLICATE DETECTION LOGIC:
-- Compare evidence_guidance fields across all criteria
-- If two criteria require same policy/report/training record/review log as evidence → DUPLICATE
-- Create evidence_hash for each criterion to detect evidence overlap
-- Mark duplicates for removal or consolidation
+🔍 ENHANCED DUPLICATE DETECTION LOGIC (v2):
+- DUAL CHECK MECHANISM: Evidence type AND operational context must both match for true duplicate
+- Evidence Check: Compare evidence_guidance or resolved evidence source for exact match
+- Context Check: Compare statement and rationale for semantic uniqueness using domain keywords
+- NOT DUPLICATES if criteria apply to: different processes, different roles/systems, different stages, distinct control purposes
+- Create evidence_hash + domain_tag structure: {"evidence_hash": "procedure_type", "domain_tag": "functional_scope"}
+- Only mark as duplicate if BOTH evidence_hash and domain_tag are identical
+- Examples of legitimate non-duplicates: incident vs change management, executive vs line accountability, planning vs review stages
 
 📝 REQUIRED STRUCTURE (ALL 5 FIELDS MANDATORY):
 {
