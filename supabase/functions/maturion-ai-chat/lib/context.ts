@@ -70,7 +70,7 @@ export async function getDocumentContext(organizationId: string, query: string, 
             limit: mpsNumber ? 20 : 15, // More results for MPS-specific searches
             threshold: mpsNumber ? 0.5 : 0.6, // Lower threshold for MPS-specific searches
             mpsNumber: mpsNumber // Pass MPS number for specialized filtering
-          })
+          }
         });
         
         if (error) {
