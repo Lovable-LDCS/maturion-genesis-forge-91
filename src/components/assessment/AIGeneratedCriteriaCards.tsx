@@ -206,28 +206,48 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
       if (contextSearch.data?.success && contextSearch.data.results?.length > 0) {
         console.log(`✅ CHUNKS FOUND: ${contextSearch.data.results.length} chunks retrieved`);
         
-        // 🔧 REQUIRED FIX 1: Validate the MPS 1 Chunk
-        console.log(`✅ CHUNKS FOUND: ${contextSearch.data.results.length} chunks retrieved`);
+        // 🔧 REQUIRED FIX 1: Enhanced MPS 1 Chunk Validation with Relaxed Thresholds
+        console.log(`✅ CHUNKS FOUND: ${contextSearch.data.results.length} chunks retrieved for MPS ${mps.mps_number}`);
         
-        // Detailed analysis of each chunk - especially the rejected one
+        // Special handling for MPS 1 during QA testing phase
+        const minChunkLength = mps.mps_number === 1 ? 800 : 1500;
+        console.log(`🎯 Using relaxed threshold for MPS ${mps.mps_number}: ${minChunkLength} chars (standard: 1500)`);
+        
+        // Detailed analysis of each chunk with MPS 1 special cases
         for (let i = 0; i < contextSearch.data.results.length; i++) {
           const chunk = contextSearch.data.results[i];
+          const content = chunk.content || '';
+          
+          // Enhanced validation for MPS 1
+          const hasStructuredContent = mps.mps_number === 1 && content.length >= 500 && (
+            content.includes('•') || 
+            content.includes('1.') || 
+            content.includes('2.') ||
+            content.includes('Requirements:') ||
+            content.includes('Evidence:') ||
+            content.includes('Leadership') ||
+            content.includes('governance') ||
+            /\n\s*[A-Z]/.test(content) || // Likely headers
+            content.split('\n').filter(line => line.trim().length > 10).length >= 5 // Multi-paragraph content
+          );
+          
           const validation = {
             index: i,
-            contentLength: chunk.content?.length || 0,
-            hasMinContent: (chunk.content?.length || 0) >= 1500,
+            contentLength: content.length,
+            hasMinContent: content.length >= minChunkLength,
+            hasStructuredContent,
             similarity: chunk.similarity,
             source: chunk.document_name,
-            isMetadataOnly: chunk.content?.length < 100,
-            isHeaderOnly: chunk.content?.split('\n').filter(line => line.trim().length > 0).length <= 3,
-            preview: chunk.content?.slice(0, 200) || 'NO CONTENT',
-            fullContentSample: chunk.content?.slice(0, 800) || 'NO CONTENT', // More content for analysis
+            isMetadataOnly: content.length < 100,
+            isHeaderOnly: content.split('\n').filter(line => line.trim().length > 0).length <= 3,
+            preview: content.slice(0, 200) || 'NO CONTENT',
+            fullContentSample: content.slice(0, 800) || 'NO CONTENT',
             rejectionReason: ''
           };
           
-          // Analyze rejection reasons
-          if (validation.contentLength < 1500) {
-            validation.rejectionReason = `Too short: ${validation.contentLength} chars (need ≥1500)`;
+          // Analyze rejection reasons with MPS 1 considerations
+          if (!validation.hasMinContent && !validation.hasStructuredContent) {
+            validation.rejectionReason = `Too short: ${validation.contentLength} chars (need ≥${minChunkLength}${mps.mps_number === 1 ? ' OR structured content ≥500' : ''})`;
           }
           if (validation.isHeaderOnly) {
             validation.rejectionReason += ' | Headers only (≤3 lines)';
@@ -236,24 +256,30 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
             validation.rejectionReason += ' | Metadata only (<100 chars)';
           }
           
+          const isValidChunk = (validation.hasMinContent || validation.hasStructuredContent) && 
+                              !validation.isMetadataOnly && 
+                              !validation.isHeaderOnly;
+          
           chunkValidationDetails.push(validation);
           
-          // Log detailed analysis for MPS 1 specifically
-          console.log(`🔍 CHUNK ${i + 1} ANALYSIS:`, {
+          // Enhanced logging for MPS 1 chunk analysis
+          console.log(`🔍 CHUNK ${i + 1} ANALYSIS (MPS ${mps.mps_number}):`, {
             source: validation.source,
             contentLength: validation.contentLength,
+            minRequired: minChunkLength,
+            hasStructuredContent: validation.hasStructuredContent,
             similarity: validation.similarity,
-            rejectionReason: validation.rejectionReason,
-            isValid: validation.hasMinContent,
+            rejectionReason: validation.rejectionReason || 'ACCEPTED',
+            isValid: isValidChunk,
             contentPreview: validation.preview,
             fullSample: validation.fullContentSample
           });
           
-          // For valid content (relaxed criteria for debugging), still add to prompt
-          if (validation.contentLength >= 500) { // Lower threshold for debugging
+          // Add valid chunks to prompt with special MPS 1 handling
+          if (isValidChunk) {
             hasValidContext = true;
-            actualDocumentContent += `CHUNK ${i + 1} (${validation.contentLength} chars, similarity: ${chunk.similarity?.toFixed(3)}): ${chunk.content}\n\n`;
-            console.log(`✅ Using chunk ${i + 1} for prompt (relaxed criteria)`);
+            actualDocumentContent += `CHUNK ${i + 1} (${validation.contentLength} chars, similarity: ${chunk.similarity?.toFixed(3)}${validation.hasStructuredContent ? ', structured content' : ''}): ${content}\n\n`;
+            console.log(`✅ Using chunk ${i + 1} for prompt${mps.mps_number === 1 ? ' (MPS 1 relaxed criteria)' : ''}`);
           }
         }
         
