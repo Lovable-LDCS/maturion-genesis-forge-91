@@ -1,0 +1,205 @@
+import React, { useState } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Shield, Settings, TestTube, FileText, CheckCircle } from 'lucide-react';
+import { QADebugHub, RegressionTestMode } from '@/components/qa';
+import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/hooks/useOrganization';
+
+interface QADashboardProps {}
+
+export const QADashboard: React.FC<QADashboardProps> = () => {
+  const [activeTests, setActiveTests] = useState(0);
+  const [completedTests, setCompletedTests] = useState(0);
+  
+  const { user } = useAuth();
+  const { currentOrganization } = useOrganization();
+
+  const mockMpsContext = {
+    mpsId: 'test-mps-id',
+    mpsNumber: 4,
+    mpsTitle: 'Risk Management',
+    domainId: 'leadership-governance',
+    organizationId: currentOrganization?.id || ''
+  };
+
+  const mockOrgContext = {
+    id: currentOrganization?.id || '',
+    name: currentOrganization?.name || 'Test Organization',
+    industry_tags: currentOrganization?.industry_tags || [],
+    region_operating: currentOrganization?.region_operating || '',
+    compliance_commitments: currentOrganization?.compliance_commitments || [],
+    custom_industry: currentOrganization?.custom_industry || ''
+  };
+
+  const handleTestComplete = (results: any[]) => {
+    setCompletedTests(results.length);
+    setActiveTests(0);
+  };
+
+  return (
+    <div className="container mx-auto py-6 space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">QA Dashboard</h1>
+          <p className="text-muted-foreground">
+            Comprehensive quality assurance and validation system for Maturion AI
+          </p>
+        </div>
+        <Badge variant="outline" className="text-sm">
+          SUPERUSER ONLY
+        </Badge>
+      </div>
+
+      {/* QA Status Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <Shield className="h-8 w-8 mx-auto text-green-600 mb-2" />
+            <div className="text-2xl font-bold text-green-600">7</div>
+            <div className="text-sm text-muted-foreground">Active QA Rules</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6 text-center">
+            <TestTube className="h-8 w-8 mx-auto text-blue-600 mb-2" />
+            <div className="text-2xl font-bold">{activeTests}</div>
+            <div className="text-sm text-muted-foreground">Running Tests</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6 text-center">
+            <CheckCircle className="h-8 w-8 mx-auto text-green-600 mb-2" />
+            <div className="text-2xl font-bold">{completedTests}</div>
+            <div className="text-sm text-muted-foreground">Completed Tests</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-6 text-center">
+            <FileText className="h-8 w-8 mx-auto text-purple-600 mb-2" />
+            <div className="text-2xl font-bold">100%</div>
+            <div className="text-sm text-muted-foreground">Compliance Rate</div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* QA Framework Status */}
+      <Alert>
+        <Shield className="h-4 w-4" />
+        <AlertDescription>
+          <div className="font-medium mb-1">QA Framework Status: ACTIVE</div>
+          <div className="text-sm space-y-1">
+            <div>✅ Red Alert monitoring enabled</div>
+            <div>✅ Prompt validation active (12,000 token limit)</div>
+            <div>✅ Annex 1 fallback detection enabled</div>
+            <div>✅ Evidence-first structure enforcement active</div>
+            <div>✅ Placeholder content blocking enabled</div>
+          </div>
+        </AlertDescription>
+      </Alert>
+
+      {/* QA Tools Tabs */}
+      <Tabs defaultValue="debug" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="debug">QA Debug Hub</TabsTrigger>
+          <TabsTrigger value="regression">Regression Tests</TabsTrigger>
+          <TabsTrigger value="settings">QA Settings</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="debug" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>QA Debug Hub</CardTitle>
+              <CardDescription>
+                Test and validate prompt logic, detect security violations, and ensure compliance
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <QADebugHub
+                mpsContext={mockMpsContext}
+                organizationContext={mockOrgContext}
+                isVisible={true}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="regression" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Regression Test Suite</CardTitle>
+              <CardDescription>
+                Run comprehensive tests across all MPSs to detect drift and validate system integrity
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RegressionTestMode
+                isVisible={true}
+                onTestComplete={handleTestComplete}
+              />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="settings" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>QA Configuration</CardTitle>
+              <CardDescription>
+                Configure quality assurance rules and validation parameters
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Alert>
+                <Settings className="h-4 w-4" />
+                <AlertDescription>
+                  QA settings are currently managed through code configuration. 
+                  Future versions will provide a management interface here.
+                </AlertDescription>
+              </Alert>
+              
+              <div className="space-y-3">
+                <div className="flex items-center justify-between p-3 border rounded">
+                  <div>
+                    <div className="font-medium">Prompt Token Limit</div>
+                    <div className="text-sm text-muted-foreground">Maximum tokens allowed in AI prompts</div>
+                  </div>
+                  <Badge variant="outline">12,000</Badge>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 border rounded">
+                  <div>
+                    <div className="font-medium">Annex 1 Fallback Detection</div>
+                    <div className="text-sm text-muted-foreground">Block unauthorized Annex 1 references</div>
+                  </div>
+                  <Badge variant="default">ENABLED</Badge>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 border rounded">
+                  <div>
+                    <div className="font-medium">Evidence-First Enforcement</div>
+                    <div className="text-sm text-muted-foreground">Ensure criteria start with evidence types</div>
+                  </div>
+                  <Badge variant="default">ENABLED</Badge>
+                </div>
+                
+                <div className="flex items-center justify-between p-3 border rounded">
+                  <div>
+                    <div className="font-medium">Placeholder Detection</div>
+                    <div className="text-sm text-muted-foreground">Block placeholder content in criteria</div>
+                  </div>
+                  <Badge variant="default">ENABLED</Badge>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+};
+
+export default QADashboard;

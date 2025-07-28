@@ -12,6 +12,8 @@ import { validateSecureInput } from '@/lib/security';
 import { buildAICriteriaPrompt, validateCriteria, cleanJSON, detectAnnex1Fallback, type MPSContext, type OrganizationContext, type ValidationResult } from '@/lib/promptUtils';
 import { logCriticalError, logKeyDecision, logSecurityViolation, type DebugContext } from '@/lib/errorUtils';
 import { AdminTestMode } from './AdminTestMode';
+import { QADebugHub } from '@/components/qa/QADebugHub';
+import { RedAlertMonitor, useRedAlertMonitor } from '@/components/qa/RedAlertMonitor';
 
 interface Criterion {
   id: string;
@@ -65,15 +67,20 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
   const [debugInfo, setDebugInfo] = useState<DebugInfo>({});
   const [showAdminDebug, setShowAdminDebug] = useState(false);
   const [testMode, setTestMode] = useState(false);
+  const [showQAHub, setShowQAHub] = useState(false);
+  const [redAlerts, setRedAlerts] = useState<any[]>([]);
+  const [showRedAlert, setShowRedAlert] = useState(false);
   
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const { toast } = useToast();
+  const { validateForRedAlerts } = useRedAlertMonitor();
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     setShowAdminDebug(urlParams.get('dev') === 'true');
     setTestMode(urlParams.get('test') === 'true');
+    setShowQAHub(urlParams.get('qa') === 'true');
   }, []);
 
   const verifyDocumentContext = useCallback(async (mpsContext: MPSContext) => {
@@ -129,6 +136,14 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
       }
 
       const prompt = customPrompt || buildAICriteriaPrompt(mpsContext, organizationContext);
+      
+      // QA Framework: Red Alert Monitoring
+      const alerts = validateForRedAlerts(prompt, mps.mps_number, { organizationContext, mpsContext });
+      if (alerts.length > 0) {
+        setRedAlerts(alerts);
+        setShowRedAlert(true);
+        throw new Error(`QA FRAMEWORK BLOCKED: ${alerts.filter(a => a.severity === 'CRITICAL').length} critical issues detected`);
+      }
       
       if (detectAnnex1Fallback(prompt, mps.mps_number)) {
         throw new Error(`SECURITY BLOCK: Annex 1 fallback detected for MPS ${mps.mps_number}`);
@@ -336,6 +351,40 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
         />
       )}
 
+      {/* QA Debug Hub */}
+      {showQAHub && currentOrganization && (
+        <QADebugHub
+          mpsContext={{
+            mpsId: mps.id,
+            mpsNumber: mps.mps_number,
+            mpsTitle: mps.name,
+            domainId: mps.domain_id,
+            organizationId: currentOrganization.id
+          }}
+          organizationContext={{
+            id: currentOrganization.id,
+            name: currentOrganization.name || 'your organization',
+            industry_tags: currentOrganization.industry_tags || [],
+            region_operating: currentOrganization.region_operating || '',
+            compliance_commitments: currentOrganization.compliance_commitments || [],
+            custom_industry: currentOrganization.custom_industry || ''
+          }}
+          isVisible={showQAHub}
+        />
+      )}
+
+      {/* Red Alert Monitor */}
+      <RedAlertMonitor
+        alerts={redAlerts}
+        isOpen={showRedAlert}
+        onClose={() => setShowRedAlert(false)}
+        onAbort={() => {
+          setShowRedAlert(false);
+          setRedAlerts([]);
+        }}
+        mpsNumber={mps.mps_number}
+      />
+
       <Card className="w-full">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -346,6 +395,7 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
             <div className="flex items-center gap-2">
               {showAdminDebug && <Badge variant="outline" className="text-xs">DEBUG</Badge>}
               {testMode && <Badge variant="destructive" className="text-xs">TEST MODE</Badge>}
+              {showQAHub && <Badge variant="default" className="text-xs">QA ACTIVE</Badge>}
               <Badge variant="secondary">{criteria.length} criteria</Badge>
             </div>
           </CardTitle>
