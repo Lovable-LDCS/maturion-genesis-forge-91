@@ -176,24 +176,90 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
         console.log(`📝 Context fallback mode activated for MPS ${mps.mps_number}`);
       }
 
-      // Use enhanced prompt that includes MPS number for targeted generation
-      const enhancedPrompt = customPrompt || `
-CRITICAL MPS BINDING: Generate criteria ONLY for MPS ${mps.mps_number} - ${mps.name}
-TARGET: ${mpsContext.mpsTitle} in ${organizationContext.name}
-HARD REQUIREMENTS:
-- SOURCE: Only "MPS ${mps.mps_number}" document content - TARGET: ${organizationContext.name}
-- FORBIDDEN: Any reference to Annex 1, Leadership & Governance, or other MPS content
-EVIDENCE-FIRST FORMAT (MANDATORY): Every criterion MUST start with evidence type:
-- "A documented [document_type] that [action_verb] the [requirement] for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+      // Get document chunks first to build context-aware prompt
+      console.log(`🔍 Fetching document chunks for MPS ${mps.mps_number} before prompt construction`);
+      
+      const contextSearch = await supabase.functions.invoke('search-ai-context', {
+        body: {
+          query: `MPS ${mps.mps_number} Leadership`,
+          organizationId: currentOrganization.id,
+          documentTypes: ['mps_document', 'mps', 'standard'],
+          limit: 10,
+          threshold: 0.3,
+          mpsNumber: mps.mps_number
+        }
+      });
 
-Examples for ${mpsContext.mpsTitle}:
-- "A formal risk register that identifies and categorizes all operational risks for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
-- "A documented policy that defines roles and responsibilities for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+      console.log(`📊 Context search response:`, {
+        success: contextSearch.data?.success,
+        resultCount: contextSearch.data?.results?.length || 0,
+        error: contextSearch.error?.message
+      });
+
+      let actualDocumentContent = '';
+      let hasValidContext = false;
+
+      if (contextSearch.data?.success && contextSearch.data.results?.length > 0) {
+        hasValidContext = true;
+        console.log(`✅ Found ${contextSearch.data.results.length} chunks for prompt construction`);
+        
+        // Use actual document content in prompt
+        actualDocumentContent = contextSearch.data.results
+          .slice(0, 5) // Use top 5 most relevant chunks
+          .map((chunk: any, index: number) => 
+            `CHUNK ${index + 1} (similarity: ${chunk.similarity?.toFixed(3)}): ${chunk.content.slice(0, 300)}...`
+          ).join('\n\n');
+          
+        console.log(`📝 Document content preview:`, actualDocumentContent.slice(0, 200) + '...');
+      } else {
+        console.warn(`⚠️ No valid chunks found - will use enhanced reasoning fallback`);
+      }
+
+      // Build prompt based on whether we have actual document content
+      const enhancedPrompt = customPrompt || (hasValidContext ? `
+DOCUMENT-BASED CRITERIA GENERATION for MPS ${mps.mps_number} - ${mps.name}
+
+ACTUAL DOCUMENT CONTENT:
+${actualDocumentContent}
+
+REQUIREMENTS:
+- Generate criteria ONLY based on the above MPS ${mps.mps_number} document content
+- Target organization: ${organizationContext.name}
+- FORBIDDEN: Any placeholder text like "Criterion A", "Criterion B", etc.
+- EVIDENCE-FIRST FORMAT (MANDATORY): Every criterion MUST start with evidence type:
+  "A documented [document_type] that [action_verb] the [requirement] for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+
+Generate 8-12 criteria in JSON format based ONLY on the document content above:
+[{"statement": "evidence-first statement here", "summary": "brief explanation"}]` : `
+ENHANCED REASONING MODE for MPS ${mps.mps_number} - ${mps.name}
+(Limited document context - using organizational intelligence)
+
+TARGET: ${mpsContext.mpsTitle} for ${organizationContext.name}
+INDUSTRY: ${organizationContext.industry_tags.join(', ') || 'General'}
+REGION: ${organizationContext.region_operating || 'Global'}
+
+REQUIREMENTS:
+- Generate evidence-based criteria for ${mpsContext.mpsTitle}
+- Target organization: ${organizationContext.name}
+- FORBIDDEN: Any placeholder text like "Criterion A", "Criterion B", etc.
+- EVIDENCE-FIRST FORMAT (MANDATORY): Every criterion MUST start with evidence type:
+  "A documented [document_type] that [action_verb] the [requirement] for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+
+Examples:
+- "A formal policy that establishes governance framework for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+- "A documented procedure that defines risk management processes for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 
 Generate 8-12 criteria in JSON format:
-[{"statement": "evidence-first statement here", "summary": "brief explanation"}]`;
+[{"statement": "evidence-first statement here", "summary": "brief explanation"}]`);
 
       const prompt = enhancedPrompt;
+      
+      console.log(`🎯 FINAL PROMPT BEING SENT TO AI:`, {
+        promptLength: prompt.length,
+        hasDocumentContent: hasValidContext,
+        mpsNumber: mps.mps_number,
+        promptPreview: prompt.slice(0, 300) + '...'
+      });
       
       // QA Framework: Red Alert Monitoring
       const alerts = validateForRedAlerts(prompt, mps.mps_number, { organizationContext, mpsContext });
