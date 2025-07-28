@@ -131,9 +131,9 @@ export const useIntentGeneration = () => {
         knowledgeBaseEnforced: data.knowledgeBaseEnforced
       });
 
-      if (data.success) {
+      if (data.response) {
         console.log('✅ Intent generation successful');
-        console.log('📝 Response preview:', data.content?.substring(0, 200) + '...');
+        console.log('📝 Response preview:', data.response?.substring(0, 200) + '...');
         
         // Log debug information about sources used
         if (data.hasDocumentContext) {
@@ -142,7 +142,7 @@ export const useIntentGeneration = () => {
           console.log('⚠️ Limited knowledge sources - using external insights');
         }
         
-        return data.content || '';
+        return data.response || '';
       } else {
         throw new Error(data.error || 'Failed to generate intent');
       }
