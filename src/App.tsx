@@ -25,6 +25,7 @@ import MaturionKnowledgeBase from "./pages/MaturionKnowledgeBase";
 import Journey from "./pages/Journey";
 import Subscribe from "./pages/Subscribe";
 import AdminConfig from "./pages/AdminConfig";
+import QADashboard from "./pages/QADashboard";
 import NotFound from "./pages/NotFound";
 import SubscribeCheckout from "./pages/SubscribeCheckout";
 
@@ -70,6 +71,7 @@ const App = () => (
               <Route path="/subscribe" element={<Subscribe />} />
               <Route path="/subscribe/checkout" element={<SubscribeCheckout />} />
               <Route path="/admin/config" element={<AdminConfig />} />
+              <Route path="/qa-dashboard" element={<QADashboard />} />
               <Route path="/milestones/:id" element={<MilestoneDetail />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
