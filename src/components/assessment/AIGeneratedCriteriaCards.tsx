@@ -99,110 +99,83 @@ const [criteria, setCriteria] = useState<Criterion[]>([]);
         return;
       }
 
-      // Enhanced AI generation prompt following ALL uploaded interpretation documents and Annex compliance
-      const detailedPrompt = `CRITICAL: Generate comprehensive assessment criteria for MPS ${mps.mps_number}: ${mps.name}
+      // ENHANCED AI GENERATION PROMPT - EVIDENCE-FIRST COMPLIANCE AND FALLBACK PREVENTION
+      const detailedPrompt = `🔥 CRITICAL CRITERIA GENERATION FOR MPS ${mps.mps_number}: ${mps.name}
 
-🔥 MANDATORY COMPLIANCE WITH ALL UPLOADED INTERPRETATION DOCUMENTS:
-This generation MUST reference and follow ALL rules from uploaded knowledge sources:
-- Maturion Knowledge File v1 (4eb06fc3-5e3c-4f8f-a55d-c602cf9b9d6d.md): behavior policy & Supabase integration
-- Annex 1: Criteria Development Template: Format structure for all generated criteria
-- Annex 2: Criteria Evaluation Policy: 7 golden rules for valid criteria enforcement  
-- Annex 3: MPS Documents 1-25: Source material for minimum performance standards
-- AI Behavior & Knowledge Source Policy: Prioritize internal → org → sector → fallback only if required
-- Self-Learning Feedback Specification v1: Guide future refinement (accepted vs rejected patterns)
+🚫 ABSOLUTE PROHIBITIONS (WILL CAUSE REJECTION):
+❌ NEVER start criteria with organization name: "${organizationContext.name} must..."
+❌ NEVER generate placeholder text: "Assessment criterion X for Y", "Summary for criterion X"
+❌ NEVER use vague verbs: "ensure", "appropriate", "effective" (without definition)
+❌ NEVER combine multiple evidence types in one criterion
+❌ NEVER generate fewer criteria than required by uploaded MPS document
 
-🚫 REMOVE ALL ARTIFICIAL LIMITS: Generate FULL count as defined in MPS documents until self-learning history established.
-Expected counts: MPS 2 = 14 criteria, MPS 1 = full document count, MPS 4 = full document count.
+✅ MANDATORY EVIDENCE-FIRST FORMAT (NON-NEGOTIABLE):
+Every criterion MUST start with evidence type:
+- "A documented risk register identifies, categorizes, and prioritizes operational risks across all ${organizationContext.name} business units."
+- "A formal policy that is approved by senior management defines the roles and responsibilities for incident response within ${organizationContext.name}."
+- "A quarterly report submitted to the board documents the effectiveness of cybersecurity controls implemented across ${organizationContext.name}."
 
-📋 DUAL-FORMAT INTERPRETATION RULE (CANONICAL):
-1. COUNT "Requirement:" blocks in uploaded MPS ${mps.mps_number} .docx document  
-2. Each "Requirement:" block → criterion statement (evidence-first format)
-3. Each "Evidence:" block → evidence_guidance field (contextualized)
-4. Generate EXACTLY same number of criteria as "Requirement:" blocks found
-5. Sequence: ${mps.mps_number}.1, ${mps.mps_number}.2, etc. (match document order)
-6. NO GENERATION CAPS - use uploaded .docx as canonical reference
+🔴 ENFORCE ALL 7 ANNEX 2 RULES (MANDATORY COMPLIANCE):
+1. ✅ EVIDENCE-FIRST: Criterion MUST start with evidence type (document/policy/register/report/procedure)
+2. ✅ SINGLE EVIDENCE: Only ONE evidence type per criterion - split compound verbs into separate criteria
+3. ✅ MEASURABLE VERBS: Use "identifies", "defines", "documents", "tracks", "outlines", "assigns" - NO vague terms
+4. ✅ UNAMBIGUOUS CONTEXT: 10 different people must interpret identically - be specific about scope and requirements
+5. ✅ ORGANIZATIONAL TAILORING: Reference "${organizationContext.name}" and ${organizationContext.industry_tags.join('/')} context throughout
+6. ✅ DUPLICATE PREVENTION: Remove only if BOTH evidence_type AND context_scope match exactly
+7. ✅ COMPLETE STRUCTURE: All 5 fields (statement, summary, rationale, evidence_guidance, explanation) MUST be fully populated
 
-🔴 ENFORCE ALL 7 CRITERIA RULES FROM ANNEX 2 (MANDATORY):
-1. ✅ SINGLE EVIDENCE ITEM per criterion - REJECT compound verbs ("establish and maintain" → SPLIT into separate criteria)
-2. ✅ Unambiguous language (10 different reviewers must interpret identically)  
-3. ✅ Independently verifiable (testable through physical evidence/observation)
-4. ✅ Contextually relevant (reference organization where needed, but not as leading token)
-5. ✅ Auditable traceability (align with evidence trail/process audit requirements)
-6. ✅ No duplicates using DUAL-TOKEN CHECK (evidence_type + context_scope must BOTH match)
-7. ✅ Consistent structure (Statement → Summary → Rationale → Evidence → Explanation)
+🔍 ENHANCED DUPLICATE DETECTION (CRITICAL LOGIC):
+MARK AS DUPLICATE only if:
+- Evidence Type matches exactly (policy = policy, register = register) AND
+- Operational Context matches exactly (risk management = risk management, incident response = incident response)
 
-🔍 REFINED DUPLICATE DETECTION LOGIC (FINAL VERSION):
-- DUAL-TOKEN CHECK: evidence_type (policy/SOP/register/minutes) + context_scope (incident/change/risk/review)
-- TRUE DUPLICATE = BOTH tokens match exactly (same evidence + same operational context)
-- NOT DUPLICATES if same evidence_type but different context_scope (e.g., "policy for incident response" vs "policy for change control")
-- RETAIN criteria with same evidence type but different operational contexts, roles, systems, stages, or control purposes
-- LOG ALL DECISIONS: "Duplicate: same evidence + context", "Retained: different scope", "Split: compound verb detected"
+NOT DUPLICATES if:
+- Same evidence type but different contexts: "policy for risk management" vs "policy for incident response"
+- Same evidence type but different roles: "register maintained by IT" vs "register maintained by security"
+- Same evidence type but different purposes: "document for planning" vs "document for review"
 
-🚫 COMPOUND VERB ENFORCEMENT (Rule #2 Critical):
-- DETECT and REJECT criteria combining multiple verbs implying separate evidence: "establish and maintain", "implement and review", "create and update"
-- FORCE SPLIT: Each verb requiring different evidence = separate criterion
-- Example: "establish and maintain risk register" → "establish risk register" + "maintain risk register" (2 separate criteria)
-- LOG SPLIT DECISIONS: "Split compound verb: [original] → [criterion 1] + [criterion 2]"
+📋 FULL MPS DOCUMENT COMPLIANCE:
+- Extract ALL requirements from uploaded MPS ${mps.mps_number} document
+- Generate EXACTLY the number of criteria as requirements found (no artificial limits)
+- Map each requirement block to evidence-first criterion statement
+- Extract evidence guidance from corresponding evidence blocks
+- Maintain document sequence order: ${mps.mps_number}.1, ${mps.mps_number}.2, etc.
 
-🔧 REQUIRED EVIDENCE-FIRST FORMAT (MANDATORY STRUCTURE):
-Every criterion MUST follow this format:
-"[Evidence Type] that is [availability qualifier], [verb/action] the [responsibility/requirement] of [stakeholder/subject], [context of use]."
+🎯 ORGANIZATIONAL CONTEXT INTEGRATION:
+- Organization: ${organizationContext.name} (${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry})
+- Region: ${organizationContext.region_operating}
+- Compliance Requirements: ${organizationContext.compliance_commitments.join(', ')}
+- Scale all evidence requirements to ${organizationContext.name}'s operational context
 
-PROHIBITED format: "${organizationContext.name} must [do something]..."
-REQUIRED format examples:
-- "A policy that is approved and published outlines the roles and responsibilities of stakeholders by clearly defining separation of duties in all critical business processes."
-- "A register containing all current incidents is maintained by the security team to track and analyze security events."
-- "A report that is submitted quarterly documents the effectiveness of risk management controls implemented by the organization."
-
-🎯 EVIDENCE-FIRST TEMPLATE RULES:
-1. Start with evidence type: "A document", "A policy", "A register", "A report", "A procedure"
-2. Add availability qualifier: "that is readily available", "that is approved and published", "that is maintained"
-3. Use specific verbs: "describes", "defines", "assigns", "documents", "outlines", "identifies", "tracks"
-4. Replace weak verbs: "ensure" → "describe/define/assign/document", "appropriate" → specify condition, "effective" → tie to outcome
-5. Make stakeholder role explicit: "staff", "supervisors", "Security Control Committee", "Procurement Team", "IT Department"
-6. Add context expansion where relevant: "(Critical functions refers to those rated 'High' on the risk register)"
-
-📝 REQUIRED STRUCTURE (ALL 5 FIELDS MANDATORY):
+🔧 MANDATORY OUTPUT STRUCTURE:
 {
-  "statement": "[Evidence Type] that is [qualifier], [specific verb] the [requirement] of [explicit stakeholder] in [context].",
-  "summary": "Brief overview (max 15 words)",
-  "rationale": "Why important for organizational operations (max 25 words)",
-  "evidence_guidance": "[Exact extraction from Evidence: block, with specific document requirements]",
-  "explanation": "Detailed explanation with organizational context and industry considerations",
-  "source_origin": "internal_document|organizational_context|sector_memory|best_practice_fallback",
-  "source_reference": "MPS ${mps.mps_number}, Section X.Y - [specific clause reference]",
-  "evidence_hash": "[unique identifier for evidence type required]",
-  "reasoning_path": "Derived from [source] because [logic] requiring [evidence type]"
+  "statement": "A [evidence_type] that is [availability_qualifier] [specific_verb] the [requirement] of [explicit_stakeholder] [context_at_organization].",
+  "summary": "[Concise 10-15 word description of what this criterion validates]",
+  "rationale": "[Why this is critical for ${organizationContext.name}'s ${organizationContext.industry_tags.join('/')} operations - max 25 words]",
+  "evidence_guidance": "[Specific document/artifact requirements extracted from MPS evidence block]",
+  "explanation": "[Detailed explanation with ${organizationContext.name} context and operational implications]",
+  "source_origin": "internal_document",
+  "source_reference": "MPS ${mps.mps_number}, Section X.Y",
+  "evidence_hash": "[unique_evidence_identifier]",
+  "reasoning_path": "Generated from MPS ${mps.mps_number} requirement block requiring [evidence_type]",
+  "duplicate_check_result": "No duplicates - unique evidence+context combination",
+  "compound_verb_analysis": "Single action verb validated"
 }
 
-🎯 ORGANIZATIONAL CONTEXT TAILORING:
-- Organization: ${organizationContext.name}
-- Industry: ${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry}
-- Region: ${organizationContext.region_operating}
-- Compliance: ${organizationContext.compliance_commitments.join(', ')}
-- ALWAYS use "${organizationContext.name}" never "the organization"
-- Scale evidence requirements to ${organizationContext.name}'s industry context
+⚡ KNOWLEDGE SOURCE PRIORITY (STRICT ENFORCEMENT):
+1. PRIMARY: Uploaded MPS ${mps.mps_number} document content (MUST BE USED)
+2. SECONDARY: ${organizationContext.name} organizational profile and industry context
+3. TERTIARY: Sector-specific compliance requirements
+4. FALLBACK: Only if above sources insufficient (LOG WHY)
 
-⚡ KNOWLEDGE SOURCE PRIORITY (STRICT HIERARCHY):
-1. Internal uploaded MPS documents (HIGHEST) → source_origin: "internal_document"
-2. Organizational profile and context → source_origin: "organizational_context"
-3. Sector-specific requirements → source_origin: "sector_memory"
-4. Best practice fallbacks (ONLY when above insufficient) → source_origin: "best_practice_fallback"
-
-🔒 QUALITY ASSURANCE REQUIREMENTS:
-- Each criterion must be independently auditable
-- No generic language - all criteria must be ${organizationContext.name}-specific
-- Evidence requirements must be realistic for ${organizationContext.industry_tags.join('/')} sector
+🚨 QUALITY ASSURANCE CHECKS:
+- Every criterion must pass independent audit verification
+- All statements must be ${organizationContext.name}-specific (never generic)
+- Evidence requirements must be realistic for ${organizationContext.industry_tags.join('/')} operations
 - Source attribution must be explicit and traceable
-- Reasoning path must be documented for each criterion
+- NO generic templates or placeholder text allowed
 
-🚨 SUPPRESSION RULES:
-- Do NOT use generic fallbacks when structured MPS document is present
-- Do NOT generate vague criteria requiring same evidence as another criterion
-- Do NOT use "the organization" anywhere in output
-- Do NOT exceed or reduce count from uploaded MPS document structure
-
-Return JSON array with exact count matching MPS ${mps.mps_number} "Requirement:" blocks, full compliance with 7 rules, and complete reasoning documentation.`;
+Generate comprehensive criteria array with full compliance to evidence-first format and complete elimination of fallback placeholders.`;
 
       // Call AI generation with enhanced parameters
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
@@ -245,27 +218,42 @@ Return JSON array with exact count matching MPS ${mps.mps_number} "Requirement:"
           try {
             generatedCriteria = JSON.parse(cleanJSON(responseContent));
           } catch (parseError) {
-            // Fallback: Extract criteria manually
-            const statements = responseContent.match(/"statement":\s*"([^"]+)"/g) || [];
-            generatedCriteria = statements.map((_, index) => ({
-              statement: `Assessment criterion ${index + 1} for ${organizationContext.name}`,
-              summary: `Summary for criterion ${index + 1}`,
-              rationale: `Rationale for ${mps.name} implementation`,
-              evidence_guidance: `Evidence requirements for ${organizationContext.name}`,
-              explanation: `This criterion ensures ${organizationContext.name} maintains effective ${mps.name?.toLowerCase()}. Ask Maturion for more details.`
-            }));
+            // CRITICAL: NO FALLBACK PLACEHOLDERS ALLOWED - Throw error to trigger regeneration
+            throw new Error(`AI failed to generate valid criteria format. Prohibited placeholder text detected. Raw response parsing failed: ${parseError.message}`);
           }
 
           // Validate and process criteria
           if (Array.isArray(generatedCriteria) && generatedCriteria.length > 0) {
-            // Quality assurance: Check organization name injection
-            const hasOrgNameInjection = generatedCriteria.every(criterion => 
-              criterion.statement?.includes(organizationContext.name) || 
-              criterion.explanation?.includes(organizationContext.name)
+            // CRITICAL: Validate against prohibited placeholder text
+            const hasProhibitedPlaceholders = generatedCriteria.some(criterion => 
+              criterion.statement?.includes('Assessment criterion') ||
+              criterion.statement?.includes('Criterion ') ||
+              criterion.summary?.includes('Summary for criterion') ||
+              criterion.statement?.startsWith(organizationContext.name + ' must') ||
+              !criterion.statement?.match(/^A\s+(document|policy|register|report|procedure|assessment|review|analysis)/i)
             );
 
-            if (!hasOrgNameInjection) {
-              // Inject organization name into statements
+            if (hasProhibitedPlaceholders) {
+              throw new Error('AI generated prohibited placeholder text or failed to follow evidence-first format. Regeneration required.');
+            }
+
+            // Validate evidence-first format compliance
+            const nonCompliantCriteria = generatedCriteria.filter(criterion =>
+              !criterion.statement?.match(/^A\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline)/i)
+            );
+
+            if (nonCompliantCriteria.length > 0) {
+              throw new Error(`${nonCompliantCriteria.length} criteria failed evidence-first format validation. All criteria must start with evidence type.`);
+            }
+
+            // Quality assurance: Check organization context integration
+            const hasOrgContextIntegration = generatedCriteria.every(criterion => 
+              criterion.explanation?.includes(organizationContext.name) ||
+              criterion.statement?.includes(organizationContext.name)
+            );
+
+            if (!hasOrgContextIntegration) {
+              // Enhance with organization context where needed
               generatedCriteria = generatedCriteria.map(criterion => ({
                 ...criterion,
                 explanation: criterion.explanation?.includes(organizationContext.name) 
