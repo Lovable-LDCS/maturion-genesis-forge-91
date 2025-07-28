@@ -92,48 +92,68 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
         return;
       }
 
-      // Enhanced AI generation prompt following backoffice specification
+      // Enhanced AI generation prompt following backoffice specification and dual-format interpretation
       const detailedPrompt = `CRITICAL: Generate comprehensive assessment criteria for MPS ${mps.mps_number}: ${mps.name}
 
+DUAL-FORMAT INTERPRETATION RULE (MANDATORY):
+1. EXTRACT criteria count by counting "Requirement:" blocks in the uploaded MPS document
+2. Each "Requirement:" block becomes a criterion statement
+3. Each "Evidence:" block becomes the evidence_guidance field
+4. Generate EXACTLY the same number of criteria as "Requirement:" blocks found
+5. Sequence criteria to match document order (e.g., ${mps.mps_number}.1, ${mps.mps_number}.2, etc.)
+
 MANDATORY REQUIREMENTS:
-1. MUST use uploaded MPS documents as PRIMARY source - extract ALL criteria from the uploaded document
-2. MUST tailor to ${organizationContext.name} organizational context (use organization name, not "the organization")
+1. MUST use uploaded MPS documents as PRIMARY source - scan for all "Requirement:" and "Evidence:" blocks
+2. MUST tailor to ${organizationContext.name} organizational context (NEVER use "the organization")
 3. MUST consider industry: ${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry || 'General'}
-4. MUST include ALL required fields for each criterion
-5. MUST generate ALL criteria found in the source document (do not limit to 10 criteria)
+4. MUST include ALL five required fields for each criterion
+5. MUST generate criteria count matching uploaded document structure
+6. MUST suppress generic fallbacks when structured MPS document is present
 
 REQUIRED STRUCTURE for each criterion:
 {
-  "statement": "${organizationContext.name} must [specific requirement from uploaded document]",
-  "summary": "Brief overview of what this criterion addresses", 
-  "rationale": "Why this criterion is important for ${organizationContext.name}'s [industry context]",
-  "evidence_guidance": "Specific evidence types and documentation ${organizationContext.name} needs to provide",
+  "statement": "${organizationContext.name} must [extract from Requirement: block with org name injection]",
+  "summary": "Brief overview of what this criterion addresses (max 15 words)", 
+  "rationale": "Why this criterion is important for ${organizationContext.name}'s [industry context] (max 25 words)",
+  "evidence_guidance": "[Extract from Evidence: block and tailor to ${organizationContext.name}]",
   "explanation": "Detailed explanation with ${organizationContext.name} context and industry considerations",
-  "source_origin": "internal_document|organizational_context|sector_memory|best_practice_fallback"
+  "source_origin": "internal_document|organizational_context|sector_memory|best_practice_fallback",
+  "source_reference": "Specific MPS document section or fallback source used"
 }
 
-DYNAMIC CRITERIA COUNT:
-- Extract and generate ALL criteria from the uploaded MPS document
-- If MPS 2 has 14 sub-requirements (2.1 through 2.14), generate all 14 criteria
-- Do NOT limit to 8-10 criteria - use the full document scope
-- Each criterion should map to a specific requirement in the source document
-- Number criteria appropriately (e.g., 2.1, 2.2, 2.3... for MPS 2)
+CRITERIA COUNT COMPLIANCE:
+- Count all "Requirement:" blocks in the uploaded MPS ${mps.mps_number} document
+- Generate EXACTLY that number of criteria (typically 8-14 for most MPS documents)
+- If MPS 2 document contains 14 "Requirement:" blocks, generate exactly 14 criteria
+- Each criterion maps 1:1 with a "Requirement:" block
+- Number sequentially: ${mps.mps_number}.1, ${mps.mps_number}.2, etc.
 
 ORGANIZATIONAL CONTEXT TAILORING:
 - Organization: ${organizationContext.name}
 - Industry/Sector: ${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry}
 - Region: ${organizationContext.region_operating}
 - Compliance frameworks: ${organizationContext.compliance_commitments.join(', ')}
-- Replace all generic references with ${organizationContext.name}
-- Tailor evidence requirements to ${organizationContext.name}'s industry and scale
+- Replace ALL "the organization" references with "${organizationContext.name}"
+- Tailor evidence requirements to ${organizationContext.name}'s industry scale and context
+
+STRUCTURED INTERPRETATION ENFORCEMENT:
+- Use uploaded document structure as authoritative source
+- Only use fallback logic if uploaded document lacks clear "Requirement:" blocks
+- Log source attribution for each criterion generated
+- Ensure unambiguous language: "10 reviewers should interpret identically"
 
 KNOWLEDGE SOURCE PRIORITY & ATTRIBUTION:
-1. Internal uploaded documents (highest priority) → source_origin: "internal_document"
+1. Internal uploaded MPS documents (highest priority) → source_origin: "internal_document"
 2. Organizational profile and context → source_origin: "organizational_context"  
 3. Sector-specific requirements → source_origin: "sector_memory"
 4. Best practice fallbacks (only when above insufficient) → source_origin: "best_practice_fallback"
 
-Return a JSON array of criteria objects with all required fields and proper source attribution. Extract ALL criteria from the uploaded document.`;
+BACKEND LOGGING REQUIREMENT:
+- Log each criterion's source attribution
+- Log where AI had to infer missing requirements
+- Log any fallback logic usage with justification
+
+Return a JSON array of criteria objects with all required fields, proper source attribution, and exact count matching uploaded MPS document "Requirement:" blocks.`;
 
       // Call AI generation with enhanced parameters
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
