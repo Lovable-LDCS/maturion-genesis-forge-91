@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Settings, TestTube, FileText, CheckCircle } from 'lucide-react';
 import { QADebugHub, RegressionTestMode } from '@/components/qa';
+import { MPSLinkageRebuilder } from '@/components/qa/MPSLinkageRebuilder';
 import { QASystemTest } from '@/components/qa/QASystemTest';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
 import { useAuth } from '@/contexts/AuthContext';
@@ -137,6 +138,8 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
               <QASystemTest />
             </CardContent>
           </Card>
+          
+          <MPSLinkageRebuilder />
         </TabsContent>
         
         <TabsContent value="debug" className="space-y-4">

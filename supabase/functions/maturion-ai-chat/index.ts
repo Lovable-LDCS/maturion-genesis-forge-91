@@ -606,12 +606,13 @@ ${websiteMetadata}
       behaviorPolicy = await getAIBehaviorPolicy(organizationId);
       intentPromptLogic = await getIntentPromptLogic(organizationId);
       
-      // Extract MPS number from prompt for targeted search
-      const mpsNumberMatch = prompt.match(/MPS\s*(\d+)/i);
-      const mpsNumber = mpsNumberMatch ? parseInt(mpsNumberMatch[1]) : undefined;
+      // Extract MPS number from prompt for targeted search (use passed parameter first)
+      const extractedMpsNumber = mpsNumber || (prompt.match(/MPS\s*(\d+)/i)?.[1] ? parseInt(prompt.match(/MPS\s*(\d+)/i)?.[1]) : undefined);
+      
+      console.log(`🎯 MPS targeting: ${extractedMpsNumber ? `MPS ${extractedMpsNumber}` : 'No specific MPS'}`);
       
       // Get document context for the specific request with MPS targeting
-      documentContext = await getDocumentContext(organizationId, prompt, currentDomain, mpsNumber);
+      documentContext = await getDocumentContext(organizationId, prompt, currentDomain, extractedMpsNumber);
       sourceType = 'internal';
       
       console.log(`Knowledge base context length: ${documentContext.length} characters`);
