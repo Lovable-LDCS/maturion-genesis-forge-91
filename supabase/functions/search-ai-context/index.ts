@@ -288,7 +288,7 @@ serve(async (req) => {
     
     for (const chunk of chunks) {
       try {
-        // Parse the stored embedding - Supabase vector type is already an array
+        // Parse the stored embedding - handle multiple formats from reprocessing
         let chunkEmbedding: number[];
         
         if (Array.isArray(chunk.embedding)) {
@@ -296,8 +296,30 @@ serve(async (req) => {
         } else if (chunk.embedding && typeof chunk.embedding === 'object') {
           // Handle case where embedding might be stored as object with numeric keys
           chunkEmbedding = Object.values(chunk.embedding as Record<string, number>);
+        } else if (typeof chunk.embedding === 'string') {
+          // Handle case where embedding is stored as JSON string
+          try {
+            const parsed = JSON.parse(chunk.embedding);
+            if (Array.isArray(parsed)) {
+              chunkEmbedding = parsed;
+            } else if (typeof parsed === 'object') {
+              chunkEmbedding = Object.values(parsed as Record<string, number>);
+            } else {
+              console.error(`Chunk ${chunk.id} has unparseable string embedding format, skipping`);
+              continue;
+            }
+          } catch (parseError) {
+            console.error(`Chunk ${chunk.id} has invalid JSON string embedding format, skipping:`, parseError);
+            continue;
+          }
         } else {
-          console.warn(`Chunk ${chunk.id} has invalid embedding format, skipping`);
+          console.error(`Chunk ${chunk.id} has invalid embedding format (${typeof chunk.embedding}), skipping`);
+          continue;
+        }
+        
+        // Validate embedding is an array of numbers
+        if (!Array.isArray(chunkEmbedding) || chunkEmbedding.length === 0 || !chunkEmbedding.every(val => typeof val === 'number' && !isNaN(val))) {
+          console.error(`Chunk ${chunk.id} has invalid embedding data (not numeric array), skipping`);
           continue;
         }
         
