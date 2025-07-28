@@ -118,6 +118,7 @@ Return format: [{"statement": "...", "summary": "...", "rationale": "...", "evid
         body: {
           prompt: `Generate ${expectedCriteriaCount} assessment criteria for MPS ${mps.mps_number}`,
           context: JSON.stringify({ mps, organization: organizationContext }),
+          organizationId: currentOrganization.id,
           systemPrompt,
           model: 'gpt-4o-mini',
           temperature: 0
