@@ -75,7 +75,14 @@ serve(async (req) => {
     // Filter by document types if specified
     if (documentTypes.length > 0) {
       console.log('Filtering by document types:', documentTypes);
-      baseQuery = baseQuery.in('ai_documents.document_type', documentTypes);
+      // Map document type aliases for better compatibility
+      const typeMapping: Record<string, string> = {
+        'mps': 'mps_document',
+        'standard': 'mps_document'
+      };
+      const mappedTypes = documentTypes.map(type => typeMapping[type] || type);
+      console.log('Mapped document types:', mappedTypes);
+      baseQuery = baseQuery.in('ai_documents.document_type', mappedTypes);
     }
 
     // Get all relevant chunks for semantic comparison
