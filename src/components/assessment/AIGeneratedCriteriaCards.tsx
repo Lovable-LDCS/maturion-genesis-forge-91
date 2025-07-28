@@ -108,6 +108,68 @@ const [criteria, setCriteria] = useState<Criterion[]>([]);
         organizationId: currentOrganization.id
       };
 
+      // Enhanced debugging for admin mode
+      if (showAdminDebug) {
+        console.log('🔧 DEBUG MODE - Criteria Generation for:', {
+          mps_id: mps.id,
+          mps_number: mps.mps_number,
+          mps_title: mps.name,
+          organization_id: currentOrganization.id,
+          expected_document: `MPS ${mps.mps_number} – ${mps.name}`
+        });
+
+        // Test document context retrieval
+        console.log('🔧 DEBUG - Testing context search for:', {
+          query: `MPS ${mps.mps_number} ${mps.name}`,
+          organizationId: currentOrganization.id,
+          expected_filename: `MPS ${mps.mps_number} – ${mps.name}`
+        });
+        
+        try {
+          const contextTest = await supabase.functions.invoke('search-ai-context', {
+            body: {
+              query: `MPS ${mps.mps_number} ${mps.name}`,
+              organizationId: currentOrganization.id,
+              documentTypes: ['mps', 'standard', 'audit', 'criteria', 'annex'],
+              limit: 5
+            }
+          });
+          
+          console.log('🔧 DEBUG - Context Search Results:', {
+            success: contextTest.data?.success,
+            results_count: contextTest.data?.results?.length || 0,
+            search_type: contextTest.data?.search_type,
+            error: contextTest.error?.message,
+            debug_info: contextTest.data?.debug,
+            first_result: contextTest.data?.results?.[0]
+          });
+          
+          if (contextTest.data?.results?.length === 0) {
+            console.warn('⚠️ WARNING: No document context found for MPS', mps.mps_number, {
+              organizationId: currentOrganization.id,
+              search_query: `MPS ${mps.mps_number} ${mps.name}`,
+              context_debug: contextTest.data?.debug
+            });
+          }
+          
+          setDebugInfo(prev => ({ 
+            ...prev, 
+            contextSearch: {
+              query: `MPS ${mps.mps_number} ${mps.name}`,
+              results: contextTest.data?.results || [],
+              searchType: contextTest.data?.search_type,
+              debugInfo: contextTest.data?.debug
+            }
+          }));
+        } catch (searchError) {
+          console.error('🚨 Context search failed:', searchError);
+          setDebugInfo(prev => ({ 
+            ...prev, 
+            contextSearch: { error: searchError.message } 
+          }));
+        }
+      }
+
       // Debug logging for MPS context binding
       console.log('🎯 MPS Context Binding:', mpsContext);
       setDebugInfo(prev => ({ 

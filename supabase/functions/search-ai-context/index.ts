@@ -56,22 +56,26 @@ serve(async (req) => {
     console.log('Fetching chunks with embeddings for semantic search');
     
     let baseQuery = supabase
-      .from('ai_document_chunks')
+      .from('criteria_chunks')
       .select(`
         id,
-        document_id,
         content,
-        metadata,
+        chunk_index,
         embedding,
-        ai_documents!inner(file_name, document_type, organization_id)
+        mps_documents!inner(
+          id,
+          title,
+          organization_id,
+          document_type
+        )
       `)
-      .eq('organization_id', organizationId)
+      .eq('mps_documents.organization_id', organizationId)
       .not('embedding', 'is', null); // Only get chunks with embeddings
 
     // Filter by document types if specified
     if (documentTypes.length > 0) {
       console.log('Filtering by document types:', documentTypes);
-      baseQuery = baseQuery.in('ai_documents.document_type', documentTypes);
+      baseQuery = baseQuery.in('mps_documents.document_type', documentTypes);
     }
 
     // Get all relevant chunks for semantic comparison
@@ -100,17 +104,20 @@ serve(async (req) => {
         
         // Try to find chunks in any of these organizations
         const { data: altChunks, error: altFetchError } = await supabase
-          .from('ai_document_chunks')
+          .from('criteria_chunks')
           .select(`
             id,
-            document_id,
             content,
-            metadata,
+            chunk_index,
             embedding,
-            organization_id,
-            ai_documents!inner(file_name, document_type, organization_id)
+            mps_documents!inner(
+              id,
+              title,
+              organization_id,
+              document_type
+            )
           `)
-          .in('organization_id', orgIds)
+          .in('mps_documents.organization_id', orgIds)
           .not('embedding', 'is', null)
           .limit(100);
           
@@ -131,63 +138,137 @@ serve(async (req) => {
       
       console.log('Using search terms:', searchTerms);
       
-      let textSearchQuery = supabase
-        .from('ai_document_chunks')
-        .select(`
-          id,
-          document_id,
-          content,
-          metadata,
-          ai_documents!inner(file_name, document_type)
-        `)
-        .eq('organization_id', organizationId);
-        
-      // Add text search conditions for each term
+      // Fallback to simple text search with safer approach
       if (searchTerms.length > 0) {
-        const searchConditions = searchTerms.map(term => `content.ilike.%${term}%`).join(',');
-        textSearchQuery = textSearchQuery.or(searchConditions);
-      } else {
-        // If no valid search terms, just get recent chunks
-        textSearchQuery = textSearchQuery.limit(limit);
-      }
+        console.log('Attempting text search on criteria_chunks...');
         
-      if (documentTypes.length > 0) {
-        textSearchQuery.in('ai_documents.document_type', documentTypes);
-      }
+        let textQuery = supabase
+          .from('criteria_chunks')
+          .select(`
+            id,
+            content,
+            chunk_index,
+            mps_documents!inner(
+              id,
+              title,
+              organization_id,
+              document_type
+            )
+          `)
+          .eq('mps_documents.organization_id', organizationId);
+
+        // Use safer text search - apply each term individually
+        searchTerms.forEach(term => {
+          textQuery = textQuery.ilike('content', `%${term}%`);
+        });
+
+        if (documentTypes.length > 0) {
+          textQuery = textQuery.in('mps_documents.document_type', documentTypes);
+        }
+
+        const { data: textChunks, error: textError } = await textQuery.limit(limit);
         
-      const { data: textChunks, error: textError } = await textSearchQuery;
-      
-      if (textError) {
-        console.error('Text search error:', textError);
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: 'Search failed',
-            results: []
-          }),
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        if (textError) {
+          console.error('Text search error:', textError);
+          
+          // Final fallback - try searching without document type filter
+          console.log('Attempting simpler search...');
+          const { data: simpleChunks, error: simpleError } = await supabase
+            .from('criteria_chunks')
+            .select(`
+              id,
+              content,
+              chunk_index,
+              mps_documents!inner(
+                id,
+                title,
+                organization_id
+              )
+            `)
+            .eq('mps_documents.organization_id', organizationId)
+            .ilike('content', `%${searchTerms[0]}%`)
+            .limit(10);
+
+          if (!simpleError && simpleChunks && simpleChunks.length > 0) {
+            const simpleResults = simpleChunks.map(chunk => ({
+              chunk_id: chunk.id,
+              document_id: chunk.mps_documents?.id || '',
+              document_name: chunk.mps_documents?.title || 'Unknown',
+              document_type: 'mps',
+              content: chunk.content,
+              similarity: 0.5,
+              metadata: { chunk_index: chunk.chunk_index }
+            }));
+
+            return new Response(
+              JSON.stringify({ 
+                success: true, 
+                results: simpleResults,
+                query: query,
+                total_results: simpleResults.length,
+                search_type: 'simple_text',
+                debug: { organizationId, searchTerms }
+              }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+
+          return new Response(
+            JSON.stringify({ 
+              success: false, 
+              error: 'No matching documents found',
+              debug: { 
+                organizationId, 
+                searchTerms,
+                textError: textError.message,
+                simpleError: simpleError?.message
+              },
+              results: []
+            }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const textResults = textChunks?.map(chunk => ({
+          chunk_id: chunk.id,
+          document_id: chunk.mps_documents?.id || '',
+          document_name: chunk.mps_documents?.title || 'Unknown',
+          document_type: chunk.mps_documents?.document_type || 'mps',
+          content: chunk.content,
+          similarity: 0.7, // Default similarity for text search
+          metadata: { chunk_index: chunk.chunk_index }
+        })) || [];
+        
+        if (textResults.length > 0) {
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              results: textResults,
+              query: query,
+              total_results: textResults.length,
+              search_type: 'text',
+              debug: { organizationId, searchTerms }
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
       
-      const textResults = textChunks?.map(chunk => ({
-        chunk_id: chunk.id,
-        document_id: chunk.document_id,
-        document_name: chunk.ai_documents.file_name,
-        document_type: chunk.ai_documents.document_type,
-        content: chunk.content,
-        similarity: 0.8, // Default similarity for text search
-        metadata: chunk.metadata
-      })) || [];
-      
-      console.log(`Text search found ${textResults.length} results`);
-      
+      // No results found
       return new Response(
         JSON.stringify({ 
           success: true, 
-          results: textResults.slice(0, limit),
+          results: [],
           query: query,
-          total_results: textResults.length,
-          search_type: 'text'
+          total_results: 0,
+          search_type: 'no_results',
+          message: 'No matching content found in organization documents',
+          debug: { 
+            organizationId, 
+            searchTerms,
+            chunksWithEmbeddings: 0,
+            textSearchResults: 0
+          }
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
@@ -218,12 +299,12 @@ serve(async (req) => {
         if (similarity >= threshold) {
           results.push({
             chunk_id: chunk.id,
-            document_id: chunk.document_id,
-            document_name: chunk.ai_documents.file_name,
-            document_type: chunk.ai_documents.document_type,
+            document_id: chunk.mps_documents?.id || '',
+            document_name: chunk.mps_documents?.title || 'Unknown',
+            document_type: chunk.mps_documents?.document_type || 'mps',
             content: chunk.content,
             similarity: similarity,
-            metadata: chunk.metadata
+            metadata: { chunk_index: chunk.chunk_index }
           });
         }
       } catch (embeddingError) {
@@ -237,13 +318,16 @@ serve(async (req) => {
 
     // Create access audit log
     await supabase
-      .from('ai_upload_audit')
+      .from('audit_logs')
       .insert({
-        organization_id: organizationId,
-        action: 'access',
-        user_id: 'system', // This is a system search
-        metadata: {
+        user_id: 'system',
+        action: 'search_ai_context_semantic',
+        table_name: 'criteria_chunks',
+        record_id: null,
+        old_values: null,
+        new_values: {
           query: query,
+          organization_id: organizationId,
           results_count: results.length,
           document_types: documentTypes,
           search_timestamp: new Date().toISOString()
@@ -257,7 +341,8 @@ serve(async (req) => {
         success: true, 
         results: results,
         query: query,
-        total_results: results.length
+        total_results: results.length,
+        search_type: 'semantic'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
