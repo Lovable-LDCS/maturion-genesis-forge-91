@@ -67,7 +67,7 @@ serve(async (req) => {
     // Download file from storage
     console.log('Downloading file from storage...');
     const { data: fileData, error: downloadError } = await supabase.storage
-      .from('maturion-documents')
+      .from('ai-documents')
       .download(document.file_path);
 
     if (downloadError || !fileData) {
@@ -313,28 +313,51 @@ function isPlaceholderContent(content: string, fileName: string): boolean {
     /placeholder/gi,
     /lorem ipsum/gi,
     /This document has been processed for AI analysis/gi,
-    /Content extracted from.*File type:/gi
+    /Content extracted from.*File type:/gi,
+    /Annex\s*1/gi, // Block Annex 1 references
+    /fallback/gi,
+    /generic\s+mining/gi,
+    /template/gi
   ];
   
   const words = content.split(/\s+/).length;
-  console.log(`Content analysis for ${fileName}: ${words} words`);
+  const lines = content.split(/\n/).length;
   
-  // Too short to be real content
-  if (words < 100) {
-    console.log(`⚠️ Content too short: ${words} words`);
+  console.log(`📊 Content analysis for ${fileName}:`);
+  console.log(`   Words: ${words}, Lines: ${lines}`);
+  console.log(`   Sample: "${content.substring(0, 200)}..."`);
+  
+  // Too short to be real content - more lenient threshold
+  if (words < 50) {
+    console.log(`❌ Content too short: ${words} words (minimum 50)`);
     return true;
   }
   
   // Check for placeholder patterns
+  const detectedPatterns: string[] = [];
   const hasPlaceholders = placeholderPatterns.some(pattern => {
     const matches = pattern.test(content);
     if (matches) {
-      console.log(`⚠️ Placeholder pattern detected: ${pattern}`);
+      detectedPatterns.push(pattern.toString());
     }
     return matches;
   });
   
-  return hasPlaceholders;
+  if (hasPlaceholders) {
+    console.log(`❌ Placeholder patterns detected: ${detectedPatterns.join(', ')}`);
+    return true;
+  }
+  
+  // Check for suspiciously repetitive content
+  const uniqueWords = new Set(content.toLowerCase().split(/\s+/)).size;
+  const repetitionRatio = uniqueWords / words;
+  if (repetitionRatio < 0.3) {
+    console.log(`❌ Content too repetitive: ${uniqueWords} unique words out of ${words} (ratio: ${repetitionRatio.toFixed(2)})`);
+    return true;
+  }
+  
+  console.log(`✅ Content validation passed for ${fileName}`);
+  return false;
 }
 
 
