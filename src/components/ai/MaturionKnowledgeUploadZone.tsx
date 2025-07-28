@@ -19,6 +19,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { DocumentVersionDialog } from './DocumentVersionDialog';
 import { DocumentProcessingVerificationBlock } from './DocumentProcessingVerificationBlock';
 import { DocumentContentViewer } from './DocumentContentViewer';
+import { DocumentPreviewPane } from './DocumentPreviewPane';
 
 const documentTypeLabels: Record<MaturionDocument['document_type'], string> = {
   maturity_model: 'Maturity Model',
@@ -89,9 +90,14 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
   const [contentViewerDocument, setContentViewerDocument] = useState<MaturionDocument | null>(null);
   const [showContentViewer, setShowContentViewer] = useState(false);
 
+  // 🚀 ROOT CAUSE FIX: Preview pane state
+  const [previewFile, setPreviewFile] = useState<File | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+
   // Check if user is admin
   const isAdmin = currentOrganization?.user_role === 'admin' || currentOrganization?.user_role === 'owner';
 
+  // 🚀 ROOT CAUSE FIX: Modified onDrop to show preview for .docx files
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
     if (!user || !currentOrganization || !isAdmin) {
       toast({
@@ -102,15 +108,30 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
       return;
     }
 
-    for (const file of acceptedFiles) {
+    // For .docx files, show preview first (fail fast approach)
+    const file = acceptedFiles[0];
+    if (file && (file.name.endsWith('.docx') || file.type.includes('wordprocessingml'))) {
+      console.log(`🔍 .docx file detected: ${file.name}, showing preview for quality validation`);
+      setPreviewFile(file);
+      setShowPreview(true);
+      return; // Stop here and wait for preview completion
+    }
+
+    // For other file types, proceed with direct upload
+    await processFileUploads(acceptedFiles);
+  }, [user, currentOrganization, isAdmin, selectedDocumentType, selectedDomain, tags, uploadNotes, uploadDocument, toast, onDocumentChange]);
+
+  // Separated file upload logic for reuse
+  const processFileUploads = async (files: File[]) => {
+    for (const file of files) {
       // Auto-populate title from first file if empty
       const fileTitle = title || file.name.replace(/\.[^/.]+$/, '');
       
       await uploadDocument(
         file, 
         selectedDocumentType, 
-        currentOrganization.id, 
-        user.id,
+        currentOrganization!.id, 
+        user!.id,
         fileTitle,
         selectedDomain || undefined,
         tags || undefined,
@@ -127,7 +148,42 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
     if (onDocumentChange) {
       await onDocumentChange();
     }
-  }, [user, currentOrganization, isAdmin, selectedDocumentType, selectedDomain, tags, uploadNotes, uploadDocument, toast, onDocumentChange]);
+  };
+
+  // Handle preview completion
+  const handlePreviewComplete = async (isValid: boolean, preview: string) => {
+    if (!previewFile) return;
+
+    if (!isValid) {
+      toast({
+        title: "Document Quality Issues Detected",
+        description: "The document contains quality issues that may affect AI processing. Please review the preview and consider uploading a clean version.",
+        variant: "destructive",
+      });
+    } else {
+      console.log(`✅ Document quality validated: ${previewFile.name}`);
+      toast({
+        title: "Document Quality Validated",
+        description: `${previewFile.name} passed quality checks and will be processed cleanly.`,
+      });
+    }
+
+    // Proceed with upload regardless of quality (user choice)
+    await processFileUploads([previewFile]);
+    
+    // Clean up preview state
+    setShowPreview(false);
+    setPreviewFile(null);
+  };
+
+  const handlePreviewCancel = () => {
+    setShowPreview(false);
+    setPreviewFile(null);
+    toast({
+      title: "Upload Cancelled",
+      description: "File upload was cancelled. You can try again with a different file.",
+    });
+  };
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -749,6 +805,26 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
         open={showContentViewer}
         onClose={handleContentViewerClose}
       />
+
+      {/* 🚀 ROOT CAUSE FIX: Document Preview Dialog */}
+      <Dialog open={showPreview} onOpenChange={() => setShowPreview(false)}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Document Quality Preview</DialogTitle>
+            <DialogDescription>
+              Review document content quality before uploading to prevent corruption issues.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {previewFile && (
+            <DocumentPreviewPane
+              file={previewFile}
+              onPreviewComplete={handlePreviewComplete}
+              onCancel={handlePreviewCancel}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

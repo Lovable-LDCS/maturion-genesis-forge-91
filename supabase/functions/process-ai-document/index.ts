@@ -1,6 +1,8 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+// Add mammoth.js for clean .docx text extraction
+import * as mammoth from "https://esm.sh/mammoth@1.6.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -201,14 +203,31 @@ serve(async (req) => {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    // Update document status to completed
+    // 🚀 ROOT CAUSE FIX: Update document metadata with corruption recovery status
+    const updateMetadata = {
+      corruptionRecoveryAttempted: corruptionRecovery || false,
+      processingMethod: corruptionRecovery ? 'mammoth_clean_extraction' : 'standard_extraction',
+      textValidationEnabled: validateTextOnly || false,
+      chunkingParameters: {
+        targetSize: chunkSize,
+        overlap,
+        totalChunks: totalProcessed
+      },
+      extractionQuality: {
+        textLength: textContent?.length || 0,
+        processingTimestamp: new Date().toISOString()
+      }
+    };
+
+    // Update document status to completed with enhanced metadata
     console.log('Updating document status to completed...');
     await supabase
       .from('ai_documents')
       .update({ 
         processing_status: 'completed',
         total_chunks: totalProcessed,
-        processed_at: new Date().toISOString()
+        processed_at: new Date().toISOString(),
+        metadata: updateMetadata
       })
       .eq('id', documentId);
 
@@ -449,73 +468,87 @@ async function extractTextContent(fileData: Blob, mimeType: string, fileName: st
   }
 }
 
-// Enhanced docx text extraction with detailed error handling
+// 🚀 ROOT CAUSE FIX: Clean mammoth.js extraction (body text only)
 async function extractDocxTextEnhanced(fileData: Blob, fileName: string): Promise<string> {
   try {
-    console.log(`🔧 Enhanced docx extraction for: ${fileName}`);
+    console.log(`🔧 Clean mammoth.js extraction for: ${fileName}`);
     
     const arrayBuffer = await fileData.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
     
     // Check if file starts with PK (ZIP signature) - valid docx files are ZIP archives
+    const uint8Array = new Uint8Array(arrayBuffer);
     if (uint8Array[0] !== 0x50 || uint8Array[1] !== 0x4B) {
       throw new Error(`Invalid docx file signature. File may be corrupted or not a valid Word document.`);
     }
     
     console.log(`✅ Valid ZIP signature detected for ${fileName}`);
     
-    // Try multiple text decoders for different encodings
-    const decoders = [
-      new TextDecoder('utf-8', { ignoreBOM: true, fatal: false }),
-      new TextDecoder('utf-16', { ignoreBOM: true, fatal: false }),
-      new TextDecoder('windows-1252', { ignoreBOM: true, fatal: false })
-    ];
+    // Use mammoth.js to extract clean body text only
+    const result = await mammoth.extractRawText({
+      arrayBuffer: arrayBuffer
+    });
     
-    let bestText = '';
-    let bestScore = 0;
+    console.log(`📄 Mammoth.js extraction complete`);
     
-    for (const decoder of decoders) {
-      try {
-        let text = decoder.decode(uint8Array);
-        
-        // Clean up XML tags and extract readable content
-        text = text
-          .replace(/<w:t[^>]*>/g, ' ') // Word text elements
-          .replace(/<\/w:t>/g, ' ')
-          .replace(/<[^>]*>/g, ' ') // All other XML tags
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&amp;/g, '&')
-          .replace(/&quot;/g, '"')
-          .replace(/\s+/g, ' ')
-          .trim();
-        
-        // Score this extraction attempt
-        const words = text.split(/\s+/).filter(word => word.length > 2);
-        const readableWords = words.filter(word => /^[a-zA-Z0-9]+$/.test(word));
-        const score = readableWords.length;
-        
-        console.log(`📊 Decoder ${decoder.encoding}: ${score} readable words from ${words.length} total`);
-        
-        if (score > bestScore) {
-          bestScore = score;
-          bestText = text;
-        }
-      } catch (decoderError) {
-        console.log(`⚠️ Decoder ${decoder.encoding} failed:`, decoderError.message);
-        continue;
+    // Get clean body text
+    let cleanText = result.value;
+    
+    // Log any conversion messages (but don't fail on warnings)
+    if (result.messages && result.messages.length > 0) {
+      console.log(`ℹ️ Mammoth.js messages:`, result.messages.map(m => `${m.type}: ${m.message}`));
+      
+      // Only fail on errors, not warnings
+      const errors = result.messages.filter(m => m.type === 'error');
+      if (errors.length > 0) {
+        console.error(`❌ Mammoth.js errors:`, errors);
+        throw new Error(`Document processing errors: ${errors.map(e => e.message).join(', ')}`);
       }
     }
     
-    if (bestText.length < 50) {
-      throw new Error(`Insufficient readable text extracted. Only ${bestText.length} characters found. File may be corrupted, password-protected, or contain only images/tables.`);
+    // Fail fast: Check if we got meaningful body content
+    if (!cleanText || cleanText.trim().length < 100) {
+      throw new Error(`No meaningful body content detected in ${fileName}. Extracted only ${cleanText.length} characters. Document may be corrupted, password-protected, or contain only images/tables.`);
     }
     
-    console.log(`✅ Best extraction result: ${bestText.length} characters with ${bestScore} readable words`);
-    return bestText;
+    // Additional sanitization for any remaining artifacts
+    cleanText = cleanText
+      // Remove any remaining XML-like patterns
+      .replace(/<[^>]*>/g, ' ')
+      // Remove file path artifacts that might leak through
+      .replace(/[A-Z]:\\[^\\s]*/g, ' ')
+      .replace(/\/_rels\/[^\s]*/g, ' ')
+      .replace(/\/customXml\/[^\s]*/g, ' ')
+      .replace(/\/word\/[^\s]*/g, ' ')
+      // Remove excessive whitespace
+      .replace(/\s+/g, ' ')
+      .trim();
+    
+    // Final validation - ensure no corruption artifacts remain
+    const corruptionChecks = {
+      xmlRels: cleanText.includes('_rels/') || cleanText.includes('customXml/'),
+      binaryRatio: (cleanText.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / cleanText.length,
+      questionMarkRatio: (cleanText.match(/\?/g) || []).length / cleanText.length
+    };
+    
+    if (corruptionChecks.xmlRels) {
+      throw new Error(`XML artifacts detected in extracted text from ${fileName}`);
+    }
+    
+    if (corruptionChecks.binaryRatio > 0.1) {
+      throw new Error(`High binary content ratio (${(corruptionChecks.binaryRatio * 100).toFixed(1)}%) in extracted text from ${fileName}`);
+    }
+    
+    if (corruptionChecks.questionMarkRatio > 0.15 && cleanText.includes('\\\\\\\\')) {
+      throw new Error(`Encoding artifacts detected in extracted text from ${fileName}`);
+    }
+    
+    console.log(`✅ Clean extraction successful: ${cleanText.length} characters, no corruption artifacts`);
+    console.log(`📊 Quality metrics: ${(corruptionChecks.binaryRatio * 100).toFixed(2)}% binary, ${(corruptionChecks.questionMarkRatio * 100).toFixed(2)}% question marks`);
+    
+    return cleanText;
     
   } catch (error) {
-    console.error(`❌ Enhanced docx extraction failed for ${fileName}:`, error);
+    console.error(`❌ Mammoth.js extraction failed for ${fileName}:`, error);
     throw error;
   }
 }
