@@ -92,68 +92,81 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
         return;
       }
 
-      // Enhanced AI generation prompt following backoffice specification and dual-format interpretation
+      // Enhanced AI generation prompt following ALL uploaded interpretation documents and Annex compliance
       const detailedPrompt = `CRITICAL: Generate comprehensive assessment criteria for MPS ${mps.mps_number}: ${mps.name}
 
-DUAL-FORMAT INTERPRETATION RULE (MANDATORY):
-1. EXTRACT criteria count by counting "Requirement:" blocks in the uploaded MPS document
-2. Each "Requirement:" block becomes a criterion statement
-3. Each "Evidence:" block becomes the evidence_guidance field
+🔥 MANDATORY COMPLIANCE WITH UPLOADED INTERPRETATION DOCUMENTS:
+This generation MUST follow all rules from:
+- Maturion Knowledge File v1 (behavior policy)
+- Annex 1: Criteria Development Template (structure)
+- Annex 2: Criteria Evaluation Policy (7 golden rules)
+- Annex 3: MPS Documents (source material)
+- AI Behavior & Knowledge Source Policy (prioritization)
+- Self-Learning Feedback Specification (patterns)
+
+📋 DUAL-FORMAT INTERPRETATION RULE (MANDATORY):
+1. EXTRACT criteria count by counting "Requirement:" blocks in uploaded MPS ${mps.mps_number} document
+2. Each "Requirement:" block becomes criterion statement
+3. Each "Evidence:" block becomes evidence_guidance field
 4. Generate EXACTLY the same number of criteria as "Requirement:" blocks found
-5. Sequence criteria to match document order (e.g., ${mps.mps_number}.1, ${mps.mps_number}.2, etc.)
+5. Sequence criteria to match document order (${mps.mps_number}.1, ${mps.mps_number}.2, etc.)
 
-MANDATORY REQUIREMENTS:
-1. MUST use uploaded MPS documents as PRIMARY source - scan for all "Requirement:" and "Evidence:" blocks
-2. MUST tailor to ${organizationContext.name} organizational context (NEVER use "the organization")
-3. MUST consider industry: ${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry || 'General'}
-4. MUST include ALL five required fields for each criterion
-5. MUST generate criteria count matching uploaded document structure
-6. MUST suppress generic fallbacks when structured MPS document is present
+🏆 ENFORCE ALL 7 CRITERIA RULES FROM ANNEX 2:
+1. ✅ Only one evidence item per criterion (NO "establish and maintain" - split if needed)
+2. ✅ Unambiguous language (10 reviewers must interpret identically)
+3. ✅ Independently verifiable (testable through physical evidence/observation)
+4. ✅ Contextually relevant (use "${organizationContext.name}" not "the organization")
+5. ✅ Auditable traceability (align with evidence trail/process audit)
+6. ✅ No duplicates (compare evidence requirements, not just language)
+7. ✅ Consistent structure (Statement → Summary → Rationale → Evidence → Explanation)
 
-REQUIRED STRUCTURE for each criterion:
+🔍 DUPLICATE DETECTION LOGIC:
+- Compare evidence_guidance fields across all criteria
+- If two criteria require same policy/report/training record/review log as evidence → DUPLICATE
+- Create evidence_hash for each criterion to detect evidence overlap
+- Mark duplicates for removal or consolidation
+
+📝 REQUIRED STRUCTURE (ALL 5 FIELDS MANDATORY):
 {
-  "statement": "${organizationContext.name} must [extract from Requirement: block with org name injection]",
-  "summary": "Brief overview of what this criterion addresses (max 15 words)", 
-  "rationale": "Why this criterion is important for ${organizationContext.name}'s [industry context] (max 25 words)",
-  "evidence_guidance": "[Extract from Evidence: block and tailor to ${organizationContext.name}]",
-  "explanation": "Detailed explanation with ${organizationContext.name} context and industry considerations",
+  "statement": "${organizationContext.name} must [single clear action from Requirement: block]",
+  "summary": "Brief overview (max 15 words)",
+  "rationale": "Why important for ${organizationContext.name}'s ${organizationContext.industry_tags.join('/')} operations (max 25 words)",
+  "evidence_guidance": "[Exact extraction from Evidence: block, tailored to ${organizationContext.name}]",
+  "explanation": "Detailed explanation with ${organizationContext.name} context and ${organizationContext.industry_tags.join('/')} industry considerations",
   "source_origin": "internal_document|organizational_context|sector_memory|best_practice_fallback",
-  "source_reference": "Specific MPS document section or fallback source used"
+  "source_reference": "MPS ${mps.mps_number}, Section X.Y - [specific clause reference]",
+  "evidence_hash": "[unique identifier for evidence type required]",
+  "reasoning_path": "Derived from [source] because [logic] requiring [evidence type]"
 }
 
-CRITERIA COUNT COMPLIANCE:
-- Count all "Requirement:" blocks in the uploaded MPS ${mps.mps_number} document
-- Generate EXACTLY that number of criteria (typically 8-14 for most MPS documents)
-- If MPS 2 document contains 14 "Requirement:" blocks, generate exactly 14 criteria
-- Each criterion maps 1:1 with a "Requirement:" block
-- Number sequentially: ${mps.mps_number}.1, ${mps.mps_number}.2, etc.
-
-ORGANIZATIONAL CONTEXT TAILORING:
+🎯 ORGANIZATIONAL CONTEXT TAILORING:
 - Organization: ${organizationContext.name}
-- Industry/Sector: ${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry}
+- Industry: ${organizationContext.industry_tags.join(', ') || organizationContext.custom_industry}
 - Region: ${organizationContext.region_operating}
-- Compliance frameworks: ${organizationContext.compliance_commitments.join(', ')}
-- Replace ALL "the organization" references with "${organizationContext.name}"
-- Tailor evidence requirements to ${organizationContext.name}'s industry scale and context
+- Compliance: ${organizationContext.compliance_commitments.join(', ')}
+- ALWAYS use "${organizationContext.name}" never "the organization"
+- Scale evidence requirements to ${organizationContext.name}'s industry context
 
-STRUCTURED INTERPRETATION ENFORCEMENT:
-- Use uploaded document structure as authoritative source
-- Only use fallback logic if uploaded document lacks clear "Requirement:" blocks
-- Log source attribution for each criterion generated
-- Ensure unambiguous language: "10 reviewers should interpret identically"
-
-KNOWLEDGE SOURCE PRIORITY & ATTRIBUTION:
-1. Internal uploaded MPS documents (highest priority) → source_origin: "internal_document"
-2. Organizational profile and context → source_origin: "organizational_context"  
+⚡ KNOWLEDGE SOURCE PRIORITY (STRICT HIERARCHY):
+1. Internal uploaded MPS documents (HIGHEST) → source_origin: "internal_document"
+2. Organizational profile and context → source_origin: "organizational_context"
 3. Sector-specific requirements → source_origin: "sector_memory"
-4. Best practice fallbacks (only when above insufficient) → source_origin: "best_practice_fallback"
+4. Best practice fallbacks (ONLY when above insufficient) → source_origin: "best_practice_fallback"
 
-BACKEND LOGGING REQUIREMENT:
-- Log each criterion's source attribution
-- Log where AI had to infer missing requirements
-- Log any fallback logic usage with justification
+🔒 QUALITY ASSURANCE REQUIREMENTS:
+- Each criterion must be independently auditable
+- No generic language - all criteria must be ${organizationContext.name}-specific
+- Evidence requirements must be realistic for ${organizationContext.industry_tags.join('/')} sector
+- Source attribution must be explicit and traceable
+- Reasoning path must be documented for each criterion
 
-Return a JSON array of criteria objects with all required fields, proper source attribution, and exact count matching uploaded MPS document "Requirement:" blocks.`;
+🚨 SUPPRESSION RULES:
+- Do NOT use generic fallbacks when structured MPS document is present
+- Do NOT generate vague criteria requiring same evidence as another criterion
+- Do NOT use "the organization" anywhere in output
+- Do NOT exceed or reduce count from uploaded MPS document structure
+
+Return JSON array with exact count matching MPS ${mps.mps_number} "Requirement:" blocks, full compliance with 7 rules, and complete reasoning documentation.`;
 
       // Call AI generation with enhanced parameters
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
