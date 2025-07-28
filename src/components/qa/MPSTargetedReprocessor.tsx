@@ -169,8 +169,12 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
       });
 
       // 🔧 Auto-trigger corruption recovery if all chunks are corrupted
-      if (isCorrupted && validChunks.length === 0 && chunks.length > 0 && !recoveryInProgress) {
-        console.log(`🚨 All chunks corrupted - triggering automatic recovery for MPS ${mpsNumber}`);
+      if (isCorrupted && validChunks.length === 0 && chunks.length > 0 && !recoveryInProgress && !recoveryComplete) {
+        console.log(`🚨 ALL CHUNKS CORRUPTED - Auto-triggering recovery for MPS ${mpsNumber}`);
+        toast({
+          title: "Auto-Recovery Initiated",
+          description: `Detected ${corruptedChunks} corrupted chunks. Starting automatic cleaning process...`,
+        });
         setRecoveryInProgress(true);
         setTimeout(() => {
           triggerFullCorruptionRecovery();
@@ -302,7 +306,7 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
           organizationId: currentOrganization.id,
           forceReprocess: true,
           corruptionRecovery: true,    // Enable corruption recovery mode
-          targetChunkSize: 1500,       // Ensure larger chunks
+          targetChunkSize: 1500,       // Target 1200-1500 characters as requested
           minChunkSize: 800,           // Minimum viable chunk size
           overlapSize: 200,            // Good overlap for context
           validateTextOnly: true       // Ensure only text content is processed
@@ -310,11 +314,58 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
       });
       
       if (processResult.error) {
+        // Check if corruption is beyond recovery
+        if (processResult.error.message?.includes('Corruption detected') || 
+            processResult.error.message?.includes('XML artifacts') ||
+            processResult.error.message?.includes('binary ratio')) {
+          
+          console.error(`🚨 Document source corrupted beyond recovery: ${processResult.error.message}`);
+          
+          // Update document metadata to flag corruption recovery attempt
+          await supabase
+            .from('ai_documents')
+            .update({
+              metadata: {
+                ...analysis.documentId ? {} : {},
+                corruptionRecoveryAttempted: true,
+                corruptionRecoveryFailed: true,
+                corruptionType: processResult.error.message.includes('XML') ? 'xml_artifacts' : 'binary_corruption',
+                lastRecoveryAttempt: new Date().toISOString()
+              }
+            })
+            .eq('id', analysis.documentId);
+          
+          setError(`Document source corrupted beyond recovery – replacement required. ${processResult.error.message}`);
+          
+          toast({
+            title: "Recovery Failed",
+            description: "Document source is corrupted beyond recovery. Please upload a new, clean version of the MPS document.",
+            variant: "destructive"
+          });
+          
+          return;
+        }
+        
         throw new Error(`Reprocessing failed: ${processResult.error.message}`);
       }
       
       console.log(`✅ Corruption recovery reprocessing initiated successfully`);
       
+      // Update document metadata to flag successful recovery attempt
+      await supabase
+        .from('ai_documents')
+        .update({
+          metadata: {
+            corruptionRecoveryAttempted: true,
+            corruptionRecoverySucceeded: true,
+            recoveryTimestamp: new Date().toISOString(),
+            recoveryMethod: 'validateTextOnly',
+            targetChunkSize: 1500,
+            minChunkSize: 800
+          }
+        })
+        .eq('id', analysis.documentId);
+
       toast({
         title: "Corruption Recovery Started",
         description: `MPS ${mpsNumber} document is being reprocessed with enhanced text extraction and corruption protection.`,
@@ -350,14 +401,31 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
         <div className="flex gap-2 flex-wrap">
           <Button 
             onClick={analyzeCurrentChunks} 
-            disabled={isAnalyzing}
+            disabled={isAnalyzing || recoveryInProgress}
             variant="outline"
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isAnalyzing ? 'animate-spin' : ''}`} />
             {isAnalyzing ? 'Analyzing...' : 'Analyze Chunks'}
           </Button>
           
-          {analysis?.isCorrupted && (
+          {/* 🔧 Force Auto-Recovery Button */}
+          {mpsNumber === 1 && !recoveryInProgress && !recoveryComplete && (
+            <Button 
+              onClick={() => {
+                console.log('🚨 Force triggering corruption recovery for MPS 1');
+                setRecoveryInProgress(true);
+                triggerFullCorruptionRecovery();
+              }} 
+              disabled={isReprocessing}
+              variant="default"
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isReprocessing ? 'animate-spin' : ''}`} />
+              Force Recovery Now
+            </Button>
+          )}
+          
+          {analysis?.isCorrupted && !recoveryInProgress && (
             <Button 
               onClick={forceDeleteCorruptedChunks} 
               disabled={isReprocessing}
@@ -369,14 +437,14 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
             </Button>
           )}
           
-          {analysis && !analysis.hasValidContent && (
+          {analysis && !analysis.hasValidContent && !analysis.isCorrupted && (
             <Button 
               onClick={forceReprocessDocument} 
               disabled={isReprocessing || !analysis.documentId}
-              variant="default"
+              variant="secondary"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${isReprocessing ? 'animate-spin' : ''}`} />
-              {isReprocessing ? 'Reprocessing...' : analysis.isCorrupted ? 'Corruption Recovery' : 'Force Reprocess'}
+              {isReprocessing ? 'Reprocessing...' : 'Force Reprocess'}
             </Button>
           )}
         </div>
