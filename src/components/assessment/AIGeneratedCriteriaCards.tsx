@@ -661,20 +661,21 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
                       Retry Generation
                     </Button>
                     
-                    {/* QA Force Generation Option */}
+                    {/* QA Force Generation Option - Only if clean chunks exist */}
                     {mps.mps_number === 1 && error.includes('Valid chunks: 0') && (
                       <>
                         <Button 
                           onClick={() => setForceGenerationMode(true)} 
                           size="sm" 
                           variant="secondary"
-                          disabled={isGenerating || forceGenerationMode}
+                          disabled={isGenerating || forceGenerationMode || error.includes('CORRUPTED')}
+                          title={error.includes('CORRUPTED') ? 'Please complete corruption recovery first' : 'Allow generation with relaxed validation'}
                         >
                           <Settings className="h-4 w-4 mr-2" />
                           {forceGenerationMode ? 'Force Mode Active' : 'Proceed Anyway (Force)'}
                         </Button>
                         
-                        {forceGenerationMode && (
+                        {forceGenerationMode && !error.includes('CORRUPTED') && (
                           <Button 
                             onClick={() => generateAICriteria()} 
                             size="sm" 

@@ -35,6 +35,8 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
   const [isReprocessing, setIsReprocessing] = useState(false);
   const [analysis, setAnalysis] = useState<ChunkAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [recoveryInProgress, setRecoveryInProgress] = useState(false);
+  const [recoveryComplete, setRecoveryComplete] = useState(false);
   
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
@@ -165,6 +167,15 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
         largestChunk,
         averageChunk: Math.round(averageChunk)
       });
+
+      // 🔧 Auto-trigger corruption recovery if all chunks are corrupted
+      if (isCorrupted && validChunks.length === 0 && chunks.length > 0 && !recoveryInProgress) {
+        console.log(`🚨 All chunks corrupted - triggering automatic recovery for MPS ${mpsNumber}`);
+        setRecoveryInProgress(true);
+        setTimeout(() => {
+          triggerFullCorruptionRecovery();
+        }, 1000);
+      }
       
     } catch (error: any) {
       console.error('Analysis failed:', error);
@@ -219,6 +230,35 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
       });
     } finally {
       setIsReprocessing(false);
+    }
+  };
+
+  // 🔧 Full Automatic Corruption Recovery Flow
+  const triggerFullCorruptionRecovery = async () => {
+    if (!currentOrganization?.id || !analysis?.documentId) return;
+    
+    try {
+      console.log(`🚨 Starting automatic corruption recovery for MPS ${mpsNumber}`);
+      
+      // Step 1: Clear corrupted data
+      await forceDeleteCorruptedChunks();
+      
+      // Step 2: Wait and then reprocess
+      setTimeout(async () => {
+        await forceReprocessDocument();
+        setRecoveryComplete(true);
+        
+        // Step 3: Final analysis after recovery
+        setTimeout(() => {
+          analyzeCurrentChunks();
+          setRecoveryInProgress(false);
+        }, 6000);
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error('Automatic recovery failed:', error);
+      setError(`Automatic recovery failed: ${error.message}`);
+      setRecoveryInProgress(false);
     }
   };
 
@@ -346,6 +386,32 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               <strong>Error:</strong> {error}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* 🔄 Recovery Progress Status */}
+        {recoveryInProgress && (
+          <Alert className="border-blue-200 bg-blue-50">
+            <RefreshCw className="h-4 w-4 animate-spin" />
+            <AlertDescription>
+              <strong>🔄 Automatic Recovery in Progress:</strong> Clearing corrupted data and triggering enhanced reprocessing...
+              <div className="mt-2 text-sm">This may take 10-15 seconds to complete.</div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* 📦 Recovery Completion Confirmation */}
+        {recoveryComplete && analysis && !recoveryInProgress && (
+          <Alert className="border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4" />
+            <AlertDescription>
+              <strong>✅ Recovery Complete:</strong> {analysis.totalChunks} chunks recreated (avg: {analysis.averageChunk} chars)
+              <div className="mt-2 text-sm">
+                Status: {analysis.hasValidContent ? '🟢 Ready for AI Generation' : '🟡 Manual review required'}
+                <br />
+                Preview: {analysis.samples[0]?.slice(0, 200) || 'No content preview available'}...
+              </div>
             </AlertDescription>
           </Alert>
         )}
