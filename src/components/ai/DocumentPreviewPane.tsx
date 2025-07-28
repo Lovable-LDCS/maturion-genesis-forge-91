@@ -21,6 +21,7 @@ interface PreviewResult {
     bullets: boolean;
     headings: boolean;
     paragraphs: boolean;
+    paragraphCount: number;
   };
   qualityMetrics: {
     binaryRatio: number;
@@ -28,9 +29,13 @@ interface PreviewResult {
     alphabeticRatio: number;
     unicodeRatio: number;
     hasNonLatinText: boolean;
+    qualityScore: number;
+    detectedIssues: string[];
   };
   validationHash: string;
+  validationOverride: boolean;
   error?: string;
+  warnings: string[];
 }
 
 export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
@@ -41,17 +46,28 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
   const [isExtracting, setIsExtracting] = useState(false);
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(null);
 
-  // Sanitization function for mild corruption repair
+  // Enhanced sanitization function for unified content assurance
   const sanitizeBeforeChunking = (text: string): string => {
     return text
-      // Remove null bytes and control characters
+      // Remove null bytes and control characters except \n
       .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      // Fix smart quotes and dashes
+      .replace(/[\u2018\u2019]/g, "'") // Smart single quotes
+      .replace(/[\u201C\u201D]/g, '"') // Smart double quotes
+      .replace(/[\u2013\u2014]/g, '-') // En dash, Em dash
+      .replace(/[\u2026]/g, '...') // Ellipsis
       // Fix common encoding issues
       .replace(/â€™/g, "'")
       .replace(/â€œ/g, '"')
       .replace(/â€/g, '"')
       .replace(/â€¢/g, '•')
-      // Normalize whitespace but preserve structure
+      // Unicode bullets to standard
+      .replace(/[\u2022\u25E6\u2043\u2023]/g, '•')
+      .replace(/[\u25AA\u25AB\u25A0]/g, '▪')
+      // Remove MS Word bookmarks and field codes
+      .replace(/\{[^}]*\}/g, ' ')
+      .replace(/_Toc\d+/g, ' ')
+      // Normalize whitespace but preserve paragraph structure
       .replace(/[ \t]+/g, ' ')
       .replace(/\n{3,}/g, '\n\n')
       .trim();
@@ -140,50 +156,92 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
       // Enhanced quality metrics with Unicode awareness
       const unicodeChars = (sanitizedText.match(/[\u0080-\uFFFF]/g) || []).length;
       const nonLatinChars = (sanitizedText.match(/[^\u0000-\u007F\u0080-\u00FF]/g) || []).length;
+      const paragraphCount = sanitizedText.split(/\n\s*\n/).length;
+      
+      // Enhanced XML artifacts detection
+      const hasXmlArtifacts = sanitizedText.includes('_rels/') || 
+                              sanitizedText.includes('customXml/') || 
+                              sanitizedText.includes('word/') ||
+                              sanitizedText.includes('.rels') ||
+                              sanitizedText.includes('styles.xml');
+      
+      // Sentence structure detection
+      const hasSentenceMarkers = /[.?!:]/.test(sanitizedText);
+      
+      // Calculate quality metrics
+      const alphabeticRatio = (sanitizedText.match(/[a-zA-Z]/g) || []).length / sanitizedText.length;
+      const binaryRatio = (sanitizedText.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / sanitizedText.length;
+      
+      // Detected issues array
+      const detectedIssues: string[] = [];
+      if (characterCount < 800) detectedIssues.push('text_too_short');
+      if (alphabeticRatio < 0.7) detectedIssues.push('low_alphabetic_ratio');
+      if (paragraphCount < 3) detectedIssues.push('insufficient_paragraphs');
+      if (hasXmlArtifacts) detectedIssues.push('xml_artifacts');
+      if (binaryRatio >= 0.3) detectedIssues.push('high_binary_content');
+      if (!hasSentenceMarkers) detectedIssues.push('no_sentence_markers');
+      
+      // Calculate quality score (0-100)
+      let qualityScore = 100;
+      qualityScore -= Math.max(0, (0.7 - alphabeticRatio) * 100); // Alphabetic ratio penalty
+      qualityScore -= Math.max(0, (3 - paragraphCount) * 10); // Paragraph penalty
+      qualityScore -= Math.max(0, (800 - characterCount) / 10); // Length penalty
+      qualityScore -= hasXmlArtifacts ? 30 : 0; // XML artifacts penalty
+      qualityScore -= binaryRatio * 50; // Binary content penalty
+      qualityScore -= !hasSentenceMarkers ? 20 : 0; // Sentence markers penalty
+      qualityScore = Math.max(0, Math.min(100, qualityScore));
       
       const qualityMetrics = {
-        binaryRatio: (sanitizedText.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / sanitizedText.length,
-        xmlArtifacts: sanitizedText.includes('_rels/') || sanitizedText.includes('customXml/') || sanitizedText.includes('word/_rels'),
-        alphabeticRatio: (sanitizedText.match(/[a-zA-Z]/g) || []).length / sanitizedText.length,
+        binaryRatio,
+        xmlArtifacts: hasXmlArtifacts,
+        alphabeticRatio,
         unicodeRatio: unicodeChars / sanitizedText.length,
-        hasNonLatinText: nonLatinChars > 0
+        hasNonLatinText: nonLatinChars > 0,
+        qualityScore: Math.round(qualityScore),
+        detectedIssues
       };
 
       const hasStructure = {
         bullets: /[•\-\*○◦▪▫‣⁃]\s+/.test(sanitizedText) || /^\s*[\-\*•○◦▪▫‣⁃]\s+/m.test(sanitizedText),
         headings: /^#+\s+/m.test(sanitizedText) || /^[A-Z][^.]*:$/m.test(sanitizedText),
-        paragraphs: sanitizedText.split(/\n\s*\n/).length > 2
+        paragraphs: paragraphCount > 2,
+        paragraphCount
       };
 
-      // Generate preview and hash
-      const preview = sanitizedText.substring(0, 800);
+      // Generate warnings array
+      const warnings: string[] = [];
+      if (characterCount < 1000) warnings.push('⚠️ Document is shorter than recommended (1000+ characters)');
+      if (paragraphCount < 3) warnings.push('📦 Low document structure detected (needs 3+ paragraphs)');
+      if (alphabeticRatio < 0.7) warnings.push('⚠️ Low text quality (needs 70%+ alphabetic content)');
+      if (!hasSentenceMarkers) warnings.push('📝 No sentence structure detected');
+
+      // Generate preview (1000 characters as requested)
+      const preview = sanitizedText.substring(0, 1000);
       const validationHash = generateValidationHash(sanitizedText);
 
-      // Enhanced validation checks
-      const isValid = wordCount >= 50 && 
-                     characterCount >= 100 && 
-                     !qualityMetrics.xmlArtifacts && 
-                     qualityMetrics.binaryRatio < 0.1 && 
-                     (qualityMetrics.alphabeticRatio > 0.25 || qualityMetrics.hasNonLatinText);
+      // Unified validation criteria (all must pass)
+      const passesValidation = alphabeticRatio >= 0.7 && 
+                              paragraphCount >= 3 && 
+                              characterCount >= 800 && 
+                              !hasXmlArtifacts && 
+                              binaryRatio < 0.3 && 
+                              hasSentenceMarkers;
 
       const previewResult: PreviewResult = {
         success: true,
         preview,
-        sanitizedPreview: sanitizedText !== cleanText ? sanitizedText.substring(0, 800) : undefined,
+        sanitizedPreview: sanitizedText !== cleanText ? sanitizedText.substring(0, 1000) : undefined,
         wordCount,
         characterCount,
         hasStructure,
         qualityMetrics,
-        validationHash
+        validationHash,
+        validationOverride: false,
+        warnings
       };
 
-      if (!isValid) {
-        previewResult.error = `Content quality issues detected: ${
-          wordCount < 50 ? 'insufficient words, ' : ''
-        }${qualityMetrics.xmlArtifacts ? 'XML artifacts present, ' : ''
-        }${qualityMetrics.binaryRatio >= 0.1 ? 'high binary content, ' : ''
-        }${qualityMetrics.alphabeticRatio <= 0.25 && !qualityMetrics.hasNonLatinText ? 'low readable content' : ''
-        }`.replace(/, $/, '');
+      if (!passesValidation) {
+        previewResult.error = `Content quality issues detected: ${detectedIssues.join(', ')}`;
       }
 
       // Log the extraction attempt
@@ -198,9 +256,24 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
         preview: '',
         wordCount: 0,
         characterCount: 0,
-        hasStructure: { bullets: false, headings: false, paragraphs: false },
-        qualityMetrics: { binaryRatio: 0, xmlArtifacts: false, alphabeticRatio: 0, unicodeRatio: 0, hasNonLatinText: false },
+        hasStructure: { 
+          bullets: false, 
+          headings: false, 
+          paragraphs: false, 
+          paragraphCount: 0 
+        },
+        qualityMetrics: { 
+          binaryRatio: 0, 
+          xmlArtifacts: false, 
+          alphabeticRatio: 0, 
+          unicodeRatio: 0, 
+          hasNonLatinText: false,
+          qualityScore: 0,
+          detectedIssues: ['extraction_failed']
+        },
         validationHash: '0',
+        validationOverride: false,
+        warnings: [],
         error: error.message
       };
       
@@ -265,7 +338,7 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
             </div>
 
             {/* Quality Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <div className="text-center p-3 bg-muted rounded-lg">
                 <div className="text-lg font-bold">{previewResult.wordCount}</div>
                 <div className="text-sm text-muted-foreground">Words</div>
@@ -277,6 +350,12 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
                 <div className="text-sm text-muted-foreground">Text Quality</div>
               </div>
               <div className="text-center p-3 bg-muted rounded-lg">
+                <div className="text-lg font-bold">
+                  {previewResult.hasStructure.paragraphCount}
+                </div>
+                <div className="text-sm text-muted-foreground">Paragraphs</div>
+              </div>
+              <div className="text-center p-3 bg-muted rounded-lg">
                 <div className="text-lg font-bold text-green-600">
                   {previewResult.qualityMetrics.xmlArtifacts ? 'NO' : 'YES'}
                 </div>
@@ -284,11 +363,23 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
               </div>
               <div className="text-center p-3 bg-muted rounded-lg">
                 <div className="text-lg font-bold">
-                  {Object.values(previewResult.hasStructure).filter(Boolean).length}/3
+                  {previewResult.qualityMetrics.qualityScore}/100
                 </div>
-                <div className="text-sm text-muted-foreground">Structure</div>
+                <div className="text-sm text-muted-foreground">Quality Score</div>
               </div>
             </div>
+
+            {/* Inline Warnings */}
+            {previewResult.warnings.length > 0 && (
+              <div className="space-y-2">
+                {previewResult.warnings.map((warning, index) => (
+                  <Alert key={index}>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>{warning}</AlertDescription>
+                  </Alert>
+                ))}
+              </div>
+            )}
 
             {/* Error/Warning Messages */}
             {previewResult.error && (
@@ -314,7 +405,7 @@ export const DocumentPreviewPane: React.FC<DocumentPreviewPaneProps> = ({
 
             {/* Content Preview */}
             <div>
-              <h4 className="font-medium mb-2">Content Preview (First 800 characters):</h4>
+              <h4 className="font-medium mb-2">Content Preview (First 1000 characters):</h4>
               <div className="bg-muted p-4 rounded-lg border max-h-64 overflow-y-auto">
                 <pre className="text-sm whitespace-pre-wrap font-mono">
                   {previewResult.preview || 'No readable content detected'}

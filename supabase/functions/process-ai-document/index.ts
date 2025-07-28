@@ -203,8 +203,58 @@ serve(async (req) => {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    // 🚀 ROOT CAUSE FIX: Update document metadata with corruption recovery status
+    // 🚀 UNIFIED CONTENT ASSURANCE: Calculate comprehensive quality metrics
+    const wordCount = textContent.split(/\s+/).filter(w => w.length > 0).length;
+    const characterCount = textContent.length;
+    const paragraphCount = textContent.split(/\n\s*\n/).length;
+    const alphabeticRatio = (textContent.match(/[a-zA-Z]/g) || []).length / textContent.length;
+    const binaryRatio = (textContent.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / textContent.length;
+    const hasXmlArtifacts = textContent.includes('_rels/') || 
+                            textContent.includes('customXml/') || 
+                            textContent.includes('word/') ||
+                            textContent.includes('.rels') ||
+                            textContent.includes('styles.xml');
+    const hasSentenceMarkers = /[.?!:]/.test(textContent);
+    
+    // Detected issues array
+    const detectedIssues: string[] = [];
+    if (characterCount < 800) detectedIssues.push('text_too_short');
+    if (alphabeticRatio < 0.7) detectedIssues.push('low_alphabetic_ratio');
+    if (paragraphCount < 3) detectedIssues.push('insufficient_paragraphs');
+    if (hasXmlArtifacts) detectedIssues.push('xml_artifacts');
+    if (binaryRatio >= 0.3) detectedIssues.push('high_binary_content');
+    if (!hasSentenceMarkers) detectedIssues.push('no_sentence_markers');
+    
+    // Calculate quality score (0-100)
+    let qualityScore = 100;
+    qualityScore -= Math.max(0, (0.7 - alphabeticRatio) * 100);
+    qualityScore -= Math.max(0, (3 - paragraphCount) * 10);
+    qualityScore -= Math.max(0, (800 - characterCount) / 10);
+    qualityScore -= hasXmlArtifacts ? 30 : 0;
+    qualityScore -= binaryRatio * 50;
+    qualityScore -= !hasSentenceMarkers ? 20 : 0;
+    qualityScore = Math.max(0, Math.min(100, qualityScore));
+
+    // Check if validation criteria are met
+    const passesValidation = alphabeticRatio >= 0.7 && 
+                            paragraphCount >= 3 && 
+                            characterCount >= 800 && 
+                            !hasXmlArtifacts && 
+                            binaryRatio < 0.3 && 
+                            hasSentenceMarkers;
+
+    // Update document metadata with unified content assurance framework
     const updateMetadata = {
+      validated: passesValidation,
+      quality_score: Math.round(qualityScore),
+      text_length: characterCount,
+      word_count: wordCount,
+      paragraph_count: paragraphCount,
+      alphabetic_ratio: Math.round(alphabeticRatio * 100) / 100,
+      binary_ratio: Math.round(binaryRatio * 100) / 100,
+      detected_issues: detectedIssues,
+      validation_override: false,
+      extracted_with: 'mammoth',
       corruptionRecoveryAttempted: corruptionRecovery || false,
       processingMethod: corruptionRecovery ? 'mammoth_clean_extraction' : 'standard_extraction',
       textValidationEnabled: validateTextOnly || false,
@@ -215,7 +265,9 @@ serve(async (req) => {
       },
       extractionQuality: {
         textLength: textContent?.length || 0,
-        processingTimestamp: new Date().toISOString()
+        processingTimestamp: new Date().toISOString(),
+        has_xml_artifacts: hasXmlArtifacts,
+        has_sentence_markers: hasSentenceMarkers
       }
     };
 
