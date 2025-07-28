@@ -316,8 +316,10 @@ Return format: [{"statement": "...", "summary": "...", "rationale": "...", "evid
   };
 
   useEffect(() => {
-    generateAICriteria();
-  }, [mps.id, generateAICriteria]);
+    if (mps.id && currentOrganization?.id && user) {
+      generateAICriteria();
+    }
+  }, [mps.id, currentOrganization?.id, user?.id]);
 
   if (isLoading) {
     return (
