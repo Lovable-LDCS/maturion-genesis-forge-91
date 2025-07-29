@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter, Trash2, CheckSquare, Square, ChevronDown, ChevronUp } from 'lucide-react';
+import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter, Trash2, CheckSquare, Square, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { MaturionKnowledgeUploadZone } from '@/components/ai/MaturionKnowledgeUploadZone';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
 
@@ -28,6 +28,7 @@ const MaturionKnowledgeBase: React.FC = () => {
   const [isDocumentListExpanded, setIsDocumentListExpanded] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadingGuidance, setIsUploadingGuidance] = useState(false);
+  const [grantingAdminAccess, setGrantingAdminAccess] = useState(false);
   const { toast } = useToast();
 
   // Upload Cross-Domain Guidance Document
@@ -175,6 +176,64 @@ After submitting a custom criterion:
       });
     } finally {
       setIsUploadingGuidance(false);
+    }
+  };
+
+  // Handle granting admin access
+  const handleGrantAdminAccess = async () => {
+    setGrantingAdminAccess(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to grant admin access",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('grant-admin-access', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) {
+        console.error('Error granting admin access:', error);
+        toast({
+          title: "Error",
+          description: `Failed to grant admin access: ${error.message}`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (data?.success) {
+        toast({
+          title: "Success",
+          description: "Admin access granted successfully! Please refresh the page to see changes.",
+        });
+        // Optionally refresh the page after a short delay
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else {
+        toast({
+          title: "Error",
+          description: data?.error || "Failed to grant admin access",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error calling grant admin function:', error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while granting admin access",
+        variant: "destructive",
+      });
+    } finally {
+      setGrantingAdminAccess(false);
     }
   };
   
@@ -617,15 +676,37 @@ After submitting a custom criterion:
             </CardTitle>
           </CardHeader>
           <CardContent className="text-sm">
-            <div className="space-y-2">
-              <p><strong>Admin Status:</strong> {isAdmin ? '✅ Admin Access Granted' : '❌ No Admin Access'}</p>
-              <p><strong>Logs Loading:</strong> {logsLoading ? '🔄 Loading...' : '✅ Loaded'}</p>
-              <p><strong>Logs Count:</strong> {logs.length} policy logs found</p>
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <p><strong>Admin Status:</strong> {isAdmin ? '✅ Admin Access Granted' : '❌ No Admin Access'}</p>
+                <p><strong>Logs Loading:</strong> {logsLoading ? '🔄 Loading...' : '✅ Loaded'}</p>
+                <p><strong>Logs Count:</strong> {logs.length} policy logs found</p>
+              </div>
               {!isAdmin && (
-                <p className="text-yellow-600">
-                  ⚠️ Policy Change Log is hidden because you don't have admin privileges. 
-                  Contact your organization owner to grant you admin access.
-                </p>
+                <div className="space-y-3">
+                  <p className="text-yellow-600">
+                    ⚠️ Policy Change Log is hidden because you don't have admin privileges. 
+                    Contact your organization owner to grant you admin access.
+                  </p>
+                  <Button 
+                    onClick={handleGrantAdminAccess}
+                    disabled={grantingAdminAccess}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    {grantingAdminAccess ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Granting Admin Access...
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="mr-2 h-4 w-4" />
+                        Grant Admin Access
+                      </>
+                    )}
+                  </Button>
+                </div>
               )}
             </div>
           </CardContent>
