@@ -13,6 +13,7 @@ import { QASystemTest } from '@/components/qa/QASystemTest';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
 import { ManualMPSReprocessor } from '@/components/qa/ManualMPSReprocessor';
 import { EdgeFunctionTester } from '@/components/qa/EdgeFunctionTester';
+import { MPSCriteriaLinker } from '@/components/qa/MPSCriteriaLinker';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 
@@ -108,18 +109,32 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
         </AlertDescription>
       </Alert>
 
-      {/* 🚨 URGENT: Edge Function Testing */}
-      <Card className="border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
-        <CardHeader>
-          <CardTitle className="text-red-800 dark:text-red-200">🚨 URGENT: Edge Function Recovery</CardTitle>
-          <CardDescription className="text-red-700 dark:text-red-300">
-            Edge function syntax was fixed. Test single document processing before running full batch.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <EdgeFunctionTester />
-        </CardContent>
-      </Card>
+      {/* 🚨 URGENT: Edge Function Testing & MPS-Criteria Linking */}
+      <div className="space-y-4">
+        <Card className="border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
+          <CardHeader>
+            <CardTitle className="text-red-800 dark:text-red-200">🚨 URGENT: Edge Function Recovery</CardTitle>
+            <CardDescription className="text-red-700 dark:text-red-300">
+              Edge function syntax was fixed. Test single document processing before running full batch.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <EdgeFunctionTester />
+          </CardContent>
+        </Card>
+
+        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
+          <CardHeader>
+            <CardTitle className="text-amber-800 dark:text-amber-200">🔗 CRITICAL: MPS-Criteria Linking</CardTitle>
+            <CardDescription className="text-amber-700 dark:text-amber-300">
+              Generate missing criteria from processed document chunks to fix regression test failures.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MPSCriteriaLinker />
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Phase 2 Recovery: Manual MPS Reprocessor */}
       <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
