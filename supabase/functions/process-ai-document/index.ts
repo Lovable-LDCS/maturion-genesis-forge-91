@@ -250,12 +250,20 @@ serve(async (req) => {
             return null;
           }
 
+          // Generate content hash for chunk
+          const encoder = new TextEncoder();
+          const data = encoder.encode(chunk);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const contentHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
           // Store the chunk
           const { error: chunkError } = await supabase
             .from('ai_document_chunks')
             .insert({
               document_id: documentId,
               content: chunk,
+              content_hash: contentHash,
               chunk_index: index,
               embedding: embedding,
               organization_id: document.organization_id,
