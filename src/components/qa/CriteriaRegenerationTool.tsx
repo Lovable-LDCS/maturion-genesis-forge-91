@@ -21,19 +21,23 @@ export const CriteriaRegenerationTool: React.FC = () => {
     try {
       console.log('🔄 Starting criteria regeneration...');
 
-      // Step 1: Get the current user's organization
-      const { data: userOrg, error: userError } = await supabase
-        .from('organization_members')
+      // Step 1: Find the organization with document chunks (consolidated org)
+      const { data: chunkOrgs, error: chunkError } = await supabase
+        .from('ai_document_chunks')
         .select('organization_id')
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
-        .single();
+        .limit(1);
 
-      if (userError || !userOrg) {
-        throw new Error('Could not identify user organization');
+      if (chunkError) {
+        console.error('Error finding chunk organizations:', chunkError);
+        throw new Error(`Database error: ${chunkError.message}`);
       }
 
-      const orgId = userOrg.organization_id;
-      console.log(`📋 Working with organization: ${orgId}`);
+      if (!chunkOrgs || chunkOrgs.length === 0) {
+        throw new Error('No document chunks found in any organization. Ensure MPS documents are processed.');
+      }
+
+      const orgId = chunkOrgs[0].organization_id;
+      console.log(`📋 Using organization with chunks: ${orgId}`);
 
       // Step 2: Get all MPSs that have chunks
       const { data: mpsWithChunks, error: mpsError } = await supabase
@@ -54,13 +58,13 @@ export const CriteriaRegenerationTool: React.FC = () => {
       console.log(`📋 Found ${mpsWithChunks?.length || 0} MPSs in organization`);
 
       // Step 3: Verify these MPSs have document chunks
-      const { data: chunkCheck, error: chunkError } = await supabase
+      const { data: chunkVerification, error: verificationError } = await supabase
         .from('ai_document_chunks')
         .select('document_id')
         .eq('organization_id', orgId)
         .limit(1);
 
-      if (chunkError || !chunkCheck || chunkCheck.length === 0) {
+      if (verificationError || !chunkVerification || chunkVerification.length === 0) {
         throw new Error('No document chunks found in organization');
       }
 
