@@ -29,6 +29,15 @@ serve(async (req) => {
 
     const processingPromise = (async () => {
       console.log('=== Document Processing Started ===');
+      console.log('🔧 FULL DEBUG MODE: Enhanced Mammoth.js Pipeline Analysis');
+      
+      // Parse request body first
+      const requestBody = await req.json();
+      documentId = requestBody.documentId;
+      const corruptionRecovery = requestBody.corruptionRecovery || false;
+      const validateTextOnly = requestBody.validateTextOnly || true; // Enable by default
+      const targetChunkSize = requestBody.targetChunkSize || 2000; // Increased from 1500
+      const minChunkSize = requestBody.minChunkSize || 1500; // AI Policy minimum
       
       // Parse request body first
       const requestBody = await req.json();
@@ -100,6 +109,7 @@ serve(async (req) => {
           document.file_name.endsWith('.docx')) {
         
         console.log('🔧 Processing DOCX file with enhanced Mammoth.js extraction...');
+        console.log('📋 DEBUG: File type detected as DOCX, proceeding with Mammoth.js pipeline');
         
         try {
           // Convert file to array buffer for Mammoth.js
@@ -115,12 +125,14 @@ serve(async (req) => {
             throw new Error('Invalid docx file signature - file may be corrupted');
           }
           
-          console.log('✅ DOCX file signature validated');
+          console.log('✅ DOCX file signature validated - proceeding with Mammoth.js extraction');
           
           // Use Mammoth.js to extract clean text
+          console.log('📄 DEBUG: Starting Mammoth.js text extraction...');
           const result = await mammoth.extractRawText({ arrayBuffer });
           extractedText = result.value;
           extractionMethod = 'mammoth_enhanced';
+          console.log(`📄 DEBUG: Mammoth.js extraction completed - ${extractedText.length} characters extracted`);
           
           // Quality assessment
           const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
@@ -168,6 +180,7 @@ serve(async (req) => {
 
       // AI POLICY VALIDATION: Enhanced corruption detection
       console.log('🔍 Applying AI Policy validation...');
+      console.log(`🔍 DEBUG: Text length: ${extractedText.length} characters, method: ${extractionMethod}`);
       
       // Check for binary content patterns
       const binaryContentRatio = (extractedText.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / extractedText.length;
@@ -180,6 +193,8 @@ serve(async (req) => {
                                 extractedText.includes('��');
       
       // STRICT validation based on AI Policy
+      console.log(`🔍 DEBUG: Validation checks - Binary ratio: ${(binaryContentRatio * 100).toFixed(2)}%, XML artifacts: ${hasXMLArtifacts}, Corruption markers: ${hasCorruptedMarkers}`);
+      
       if (binaryContentRatio > 0.1) {
         throw new Error(`BLOCKED: High binary content ratio (${(binaryContentRatio * 100).toFixed(1)}%) - AI Policy violation`);
       }
