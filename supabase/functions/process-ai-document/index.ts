@@ -35,9 +35,9 @@ serve(async (req) => {
     const requestBody = await req.json();
     documentId = requestBody.documentId;
     const corruptionRecovery = requestBody.corruptionRecovery || false;
-    const validateTextOnly = requestBody.validateTextOnly || false;
-    const targetChunkSize = requestBody.targetChunkSize || 1500;
-    const minChunkSize = requestBody.minChunkSize || 800;
+    const validateTextOnly = requestBody.validateTextOnly || true; // Enable by default
+    const targetChunkSize = requestBody.targetChunkSize || 2000; // Increased from 1500
+    const minChunkSize = requestBody.minChunkSize || 1500; // AI Policy minimum
     
     if (!documentId) {
       throw new Error('documentId is required');
@@ -106,32 +106,80 @@ serve(async (req) => {
       throw new Error(`No extractable text content found in ${document.file_name}`);
     }
 
-    // Enhanced chunking for corruption recovery mode
-    const chunkSize = corruptionRecovery ? targetChunkSize : 1500;
-    const overlap = corruptionRecovery ? 200 : 200;
-    const maxChunks = 100; // Allow more chunks for comprehensive coverage
+    // AI DOCUMENT INGESTION & VALIDATION POLICY - Enhanced Content Validation
+    console.log('🛡️ AI Policy: Applying enhanced content validation...');
     
-    console.log(`🔧 Chunking parameters: size=${chunkSize}, overlap=${overlap}, corruptionRecovery=${corruptionRecovery}`);
+    // Check for XML artifacts and corruption patterns
+    const xmlArtifacts = textContent.includes('_rels/') || textContent.includes('customXml/') || 
+                        textContent.includes('word/_rels') || textContent.includes('.xml.rels') ||
+                        textContent.includes('tomXml/') || textContent.includes('[Content_Types].xml');
     
-    // Enhanced text validation for corruption recovery
-    if (corruptionRecovery && validateTextOnly) {
-      console.log(`🔍 Corruption recovery: Validating text-only content`);
-      
-      // Check for XML artifacts and binary data
-      const xmlArtifacts = textContent.includes('_rels/') || textContent.includes('customXml/') || 
-                          textContent.includes('word/_rels') || textContent.includes('.xml.rels');
-      const binaryRatio = (textContent.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / textContent.length;
-      const questionMarkRatio = (textContent.match(/\?/g) || []).length / textContent.length;
-      
-      if (xmlArtifacts || binaryRatio > 0.3 || (questionMarkRatio > 0.2 && textContent.includes('\\\\\\\\'))) {
-        throw new Error(`Corruption detected in extracted text: XML artifacts=${xmlArtifacts}, binary ratio=${binaryRatio.toFixed(3)}, question marks=${questionMarkRatio.toFixed(3)}`);
-      }
-      
-      console.log(`✅ Text validation passed: clean content detected`);
+    const binaryRatio = (textContent.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / textContent.length;
+    const questionMarkRatio = (textContent.match(/\?/g) || []).length / textContent.length;
+    const backslashRatio = (textContent.match(/\\\\\\\\/g) || []).length / textContent.length;
+    
+    console.log(`📊 Content quality metrics:
+    - XML artifacts: ${xmlArtifacts}
+    - Binary ratio: ${binaryRatio.toFixed(3)}
+    - Question mark ratio: ${questionMarkRatio.toFixed(3)}
+    - Backslash ratio: ${backslashRatio.toFixed(3)}`);
+    
+    // AI Policy enforcement: Reject heavily corrupted content
+    if (xmlArtifacts) {
+      throw new Error(`AI Policy violation: Document contains XML artifacts from DOCX metadata`);
     }
     
-    const chunks = splitTextIntoChunks(textContent, chunkSize, overlap).slice(0, maxChunks);
-    console.log(`Created ${chunks.length} chunks for ${corruptionRecovery ? 'corruption recovery' : 'standard'} processing (up to ${maxChunks} allowed)`);
+    if (binaryRatio > 0.3) {
+      throw new Error(`AI Policy violation: Document contains ${(binaryRatio * 100).toFixed(1)}% binary data (max: 30%)`);
+    }
+    
+    if (questionMarkRatio > 0.2 && backslashRatio > 0.1) {
+      throw new Error(`AI Policy violation: Document shows encoding corruption patterns`);
+    }
+    
+    console.log('✅ AI Policy: Content validation passed');
+
+    // AI DOCUMENT INGESTION & VALIDATION POLICY - Chunking Strategy
+    const chunkSize = Math.max(targetChunkSize, minChunkSize); // Enforce minimum
+    const overlap = Math.min(300, Math.floor(chunkSize * 0.15)); // Smart overlap scaling
+    const maxChunks = 80; // Optimized for quality over quantity
+    
+    console.log(`🔧 AI Policy Chunking: size=${chunkSize}, overlap=${overlap}, min=${minChunkSize}`);
+    
+    const rawChunks = splitTextIntoChunks(textContent, chunkSize, overlap);
+    
+    // AI Policy: Filter chunks that meet minimum quality standards
+    const validChunks = rawChunks.filter((chunk, index) => {
+      const isValidSize = chunk.length >= minChunkSize;
+      const hasXmlArtifacts = chunk.includes('_rels/') || chunk.includes('customXml/') || 
+                             chunk.includes('word/_rels') || chunk.includes('.xml.rels') ||
+                             chunk.includes('tomXml/');
+      const binaryRatio = (chunk.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / chunk.length;
+      const questionMarkRatio = (chunk.match(/\?/g) || []).length / chunk.length;
+      
+      const isClean = !hasXmlArtifacts && binaryRatio < 0.3 && 
+                     !(questionMarkRatio > 0.2 && chunk.includes('\\\\\\\\'));
+      
+      if (!isValidSize) {
+        console.log(`❌ Chunk ${index + 1} rejected: size ${chunk.length} < ${minChunkSize}`);
+      } else if (!isClean) {
+        console.log(`❌ Chunk ${index + 1} rejected: corruption detected`);
+      }
+      
+      return isValidSize && isClean;
+    }).slice(0, maxChunks);
+    
+    console.log(`📊 AI Policy Results: ${validChunks.length}/${rawChunks.length} chunks passed validation`);
+    
+    if (validChunks.length === 0) {
+      throw new Error(`AI Policy violation: No chunks meet minimum quality standards (≥${minChunkSize} chars, corruption-free)`);
+    }
+    
+    if (validChunks.length < rawChunks.length * 0.5) {
+      console.warn(`⚠️ AI Policy warning: Only ${Math.round(validChunks.length/rawChunks.length*100)}% of chunks passed validation`);
+    }
+    
+    const chunks = validChunks;
 
     // Process chunks in optimized batches
     const batchSize = 8; // Better batch size for comprehensive content processing
