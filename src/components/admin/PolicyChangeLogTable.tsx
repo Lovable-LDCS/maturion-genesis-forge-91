@@ -34,8 +34,8 @@ const PolicyChangeLogTable: React.FC<PolicyChangeLogTableProps> = ({ logs, loadi
     });
   }, [logs, searchQuery, typeFilter, scopeFilter]);
 
-  const getUniqueTypes = () => [...new Set(logs.map(log => log.type))];
-  const getUniqueScopes = () => [...new Set(logs.map(log => log.domain_scope))];
+  const getUniqueTypes = () => [...new Set(logs.map(log => log.type).filter(type => type && type.trim() !== ''))];
+  const getUniqueScopes = () => [...new Set(logs.map(log => log.domain_scope).filter(scope => scope && scope.trim() !== ''))];
 
   const getPriorityBadge = (metadata: any) => {
     if (!metadata?.importance_level) return null;
