@@ -11,11 +11,17 @@ import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDe
 
 import { useMaturionDocuments } from '@/hooks/useMaturionDocuments';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
+import { usePolicyChangeLog } from '@/hooks/usePolicyChangeLog';
 import { supabase } from '@/integrations/supabase/client';
+import PolicyChangeLogTable from '@/components/admin/PolicyChangeLogTable';
+import CreatePolicyLogDialog from '@/components/admin/CreatePolicyLogDialog';
 
 const MaturionKnowledgeBase: React.FC = () => {
   const { documents, loading, refreshDocuments, bulkDeleteDocuments, uploadDocument } = useMaturionDocuments();
   const { currentOrganization } = useOrganization();
+  const { isAdmin } = useAdminAccess();
+  const { logs, loading: logsLoading, createPolicyLog } = usePolicyChangeLog();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
@@ -558,6 +564,27 @@ After submitting a custom criterion:
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Policy Change Log Section - Only for Admins/Superusers */}
+        {isAdmin && (
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Policy Management</h2>
+              <CreatePolicyLogDialog 
+                onCreateLog={createPolicyLog}
+                availableDocuments={documents.map(doc => ({
+                  id: doc.id,
+                  title: doc.title || '',
+                  file_name: doc.file_name
+                }))}
+              />
+            </div>
+            <PolicyChangeLogTable 
+              logs={logs} 
+              loading={logsLoading} 
+            />
+          </div>
         )}
 
         {/* Admin Tools */}
