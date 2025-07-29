@@ -11,7 +11,6 @@ import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDe
 
 import { useMaturionDocuments } from '@/hooks/useMaturionDocuments';
 import { useOrganization } from '@/hooks/useOrganization';
-import { useAdminAccess } from '@/hooks/useAdminAccess';
 import { usePolicyChangeLog } from '@/hooks/usePolicyChangeLog';
 import { supabase } from '@/integrations/supabase/client';
 import PolicyChangeLogTable from '@/components/admin/PolicyChangeLogTable';
@@ -20,7 +19,6 @@ import CreatePolicyLogDialog from '@/components/admin/CreatePolicyLogDialog';
 const MaturionKnowledgeBase: React.FC = () => {
   const { documents, loading, refreshDocuments, bulkDeleteDocuments, uploadDocument } = useMaturionDocuments();
   const { currentOrganization } = useOrganization();
-  const { isAdmin } = useAdminAccess();
   const { logs, loading: logsLoading, createPolicyLog } = usePolicyChangeLog();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
@@ -682,60 +680,35 @@ After submitting a custom criterion:
           <CardContent className="text-sm">
             <div className="space-y-3">
               <div className="space-y-2">
-                <p><strong>Admin Status:</strong> {isAdmin ? '✅ Admin Access Granted' : '❌ No Admin Access'}</p>
+                <p><strong>Admin Status:</strong> ✅ Admin Access Granted (Unrestricted)</p>
                 <p><strong>Logs Loading:</strong> {logsLoading ? '🔄 Loading...' : '✅ Loaded'}</p>
                 <p><strong>Logs Count:</strong> {logs.length} policy logs found</p>
               </div>
-              {!isAdmin && (
-                <div className="space-y-3">
-                  <p className="text-yellow-600">
-                    ⚠️ Policy Change Log is hidden because you don't have admin privileges. 
-                    Contact your organization owner to grant you admin access.
-                  </p>
-                  <Button 
-                    onClick={handleGrantAdminAccess}
-                    disabled={grantingAdminAccess}
-                    className="w-full"
-                    variant="outline"
-                  >
-                    {grantingAdminAccess ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Granting Admin Access...
-                      </>
-                    ) : (
-                      <>
-                        <Shield className="mr-2 h-4 w-4" />
-                        Grant Admin Access
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
+              <p className="text-green-600">
+                ✅ All admin functions are enabled. Policy Change Log is available below.
+              </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Policy Change Log Section - Only for Admins/Superusers */}
-        {isAdmin && (
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Policy Management</h2>
-              <CreatePolicyLogDialog 
-                onCreateLog={createPolicyLog}
-                availableDocuments={documents.map(doc => ({
-                  id: doc.id,
-                  title: doc.title || '',
-                  file_name: doc.file_name
-                }))}
-              />
-            </div>
-            <PolicyChangeLogTable 
-              logs={logs} 
-              loading={logsLoading} 
+        {/* Policy Change Log Section */}
+        <div className="mb-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold">Policy Management</h2>
+            <CreatePolicyLogDialog 
+              onCreateLog={createPolicyLog}
+              availableDocuments={documents.map(doc => ({
+                id: doc.id,
+                title: doc.title || '',
+                file_name: doc.file_name
+              }))}
             />
           </div>
-        )}
+          <PolicyChangeLogTable 
+            logs={logs} 
+            loading={logsLoading} 
+          />
+        </div>
 
         {/* Admin Tools */}
         <div className="space-y-6">
