@@ -26,7 +26,7 @@ const MaturionKnowledgeBase: React.FC = () => {
   const [isDocumentListExpanded, setIsDocumentListExpanded] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadingGuidance, setIsUploadingGuidance] = useState(false);
-  const [grantingAdminAccess, setGrantingAdminAccess] = useState(false);
+  
   const { toast } = useToast();
 
   // Upload Cross-Domain Guidance Document
@@ -177,68 +177,6 @@ After submitting a custom criterion:
     }
   };
 
-  // Handle granting admin access
-  const handleGrantAdminAccess = async () => {
-    setGrantingAdminAccess(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast({
-          title: "Error",
-          description: "You must be logged in to grant admin access",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      console.log('Calling grant-admin-access function...');
-      const { data, error } = await supabase.functions.invoke('grant-admin-access', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      console.log('Function response:', { data, error });
-
-      if (error) {
-        console.error('Error granting admin access:', error);
-        toast({
-          title: "Error",
-          description: `Failed to grant admin access: ${error.message}`,
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (data?.success) {
-        toast({
-          title: "Success",
-          description: "Admin access granted successfully! Please refresh the page to see changes.",
-        });
-        // Optionally refresh the page after a short delay
-        setTimeout(() => {
-          window.location.reload();
-        }, 2000);
-      } else {
-        console.error('Function returned error:', data);
-        toast({
-          title: "Error",
-          description: data?.error || "Failed to grant admin access",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error('Error calling grant admin function:', error);
-      toast({
-        title: "Error",
-        description: "An unexpected error occurred while granting admin access",
-        variant: "destructive",
-      });
-    } finally {
-      setGrantingAdminAccess(false);
-    }
-  };
-  
   // Filter documents based on status
   const filteredDocuments = useMemo(() => {
     if (statusFilter === 'all') return documents;

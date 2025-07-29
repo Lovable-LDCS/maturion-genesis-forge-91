@@ -213,14 +213,17 @@ const CreatePolicyLogDialog: React.FC<CreatePolicyLogDialogProps> = ({
             <div>
               <Label htmlFor="linked_document">Linked Document (Optional)</Label>
               <Select 
-                value={formData.linked_document_id || ''} 
-                onValueChange={(value) => setFormData(prev => ({ ...prev, linked_document_id: value }))}
+                value={formData.linked_document_id || 'none'} 
+                onValueChange={(value) => setFormData(prev => ({ 
+                  ...prev, 
+                  linked_document_id: value === 'none' ? null : value 
+                }))}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a document" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No linked document</SelectItem>
+                  <SelectItem value="none">No linked document</SelectItem>
                   {availableDocuments.map(doc => (
                     <SelectItem key={doc.id} value={doc.id}>
                       {doc.title || doc.file_name}
