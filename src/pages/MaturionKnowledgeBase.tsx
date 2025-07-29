@@ -5,7 +5,7 @@ import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter, Trash2, CheckSquare, Square } from 'lucide-react';
+import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter, Trash2, CheckSquare, Square, ChevronDown, ChevronUp } from 'lucide-react';
 import { MaturionKnowledgeUploadZone } from '@/components/ai/MaturionKnowledgeUploadZone';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
 
@@ -24,6 +24,7 @@ const MaturionKnowledgeBase: React.FC = () => {
   const { logs, loading: logsLoading, createPolicyLog } = usePolicyChangeLog();
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
+  const [isBulkActionsExpanded, setIsBulkActionsExpanded] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadingGuidance, setIsUploadingGuidance] = useState(false);
   const { toast } = useToast();
@@ -424,74 +425,94 @@ After submitting a custom criterion:
             </div>
           </CardHeader>
           
-          {/* Bulk Actions Panel */}
+          {/* Bulk Actions Panel - Collapsible */}
           {filteredDocuments.length > 0 && (
             <CardContent className="pt-0">
-              <div className="flex items-center justify-between bg-muted/30 p-4 rounded-lg">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={selectedDocuments.size === filteredDocuments.length ? clearSelection : selectAllDocuments}
-                    >
-                      {selectedDocuments.size === filteredDocuments.length ? (
-                        <>
-                          <CheckSquare className="h-4 w-4 mr-2" />
-                          Deselect All
-                        </>
-                      ) : (
-                        <>
-                          <Square className="h-4 w-4 mr-2" />
-                          Select All ({filteredDocuments.length})
-                        </>
-                      )}
-                    </Button>
-                    
-                     <Button
-                       variant="outline"
-                       size="sm"
-                       onClick={selectDuplicatesByName}
-                     >
-                       Select Duplicates
-                     </Button>
-                     
-                     <Button
-                       variant="default"
-                       size="sm"
-                       onClick={uploadCrossDomainGuidance}
-                       disabled={isUploadingGuidance}
-                     >
-                       {isUploadingGuidance ? 'Uploading...' : 'Upload Cross-Domain Guidance'}
-                     </Button>
-                  </div>
-                  
-                  {selectedDocuments.size > 0 && (
-                    <span className="text-sm text-muted-foreground">
-                      {selectedDocuments.size} document{selectedDocuments.size !== 1 ? 's' : ''} selected
-                    </span>
+              <div className="space-y-3">
+                {/* Collapsible Header */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsBulkActionsExpanded(!isBulkActionsExpanded)}
+                  className="w-full justify-between h-8 px-2 text-muted-foreground hover:text-foreground"
+                >
+                  <span className="text-sm">Bulk Actions & Selection Tools</span>
+                  {isBulkActionsExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
                   )}
-                </div>
-                
-                {selectedDocuments.size > 0 && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={handleBulkDelete}
-                    disabled={isDeleting}
-                  >
-                    {isDeleting ? (
+                </Button>
+
+                {/* Bulk Actions Content */}
+                {isBulkActionsExpanded && (
+                  <div className="flex items-center justify-between bg-muted/30 p-4 rounded-lg">
+                    <div className="flex items-center gap-4">
                       <div className="flex items-center gap-2">
-                        <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                        Deleting...
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={selectedDocuments.size === filteredDocuments.length ? clearSelection : selectAllDocuments}
+                        >
+                          {selectedDocuments.size === filteredDocuments.length ? (
+                            <>
+                              <CheckSquare className="h-4 w-4 mr-2" />
+                              Deselect All
+                            </>
+                          ) : (
+                            <>
+                              <Square className="h-4 w-4 mr-2" />
+                              Select All ({filteredDocuments.length})
+                            </>
+                          )}
+                        </Button>
+                        
+                         <Button
+                           variant="outline"
+                           size="sm"
+                           onClick={selectDuplicatesByName}
+                         >
+                           Select Duplicates
+                         </Button>
+                         
+                         <Button
+                           variant="default"
+                           size="sm"
+                           onClick={uploadCrossDomainGuidance}
+                           disabled={isUploadingGuidance}
+                         >
+                           {isUploadingGuidance ? 'Uploading...' : 'Upload Cross-Domain Guidance'}
+                         </Button>
                       </div>
-                    ) : (
-                      <>
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Delete Selected ({selectedDocuments.size})
-                      </>
+                      
+                      {selectedDocuments.size > 0 && (
+                        <span className="text-sm text-muted-foreground">
+                          {selectedDocuments.size} document{selectedDocuments.size !== 1 ? 's' : ''} selected
+                        </span>
+                      )}
+                    </div>
+                    
+                    {selectedDocuments.size > 0 && (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleBulkDelete}
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? (
+                          <div className="flex items-center gap-2">
+                            <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                            Deleting...
+                          </div>
+                        ) : (
+                          <>
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete Selected ({selectedDocuments.size})
+                          </>
+                        )}
+                      </Button>
                     )}
-                  </Button>
+                  </div>
                 )}
               </div>
             </CardContent>
@@ -565,6 +586,29 @@ After submitting a custom criterion:
             </CardContent>
           </Card>
         )}
+
+        {/* Policy Change Log Section - Debug Info */}
+        <Card className="mb-6 border-l-4 border-l-blue-500">
+          <CardHeader>
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Policy Management Debug
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="text-sm">
+            <div className="space-y-2">
+              <p><strong>Admin Status:</strong> {isAdmin ? '✅ Admin Access Granted' : '❌ No Admin Access'}</p>
+              <p><strong>Logs Loading:</strong> {logsLoading ? '🔄 Loading...' : '✅ Loaded'}</p>
+              <p><strong>Logs Count:</strong> {logs.length} policy logs found</p>
+              {!isAdmin && (
+                <p className="text-yellow-600">
+                  ⚠️ Policy Change Log is hidden because you don't have admin privileges. 
+                  Contact your organization owner to grant you admin access.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Policy Change Log Section - Only for Admins/Superusers */}
         {isAdmin && (
