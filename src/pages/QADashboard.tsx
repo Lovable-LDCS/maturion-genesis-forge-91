@@ -16,6 +16,7 @@ import { EdgeFunctionTester } from '@/components/qa/EdgeFunctionTester';
 import { MPSCriteriaLinker } from '@/components/qa/MPSCriteriaLinker';
 import { OrganizationDataSynchronizer } from '@/components/qa/OrganizationDataSynchronizer';
 import { DataConsolidationTool } from '@/components/qa/DataConsolidationTool';
+import { CriteriaRegenerationTool } from '@/components/qa/CriteriaRegenerationTool';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 
@@ -137,11 +138,23 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           </CardContent>
         </Card>
 
+        <Card className="border-purple-200 bg-purple-50 dark:bg-purple-950 dark:border-purple-800">
+          <CardHeader>
+            <CardTitle className="text-purple-800 dark:text-purple-200">🔄 NEXT: Criteria Regeneration Required</CardTitle>
+            <CardDescription className="text-purple-700 dark:text-purple-300">
+              Delete placeholder criteria and regenerate fresh criteria from document chunks using AI.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <CriteriaRegenerationTool />
+          </CardContent>
+        </Card>
+
         <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
           <CardHeader>
-            <CardTitle className="text-amber-800 dark:text-amber-200">🔗 SECONDARY: MPS-Criteria Linking</CardTitle>
+            <CardTitle className="text-amber-800 dark:text-amber-200">🔗 FINAL: MPS-Criteria Verification</CardTitle>
             <CardDescription className="text-amber-700 dark:text-amber-300">
-              After organization sync, use this to generate any remaining missing criteria.
+              After criteria regeneration, use this to verify all linkages are correct.
             </CardDescription>
           </CardHeader>
           <CardContent>
