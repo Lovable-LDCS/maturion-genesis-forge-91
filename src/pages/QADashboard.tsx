@@ -11,6 +11,7 @@ import { MPSLinkageRebuilder } from '@/components/qa/MPSLinkageRebuilder';
 import { MPSDocumentReprocessor } from '@/components/qa/MPSDocumentReprocessor';
 import { QASystemTest } from '@/components/qa/QASystemTest';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
+import { ManualMPSReprocessor } from '@/components/qa/ManualMPSReprocessor';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 
@@ -105,6 +106,19 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           </div>
         </AlertDescription>
       </Alert>
+
+      {/* Phase 2 Recovery: Manual MPS Reprocessor */}
+      <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
+        <CardHeader>
+          <CardTitle className="text-amber-800 dark:text-amber-200">🔧 Phase 2 Recovery: Enhanced Mammoth.js Pipeline</CardTitle>
+          <CardDescription className="text-amber-700 dark:text-amber-300">
+            Manual reprocessing of all pending MPS documents with enhanced Mammoth.js integration
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ManualMPSReprocessor />
+        </CardContent>
+      </Card>
 
       {/* Document Processing Debugger */}
       <Card>
