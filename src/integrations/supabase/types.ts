@@ -1554,6 +1554,7 @@ export type Database = {
           linked_domains: string[] | null
           logo_url: string | null
           name: string
+          organization_type: string | null
           owner_id: string
           primary_color: string | null
           primary_website_url: string | null
@@ -1581,6 +1582,7 @@ export type Database = {
           linked_domains?: string[] | null
           logo_url?: string | null
           name: string
+          organization_type?: string | null
           owner_id?: string
           primary_color?: string | null
           primary_website_url?: string | null
@@ -1608,6 +1610,7 @@ export type Database = {
           linked_domains?: string[] | null
           logo_url?: string | null
           name?: string
+          organization_type?: string | null
           owner_id?: string
           primary_color?: string | null
           primary_website_url?: string | null
@@ -1949,6 +1952,10 @@ export type Database = {
         Args: { setting_name_param: string }
         Returns: Json
       }
+      get_user_primary_organization: {
+        Args: { user_uuid?: string }
+        Returns: string
+      }
       halfvec_avg: {
         Args: { "": number[] }
         Returns: unknown
@@ -1980,6 +1987,10 @@ export type Database = {
       hnswhandler: {
         Args: { "": unknown }
         Returns: unknown
+      }
+      is_primary_organization: {
+        Args: { org_uuid: string }
+        Returns: boolean
       }
       is_user_admin: {
         Args: { user_uuid?: string }
