@@ -526,16 +526,33 @@ async function extractTextContent(fileData: Blob, mimeType: string, fileName: st
       } catch (docxError) {
         console.error(`❌ Word extraction failed for ${fileName}:`, docxError);
         
-        // Try fallback text extraction
-        console.log(`🔄 Attempting fallback extraction for ${fileName}...`);
-        const fallbackText = await extractFallbackText(fileData, fileName);
+        // AI POLICY: Restrict fallback to prevent corrupted content storage
+        console.log(`🔄 Attempting RESTRICTED fallback extraction for ${fileName}...`);
         
-        if (fallbackText && fallbackText.length > 100) {
-          console.log(`✅ Fallback extraction successful: ${fallbackText.length} characters`);
-          return fallbackText;
+        try {
+          const fallbackText = await extractFallbackText(fileData, fileName);
+          
+          // AI POLICY: Strict fallback validation (much higher standards)
+          const isValidFallback = fallbackText && 
+                                 fallbackText.length >= 1500 && // AI Policy minimum
+                                 !fallbackText.includes('_rels/') &&
+                                 !fallbackText.includes('customXml/') &&
+                                 !fallbackText.includes('word/_rels') &&
+                                 !/\\\\\\\\/.test(fallbackText) &&
+                                 (fallbackText.match(/[a-zA-Z]/g) || []).length / fallbackText.length > 0.7;
+          
+          if (isValidFallback) {
+            console.log(`✅ AI Policy: Fallback extraction meets quality standards: ${fallbackText.length} characters`);
+            return fallbackText;
+          } else {
+            console.log(`❌ AI Policy: Fallback extraction rejected - does not meet quality standards`);
+            throw new Error(`Fallback extraction rejected by AI Policy validation`);
+          }
+        } catch (fallbackError) {
+          console.error(`❌ Fallback extraction failed:`, fallbackError);
         }
         
-        throw new Error(`Failed to extract text from Word document ${fileName}: ${docxError.message}. File may be corrupted or use unsupported features.`);
+        throw new Error(`MAMMOTH EXTRACTION FAILED for ${fileName}: ${docxError.message}. File cannot be processed - may be corrupted, password-protected, or contain unsupported features. AI Policy blocks low-quality fallback content.`);
       }
     }
     
