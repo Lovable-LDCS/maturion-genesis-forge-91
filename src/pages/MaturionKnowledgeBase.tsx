@@ -25,6 +25,7 @@ const MaturionKnowledgeBase: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedDocuments, setSelectedDocuments] = useState<Set<string>>(new Set());
   const [isBulkActionsExpanded, setIsBulkActionsExpanded] = useState(false);
+  const [isDocumentListExpanded, setIsDocumentListExpanded] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isUploadingGuidance, setIsUploadingGuidance] = useState(false);
   const { toast } = useToast();
@@ -519,71 +520,91 @@ After submitting a custom criterion:
           )}
         </Card>
 
-        {/* Document List with Selection */}
+        {/* Document List with Selection - Collapsible */}
         {filteredDocuments.length > 0 && (
           <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="text-lg">Documents</CardTitle>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Documents</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsDocumentListExpanded(!isDocumentListExpanded)}
+                  className="flex items-center gap-2"
+                >
+                  <span className="text-sm">
+                    {isDocumentListExpanded ? 'Hide' : 'Show'} {filteredDocuments.length} documents
+                  </span>
+                  {isDocumentListExpanded ? (
+                    <ChevronUp className="h-4 w-4" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {filteredDocuments.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className={`flex items-center gap-3 p-3 rounded-lg border ${
-                      selectedDocuments.has(doc.id) ? 'bg-muted border-primary' : 'hover:bg-muted/50'
-                    }`}
-                  >
+            
+            {isDocumentListExpanded && (
+              <CardContent>
+                <div className="space-y-2">
+                  {filteredDocuments.map((doc) => (
                     <div
-                      className="cursor-pointer"
-                      onClick={() => toggleDocumentSelection(doc.id)}
+                      key={doc.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border ${
+                        selectedDocuments.has(doc.id) ? 'bg-muted border-primary' : 'hover:bg-muted/50'
+                      }`}
                     >
-                      {selectedDocuments.has(doc.id) ? (
-                        <CheckSquare className="h-4 w-4 text-primary" />
-                      ) : (
-                        <Square className="h-4 w-4 text-muted-foreground" />
-                      )}
-                    </div>
-                    
-                    <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{doc.title || doc.file_name}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {Math.round(doc.file_size / 1024)} KB • {new Date(doc.created_at).toLocaleDateString()}
+                      <div
+                        className="cursor-pointer"
+                        onClick={() => toggleDocumentSelection(doc.id)}
+                      >
+                        {selectedDocuments.has(doc.id) ? (
+                          <CheckSquare className="h-4 w-4 text-primary" />
+                        ) : (
+                          <Square className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                      
+                      <FileText className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">{doc.title || doc.file_name}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {Math.round(doc.file_size / 1024)} KB • {new Date(doc.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        {doc.processing_status === 'completed' && (
+                          <Badge variant="default" className="text-xs">
+                            <CheckCircle className="h-3 w-3 mr-1" />
+                            Processed
+                          </Badge>
+                        )}
+                        {doc.processing_status === 'processing' && (
+                          <Badge variant="outline" className="text-xs">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Processing
+                          </Badge>
+                        )}
+                        {doc.processing_status === 'pending' && (
+                          <Badge variant="outline" className="text-xs">
+                            <Clock className="h-3 w-3 mr-1" />
+                            Pending
+                          </Badge>
+                        )}
+                        {doc.processing_status === 'failed' && (
+                          <Badge variant="destructive" className="text-xs">
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Failed
+                          </Badge>
+                        )}
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {doc.processing_status === 'completed' && (
-                        <Badge variant="default" className="text-xs">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Processed
-                        </Badge>
-                      )}
-                      {doc.processing_status === 'processing' && (
-                        <Badge variant="outline" className="text-xs">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Processing
-                        </Badge>
-                      )}
-                      {doc.processing_status === 'pending' && (
-                        <Badge variant="outline" className="text-xs">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Pending
-                        </Badge>
-                      )}
-                      {doc.processing_status === 'failed' && (
-                        <Badge variant="destructive" className="text-xs">
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          Failed
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
+                  ))}
+                </div>
+              </CardContent>
+            )}
           </Card>
         )}
 
