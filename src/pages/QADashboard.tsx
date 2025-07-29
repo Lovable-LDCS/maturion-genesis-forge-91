@@ -14,6 +14,7 @@ import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDe
 import { ManualMPSReprocessor } from '@/components/qa/ManualMPSReprocessor';
 import { EdgeFunctionTester } from '@/components/qa/EdgeFunctionTester';
 import { MPSCriteriaLinker } from '@/components/qa/MPSCriteriaLinker';
+import { OrganizationDataSynchronizer } from '@/components/qa/OrganizationDataSynchronizer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 
@@ -123,11 +124,23 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           </CardContent>
         </Card>
 
+        <Card className="border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
+          <CardHeader>
+            <CardTitle className="text-red-800 dark:text-red-200">🚨 CRITICAL: Organization Data Split</CardTitle>
+            <CardDescription className="text-red-700 dark:text-red-300">
+              Chunks and criteria exist in different organizations, causing regression failures.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <OrganizationDataSynchronizer />
+          </CardContent>
+        </Card>
+
         <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">
           <CardHeader>
-            <CardTitle className="text-amber-800 dark:text-amber-200">🔗 CRITICAL: MPS-Criteria Linking</CardTitle>
+            <CardTitle className="text-amber-800 dark:text-amber-200">🔗 SECONDARY: MPS-Criteria Linking</CardTitle>
             <CardDescription className="text-amber-700 dark:text-amber-300">
-              Generate missing criteria from processed document chunks to fix regression test failures.
+              After organization sync, use this to generate any remaining missing criteria.
             </CardDescription>
           </CardHeader>
           <CardContent>
