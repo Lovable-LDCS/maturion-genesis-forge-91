@@ -193,11 +193,14 @@ After submitting a custom criterion:
         return;
       }
 
+      console.log('Calling grant-admin-access function...');
       const { data, error } = await supabase.functions.invoke('grant-admin-access', {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
       });
+
+      console.log('Function response:', { data, error });
 
       if (error) {
         console.error('Error granting admin access:', error);
@@ -219,6 +222,7 @@ After submitting a custom criterion:
           window.location.reload();
         }, 2000);
       } else {
+        console.error('Function returned error:', data);
         toast({
           title: "Error",
           description: data?.error || "Failed to grant admin access",

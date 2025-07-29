@@ -11,64 +11,100 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  console.log('Grant admin access function called at:', new Date().toISOString())
+  
   try {
     // Get the authorization header
     const authHeader = req.headers.get('Authorization')
+    console.log('Authorization header present:', !!authHeader)
+    console.log('Authorization header preview:', authHeader ? authHeader.substring(0, 20) + '...' : 'none')
+    
     if (!authHeader) {
       console.error('Missing authorization header')
       return new Response(
-        JSON.stringify({ error: 'Authorization header missing' }),
+        JSON.stringify({ 
+          error: 'Authorization header missing',
+          debug: 'No Authorization header found in request'
+        }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     // Extract the token
     const token = authHeader.replace('Bearer ', '')
-    console.log('Token received, length:', token.length)
+    console.log('Token extracted, length:', token.length)
 
-    // Initialize Supabase client with service role key
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    // Initialize Supabase client with environment variables
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')
     
-    if (!supabaseUrl || !supabaseServiceKey) {
+    console.log('Environment check:', {
+      hasUrl: !!supabaseUrl,
+      hasServiceKey: !!supabaseServiceKey,
+      hasAnonKey: !!supabaseAnonKey
+    })
+    
+    if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey) {
       console.error('Missing environment variables')
       return new Response(
-        JSON.stringify({ error: 'Server configuration error' }),
+        JSON.stringify({ 
+          error: 'Server configuration error',
+          debug: 'Missing required environment variables'
+        }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
+    // Create Supabase clients
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-    // Create a separate client with the user's token to verify authentication
-    const userSupabase = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      auth: {
-        persistSession: false
-      }
+    const userSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false }
     })
 
-    // Set the user's session
+    console.log('Supabase clients created successfully')
+
+    // Verify user authentication
+    console.log('Attempting to verify user with token...')
     const { data: { user }, error: authError } = await userSupabase.auth.getUser(token)
 
+    console.log('Auth result:', {
+      hasUser: !!user,
+      userId: user?.id,
+      userEmail: user?.email,
+      authError: authError ? authError.message : 'none'
+    })
+
     if (authError || !user) {
-      console.error('Auth error:', authError)
+      console.error('Authentication failed:', authError)
       return new Response(
         JSON.stringify({ 
           error: 'Invalid authentication', 
-          details: authError?.message || 'User not found' 
+          details: authError?.message || 'User not found',
+          debug: {
+            authError: authError,
+            tokenLength: token.length,
+            tokenPreview: token.substring(0, 20) + '...'
+          }
         }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('User authenticated:', user.id, user.email)
+    console.log('User authenticated successfully:', user.id, user.email)
 
     // Check if user is already an admin
-    const { data: existingAdmin } = await supabase
+    console.log('Checking if user is already an admin...')
+    const { data: existingAdmin, error: checkError } = await supabase
       .from('admin_users')
-      .select('id')
+      .select('id, role')
       .eq('user_id', user.id)
       .single()
+
+    console.log('Admin check result:', {
+      existingAdmin: !!existingAdmin,
+      checkError: checkError ? checkError.message : 'none'
+    })
 
     if (existingAdmin) {
       console.log('User is already an admin')
@@ -77,39 +113,56 @@ Deno.serve(async (req) => {
           success: true, 
           message: 'User already has admin access',
           user_id: user.id,
-          email: user.email
+          email: user.email,
+          debug: 'User already exists in admin_users table'
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    // Grant admin access to the authenticated user using service role
-    const { data: insertData, error: insertError } = await supabase
+    // Grant admin access
+    console.log('Attempting to insert user into admin_users table...')
+    const insertData = {
+      user_id: user.id,
+      role: 'admin',
+      email: user.email,
+      granted_by: user.id
+    }
+    console.log('Insert data:', insertData)
+
+    const { data: adminData, error: insertError } = await supabase
       .from('admin_users')
-      .insert({
-        user_id: user.id,
-        role: 'admin',
-        email: user.email,
-        granted_by: user.id
-      })
+      .insert(insertData)
       .select()
       .single()
 
+    console.log('Insert result:', {
+      success: !!adminData,
+      insertError: insertError ? insertError.message : 'none',
+      insertErrorCode: insertError?.code,
+      insertErrorDetails: insertError?.details
+    })
+
     if (insertError) {
-      console.error('Insert error:', insertError)
+      console.error('Insert failed:', insertError)
       return new Response(
         JSON.stringify({ 
           error: 'Failed to grant admin access', 
           details: insertError.message,
-          code: insertError.code 
+          code: insertError.code,
+          debug: {
+            insertError,
+            attemptedData: insertData
+          }
         }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
-    console.log('Admin access granted successfully:', insertData)
+    console.log('Admin access granted successfully:', adminData)
 
     // Log the action in audit trail
+    console.log('Logging to audit trail...')
     const { error: auditError } = await supabase
       .from('audit_trail')
       .insert({
@@ -123,7 +176,8 @@ Deno.serve(async (req) => {
 
     if (auditError) {
       console.error('Audit log error:', auditError)
-      // Don't fail the request for audit log errors
+    } else {
+      console.log('Audit trail logged successfully')
     }
 
     return new Response(
@@ -131,7 +185,8 @@ Deno.serve(async (req) => {
         success: true, 
         message: 'Admin access granted successfully',
         user_id: user.id,
-        email: user.email
+        email: user.email,
+        debug: 'Successfully inserted into admin_users and logged to audit_trail'
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
@@ -139,7 +194,14 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Function error:', error)
     return new Response(
-      JSON.stringify({ error: 'Internal server error', details: error.message }),
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error.message,
+        debug: {
+          errorStack: error.stack,
+          errorName: error.name
+        }
+      }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }
