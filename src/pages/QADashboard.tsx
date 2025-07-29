@@ -15,6 +15,7 @@ import { ManualMPSReprocessor } from '@/components/qa/ManualMPSReprocessor';
 import { EdgeFunctionTester } from '@/components/qa/EdgeFunctionTester';
 import { MPSCriteriaLinker } from '@/components/qa/MPSCriteriaLinker';
 import { OrganizationDataSynchronizer } from '@/components/qa/OrganizationDataSynchronizer';
+import { DataConsolidationTool } from '@/components/qa/DataConsolidationTool';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 
@@ -126,13 +127,13 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
 
         <Card className="border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
           <CardHeader>
-            <CardTitle className="text-red-800 dark:text-red-200">🚨 CRITICAL: Organization Data Split</CardTitle>
+            <CardTitle className="text-red-800 dark:text-red-200">🚨 CRITICAL: Data Consolidation Required</CardTitle>
             <CardDescription className="text-red-700 dark:text-red-300">
-              Chunks and criteria exist in different organizations, causing regression failures.
+              Multiple organizations detected - consolidate all data into the organization with chunks.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <OrganizationDataSynchronizer />
+            <DataConsolidationTool />
           </CardContent>
         </Card>
 
