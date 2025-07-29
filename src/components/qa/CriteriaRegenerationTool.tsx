@@ -21,23 +21,21 @@ export const CriteriaRegenerationTool: React.FC = () => {
     try {
       console.log('🔄 Starting criteria regeneration...');
 
-      // Step 1: Find the organization with document chunks (consolidated org)
-      const { data: chunkOrgs, error: chunkError } = await supabase
-        .from('ai_document_chunks')
-        .select('organization_id')
-        .limit(1);
+      // Step 1: Get the user's primary organization (audit-scoped entity)
+      const { data: primaryOrgData, error: orgError } = await supabase
+        .rpc('get_user_primary_organization');
 
-      if (chunkError) {
-        console.error('Error finding chunk organizations:', chunkError);
-        throw new Error(`Database error: ${chunkError.message}`);
+      if (orgError) {
+        console.error('Error finding primary organization:', orgError);
+        throw new Error(`Failed to identify primary organization: ${orgError.message}`);
       }
 
-      if (!chunkOrgs || chunkOrgs.length === 0) {
-        throw new Error('No document chunks found in any organization. Ensure MPS documents are processed.');
+      if (!primaryOrgData) {
+        throw new Error('No primary organization found. Ensure you have completed the maturity setup process.');
       }
 
-      const orgId = chunkOrgs[0].organization_id;
-      console.log(`📋 Using organization with chunks: ${orgId}`);
+      const orgId = primaryOrgData;
+      console.log(`📋 Using primary organization: ${orgId}`);
 
       // Step 2: Get all MPSs that have chunks
       const { data: mpsWithChunks, error: mpsError } = await supabase

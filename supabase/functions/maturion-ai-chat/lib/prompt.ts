@@ -1,5 +1,5 @@
 import { openAIApiKey, KNOWLEDGE_TIERS } from './constants.ts';
-import { determineKnowledgeTier, validateMpsNumber, sanitizeInput } from './utils.ts';
+import { determineKnowledgeTier, validateMpsNumber, sanitizeInput, supabase } from './utils.ts';
 import { getAIBehaviorPolicy, getIntentPromptLogic } from './policy.ts';
 import { getDocumentContext } from './context.ts';
 import { buildOrganizationalContext } from './organization.ts';
@@ -32,6 +32,36 @@ export async function buildPromptContext(request: PromptRequest) {
   const sanitizedPrompt = sanitizeInput(prompt);
   const sanitizedContext = sanitizeInput(context || '');
   const validatedMpsNumber = validateMpsNumber(mpsNumber);
+
+  // Ensure we're using a primary organization (if not specified, try to get user's primary)
+  let finalOrgId = organizationId;
+  if (!finalOrgId) {
+    console.log('⚠️ No organization specified in request, attempting to get primary org');
+    const { data: primaryOrgId, error: orgError } = await supabase
+      .rpc('get_user_primary_organization');
+    
+    if (!orgError && primaryOrgId) {
+      finalOrgId = primaryOrgId;
+      console.log('✅ Using primary organization:', finalOrgId);
+    } else {
+      console.warn('❌ Could not determine primary organization');
+    }
+  } else {
+    // Validate the provided org is primary
+    const { data: isPrimary, error: validateError } = await supabase
+      .rpc('is_primary_organization', { org_uuid: organizationId });
+    
+    if (!validateError && !isPrimary) {
+      console.log('⚠️ Provided organization is not primary, switching to primary org');
+      const { data: primaryOrgId, error: orgError } = await supabase
+        .rpc('get_user_primary_organization');
+      
+      if (!orgError && primaryOrgId) {
+        finalOrgId = primaryOrgId;
+        console.log('✅ Switched to primary organization:', finalOrgId);
+      }
+    }
+  }
   
   console.log('📥 Request details:', {
     hasPrompt: !!sanitizedPrompt,
@@ -58,18 +88,18 @@ export async function buildPromptContext(request: PromptRequest) {
   let sourceType = 'general';
 
   // For organizational context, include profile data
-  if (knowledgeTier === 'ORGANIZATIONAL_CONTEXT' && organizationId) {
+  if (knowledgeTier === 'ORGANIZATIONAL_CONTEXT' && finalOrgId) {
     console.log('🎯 ORGANIZATIONAL CONTEXT MODE: Building comprehensive profile');
-    organizationContext = await buildOrganizationalContext(organizationId);
+    organizationContext = await buildOrganizationalContext(finalOrgId);
   }
 
   // For Tier 1 (Internal Secure) contexts, enforce strict policy
-  if (requiresInternalSecure && organizationId) {
+  if (requiresInternalSecure && finalOrgId) {
     console.log('🔒 INTERNAL MODE: Enforcing AI Behavior & Knowledge Source Policy');
     
     // Get the policy documents first
-    behaviorPolicy = await getAIBehaviorPolicy(organizationId);
-    intentPromptLogic = await getIntentPromptLogic(organizationId);
+    behaviorPolicy = await getAIBehaviorPolicy(finalOrgId);
+    intentPromptLogic = await getIntentPromptLogic(finalOrgId);
     
     // Extract MPS number from prompt for targeted search (use passed parameter first)
     const extractedMpsNumber = validatedMpsNumber || (sanitizedPrompt.match(/MPS\s*(\d+)/i)?.[1] ? parseInt(sanitizedPrompt.match(/MPS\s*(\d+)/i)?.[1]) : undefined);
@@ -77,7 +107,7 @@ export async function buildPromptContext(request: PromptRequest) {
     console.log(`🎯 MPS targeting: ${extractedMpsNumber ? `MPS ${extractedMpsNumber}` : 'No specific MPS'}`);
     
     // Get document context for the specific request with MPS targeting
-    documentContext = await getDocumentContext(organizationId, sanitizedPrompt, currentDomain, extractedMpsNumber);
+    documentContext = await getDocumentContext(finalOrgId, sanitizedPrompt, currentDomain, extractedMpsNumber);
     sourceType = 'internal';
     
     console.log(`Knowledge base context length: ${documentContext.length} characters`);
@@ -86,14 +116,14 @@ export async function buildPromptContext(request: PromptRequest) {
     
     // Add organizational context for internal secure operations
     if (!organizationContext) {
-      organizationContext = await buildOrganizationalContext(organizationId);
+      organizationContext = await buildOrganizationalContext(finalOrgId);
     }
   }
 
   // For external awareness contexts
-  if (knowledgeTier === 'EXTERNAL_AWARENESS' && organizationId && allowExternalContext) {
+  if (knowledgeTier === 'EXTERNAL_AWARENESS' && finalOrgId && allowExternalContext) {
     console.log('🌐 EXTERNAL AWARENESS MODE: Including threat intelligence');
-    externalContext = await getExternalInsights(organizationId, sanitizedContext);
+    externalContext = await getExternalInsights(finalOrgId, sanitizedContext);
     sourceType = 'external';
   }
 

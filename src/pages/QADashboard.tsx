@@ -19,15 +19,50 @@ import { DataConsolidationTool } from '@/components/qa/DataConsolidationTool';
 import { CriteriaRegenerationTool } from '@/components/qa/CriteriaRegenerationTool';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useEffect, useState as useReactState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface QADashboardProps {}
 
 export const QADashboard: React.FC<QADashboardProps> = () => {
   const [activeTests, setActiveTests] = useState(0);
   const [completedTests, setCompletedTests] = useState(0);
+  const [primaryOrg, setPrimaryOrg] = useReactState<{id: string, name: string, type: string} | null>(null);
   
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
+
+  // Get primary organization info
+  useEffect(() => {
+    const fetchPrimaryOrg = async () => {
+      if (!user) return;
+      
+      try {
+        const { data: primaryOrgId, error: orgError } = await supabase
+          .rpc('get_user_primary_organization');
+        
+        if (!orgError && primaryOrgId) {
+          const { data: orgData, error: fetchError } = await supabase
+            .from('organizations')
+            .select('id, name, organization_type')
+            .eq('id', primaryOrgId)
+            .single();
+          
+          if (!fetchError && orgData) {
+            setPrimaryOrg({
+              id: orgData.id,
+              name: orgData.name,
+              type: orgData.organization_type
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching primary organization:', error);
+      }
+    };
+
+    fetchPrimaryOrg();
+  }, [user]);
 
   const mockMpsContext = {
     mpsId: 'test-mps-id',
@@ -59,6 +94,16 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           <p className="text-muted-foreground">
             Comprehensive quality assurance and validation system for Maturion AI
           </p>
+          {primaryOrg && (
+            <div className="flex items-center gap-2 mt-2">
+              <Badge variant="default" className="text-xs bg-primary">
+                🎯 ACTIVE ORG: {primaryOrg.name}
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {primaryOrg.type.toUpperCase()}
+              </Badge>
+            </div>
+          )}
         </div>
         <Badge variant="outline" className="text-sm">
           SUPERUSER ONLY
