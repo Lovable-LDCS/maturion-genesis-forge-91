@@ -103,9 +103,9 @@ export const CriteriaRegenerationTool: React.FC = () => {
           const { data: aiResult, error: aiError } = await supabase.functions.invoke('maturion-ai-chat', {
             body: {
               prompt: `Generate comprehensive assessment criteria for MPS ${mps.mps_number}: ${mps.name}. Use the uploaded MPS document content to create specific, measurable criteria.`,
+              organizationId: orgId,
               context: {
                 action: 'generate_criteria',
-                organizationId: orgId,
                 mpsId: mps.id,
                 mpsNumber: mps.mps_number,
                 mpsName: mps.name,
