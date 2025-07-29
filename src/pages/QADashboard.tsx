@@ -12,6 +12,7 @@ import { MPSDocumentReprocessor } from '@/components/qa/MPSDocumentReprocessor';
 import { QASystemTest } from '@/components/qa/QASystemTest';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
 import { ManualMPSReprocessor } from '@/components/qa/ManualMPSReprocessor';
+import { EdgeFunctionTester } from '@/components/qa/EdgeFunctionTester';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 
@@ -106,6 +107,19 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           </div>
         </AlertDescription>
       </Alert>
+
+      {/* 🚨 URGENT: Edge Function Testing */}
+      <Card className="border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
+        <CardHeader>
+          <CardTitle className="text-red-800 dark:text-red-200">🚨 URGENT: Edge Function Recovery</CardTitle>
+          <CardDescription className="text-red-700 dark:text-red-300">
+            Edge function syntax was fixed. Test single document processing before running full batch.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <EdgeFunctionTester />
+        </CardContent>
+      </Card>
 
       {/* Phase 2 Recovery: Manual MPS Reprocessor */}
       <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950 dark:border-amber-800">

@@ -1005,3 +1005,26 @@ async function generateEmbedding(text: string): Promise<number[] | null> {
     return null;
   }
 }
+
+  })(); // End processingPromise
+
+  // Race between processing and timeout
+  try {
+    await Promise.race([processingPromise, timeoutPromise]);
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: `Document ${documentId} processed successfully` 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  } catch (error: any) {
+    console.error('Error in process-ai-document function:', error);
+    return new Response(JSON.stringify({ 
+      error: error.message || 'Unknown processing error',
+      documentId: documentId || 'unknown'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+}); // End serve function
