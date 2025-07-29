@@ -21,932 +21,360 @@ serve(async (req) => {
 
   let documentId: string | undefined;
   
-  // Set up timeout for the entire operation (90 seconds)
-  const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error('Processing timeout after 90 seconds')), 90000);
-  });
-
-  const processingPromise = (async () => {
-  
   try {
-    console.log('=== Document Processing Started ===');
-    
-    // Parse request body first
-    const requestBody = await req.json();
-    documentId = requestBody.documentId;
-    const corruptionRecovery = requestBody.corruptionRecovery || false;
-    const validateTextOnly = requestBody.validateTextOnly || true; // Enable by default
-    const targetChunkSize = requestBody.targetChunkSize || 2000; // Increased from 1500
-    const minChunkSize = requestBody.minChunkSize || 1500; // AI Policy minimum
-    
-    if (!documentId) {
-      throw new Error('documentId is required');
-    }
+    // Set up timeout for the entire operation (90 seconds)
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Processing timeout after 90 seconds')), 90000);
+    });
 
-    console.log(`Processing document: ${documentId}`);
-    console.log(`Corruption recovery mode: ${corruptionRecovery}`);
-    console.log(`Text validation: ${validateTextOnly}`);
-    console.log(`Target chunk size: ${targetChunkSize}, Min: ${minChunkSize}`);
-
-    // Check environment variables
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
-    if (!supabaseUrl || !supabaseServiceRoleKey) {
-      throw new Error('Missing required environment variables');
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-
-    // Get document details
-    console.log('Fetching document details...');
-    const { data: document, error: docError } = await supabase
-      .from('ai_documents')
-      .select('*')
-      .eq('id', documentId)
-      .single();
-
-    if (docError || !document) {
-      console.error('Document not found:', docError);
-      throw new Error(`Document not found: ${docError?.message || 'No document returned'}`);
-    }
-
-    console.log(`Found document: ${document.file_name} (${document.mime_type})`);
-
-    // Update status to processing
-    console.log('Updating status to processing...');
-    await supabase
-      .from('ai_documents')
-      .update({ processing_status: 'processing' })
-      .eq('id', documentId);
-
-    // Download file from storage
-    console.log('Downloading file from storage...');
-    const { data: fileData, error: downloadError } = await supabase.storage
-      .from('ai-documents')
-      .download(document.file_path);
-
-    if (downloadError || !fileData) {
-      console.error('Failed to download file:', downloadError);
-      throw new Error(`Failed to download file: ${downloadError?.message || 'No file data'}`);
-    }
-
-    console.log(`Downloaded file: ${fileData.size} bytes`);
-
-    // Extract and sanitize text content
-    console.log(`Extracting text from ${document.file_name} (${document.mime_type})`);
-    let textContent = await extractTextContent(fileData, document.mime_type, document.file_name);
-    console.log(`Extracted text: ${textContent.length} characters`);
-    
-    // Additional sanitization after extraction
-    textContent = sanitizeTextForJson(textContent);
-    console.log(`Sanitized text: ${textContent.length} characters`);
-
-    if (!textContent || textContent.trim().length === 0) {
-      throw new Error(`No extractable text content found in ${document.file_name}`);
-    }
-
-    // AI DOCUMENT INGESTION & VALIDATION POLICY - Enhanced Content Validation
-    console.log('🛡️ AI Policy: Applying enhanced content validation...');
-    
-    // Check for XML artifacts and corruption patterns
-    const xmlArtifacts = textContent.includes('_rels/') || textContent.includes('customXml/') || 
-                        textContent.includes('word/_rels') || textContent.includes('.xml.rels') ||
-                        textContent.includes('tomXml/') || textContent.includes('[Content_Types].xml');
-    
-    const binaryRatio = (textContent.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / textContent.length;
-    const questionMarkRatio = (textContent.match(/\?/g) || []).length / textContent.length;
-    const backslashRatio = (textContent.match(/\\\\\\\\/g) || []).length / textContent.length;
-    
-    console.log(`📊 Content quality metrics:
-    - XML artifacts: ${xmlArtifacts}
-    - Binary ratio: ${binaryRatio.toFixed(3)}
-    - Question mark ratio: ${questionMarkRatio.toFixed(3)}
-    - Backslash ratio: ${backslashRatio.toFixed(3)}`);
-    
-    // AI Policy enforcement: Reject heavily corrupted content
-    if (xmlArtifacts) {
-      throw new Error(`AI Policy violation: Document contains XML artifacts from DOCX metadata`);
-    }
-    
-    if (binaryRatio > 0.3) {
-      throw new Error(`AI Policy violation: Document contains ${(binaryRatio * 100).toFixed(1)}% binary data (max: 30%)`);
-    }
-    
-    if (questionMarkRatio > 0.2 && backslashRatio > 0.1) {
-      throw new Error(`AI Policy violation: Document shows encoding corruption patterns`);
-    }
-    
-    console.log('✅ AI Policy: Content validation passed');
-
-    // AI DOCUMENT INGESTION & VALIDATION POLICY - Chunking Strategy
-    const chunkSize = Math.max(targetChunkSize, minChunkSize); // Enforce minimum
-    const overlap = Math.min(300, Math.floor(chunkSize * 0.15)); // Smart overlap scaling
-    const maxChunks = 80; // Optimized for quality over quantity
-    
-    console.log(`🔧 AI Policy Chunking: size=${chunkSize}, overlap=${overlap}, min=${minChunkSize}`);
-    
-    const rawChunks = splitTextIntoChunks(textContent, chunkSize, overlap);
-    
-    // AI Policy: Filter chunks that meet minimum quality standards
-    const validChunks = rawChunks.filter((chunk, index) => {
-      const isValidSize = chunk.length >= minChunkSize;
-      const hasXmlArtifacts = chunk.includes('_rels/') || chunk.includes('customXml/') || 
-                             chunk.includes('word/_rels') || chunk.includes('.xml.rels') ||
-                             chunk.includes('tomXml/');
-      const binaryRatio = (chunk.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / chunk.length;
-      const questionMarkRatio = (chunk.match(/\?/g) || []).length / chunk.length;
+    const processingPromise = (async () => {
+      console.log('=== Document Processing Started ===');
       
-      const isClean = !hasXmlArtifacts && binaryRatio < 0.3 && 
-                     !(questionMarkRatio > 0.2 && chunk.includes('\\\\\\\\'));
+      // Parse request body first
+      const requestBody = await req.json();
+      documentId = requestBody.documentId;
+      const corruptionRecovery = requestBody.corruptionRecovery || false;
+      const validateTextOnly = requestBody.validateTextOnly || true; // Enable by default
+      const targetChunkSize = requestBody.targetChunkSize || 2000; // Increased from 1500
+      const minChunkSize = requestBody.minChunkSize || 1500; // AI Policy minimum
       
-      if (!isValidSize) {
-        console.log(`❌ Chunk ${index + 1} rejected: size ${chunk.length} < ${minChunkSize}`);
-      } else if (!isClean) {
-        console.log(`❌ Chunk ${index + 1} rejected: corruption detected`);
+      if (!documentId) {
+        throw new Error('documentId is required');
       }
+
+      console.log(`Processing document: ${documentId}`);
+      console.log(`Corruption recovery mode: ${corruptionRecovery}`);
+      console.log(`Text validation: ${validateTextOnly}`);
+      console.log(`Target chunk size: ${targetChunkSize}, Min: ${minChunkSize}`);
+
+      // Initialize Supabase client
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
       
-      return isValidSize && isClean;
-    }).slice(0, maxChunks);
-    
-    console.log(`📊 AI Policy Results: ${validChunks.length}/${rawChunks.length} chunks passed validation`);
-    
-    if (validChunks.length === 0) {
-      throw new Error(`AI Policy violation: No chunks meet minimum quality standards (≥${minChunkSize} chars, corruption-free)`);
-    }
-    
-    if (validChunks.length < rawChunks.length * 0.5) {
-      console.warn(`⚠️ AI Policy warning: Only ${Math.round(validChunks.length/rawChunks.length*100)}% of chunks passed validation`);
-    }
-    
-    const chunks = validChunks;
+      const supabase = createClient(supabaseUrl, supabaseKey, {
+        auth: { persistSession: false }
+      });
 
-    // Process chunks in optimized batches
-    const batchSize = 8; // Better batch size for comprehensive content processing
-    let totalProcessed = 0;
-    
-    for (let i = 0; i < chunks.length; i += batchSize) {
-      const batch = chunks.slice(i, i + batchSize);
-      
-      const processedChunks = [];
-      
-      for (let j = 0; j < batch.length; j++) {
-        const chunkIndex = i + j;
-        const chunk = batch[j];
-        
-        // Create simple hash
-        const encoder = new TextEncoder();
-        const data = encoder.encode(chunk);
-        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-        const hashArray = Array.from(new Uint8Array(hashBuffer));
-        const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-        // Generate embedding for this chunk
-        let embedding = null;
-        try {
-          console.log(`Generating embedding for chunk ${chunkIndex + 1}...`);
-          embedding = await generateEmbedding(chunk);
-        } catch (embeddingError) {
-          console.error(`Failed to generate embedding for chunk ${chunkIndex + 1}:`, embeddingError);
-          // Continue without embedding rather than failing the entire process
-        }
-
-        // Create safe metadata object
-        const safeChunkMetadata = {
-          chunk_length: chunk?.length || 0,
-          position_in_document: Number((chunkIndex / chunks.length).toFixed(4)),
-          document_type: document.document_type || 'unknown',
-          file_type: document.mime_type || 'unknown',
-          has_embedding: embedding !== null
-        };
-
-        // Ensure content is safe for JSON storage
-        const safeContent = sanitizeTextForJson(chunk || '');
-
-        processedChunks.push({
-          document_id: documentId,
-          organization_id: document.organization_id,
-          chunk_index: chunkIndex,
-          content: safeContent,
-          content_hash: hashHex,
-          embedding: embedding, // Now includes actual embeddings
-          metadata: safeChunkMetadata
-        });
-      }
-      
-      // Insert batch
-      console.log(`Inserting ${processedChunks.length} chunks...`);
-      const { error: insertError } = await supabase
-        .from('ai_document_chunks')
-        .insert(processedChunks);
-      
-      if (insertError) {
-        console.error('Failed to insert chunks:', insertError);
-        throw new Error(`Failed to insert chunks: ${insertError.message}`);
-      }
-      
-      totalProcessed += processedChunks.length;
-      
-      // Small delay between batches
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    // 🚀 UNIFIED CONTENT ASSURANCE: Calculate comprehensive quality metrics
-    const wordCount = textContent.split(/\s+/).filter(w => w.length > 0).length;
-    const characterCount = textContent.length;
-    const paragraphCount = textContent.split(/\n\s*\n/).length;
-    const alphabeticRatio = (textContent.match(/[a-zA-Z]/g) || []).length / textContent.length;
-    const binaryRatio = (textContent.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / textContent.length;
-    const hasXmlArtifacts = textContent.includes('_rels/') || 
-                            textContent.includes('customXml/') || 
-                            textContent.includes('word/') ||
-                            textContent.includes('.rels') ||
-                            textContent.includes('styles.xml');
-    const hasSentenceMarkers = /[.?!:]/.test(textContent);
-    
-    // Detected issues array
-    const detectedIssues: string[] = [];
-    if (characterCount < 800) detectedIssues.push('text_too_short');
-    if (alphabeticRatio < 0.7) detectedIssues.push('low_alphabetic_ratio');
-    if (paragraphCount < 3) detectedIssues.push('insufficient_paragraphs');
-    if (hasXmlArtifacts) detectedIssues.push('xml_artifacts');
-    if (binaryRatio >= 0.3) detectedIssues.push('high_binary_content');
-    if (!hasSentenceMarkers) detectedIssues.push('no_sentence_markers');
-    
-    // Calculate quality score (0-100)
-    let qualityScore = 100;
-    qualityScore -= Math.max(0, (0.7 - alphabeticRatio) * 100);
-    qualityScore -= Math.max(0, (3 - paragraphCount) * 10);
-    qualityScore -= Math.max(0, (800 - characterCount) / 10);
-    qualityScore -= hasXmlArtifacts ? 30 : 0;
-    qualityScore -= binaryRatio * 50;
-    qualityScore -= !hasSentenceMarkers ? 20 : 0;
-    qualityScore = Math.max(0, Math.min(100, qualityScore));
-
-    // Check if validation criteria are met
-    const passesValidation = alphabeticRatio >= 0.7 && 
-                            paragraphCount >= 3 && 
-                            characterCount >= 800 && 
-                            !hasXmlArtifacts && 
-                            binaryRatio < 0.3 && 
-                            hasSentenceMarkers;
-
-    // Update document metadata with unified content assurance framework
-    const updateMetadata = {
-      validated: passesValidation,
-      quality_score: Math.round(qualityScore),
-      text_length: characterCount,
-      word_count: wordCount,
-      paragraph_count: paragraphCount,
-      alphabetic_ratio: Math.round(alphabeticRatio * 100) / 100,
-      binary_ratio: Math.round(binaryRatio * 100) / 100,
-      detected_issues: detectedIssues,
-      validation_override: false,
-      extracted_with: 'mammoth',
-      corruptionRecoveryAttempted: corruptionRecovery || false,
-      processingMethod: corruptionRecovery ? 'mammoth_clean_extraction' : 'standard_extraction',
-      textValidationEnabled: validateTextOnly || false,
-      chunkingParameters: {
-        targetSize: chunkSize,
-        overlap,
-        totalChunks: totalProcessed
-      },
-      extractionQuality: {
-        textLength: textContent?.length || 0,
-        processingTimestamp: new Date().toISOString(),
-        has_xml_artifacts: hasXmlArtifacts,
-        has_sentence_markers: hasSentenceMarkers
-      }
-    };
-
-    // Update document status to completed with enhanced metadata
-    console.log('Updating document status to completed...');
-    await supabase
-      .from('ai_documents')
-      .update({ 
-        processing_status: 'completed',
-        total_chunks: totalProcessed,
-        processed_at: new Date().toISOString(),
-        metadata: updateMetadata
-      })
-      .eq('id', documentId);
-
-    // Create audit log with safe JSON metadata
-    try {
-      const safeMetadata = {
-        chunks_created: totalProcessed || 0,
-        text_length: textContent?.length || 0,
-        file_type: document.mime_type || 'unknown',
-        processing_completed_at: new Date().toISOString()
-      };
-      
+      // Update document status to processing
       await supabase
-        .from('ai_upload_audit')
-        .insert({
-          organization_id: document.organization_id,
-          document_id: documentId,
-          action: 'process',
-          user_id: document.uploaded_by,
-          metadata: safeMetadata
-        });
-    } catch (auditError) {
-      console.error('Failed to create audit log (non-critical):', auditError);
-      // Don't fail the entire process for audit log issues
-    }
+        .from('ai_documents')
+        .update({ 
+          processing_status: 'processing', 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('id', documentId);
 
-    console.log(`=== Processing completed successfully: ${totalProcessed} chunks created ===`);
+      console.log('Document status updated to processing');
 
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        chunks_created: totalProcessed,
-        document_id: documentId,
-        file_name: document.file_name,
-        text_length: textContent.length
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+      // Get the document information
+      const { data: document, error: docError } = await supabase
+        .from('ai_documents')
+        .select('file_path, file_name, title, mime_type, organization_id')
+        .eq('id', documentId)
+        .single();
 
-  } catch (error: any) {
-    console.error('=== Processing failed ===');
-    console.error('Error:', error.message);
-    console.error('Stack:', error.stack);
+      if (docError || !document) {
+        throw new Error(`Document not found: ${docError?.message || 'No document data'}`);
+      }
+
+      console.log(`Document found: ${document.title} (${document.mime_type})`);
+
+      // Download the file from Supabase storage
+      const { data: fileData, error: fileError } = await supabase
+        .storage
+        .from('ai-documents')
+        .download(document.file_path);
+
+      if (fileError || !fileData) {
+        throw new Error(`Failed to download file: ${fileError?.message || 'No file data'}`);
+      }
+
+      console.log('File downloaded successfully');
+
+      let extractedText = '';
+      let extractionMethod = 'unknown';
+      let extractionQuality = 'unknown';
+
+      // Extract text based on file type with enhanced Mammoth.js for DOCX
+      if (document.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+          document.file_name.endsWith('.docx')) {
+        
+        console.log('🔧 Processing DOCX file with enhanced Mammoth.js extraction...');
+        
+        try {
+          // Convert file to array buffer for Mammoth.js
+          const arrayBuffer = await fileData.arrayBuffer();
+          
+          // Validate DOCX file signature (ZIP header)
+          const uint8Array = new Uint8Array(arrayBuffer);
+          const signature = Array.from(uint8Array.slice(0, 4))
+            .map(byte => byte.toString(16).padStart(2, '0'))
+            .join('');
+          
+          if (!signature.startsWith('504b')) { // ZIP file signature
+            throw new Error('Invalid docx file signature - file may be corrupted');
+          }
+          
+          console.log('✅ DOCX file signature validated');
+          
+          // Use Mammoth.js to extract clean text
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          extractedText = result.value;
+          extractionMethod = 'mammoth_enhanced';
+          
+          // Quality assessment
+          const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
+          const hasStructuralContent = extractedText.includes('MPS') || 
+                                     extractedText.includes('Requirement') || 
+                                     extractedText.includes('Evidence');
+          
+          if (wordCount < 100) {
+            extractionQuality = 'insufficient_content';
+            throw new Error(`Mammoth extraction yielded insufficient content: ${wordCount} words`);
+          } else if (hasStructuralContent && wordCount > 500) {
+            extractionQuality = 'excellent';
+          } else if (wordCount > 200) {
+            extractionQuality = 'good';
+          } else {
+            extractionQuality = 'minimal';
+          }
+          
+          console.log(`✅ Mammoth.js extraction successful: ${wordCount} words, quality: ${extractionQuality}`);
+          
+        } catch (mammothError: any) {
+          console.error('❌ Mammoth.js extraction failed:', mammothError.message);
+          extractionMethod = 'mammoth_failed';
+          extractionQuality = 'failed';
+          
+          // STRICT: No fallback - reject corrupted content
+          throw new Error(`DOCX processing failed with Mammoth.js: ${mammothError.message}. Enhanced pipeline blocks corrupted content.`);
+        }
+        
+      } else if (document.mime_type === 'text/plain' || document.file_name.endsWith('.txt')) {
+        extractedText = await fileData.text();
+        extractionMethod = 'text_direct';
+        extractionQuality = 'direct';
+        console.log('Text file processed directly');
+        
+      } else if (document.mime_type === 'text/markdown' || document.file_name.endsWith('.md')) {
+        extractedText = await fileData.text();
+        extractionMethod = 'markdown_direct';
+        extractionQuality = 'direct';
+        console.log('Markdown file processed directly');
+        
+      } else {
+        throw new Error(`Unsupported file type: ${document.mime_type}. Enhanced pipeline only supports DOCX, TXT, and MD files.`);
+      }
+
+      // AI POLICY VALIDATION: Enhanced corruption detection
+      console.log('🔍 Applying AI Policy validation...');
+      
+      // Check for binary content patterns
+      const binaryContentRatio = (extractedText.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / extractedText.length;
+      const hasXMLArtifacts = extractedText.includes('<?xml') || 
+                            extractedText.includes('<w:') || 
+                            extractedText.includes('</w:') ||
+                            extractedText.includes('<pkg:');
+      const hasCorruptedMarkers = extractedText.includes('PK\x03\x04') || 
+                                extractedText.includes('\x00') ||
+                                extractedText.includes('��');
+      
+      // STRICT validation based on AI Policy
+      if (binaryContentRatio > 0.1) {
+        throw new Error(`BLOCKED: High binary content ratio (${(binaryContentRatio * 100).toFixed(1)}%) - AI Policy violation`);
+      }
+      
+      if (hasXMLArtifacts) {
+        throw new Error('BLOCKED: XML artifacts detected - AI Policy violation. Enhanced Mammoth.js should have prevented this.');
+      }
+      
+      if (hasCorruptedMarkers) {
+        throw new Error('BLOCKED: File corruption markers detected - AI Policy violation');
+      }
+      
+      if (extractedText.length < minChunkSize) {
+        throw new Error(`BLOCKED: Content too short (${extractedText.length} chars, minimum ${minChunkSize}) - AI Policy violation`);
+      }
+      
+      // Additional content quality checks
+      const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
+      if (wordCount < 50) {
+        throw new Error(`BLOCKED: Insufficient word count (${wordCount} words) - AI Policy violation`);
+      }
+      
+      console.log(`✅ AI Policy validation passed: ${extractedText.length} chars, ${wordCount} words, extraction: ${extractionMethod}`);
+
+      // Clean and normalize the text
+      extractedText = extractedText
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim();
+
+      console.log(`Text extraction complete. Length: ${extractedText.length} characters`);
+
+      // Split text into chunks with enhanced logic
+      const chunks = splitTextIntoChunks(extractedText, targetChunkSize, 200);
+      console.log(`Text split into ${chunks.length} chunks`);
+
+      if (chunks.length === 0) {
+        throw new Error('No valid chunks created from document content');
+      }
+
+      // Clear any existing chunks for this document (for reprocessing)
+      const { error: deleteError } = await supabase
+        .from('ai_document_chunks')
+        .delete()
+        .eq('document_id', documentId);
+
+      if (deleteError) {
+        console.warn('Warning: Could not clear existing chunks:', deleteError.message);
+      } else {
+        console.log('Existing chunks cleared for reprocessing');
+      }
+
+      // Generate embeddings and store chunks
+      let successfulChunks = 0;
+      const chunkPromises = chunks.map(async (chunk, index) => {
+        try {
+          // Final chunk validation
+          if (chunk.length < minChunkSize) {
+            console.warn(`Skipping chunk ${index}: too short (${chunk.length} chars)`);
+            return null;
+          }
+          
+          // Generate embedding
+          const embedding = await generateEmbedding(chunk);
+          if (!embedding) {
+            console.warn(`Failed to generate embedding for chunk ${index}`);
+            return null;
+          }
+
+          // Store the chunk
+          const { error: chunkError } = await supabase
+            .from('ai_document_chunks')
+            .insert({
+              document_id: documentId,
+              content: chunk,
+              chunk_index: index,
+              embedding: embedding,
+              organization_id: document.organization_id,
+              metadata: {
+                extraction_method: extractionMethod,
+                extraction_quality: extractionQuality,
+                word_count: chunk.split(/\s+/).filter(word => word.length > 0).length,
+                character_count: chunk.length,
+                processing_timestamp: new Date().toISOString()
+              }
+            });
+
+          if (chunkError) {
+            console.error(`Error storing chunk ${index}:`, chunkError);
+            return null;
+          }
+
+          successfulChunks++;
+          return { index, success: true };
+        } catch (error: any) {
+          console.error(`Error processing chunk ${index}:`, error);
+          return null;
+        }
+      });
+
+      const chunkResults = await Promise.all(chunkPromises);
+      const validChunks = chunkResults.filter(result => result !== null).length;
+
+      console.log(`Successfully stored ${successfulChunks}/${chunks.length} chunks`);
+
+      // Update document status
+      if (successfulChunks > 0) {
+        await supabase
+          .from('ai_documents')
+          .update({
+            processing_status: 'completed',
+            processed_at: new Date().toISOString(),
+            total_chunks: successfulChunks,
+            updated_at: new Date().toISOString(),
+            metadata: {
+              extraction_method: extractionMethod,
+              extraction_quality: extractionQuality,
+              original_length: extractedText.length,
+              word_count: wordCount,
+              processing_duration_ms: Date.now(),
+              ai_policy_compliant: true
+            }
+          })
+          .eq('id', documentId);
+
+        console.log('✅ Document processing completed successfully');
+        return { success: true, chunks: successfulChunks };
+      } else {
+        await supabase
+          .from('ai_documents')
+          .update({
+            processing_status: 'failed',
+            updated_at: new Date().toISOString(),
+            metadata: {
+              error: 'No valid chunks created',
+              extraction_method: extractionMethod,
+              processing_duration_ms: Date.now()
+            }
+          })
+          .eq('id', documentId);
+
+        throw new Error('No valid chunks were created from the document');
+      }
+    })();
+
+    // Race between processing and timeout
+    await Promise.race([processingPromise, timeoutPromise]);
     
-    // Try to update document status to failed
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: `Document ${documentId} processed successfully` 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+    
+  } catch (error: any) {
+    console.error('Error in process-ai-document function:', error);
+    
+    // Update document status to failed if we have a documentId
     if (documentId) {
       try {
-        const supabaseUrl = Deno.env.get('SUPABASE_URL');
-        const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+        const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+        const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+        const supabase = createClient(supabaseUrl, supabaseKey, {
+          auth: { persistSession: false }
+        });
         
-        if (supabaseUrl && supabaseServiceRoleKey) {
-          const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-          
-          await supabase
-            .from('ai_documents')
-            .update({ processing_status: 'failed' })
-            .eq('id', documentId);
-          
-          console.log(`Updated document ${documentId} status to failed`);
-        }
+        await supabase
+          .from('ai_documents')
+          .update({
+            processing_status: 'failed',
+            updated_at: new Date().toISOString(),
+            metadata: {
+              error: error.message,
+              processing_duration_ms: Date.now()
+            }
+          })
+          .eq('id', documentId);
       } catch (updateError) {
         console.error('Failed to update document status:', updateError);
       }
     }
-
-    return new Response(
-      JSON.stringify({ 
-        success: false, 
-        error: error.message,
-        documentId: documentId 
-      }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      }
-    );
-  }
-  })();
-
-  // Race between processing and timeout
-  try {
-    return await Promise.race([processingPromise, timeoutPromise]);
-  } catch (error: any) {
-    // Handle timeout error specifically
-    if (error.message === 'Processing timeout after 90 seconds') {
-      console.error('=== Processing timed out ===');
-      
-      // Try to update document status to failed due to timeout
-      if (documentId) {
-        try {
-          const supabaseUrl = Deno.env.get('SUPABASE_URL');
-          const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-          
-          if (supabaseUrl && supabaseServiceRoleKey) {
-            const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
-            
-            await supabase
-              .from('ai_documents')
-              .update({ 
-                processing_status: 'failed',
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', documentId);
-              
-            console.log(`Updated document ${documentId} status to failed due to timeout`);
-          }
-        } catch (updateError) {
-          console.error('Failed to update document status after timeout:', updateError);
-        }
-      }
-      
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Processing timeout after 90 seconds',
-          documentId: documentId,
-          timeout: true
-        }),
-        { 
-          status: 408, // Request Timeout
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
-    }
     
-    // Re-throw other errors to be handled by the main catch block
-    throw error;
+    return new Response(JSON.stringify({ 
+      error: error.message || 'Unknown processing error',
+      documentId: documentId || 'unknown'
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
   }
 });
 
-// Comprehensive text sanitization for JSON safety
-function sanitizeTextForJson(text: string): string {
-  if (!text || typeof text !== 'string') {
-    return '';
-  }
-  
-  return text
-    // Remove null bytes and other control characters
-    .replace(/\0/g, '')
-    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
-    // Fix common problematic characters
-    .replace(/[\u0000-\u001F\u007F-\u009F]/g, '')
-    // Replace problematic Unicode sequences
-    .replace(/\uFEFF/g, '') // BOM
-    .replace(/\uFFFD/g, '?') // Replacement character
-    // Fix unescaped backslashes and quotes
-    .replace(/\\/g, '\\\\')
-    .replace(/"/g, '\\"')
-    // Remove or replace high surrogate pairs that might be incomplete
-    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, '?')
-    .replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '?')
-    // Normalize whitespace
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-// Helper function to extract text content from files
-async function extractTextContent(fileData: Blob, mimeType: string, fileName: string): Promise<string> {
-  try {
-    console.log(`🔍 Extracting content from ${fileName} (${mimeType})`);
-    console.log(`📊 File size: ${fileData.size} bytes`);
-    
-    // Handle text files
-    if (mimeType.startsWith('text/') || fileName.endsWith('.txt') || fileName.endsWith('.md')) {
-      const text = await fileData.text();
-      const sanitized = sanitizeTextForJson(text);
-      
-      console.log(`📄 Text file extracted: ${sanitized.length} characters`);
-      
-      // Validate this isn't placeholder content
-      if (isPlaceholderContent(sanitized, fileName)) {
-        throw new Error(`Placeholder content detected in ${fileName}`);
-      }
-      
-      return sanitized;
-    }
-    
-    // Handle Word documents (.docx)
-    if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
-        fileName.endsWith('.docx')) {
-      
-      console.log(`📄 Processing Word document: ${fileName}`);
-      
-      try {
-        // Enhanced docx extraction with better error handling
-        const text = await extractDocxTextEnhanced(fileData, fileName);
-        const sanitized = sanitizeTextForJson(text);
-        
-        console.log(`📄 Word document extracted: ${sanitized.length} characters`);
-        
-        if (isPlaceholderContent(sanitized, fileName)) {
-          throw new Error(`Placeholder content detected in ${fileName}`);
-        }
-        
-        return sanitized;
-      } catch (docxError) {
-        console.error(`❌ Word extraction failed for ${fileName}:`, docxError);
-        
-        // AI POLICY: Restrict fallback to prevent corrupted content storage
-        console.log(`🔄 Attempting RESTRICTED fallback extraction for ${fileName}...`);
-        
-        try {
-          const fallbackText = await extractFallbackText(fileData, fileName);
-          
-          // AI POLICY: Strict fallback validation (much higher standards)
-          const isValidFallback = fallbackText && 
-                                 fallbackText.length >= 1500 && // AI Policy minimum
-                                 !fallbackText.includes('_rels/') &&
-                                 !fallbackText.includes('customXml/') &&
-                                 !fallbackText.includes('word/_rels') &&
-                                 !/\\\\\\\\/.test(fallbackText) &&
-                                 (fallbackText.match(/[a-zA-Z]/g) || []).length / fallbackText.length > 0.7;
-          
-          if (isValidFallback) {
-            console.log(`✅ AI Policy: Fallback extraction meets quality standards: ${fallbackText.length} characters`);
-            return fallbackText;
-          } else {
-            console.log(`❌ AI Policy: Fallback extraction rejected - does not meet quality standards`);
-            throw new Error(`Fallback extraction rejected by AI Policy validation`);
-          }
-        } catch (fallbackError) {
-          console.error(`❌ Fallback extraction failed:`, fallbackError);
-        }
-        
-        throw new Error(`MAMMOTH EXTRACTION FAILED for ${fileName}: ${docxError.message}. File cannot be processed - may be corrupted, password-protected, or contain unsupported features. AI Policy blocks low-quality fallback content.`);
-      }
-    }
-    
-    // Handle PDF files
-    if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
-      console.log(`📄 Processing PDF document: ${fileName}`);
-      
-      try {
-        const text = await extractPdfText(fileData);
-        const sanitized = sanitizeTextForJson(text);
-        
-        console.log(`📄 PDF extracted: ${sanitized.length} characters`);
-        
-        if (isPlaceholderContent(sanitized, fileName)) {
-          throw new Error(`Placeholder content detected in ${fileName}`);
-        }
-        
-        return sanitized;
-      } catch (pdfError) {
-        console.error(`❌ PDF extraction failed for ${fileName}:`, pdfError);
-        throw new Error(`Failed to extract text from PDF ${fileName}: ${pdfError.message}`);
-      }
-    }
-    
-    // For unsupported file types
-    throw new Error(`Unsupported file type: ${mimeType} for file: ${fileName}. Supported types: .txt, .md, .docx, .pdf`);
-  } catch (error) {
-    console.error(`❌ Text extraction failed for ${fileName}:`, error);
-    throw error;
-  }
-}
-
-// 🚀 ROOT CAUSE FIX: Clean mammoth.js extraction (body text only)
-async function extractDocxTextEnhanced(fileData: Blob, fileName: string): Promise<string> {
-  try {
-    console.log(`🔧 Clean mammoth.js extraction for: ${fileName}`);
-    
-    const arrayBuffer = await fileData.arrayBuffer();
-    
-    // Check if file starts with PK (ZIP signature) - valid docx files are ZIP archives
-    const uint8Array = new Uint8Array(arrayBuffer);
-    if (uint8Array[0] !== 0x50 || uint8Array[1] !== 0x4B) {
-      throw new Error(`Invalid docx file signature. File may be corrupted or not a valid Word document.`);
-    }
-    
-    console.log(`✅ Valid ZIP signature detected for ${fileName}`);
-    
-    // Use mammoth.js to extract clean body text only
-    const result = await mammoth.extractRawText({
-      arrayBuffer: arrayBuffer
-    });
-    
-    console.log(`📄 Mammoth.js extraction complete`);
-    
-    // Get clean body text
-    let cleanText = result.value;
-    
-    // Log any conversion messages (but don't fail on warnings)
-    if (result.messages && result.messages.length > 0) {
-      console.log(`ℹ️ Mammoth.js messages:`, result.messages.map(m => `${m.type}: ${m.message}`));
-      
-      // Only fail on errors, not warnings
-      const errors = result.messages.filter(m => m.type === 'error');
-      if (errors.length > 0) {
-        console.error(`❌ Mammoth.js errors:`, errors);
-        throw new Error(`Document processing errors: ${errors.map(e => e.message).join(', ')}`);
-      }
-    }
-    
-    // Fail fast: Check if we got meaningful body content
-    if (!cleanText || cleanText.trim().length < 100) {
-      throw new Error(`No meaningful body content detected in ${fileName}. Extracted only ${cleanText.length} characters. Document may be corrupted, password-protected, or contain only images/tables.`);
-    }
-    
-    // Additional sanitization for any remaining artifacts
-    cleanText = cleanText
-      // Remove any remaining XML-like patterns
-      .replace(/<[^>]*>/g, ' ')
-      // Remove file path artifacts that might leak through
-      .replace(/[A-Z]:\\[^\\s]*/g, ' ')
-      .replace(/\/_rels\/[^\s]*/g, ' ')
-      .replace(/\/customXml\/[^\s]*/g, ' ')
-      .replace(/\/word\/[^\s]*/g, ' ')
-      // Remove excessive whitespace
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    // Final validation - ensure no corruption artifacts remain
-    const corruptionChecks = {
-      xmlRels: cleanText.includes('_rels/') || cleanText.includes('customXml/'),
-      binaryRatio: (cleanText.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / cleanText.length,
-      questionMarkRatio: (cleanText.match(/\?/g) || []).length / cleanText.length
-    };
-    
-    if (corruptionChecks.xmlRels) {
-      throw new Error(`XML artifacts detected in extracted text from ${fileName}`);
-    }
-    
-    if (corruptionChecks.binaryRatio > 0.1) {
-      throw new Error(`High binary content ratio (${(corruptionChecks.binaryRatio * 100).toFixed(1)}%) in extracted text from ${fileName}`);
-    }
-    
-    if (corruptionChecks.questionMarkRatio > 0.15 && cleanText.includes('\\\\\\\\')) {
-      throw new Error(`Encoding artifacts detected in extracted text from ${fileName}`);
-    }
-    
-    console.log(`✅ Clean extraction successful: ${cleanText.length} characters, no corruption artifacts`);
-    console.log(`📊 Quality metrics: ${(corruptionChecks.binaryRatio * 100).toFixed(2)}% binary, ${(corruptionChecks.questionMarkRatio * 100).toFixed(2)}% question marks`);
-    
-    return cleanText;
-    
-  } catch (error) {
-    console.error(`❌ Mammoth.js extraction failed for ${fileName}:`, error);
-    throw error;
-  }
-}
-
-// Fallback text extraction for problematic files
-async function extractFallbackText(fileData: Blob, fileName: string): Promise<string> {
-  try {
-    console.log(`🆘 Attempting fallback text extraction for: ${fileName}`);
-    
-    const arrayBuffer = await fileData.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    
-    // Try to find any readable ASCII text in the binary data
-    let extractedText = '';
-    let currentWord = '';
-    
-    for (let i = 0; i < uint8Array.length; i++) {
-      const byte = uint8Array[i];
-      
-      // Check if byte represents a printable ASCII character
-      if (byte >= 32 && byte <= 126) {
-        currentWord += String.fromCharCode(byte);
-      } else {
-        // Non-printable character - save current word if it's meaningful
-        if (currentWord.length >= 3 && /[a-zA-Z]/.test(currentWord)) {
-          extractedText += currentWord + ' ';
-        }
-        currentWord = '';
-      }
-      
-      // Prevent excessive memory usage
-      if (extractedText.length > 50000) {
-        break;
-      }
-    }
-    
-    // Add any remaining word
-    if (currentWord.length >= 3 && /[a-zA-Z]/.test(currentWord)) {
-      extractedText += currentWord;
-    }
-    
-    // Clean up the extracted text
-    extractedText = extractedText
-      .replace(/\s+/g, ' ')
-      .trim();
-    
-    console.log(`🔍 Fallback extraction result: ${extractedText.length} characters`);
-    
-    if (extractedText.length < 100) {
-      throw new Error(`Fallback extraction insufficient: only ${extractedText.length} characters found`);
-    }
-    
-    return extractedText;
-    
-  } catch (error) {
-    console.error(`❌ Fallback extraction failed for ${fileName}:`, error);
-    throw error;
-  }
-}
-
-// Simple docx text extraction (legacy function - kept for compatibility)
-async function extractDocxText(fileData: Blob): Promise<string> {
-  try {
-    // This is a very basic approach - in production you'd use a proper docx parser
-    const arrayBuffer = await fileData.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    const decoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false });
-    
-    // Try to extract readable text - this won't be perfect but will catch basic content
-    let text = decoder.decode(uint8Array);
-    
-    // Remove XML tags and clean up
-    text = text.replace(/<[^>]*>/g, ' ')
-               .replace(/\s+/g, ' ')
-               .trim();
-    
-    // If we get very little readable text, it might be corrupted or empty
-    if (text.length < 50) {
-      throw new Error('Unable to extract meaningful text from Word document');
-    }
-    
-    return text;
-  } catch (error) {
-    console.error('Error extracting docx text:', error);
-    throw new Error('Failed to extract text from Word document');
-  }
-}
-
-// Simple PDF text extraction (for demonstration - in production use a proper library)
-async function extractPdfText(fileData: Blob): Promise<string> {
-  try {
-    // This is a basic approach - in production you'd use a proper PDF parser
-    const arrayBuffer = await fileData.arrayBuffer();
-    const uint8Array = new Uint8Array(arrayBuffer);
-    const decoder = new TextDecoder('utf-8', { ignoreBOM: true, fatal: false });
-    
-    // Try to extract readable text
-    let text = decoder.decode(uint8Array);
-    
-    // Remove PDF-specific markers and clean up
-    text = text.replace(/[\x00-\x1F\x7F-\x9F]/g, ' ')
-               .replace(/\s+/g, ' ')
-               .trim();
-    
-    // If we get very little readable text, it might be corrupted or empty
-    if (text.length < 50) {
-      throw new Error('Unable to extract meaningful text from PDF document');
-    }
-    
-    return text;
-  } catch (error) {
-    console.error('Error extracting PDF text:', error);
-    throw new Error('Failed to extract text from PDF document');
-  }
-}
-
-// Function to detect placeholder content with intelligent knowledge document handling
-function isPlaceholderContent(content: string, fileName: string): boolean {
-  const placeholderPatterns = [
-    { pattern: /Criterion [A-Z]/gi, name: 'Generic criteria markers', weight: 2 },
-    { pattern: /\[document_type\]/gi, name: 'Document type placeholders', weight: 3 },
-    { pattern: /\[action_verb\]/gi, name: 'Action verb placeholders', weight: 3 },
-    { pattern: /placeholder/gi, name: 'Placeholder text', weight: 2 },
-    { pattern: /lorem ipsum/gi, name: 'Lorem ipsum text', weight: 5 },
-    { pattern: /This document has been processed for AI analysis/gi, name: 'AI processing text', weight: 4 },
-    { pattern: /Content extracted from.*File type:/gi, name: 'Extraction metadata', weight: 4 },
-    { pattern: /fallback/gi, name: 'Fallback content', weight: 2 },
-    { pattern: /template/gi, name: 'Template text', weight: 1 }
-  ];
-  
-  // More nuanced Annex 1 pattern - check context
-  const annexPattern = /Annex\s*1/gi;
-  
-  const words = content.split(/\s+/).filter(w => w.length > 0).length;
-  const lines = content.split(/\n/).length;
-  
-  console.log(`📊 Content analysis for ${fileName}:`);
-  console.log(`   Words: ${words}, Lines: ${lines}`);
-  console.log(`   Sample: "${content.substring(0, 400)}..."`);
-  
-  // Identify knowledge documents
-  const isKnowledgeDocument = fileName.toLowerCase().includes('knowledge') || 
-                             fileName.toLowerCase().includes('guidance') ||
-                             fileName.toLowerCase().includes('criteria') ||
-                             fileName.toLowerCase().includes('handbook') ||
-                             fileName.toLowerCase().includes('manual');
-  
-  console.log(`📚 Document type: ${isKnowledgeDocument ? 'Knowledge Document' : 'Regular Document'}`);
-  
-  // Enhanced content structure analysis
-  const hasStructure = {
-    bullets: /[•\-\*]\s+/.test(content) || /^\s*[\-\*•]\s+/m.test(content),
-    headings: /^#+\s+/m.test(content) || /^[A-Z][^.]*:$/m.test(content),
-    paragraphs: content.split(/\n\s*\n/).length > 2,
-    verbs: (content.match(/\b(implement|establish|develop|ensure|define|create|manage|monitor|evaluate|assess|review|update|maintain|provide|support|identify|analyze|document|track|report|compliance|requirement|process|procedure|policy|standard|guideline|framework|approach|method|technique|practice|control|measure|action|step|phase|stage|level|category|type|kind|example|instance|case|scenario|situation|context|environment|system|application|tool|resource|reference|source|evidence|proof|demonstration|verification|validation|testing|audit|inspection|examination|investigation|analysis|study|research|survey|assessment|evaluation|review|measurement|metric|indicator|criteria|threshold|target|objective|goal|purpose|scope|boundary|limitation|constraint|assumption|dependency|risk|issue|challenge|problem|solution|recommendation|suggestion|advice|guidance|instruction|direction|procedure|process|workflow|sequence|order|priority|importance|significance|relevance|applicability|suitability|appropriateness|effectiveness|efficiency|quality|performance|capability|capacity|ability|skill|competence|expertise|knowledge|understanding|awareness|recognition|identification|classification|categorization|organization|structure|hierarchy|relationship|connection|association|correlation|dependency|interaction|integration|coordination|collaboration|cooperation|communication|information|data|details|specifics|particulars|characteristics|features|attributes|properties|qualities|aspects|elements|components|parts|sections|subsections|chapters|appendices|references|sources|citations|footnotes|endnotes|bibliography|glossary|index|table|figure|diagram|chart|graph|illustration|image|picture|photo)\b/gi) || []).length,
-    realWords: (content.match(/\b[a-zA-Z]{4,}\b/g) || []).length
-  };
-  
-  console.log(`🔍 Content structure analysis:`);
-  console.log(`   Has bullets: ${hasStructure.bullets}`);
-  console.log(`   Has headings: ${hasStructure.headings}`);
-  console.log(`   Has paragraphs: ${hasStructure.paragraphs}`);
-  console.log(`   Business verbs: ${hasStructure.verbs}`);
-  console.log(`   Real words (4+ chars): ${hasStructure.realWords}`);
-  
-  // Apply fallback rule for substantial knowledge documents
-  const isSubstantialContent = words >= 500 && 
-                              (hasStructure.bullets || hasStructure.headings || hasStructure.paragraphs) &&
-                              hasStructure.verbs >= 10 &&
-                              hasStructure.realWords >= 100;
-  
-  if (isKnowledgeDocument && isSubstantialContent) {
-    console.log(`✅ Fallback rule applied: Substantial knowledge document (${words} words, structured content, ${hasStructure.verbs} business verbs)`);
-  }
-  
-  // Basic length check with different thresholds
-  const minWords = isKnowledgeDocument ? 30 : 50;
-  if (words < minWords) {
-    console.log(`❌ Content too short: ${words} words (minimum ${minWords} for ${isKnowledgeDocument ? 'knowledge' : 'regular'} documents)`);
-    return true;
-  }
-  
-  // Weighted placeholder pattern analysis
-  const detectedPatterns: string[] = [];
-  let totalWeight = 0;
-  let totalMatches = 0;
-  
-  placeholderPatterns.forEach(({ pattern, name, weight }) => {
-    const matches = (content.match(pattern) || []).length;
-    if (matches > 0) {
-      const patternWeight = matches * weight;
-      detectedPatterns.push(`${name} (${matches} matches, weight: ${patternWeight})`);
-      totalWeight += patternWeight;
-      totalMatches += matches;
-    }
-  });
-  
-  // Annex 1 analysis with context
-  const annexMatches = (content.match(annexPattern) || []).length;
-  if (annexMatches > 0) {
-    const annexRatio = annexMatches / words;
-    console.log(`📋 Annex 1 references: ${annexMatches} matches (${(annexRatio * 100).toFixed(2)}% of content)`);
-    
-    // Only flag as problematic if Annex 1 dominates AND there's no other substantial content
-    if (annexRatio > 0.3 && !isSubstantialContent) {
-      detectedPatterns.push(`Annex 1 dominance (${annexMatches} matches, ${(annexRatio * 100).toFixed(2)}%, no substantial content)`);
-      totalWeight += annexMatches * 3;
-      totalMatches += annexMatches;
-    } else if (annexMatches > 0) {
-      console.log(`ℹ️ Annex 1 references present but content appears substantial - allowing`);
-    }
-  }
-  
-  // Calculate placeholder percentage
-  const placeholderPercentage = (totalMatches / words) * 100;
-  
-  console.log(`📊 Placeholder analysis:`);
-  console.log(`   Total patterns detected: ${detectedPatterns.length}`);
-  console.log(`   Total matches: ${totalMatches}`);
-  console.log(`   Total weight: ${totalWeight}`);
-  console.log(`   Placeholder percentage: ${placeholderPercentage.toFixed(2)}%`);
-  
-  if (detectedPatterns.length > 0) {
-    console.log(`⚠️ Detected patterns: ${detectedPatterns.join(', ')}`);
-  }
-  
-  // Enhanced decision logic
-  if (isKnowledgeDocument && isSubstantialContent) {
-    // Fallback rule: substantial knowledge documents with <20% placeholder patterns pass
-    if (placeholderPercentage < 20) {
-      console.log(`✅ ALLOWED: Knowledge document with ${placeholderPercentage.toFixed(2)}% placeholder content (under 20% threshold)`);
-      return false;
-    }
-  }
-  
-  // Warning mode for borderline cases (8-12 pattern matches or moderate weight)
-  if (totalMatches >= 8 && totalMatches <= 12 && totalWeight < 30) {
-    console.log(`⚠️ WARNING: Borderline placeholder detection - allowing with warning (${totalMatches} matches, weight: ${totalWeight})`);
-    if (isKnowledgeDocument) {
-      console.log(`ℹ️ Knowledge document benefit of doubt applied`);
-      return false;
-    }
-  }
-  
-  // Strict rejection criteria
-  const shouldReject = totalWeight > 25 || 
-                      placeholderPercentage > 30 || 
-                      (totalMatches > 15 && !isSubstantialContent);
-  
-  if (shouldReject) {
-    console.log(`❌ REJECTED: Excessive placeholder content (weight: ${totalWeight}, percentage: ${placeholderPercentage.toFixed(2)}%, matches: ${totalMatches})`);
-    return true;
-  }
-  
-  // Check repetition with knowledge-aware thresholds
-  const uniqueWords = new Set(content.toLowerCase().split(/\s+/)).size;
-  const repetitionRatio = uniqueWords / words;
-  const minRepetitionRatio = isKnowledgeDocument ? 0.15 : 0.25;
-  
-  if (repetitionRatio < minRepetitionRatio) {
-    console.log(`❌ Content too repetitive: ${uniqueWords} unique words out of ${words} (ratio: ${repetitionRatio.toFixed(3)}, minimum: ${minRepetitionRatio})`);
-    return true;
-  }
-  
-  // Check alphabetic content ratio
-  const alphabeticChars = (content.match(/[a-zA-Z]/g) || []).length;
-  const alphabeticRatio = alphabeticChars / content.length;
-  
-  if (alphabeticRatio < 0.25) {
-    console.log(`❌ Content mostly non-alphabetic: ${alphabeticRatio.toFixed(3)} ratio (minimum: 0.25)`);
-    return true;
-  }
-  
-  console.log(`✅ CONTENT VALIDATION PASSED for ${fileName}`);
-  console.log(`📈 Final metrics: ${words} words, ${uniqueWords} unique (${repetitionRatio.toFixed(3)} ratio), ${(alphabeticRatio * 100).toFixed(1)}% alphabetic, ${placeholderPercentage.toFixed(2)}% placeholder patterns`);
-  
-  return false;
-}
-
-
-// Simple text chunking function
+// Function to split text into chunks
 function splitTextIntoChunks(text: string, chunkSize: number, overlap: number): string[] {
   const chunks: string[] = [];
   let startIndex = 0;
@@ -1005,26 +433,3 @@ async function generateEmbedding(text: string): Promise<number[] | null> {
     return null;
   }
 }
-
-  })(); // End processingPromise
-
-  // Race between processing and timeout
-  try {
-    await Promise.race([processingPromise, timeoutPromise]);
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: `Document ${documentId} processed successfully` 
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  } catch (error: any) {
-    console.error('Error in process-ai-document function:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message || 'Unknown processing error',
-      documentId: documentId || 'unknown'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
-  }
-}); // End serve function
