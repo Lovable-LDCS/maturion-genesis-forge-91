@@ -57,12 +57,15 @@ serve(async (req) => {
       mediumSeverityFindings: 0,
       lowSeverityFindings: 0,
       alertsSent: 0
-    };
+     };
+
+    let allFindings: RefactorFinding[] = [];
 
     for (const org of organizations || []) {
       console.log(`🏢 Processing refactor scan for organization: ${org.name} (${org.id})`);
       
       const findings = await performRefactorScan(org.id);
+      allFindings.push(...findings);
       
       // Log findings to database
       if (findings.length > 0) {
@@ -93,9 +96,13 @@ serve(async (req) => {
       results.processedOrganizations++;
     }
 
-    // Send alert if there are medium or high severity findings
-    if (results.highSeverityFindings > 0 || results.mediumSeverityFindings > 0) {
-      await sendRefactorAlert(supabase, results, isManual ? 'manual' : 'scheduled');
+    // Send alert if there are medium or high severity findings that haven't been acknowledged
+    const unacknowledgedFindings = allFindings.filter(f => 
+      f.severity === 'medium' || f.severity === 'high'
+    );
+    
+    if (unacknowledgedFindings.length > 0) {
+      await sendRefactorAlert(supabase, results, isManual ? 'manual' : 'scheduled', unacknowledgedFindings);
       results.alertsSent++;
     }
 
@@ -184,7 +191,7 @@ async function performRefactorScan(organizationId: string): Promise<RefactorFind
   return findings;
 }
 
-async function sendRefactorAlert(supabase: any, results: any, runType: string) {
+async function sendRefactorAlert(supabase: any, results: any, runType: string, unacknowledgedFindings?: any[]) {
   try {
     console.log('📧 Sending refactor alert');
     
@@ -202,6 +209,9 @@ async function sendRefactorAlert(supabase: any, results: any, runType: string) {
     if (results.totalFindings === 0) {
       alertMessage += '✅ No refactoring issues detected – codebase is clean';
     } else {
+      const unacknowledgedCount = unacknowledgedFindings?.length || 0;
+      const acknowledgedCount = results.totalFindings - unacknowledgedCount;
+      
       alertMessage += `🔍 Found ${results.totalFindings} refactoring opportunities:\n`;
       
       if (results.highSeverityFindings > 0) {
@@ -212,6 +222,20 @@ async function sendRefactorAlert(supabase: any, results: any, runType: string) {
       }
       if (results.lowSeverityFindings > 0) {
         alertMessage += `📝 Low Priority: ${results.lowSeverityFindings} issues\n`;
+      }
+      
+      if (acknowledgedCount > 0) {
+        alertMessage += `✅ ${acknowledgedCount} issues already reviewed\n`;
+      }
+      
+      if (unacknowledgedFindings && unacknowledgedFindings.length > 0) {
+        alertMessage += `\n🔴 New unacknowledged issues requiring attention:\n`;
+        unacknowledgedFindings.slice(0, 3).forEach(finding => {
+          alertMessage += `• ${finding.sourceFile}: ${finding.description}\n`;
+        });
+        if (unacknowledgedFindings.length > 3) {
+          alertMessage += `• ... and ${unacknowledgedFindings.length - 3} more\n`;
+        }
       }
       
       alertMessage += '\nCheck the QA Dashboard for detailed recommendations.';

@@ -5,7 +5,10 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Clock, Play, AlertTriangle, CheckCircle, XCircle, Loader, Wrench, Trash2, Code2, FileX } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Clock, Play, AlertTriangle, CheckCircle, XCircle, Loader, Wrench, Trash2, Code2, FileX, Check, MessageSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { toast } from 'sonner';
@@ -20,6 +23,10 @@ interface RefactorFinding {
   recommended_action: string;
   detected_by: string;
   created_at: string;
+  acknowledged: boolean;
+  review_notes: string | null;
+  acknowledged_by: string | null;
+  acknowledged_at: string | null;
 }
 
 interface RefactorSummary {
@@ -37,6 +44,9 @@ export const RefactorQALogs: React.FC = () => {
   const [summary, setSummary] = useState<RefactorSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
+  const [acknowledgeDialogOpen, setAcknowledgeDialogOpen] = useState(false);
+  const [selectedFinding, setSelectedFinding] = useState<RefactorFinding | null>(null);
+  const [reviewNotes, setReviewNotes] = useState('');
 
   const fetchRefactorFindings = async () => {
     if (!currentOrganization?.id) return;
@@ -132,6 +142,66 @@ export const RefactorQALogs: React.FC = () => {
       toast.error('Failed to trigger refactor scan');
     } finally {
       setIsRunning(false);
+    }
+  };
+
+  const sendTestSlackNotification = async () => {
+    try {
+      toast.info('Sending test Slack notification...');
+      
+      const { data, error } = await supabase.functions.invoke('send-test-slack-notification', {
+        body: { 
+          organizationId: currentOrganization?.id
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      toast.success('Test Slack notification sent successfully! Check your Slack channel.');
+    } catch (error) {
+      console.error('Error sending test Slack notification:', error);
+      toast.error(`Failed to send test notification: ${error.message}`);
+    }
+  };
+
+  const handleAcknowledge = (finding: RefactorFinding) => {
+    setSelectedFinding(finding);
+    setReviewNotes('');
+    setAcknowledgeDialogOpen(true);
+  };
+
+  const submitAcknowledgement = async () => {
+    if (!selectedFinding) return;
+
+    try {
+      const { error } = await supabase
+        .from('refactor_qa_log')
+        .update({
+          acknowledged: true,
+          review_notes: reviewNotes.trim() || null,
+          acknowledged_by: (await supabase.auth.getUser()).data.user?.id,
+          acknowledged_at: new Date().toISOString()
+        })
+        .eq('id', selectedFinding.id);
+
+      if (error) {
+        console.error('Error acknowledging finding:', error);
+        toast.error('Failed to acknowledge finding');
+        return;
+      }
+
+      toast.success('Finding acknowledged successfully');
+      setAcknowledgeDialogOpen(false);
+      setSelectedFinding(null);
+      setReviewNotes('');
+      
+      // Refresh findings
+      fetchRefactorFindings();
+    } catch (error) {
+      console.error('Error in submitAcknowledgement:', error);
+      toast.error('Failed to acknowledge finding');
     }
   };
 
@@ -306,6 +376,11 @@ export const RefactorQALogs: React.FC = () => {
                       <div key={type}>• {getFindingTypeLabel(type)}: {count}</div>
                     ))}
                   </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button variant="outline" size="sm" onClick={sendTestSlackNotification}>
+                      📧 Test Slack Alert
+                    </Button>
+                  </div>
                 </AlertDescription>
               </Alert>
             )}
@@ -329,17 +404,46 @@ export const RefactorQALogs: React.FC = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Status</TableHead>
                     <TableHead>File/Component</TableHead>
                     <TableHead>Issue Type</TableHead>
                     <TableHead>Severity</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Recommended Action</TableHead>
                     <TableHead>Detected</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {findings.map((finding) => (
-                    <TableRow key={finding.id}>
+                    <TableRow 
+                      key={finding.id}
+                      className={finding.acknowledged ? 'opacity-60 bg-muted/50' : ''}
+                    >
+                      <TableCell>
+                        {finding.acknowledged ? (
+                          <div className="flex items-center gap-2">
+                            <Badge variant="secondary" className="text-green-700 bg-green-100 dark:bg-green-900/20 dark:text-green-400">
+                              <Check className="h-3 w-3 mr-1" />
+                              Reviewed
+                            </Badge>
+                            {finding.review_notes && (
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="max-w-xs">{finding.review_notes}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            )}
+                          </div>
+                        ) : (
+                          <Badge variant="outline" className="text-amber-700 bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400">
+                            Pending
+                          </Badge>
+                        )}
+                      </TableCell>
                       <TableCell className="font-mono text-sm max-w-[200px]">
                         <div className="truncate" title={finding.source_file}>
                           {finding.source_file}
@@ -367,6 +471,24 @@ export const RefactorQALogs: React.FC = () => {
                       <TableCell className="text-sm text-muted-foreground">
                         {new Date(finding.run_at).toLocaleDateString()}
                       </TableCell>
+                      <TableCell>
+                        {!finding.acknowledged && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAcknowledge(finding)}
+                            className="h-8"
+                          >
+                            <Check className="h-4 w-4 mr-1" />
+                            Acknowledge
+                          </Button>
+                        )}
+                        {finding.acknowledged && finding.acknowledged_at && (
+                          <div className="text-xs text-muted-foreground">
+                            Reviewed {new Date(finding.acknowledged_at).toLocaleDateString()}
+                          </div>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -374,6 +496,52 @@ export const RefactorQALogs: React.FC = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Acknowledgement Dialog */}
+        <Dialog open={acknowledgeDialogOpen} onOpenChange={setAcknowledgeDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Acknowledge Refactor Finding</DialogTitle>
+              <DialogDescription>
+                Mark this finding as reviewed. You can optionally add notes about your review or the actions taken.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedFinding && (
+              <div className="space-y-4">
+                <div className="p-4 bg-muted rounded-lg">
+                  <div className="text-sm font-medium mb-2">Finding Details:</div>
+                  <div className="text-sm">
+                    <div><strong>File:</strong> {selectedFinding.source_file}</div>
+                    <div><strong>Type:</strong> {getFindingTypeLabel(selectedFinding.finding_type)}</div>
+                    <div><strong>Description:</strong> {selectedFinding.description}</div>
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="review-notes">Review Notes (Optional)</Label>
+                  <Textarea
+                    id="review-notes"
+                    placeholder="Add any notes about your review, actions taken, or reasons for dismissing..."
+                    value={reviewNotes}
+                    onChange={(e) => setReviewNotes(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
+            
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setAcknowledgeDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button onClick={submitAcknowledgement}>
+                <Check className="h-4 w-4 mr-2" />
+                Acknowledge
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   );

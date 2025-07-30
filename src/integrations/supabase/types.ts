@@ -1800,6 +1800,9 @@ export type Database = {
       }
       refactor_qa_log: {
         Row: {
+          acknowledged: boolean | null
+          acknowledged_at: string | null
+          acknowledged_by: string | null
           created_at: string | null
           description: string | null
           detected_by: string | null
@@ -1807,11 +1810,15 @@ export type Database = {
           id: string
           organization_id: string
           recommended_action: string | null
+          review_notes: string | null
           run_at: string | null
           severity: string
           source_file: string
         }
         Insert: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
           created_at?: string | null
           description?: string | null
           detected_by?: string | null
@@ -1819,11 +1826,15 @@ export type Database = {
           id?: string
           organization_id: string
           recommended_action?: string | null
+          review_notes?: string | null
           run_at?: string | null
           severity: string
           source_file: string
         }
         Update: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
           created_at?: string | null
           description?: string | null
           detected_by?: string | null
@@ -1831,6 +1842,7 @@ export type Database = {
           id?: string
           organization_id?: string
           recommended_action?: string | null
+          review_notes?: string | null
           run_at?: string | null
           severity?: string
           source_file?: string
