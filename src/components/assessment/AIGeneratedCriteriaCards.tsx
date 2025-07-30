@@ -342,30 +342,73 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
       };
       
       const cleanupPrompt = (prompt: string): string => {
-        console.log('🧹 Starting prompt cleanup...');
-        let cleaned = prompt;
+        console.log('🧹 COMPREHENSIVE PROMPT CLEANUP STARTING...');
+        console.log('📝 Raw prompt before cleanup (first 1000 chars):', prompt.substring(0, 1000));
         
+        let cleaned = prompt;
+        let totalCleaned = 0;
+        
+        // Enhanced placeholder patterns with comprehensive coverage
         const placeholderPatterns = [
-          /\[document_type\]/gi,
-          /\[action_verb\]/gi,
-          /\[requirement\]/gi,
-          /\[specific_[a-z_]+\]/gi,
-          /\bCriterion\s+[A-Z](?=\s*$|\s*\.|\s*,)/gi,
-          /\bCriterion\s+[0-9]+(?=\s*$|\s*\.|\s*,)/gi,
-          /\bAssessment criterion\b/gi,
-          /\bTBD\b/gi,
-          /\bTODO\b/gi
+          { name: 'document_type_brackets', pattern: /\[document_type\]/gi },
+          { name: 'action_verb_brackets', pattern: /\[action_verb\]/gi },
+          { name: 'requirement_brackets', pattern: /\[requirement\]/gi },
+          { name: 'specific_brackets', pattern: /\[specific_[a-z_]+\]/gi },
+          { name: 'generic_brackets', pattern: /\[[A-Z][a-z_]*\]/gi },
+          { name: 'criterion_letter_strict', pattern: /\bCriterion\s+[A-Z]\b/gi },
+          { name: 'criterion_letter_flexible', pattern: /Criterion\s*[A-Z]/gi },
+          { name: 'assessment_criterion', pattern: /\bAssessment criterion\b/gi },
+          { name: 'criterion_numbered', pattern: /\bCriterion\s+[0-9]+/gi },
+          { name: 'placeholder_text', pattern: /\b(TBD|TODO|PLACEHOLDER)\b/gi }
         ];
         
-        placeholderPatterns.forEach((pattern, index) => {
+        placeholderPatterns.forEach(({ name, pattern }) => {
           const matches = cleaned.match(pattern);
-          if (matches) {
-            console.log(`🔍 Cleaning ${matches.length} matches for pattern ${index + 1}: ${pattern.source}`);
+          if (matches && matches.length > 0) {
+            console.log(`🔍 FOUND PLACEHOLDERS [${name}]: ${matches.length} matches`);
+            console.log(`   Examples: ${matches.slice(0, 3).join(', ')}`);
+            
+            // Show context around each match
+            matches.forEach((match, index) => {
+              const matchIndex = cleaned.indexOf(match);
+              if (matchIndex !== -1) {
+                const start = Math.max(0, matchIndex - 50);
+                const end = Math.min(cleaned.length, matchIndex + match.length + 50);
+                const context = cleaned.substring(start, end);
+                console.log(`   Context ${index + 1}: "...${context}..."`);
+              }
+            });
+            
             cleaned = cleaned.replace(pattern, '');
+            totalCleaned += matches.length;
           }
         });
         
-        return cleaned.trim();
+        // Additional cleanup for common prompt artifacts
+        cleaned = cleaned.replace(/\s{3,}/g, ' '); // Multiple spaces
+        cleaned = cleaned.replace(/\n{3,}/g, '\n\n'); // Multiple newlines
+        cleaned = cleaned.trim();
+        
+        console.log(`✅ CLEANUP COMPLETE: Removed ${totalCleaned} placeholder patterns`);
+        console.log(`📏 Length: ${prompt.length} → ${cleaned.length} chars (${prompt.length - cleaned.length} removed)`);
+        console.log('📝 Cleaned prompt preview (first 1000 chars):', cleaned.substring(0, 1000));
+        
+        // CRITICAL: Final verification check
+        const finalCheck = /Criterion\s*[A-Z]/gi;
+        const remainingMatches = cleaned.match(finalCheck);
+        if (remainingMatches) {
+          console.error('🚨 CLEANUP FAILED: Still found Criterion [A-Z] patterns:', remainingMatches);
+          console.error('🔍 Full text search for remaining issues...');
+          remainingMatches.forEach(match => {
+            const matchIndex = cleaned.indexOf(match);
+            const context = cleaned.substring(Math.max(0, matchIndex - 100), matchIndex + match.length + 100);
+            console.error(`   Remaining: "${context}"`);
+          });
+        } else {
+          console.log('✅ FINAL VERIFICATION: No Criterion [A-Z] patterns found');
+        }
+        
+        return cleaned;
       };
       
       let finalPrompt = '';
@@ -538,9 +581,36 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
 
       const prompt = finalPrompt;
       
+      // 🔍 CRITICAL LOGGING: Show what QA framework will validate
+      console.log('🔍 FINAL PROMPT SENT TO QA FRAMEWORK:');
+      console.log(`📏 Length: ${prompt.length} characters`);
+      console.log(`🔢 Estimated tokens: ${Math.ceil(prompt.length / 4)}`);
+      console.log('📝 Full prompt content (first 2000 chars):', prompt.substring(0, 2000));
+      console.log('📝 Full prompt content (last 500 chars):', prompt.substring(Math.max(0, prompt.length - 500)));
+      
+      // 🚨 IMMEDIATE PRE-QA VALIDATION CHECK
+      const immediateCheck = /Criterion\s*[A-Z]/gi;
+      const foundPatterns = prompt.match(immediateCheck);
+      if (foundPatterns) {
+        console.error('🚨 PRE-QA CHECK FAILED: Criterion [A-Z] patterns still present!');
+        console.error('Found patterns:', foundPatterns);
+        foundPatterns.forEach(match => {
+          const matchIndex = prompt.indexOf(match);
+          const context = prompt.substring(Math.max(0, matchIndex - 100), matchIndex + match.length + 100);
+          console.error(`Context: "...${context}..."`);
+        });
+      } else {
+        console.log('✅ PRE-QA CHECK PASSED: No Criterion [A-Z] patterns detected');
+      }
+      
       // QA Framework: Red Alert Monitoring
       const alerts = validateForRedAlerts(prompt, mps.mps_number, { organizationContext, mpsContext });
       if (alerts.length > 0) {
+        console.error('🚨 QA FRAMEWORK BLOCKED GENERATION:');
+        alerts.forEach(alert => {
+          console.error(`   ${alert.severity}: ${alert.message}`);
+          if (alert.details) console.error(`   Details: ${alert.details}`);
+        });
         setRedAlerts(alerts);
         setShowRedAlert(true);
         throw new Error(`QA FRAMEWORK BLOCKED: ${alerts.filter(a => a.severity === 'CRITICAL').length} critical issues detected`);
