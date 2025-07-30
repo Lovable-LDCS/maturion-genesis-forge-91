@@ -349,7 +349,7 @@ STRICT REQUIREMENTS:
 - Target organization: ${organizationContext.name}
 - ABSOLUTE PROHIBITION: Never use placeholder patterns like "Criterion A", "Criterion B", "Criterion [Letter]"
 - EVIDENCE-FIRST FORMAT (MANDATORY): Every criterion MUST start with evidence type:
-  "A documented [document_type] that [action_verb] the [requirement] for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+  "A documented (evidence type) that (action verb) the (requirement) for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 
 Example format:
 - "A formal policy that establishes governance oversight for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
@@ -371,10 +371,13 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
       console.log(`🎯 FINAL PROMPT LENGTH: ${finalPrompt.length} characters`);
       console.log(`🎯 FINAL PROMPT PREVIEW (first 500 chars):`, finalPrompt.slice(0, 500) + '...');
       
-      // Check for any placeholder patterns in our own prompt
-      const placeholderCheck = /Criterion\s+[A-Z]/i.test(finalPrompt);
+      // Check for any placeholder patterns in our own prompt (excluding legitimate template examples)
+      const placeholderCheck = /Criterion\s+[A-Z](?![a-z])/i.test(finalPrompt) || 
+                               /\[(document_type|action_verb|requirement)\]/i.test(finalPrompt) ||
+                               /Criterion\s+[0-9]/i.test(finalPrompt);
       if (placeholderCheck) {
         console.error(`🚨 CRITICAL: Our own prompt contains placeholder patterns!`);
+        console.error(`🔍 Problematic prompt section:`, finalPrompt.match(/(Criterion\s+[A-Z](?![a-z])|\[(document_type|action_verb|requirement)\]|Criterion\s+[0-9])/gi));
         throw new Error(`PROMPT VALIDATION FAILED: Placeholder pattern detected in generated prompt. This should never happen.`);
       } else {
         console.log(`✅ PROMPT VALIDATION PASSED: No placeholder patterns detected in our prompt`);
