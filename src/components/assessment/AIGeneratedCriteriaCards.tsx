@@ -174,7 +174,7 @@ export function AIGeneratedCriteriaCards({ mps, onCriteriaChange }: AIGeneratedC
         console.warn(`⚠️ Limited context for MPS ${mps.mps_number} - AI will use enhanced reasoning`);
       }
 
-      // Build the prompt with evidence-first enforcement
+      // Build the prompt with ULTRA-STRICT evidence-first enforcement
       const finalPrompt = customPrompt || `
 Generate professional assessment criteria for **${mps.name}** (MPS ${mps.mps_number}) at ${organizationContext.name}.
 
@@ -182,64 +182,76 @@ Generate professional assessment criteria for **${mps.name}** (MPS ${mps.mps_num
 - Target organization: ${organizationContext.name}
 - ABSOLUTE PROHIBITION: Never use placeholder patterns like "Assessment criterion" or generic templates
 
-**MANDATORY EVIDENCE-FIRST FORMAT - CRITICAL VALIDATION RULES:**
+**🔴 ULTRA-CRITICAL EVIDENCE-FIRST FORMAT ENFORCEMENT:**
 
-🔴 ABSOLUTE REQUIREMENT: Every single criterion MUST start with "A [qualifier] [document_type]"
-🔴 ZERO TOLERANCE: Any criterion not starting with "A " followed by a qualifier and document type will be REJECTED
+🚨 MANDATORY SENTENCE STRUCTURE - NO EXCEPTIONS:
+Every single criterion MUST start with: "A [EVIDENCE_TYPE] [DOCUMENT_NOUN] that [ACTION_VERB]..."
 
-✅ EXACT SENTENCE STRUCTURE (NO EXCEPTIONS):
-"A [QUALIFIER] [DOCUMENT_TYPE] that [ACTION_VERB] [REQUIREMENT] for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
-
-✅ APPROVED QUALIFIERS (use EXACTLY as written):
+🚨 REQUIRED EVIDENCE TYPES (choose ONE):
 documented, formal, quarterly, annual, comprehensive, detailed, written, approved, maintained, updated, current, complete
 
-✅ APPROVED DOCUMENT TYPES (use EXACTLY as written):
-risk register, policy, report, document, procedure, assessment, analysis, review, register, record, log, matrix, framework, standard, guideline, charter, plan
+🚨 REQUIRED DOCUMENT NOUNS (choose ONE):
+policy, procedure, report, assessment, analysis, review, register, record, log, matrix, framework, standard, guideline, charter, plan, dashboard, audit
 
-🔴 FORBIDDEN SENTENCE STARTERS (WILL CAUSE IMMEDIATE REJECTION):
-- ANY organization name including "${organizationContext.name}"
-- "The organization", "Management", "Leadership", "Executive", "Board", "Company", "Team"
-- "Personnel", "Staff", "Employees", "Users", "Stakeholders"
-- "Systems", "Processes", "Controls", "Measures"
-- ANY pronoun: "They", "It", "We", "You"
-- ANY verb: "Must", "Should", "Will", "Can", "Ensure", "Maintain", "Establish"
+🚨 SENTENCE CONSTRUCTION RULES:
+1. ALWAYS start with "A" (article)
+2. IMMEDIATELY follow with evidence type (documented/formal/etc.)
+3. IMMEDIATELY follow with document noun (policy/report/etc.)
+4. Use "that" to connect to action
+5. Complete with specific requirement
 
-✅ MANDATORY EXAMPLES (follow this EXACT pattern):
-- "A documented policy that establishes governance oversight for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
-- "A formal procedure that defines risk assessment processes for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
-- "A comprehensive framework that outlines security controls for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+✅ PERFECT EXAMPLES (copy this format exactly):
+- "A documented leadership policy that establishes governance oversight responsibilities for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+- "A formal quarterly report that demonstrates board engagement in strategic security decisions for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+- "A current KPI dashboard that tracks leadership performance metrics for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+- "A comprehensive risk register that documents identified threats relevant to ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 
-🔴 VALIDATION CHECK: Before generating, verify EVERY criterion starts with "A " + [approved qualifier] + [approved document type]
-
-🔴 CRITICAL ENFORCEMENT: Every criterion statement MUST start with "A " followed by an approved qualifier and document type.
-
-MANDATORY FORMAT VALIDATION:
-- First word: "A" (article)
-- Second word: MUST be one of: documented, formal, quarterly, annual, comprehensive, detailed, written, approved, maintained, updated, current, complete
-- Third word: MUST be one of: risk register, policy, report, document, procedure, assessment, analysis, review, register, record, log, matrix, framework, standard, guideline, charter, plan
-- NO OTHER STARTING PATTERNS ARE ACCEPTABLE
-
-PRE-GENERATION SELF-CHECK:
-Before generating each criterion, verify it starts with "A [qualifier] [document_type]"
-If it doesn't, IMMEDIATELY rewrite to start with "A documented policy" or "A formal procedure"
-
-EXAMPLES OF REQUIRED FORMAT:
-✅ "A documented policy that establishes..."
-✅ "A formal procedure that defines..."
-✅ "A comprehensive framework that outlines..."
-
-ABSOLUTELY FORBIDDEN STARTS:
+🚨 ABSOLUTELY FORBIDDEN STARTERS (INSTANT REJECTION):
 ❌ "${organizationContext.name} must..."
-❌ "The organization shall..."
-❌ "Management ensures..."
-❌ "Leadership maintains..."
-❌ "Staff should..."
-❌ "Personnel must..."
+❌ "${organizationContext.name} has..."  
+❌ "${organizationContext.name} maintains..."
+❌ "The organization..."
+❌ "Management..."
+❌ "Leadership..."
+❌ "Executive team..."
+❌ "Board of directors..."
+❌ "Senior management..."
+❌ "The company..."
+❌ "Staff..."
+❌ "Personnel..."
+❌ "Employees..."
+❌ "Teams..."
+❌ "Departments..."
+❌ "Systems..."
+❌ "Processes..."
+❌ "Controls..."
+❌ ANY organizational entity or actor
 
-VALIDATION RULE: If any criterion doesn't start with "A [qualifier] [document_type]", it will be automatically REJECTED.
+🔴 PRE-GENERATION VALIDATION:
+Before writing each criterion:
+1. Check: Does it start with "A [evidence_type] [document_noun]"?
+2. If NO: Rewrite to start with "A documented policy" or "A formal procedure"
+3. If YES: Continue with "that [action_verb] [specific_requirement]"
 
-Generate 8-12 specific criteria in JSON format based ONLY on the document content above:
-[{"statement": "A [qualifier] [document_type] that [action] [requirement] for [context]", "summary": "brief explanation"}]`;
+🔴 EVIDENCE ARTIFACT FOCUS:
+Each criterion must reference a tangible, auditable item:
+- Documents you can hold/read
+- Reports you can review
+- Records you can examine
+- Dashboards you can view
+- Policies you can reference
+
+🔴 FINAL VALIDATION CHECK:
+After generating all criteria, verify each one:
+- Starts with "A [approved_evidence_type] [approved_document_noun]"
+- No organizational actors in opening position
+- Describes tangible evidence artifacts
+- References specific, auditable items
+
+Generate 8-12 specific criteria in JSON format. Each "statement" field MUST follow the evidence-first pattern:
+[{"statement": "A [evidence_type] [document_noun] that [action] [requirement] for [context]", "summary": "brief explanation of what this evidence demonstrates"}]
+
+🚨 REMINDER: If any criterion doesn't start with "A [evidence_type] [document_noun]", it will be AUTOMATICALLY REJECTED by the validation system.`;
 
       // 🚨 CRITICAL: Clean placeholder patterns before sending to AI
       const cleanedPrompt = cleanPlaceholderPatterns(finalPrompt);
