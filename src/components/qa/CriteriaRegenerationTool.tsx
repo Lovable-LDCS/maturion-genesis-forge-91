@@ -146,23 +146,39 @@ export const CriteriaRegenerationTool: React.FC = () => {
         }
       }
 
-      // Step 6: Verify final results
+      // Step 6: Verify final results and identify failures
       const { data: finalCheck, error: finalError } = await supabase
         .from('criteria')
-        .select('id')
+        .select('id, mps_id')
         .in('mps_id', mpsWithChunks?.map(mps => mps.id) || []);
 
       const finalCriteriaCount = finalCheck?.length || 0;
+      
+      // Identify failed MPSs
+      const failedResults = generationResults.filter(r => r.status === 'error');
+      const successfulMpsIds = new Set(
+        generationResults.filter(r => r.status === 'success').map(r => 
+          mpsWithChunks?.find(mps => mps.mps_number === r.mpsNumber)?.id
+        )
+      );
+      
+      // Double-check criteria count by MPS
+      const criteriaByMps = finalCheck?.reduce((acc, criteria) => {
+        acc[criteria.mps_id] = (acc[criteria.mps_id] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
 
       setResult({
         success: true,
-        message: `Successfully regenerated criteria for ${generatedCount}/${mpsWithChunks?.length || 0} MPSs`,
+        message: `Successfully regenerated criteria for ${generatedCount}/${mpsWithChunks?.length || 0} MPSs${failedResults.length > 0 ? ` (${failedResults.length} failed)` : ''}`,
         details: {
           orgId,
           totalMps: mpsWithChunks?.length || 0,
           deletedCriteria: deletedCount,
           generatedMps: generatedCount,
           finalCriteriaCount,
+          failedMps: failedResults.map(f => ({ mpsNumber: f.mpsNumber, error: f.error })),
+          criteriaByMps: Object.keys(criteriaByMps).length,
           generationResults: generationResults.slice(0, 5) // Show first 5 for display
         }
       });
@@ -281,9 +297,21 @@ export const CriteriaRegenerationTool: React.FC = () => {
                   <div>Final criteria count: {result.details.finalCriteriaCount}</div>
                 </div>
                 
+                {result.details.failedMps?.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs font-medium mb-1 text-red-600 dark:text-red-400">Failed MPSs:</p>
+                    {result.details.failedMps.map((failed: any, index: number) => (
+                      <div key={index} className="text-xs bg-red-50 dark:bg-red-900 p-2 rounded mb-1">
+                        <div className="font-medium">MPS {failed.mpsNumber}</div>
+                        <div className="opacity-75 text-red-600 dark:text-red-300">{failed.error}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
                 {result.details.generationResults?.length > 0 && (
                   <div className="mt-2">
-                    <p className="text-xs font-medium mb-1">Generation Status:</p>
+                    <p className="text-xs font-medium mb-1">Recent Generation Status:</p>
                     {result.details.generationResults.slice(0, 3).map((gen: any, index: number) => (
                       <div key={index} className="text-xs opacity-75">
                         MPS {gen.mpsNumber}: {gen.status === 'success' ? '✅' : '❌'} {gen.status}
