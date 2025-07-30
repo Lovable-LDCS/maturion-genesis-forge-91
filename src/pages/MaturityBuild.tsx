@@ -4,6 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { 
   ArrowLeft, 
   Brain, 
@@ -12,30 +14,102 @@ import {
   FileText,
   Users,
   Lock,
-  Unlock
+  Unlock,
+  AlertCircle,
+  RefreshCw
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { useOrganization } from '@/hooks/useOrganization';
 
 
 const MaturityBuild = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
+  const { currentOrganization, loading: orgLoading } = useOrganization();
   const [isModelApproved, setIsModelApproved] = useState(false);
   const [buildProgress, setBuildProgress] = useState(65); // Simulated progress
   const [setupData, setSetupData] = useState<any>(null);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
-  // Check if user has completed setup and load setup data
-  useEffect(() => {
-    const setupCompleted = localStorage.getItem('maturion_setup_completed');
-    if (!setupCompleted) {
-      navigate('/maturity/setup');
-    } else {
+  // Initialize page data with comprehensive error handling
+  const initializePage = async () => {
+    try {
+      console.log('🔧 MaturityBuild: Initializing page...');
+      console.log('🔧 Auth loading:', authLoading, 'User:', user?.id);
+      console.log('🔧 Org loading:', orgLoading, 'Current org:', currentOrganization?.id);
+      
+      setPageLoading(true);
+      setPageError(null);
+
+      // Wait for auth to fully load
+      if (authLoading) {
+        console.log('🔧 MaturityBuild: Waiting for auth to load...');
+        return;
+      }
+
+      if (!user) {
+        console.log('🔧 MaturityBuild: No user found, auth should handle redirect');
+        return;
+      }
+
+      // Check setup completion
+      const setupCompleted = localStorage.getItem('maturion_setup_completed');
+      console.log('🔧 MaturityBuild: Setup completed flag:', setupCompleted);
+      
+      if (!setupCompleted) {
+        console.log('🔧 MaturityBuild: Setup not completed, redirecting...');
+        navigate('/maturity/setup');
+        return;
+      }
+
+      // Load setup data
       const storedSetupData = localStorage.getItem('maturion_setup_data');
       if (storedSetupData) {
-        setSetupData(JSON.parse(storedSetupData));
+        try {
+          const parsedData = JSON.parse(storedSetupData);
+          console.log('🔧 MaturityBuild: Loaded setup data:', parsedData);
+          setSetupData(parsedData);
+        } catch (error) {
+          console.error('🔧 MaturityBuild: Error parsing setup data:', error);
+          setPageError('Invalid setup data found. Please complete setup again.');
+          return;
+        }
+      } else {
+        console.log('🔧 MaturityBuild: No setup data found');
       }
+
+      // Check model approval status
+      const modelApproved = localStorage.getItem('maturion_model_approved');
+      if (modelApproved === 'true') {
+        setIsModelApproved(true);
+        console.log('🔧 MaturityBuild: Model is approved');
+      }
+
+      setPageLoading(false);
+      console.log('🔧 MaturityBuild: Page initialization complete');
+      
+    } catch (error) {
+      console.error('🔧 MaturityBuild: Error during initialization:', error);
+      setPageError(`Initialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setPageLoading(false);
     }
-  }, [navigate]);
+  };
+
+  // Initialize when dependencies are ready
+  useEffect(() => {
+    initializePage();
+  }, [authLoading, user, navigate]);
+
+  // Retry mechanism
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    console.log('🔧 MaturityBuild: Retrying initialization...', retryCount + 1);
+    initializePage();
+  };
 
   const handleApproveModel = () => {
     setIsModelApproved(true);
@@ -82,6 +156,90 @@ const MaturityBuild = () => {
     }
   ];
 
+  // Loading state
+  if (authLoading || pageLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
+        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-10 w-32" />
+              <div className="flex items-center space-x-2">
+                <Skeleton className="h-6 w-32" />
+                <Skeleton className="h-6 w-24" />
+              </div>
+            </div>
+          </div>
+        </header>
+        
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+              <Skeleton className="h-12 w-96 mx-auto mb-4" />
+              <Skeleton className="h-6 w-full max-w-3xl mx-auto mb-6" />
+              <div className="max-w-md mx-auto">
+                <Skeleton className="h-2 w-full" />
+              </div>
+            </div>
+            
+            <div className="space-y-4 mb-12">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-24 w-full" />
+              ))}
+            </div>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // Error state
+  if (pageError) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
+        <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+          <div className="container mx-auto px-4 py-4">
+            <div className="flex items-center justify-between">
+              <Button 
+                variant="ghost" 
+                onClick={() => navigate('/maturity/setup')}
+                className="flex items-center gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to Setup
+              </Button>
+              
+              <div className="flex items-center space-x-2">
+                <Badge variant="outline">Maturity Development</Badge>
+                <Badge variant="destructive">Error</Badge>
+              </div>
+            </div>
+          </div>
+        </header>
+        
+        <main className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            <Alert className="mb-8">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription className="flex items-center justify-between">
+                <span>{pageError}</span>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleRetry}
+                  className="ml-4"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Retry ({retryCount})
+                </Button>
+              </AlertDescription>
+            </Alert>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
       {/* Header */}
@@ -100,6 +258,9 @@ const MaturityBuild = () => {
             <div className="flex items-center space-x-2">
               <Badge variant="outline">Maturity Development</Badge>
               <Badge>Building Phase</Badge>
+              {user && (
+                <Badge variant="secondary">User: {user.email}</Badge>
+              )}
             </div>
           </div>
         </div>
