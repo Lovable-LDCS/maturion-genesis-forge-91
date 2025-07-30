@@ -132,10 +132,14 @@ export const AutomatedQALogs: React.FC = () => {
   const triggerManualQACycle = async () => {
     try {
       setIsRunning(true);
-      toast.info('Triggering manual QA cycle...');
+      toast.info('Manual QA cycle started!');
       
       const { data, error } = await supabase.functions.invoke('run-full-qa-cycle', {
-        body: { manual: true, organizationId: currentOrganization?.id }
+        body: { 
+          manual: true, 
+          organizationId: currentOrganization?.id,
+          triggeringUserId: (await supabase.auth.getUser()).data.user?.id
+        }
       });
 
       if (error) {

@@ -19,16 +19,23 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const isManual = body.manual || false;
     const triggeringUserId = body.triggeringUserId || null;
+    const targetOrganizationId = body.organizationId || null;
     
     console.log(`🚀 Starting ${isManual ? 'manual' : 'scheduled'} QA cycle`);
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Get all organizations with primary type
-    const { data: organizations, error: orgError } = await supabase
+    // Get organizations - if manual run, filter by specific org
+    let orgQuery = supabase
       .from('organizations')
       .select('id, name')
       .eq('organization_type', 'primary');
+    
+    if (isManual && targetOrganizationId) {
+      orgQuery = orgQuery.eq('id', targetOrganizationId);
+    }
+    
+    const { data: organizations, error: orgError } = await orgQuery;
     
     if (orgError) {
       throw new Error(`Failed to fetch organizations: ${orgError.message}`);
