@@ -1,18 +1,173 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { RefreshCw, Trash, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { RefreshCw, Trash, CheckCircle, Clock, AlertTriangle, PlayCircle } from 'lucide-react';
+
+interface MPSStatus {
+  id: string;
+  mps_number: number;
+  name: string;
+  criteriaCount: number;
+  status: 'success' | 'missing' | 'loading';
+}
 
 export const CriteriaRegenerationTool: React.FC = () => {
   const [regenerating, setRegenerating] = useState(false);
+  const [mpsStatuses, setMpsStatuses] = useState<MPSStatus[]>([]);
+  const [loadingMpsStatus, setLoadingMpsStatus] = useState(false);
+  const [regeneratingMps, setRegeneratingMps] = useState<Set<number>>(new Set());
   const [result, setResult] = useState<{ 
     success: boolean; 
     message: string; 
     details?: any;
   } | null>(null);
   const { toast } = useToast();
+
+  // Load MPS status on component mount
+  useEffect(() => {
+    loadMpsStatus();
+  }, []);
+
+  const loadMpsStatus = async () => {
+    setLoadingMpsStatus(true);
+    try {
+      // Get primary organization
+      const { data: orgId, error: orgError } = await supabase
+        .rpc('get_user_primary_organization');
+
+      if (orgError || !orgId) {
+        console.warn('Could not load primary organization for MPS status');
+        return;
+      }
+
+      // Get all MPSs
+      const { data: mpsList, error: mpsError } = await supabase
+        .from('maturity_practice_statements')
+        .select('id, mps_number, name')
+        .eq('organization_id', orgId)
+        .order('mps_number');
+
+      if (mpsError || !mpsList) {
+        console.warn('Could not load MPS list');
+        return;
+      }
+
+      // Get criteria count for each MPS
+      const { data: criteriaCounts, error: criteriaError } = await supabase
+        .from('criteria')
+        .select('mps_id')
+        .in('mps_id', mpsList.map(mps => mps.id));
+
+      if (criteriaError) {
+        console.warn('Could not load criteria counts');
+        return;
+      }
+
+      // Count criteria per MPS
+      const criteriaCountMap = criteriaCounts?.reduce((acc, criteria) => {
+        acc[criteria.mps_id] = (acc[criteria.mps_id] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>) || {};
+
+      // Build status array
+      const statuses: MPSStatus[] = mpsList.map(mps => ({
+        id: mps.id,
+        mps_number: mps.mps_number,
+        name: mps.name,
+        criteriaCount: criteriaCountMap[mps.id] || 0,
+        status: criteriaCountMap[mps.id] > 0 ? 'success' : 'missing'
+      }));
+
+      setMpsStatuses(statuses);
+    } catch (error) {
+      console.error('Error loading MPS status:', error);
+    } finally {
+      setLoadingMpsStatus(false);
+    }
+  };
+
+  const regenerateSingleMps = async (mpsNumber: number) => {
+    // Add to regenerating set
+    setRegeneratingMps(prev => new Set([...prev, mpsNumber]));
+    
+    try {
+      // Get primary organization
+      const { data: orgId, error: orgError } = await supabase
+        .rpc('get_user_primary_organization');
+
+      if (orgError || !orgId) {
+        throw new Error('Could not get primary organization');
+      }
+
+      // Find the specific MPS
+      const mps = mpsStatuses.find(m => m.mps_number === mpsNumber);
+      if (!mps) {
+        throw new Error(`MPS ${mpsNumber} not found`);
+      }
+
+      console.log(`🤖 Regenerating criteria for MPS ${mpsNumber}: ${mps.name}`);
+
+      // Delete existing criteria for this MPS only
+      await supabase
+        .from('criteria')
+        .delete()
+        .eq('mps_id', mps.id);
+
+      // Delete associated maturity levels for this MPS
+      await supabase
+        .from('maturity_levels')
+        .delete()
+        .eq('criteria_id', mps.id);
+
+      // Generate new criteria for this MPS
+      const { data: aiResult, error: aiError } = await supabase.functions.invoke('maturion-ai-chat', {
+        body: {
+          prompt: `Generate comprehensive assessment criteria for MPS ${mpsNumber}: ${mps.name}. Use the uploaded MPS document content to create specific, measurable criteria.`,
+          organizationId: orgId,
+          context: {
+            action: 'generate_criteria',
+            mpsId: mps.id,
+            mpsNumber: mpsNumber,
+            mpsName: mps.name,
+            requireDocumentContext: true
+          },
+          knowledgeTier: 'full_context',
+          requireDocumentContext: true
+        }
+      });
+
+      if (aiError) {
+        throw new Error(aiError.message);
+      }
+
+      console.log(`✅ Successfully regenerated criteria for MPS ${mpsNumber}`);
+      
+      toast({
+        title: "MPS Regeneration Complete",
+        description: `Successfully regenerated criteria for MPS ${mpsNumber}`,
+      });
+
+      // Reload status to reflect changes
+      await loadMpsStatus();
+
+    } catch (error: any) {
+      console.error(`Error regenerating MPS ${mpsNumber}:`, error);
+      toast({
+        title: "MPS Regeneration Failed",
+        description: `Failed to regenerate MPS ${mpsNumber}: ${error.message}`,
+        variant: "destructive"
+      });
+    } finally {
+      // Remove from regenerating set
+      setRegeneratingMps(prev => {
+        const next = new Set(prev);
+        next.delete(mpsNumber);
+        return next;
+      });
+    }
+  };
 
   const regenerateAllCriteria = async () => {
     setRegenerating(true);
@@ -277,6 +432,71 @@ export const CriteriaRegenerationTool: React.FC = () => {
             </>
           )}
         </Button>
+
+        {/* Individual MPS Status and Regeneration */}
+        {mpsStatuses.length > 0 && (
+          <div className="border-t pt-4">
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium text-sm">Individual MPS Status</h4>
+              <Button
+                onClick={loadMpsStatus}
+                disabled={loadingMpsStatus}
+                variant="outline"
+                size="sm"
+              >
+                {loadingMpsStatus ? (
+                  <Clock className="h-3 w-3 mr-1 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3 w-3 mr-1" />
+                )}
+                Refresh
+              </Button>
+            </div>
+            
+            <div className="space-y-1 max-h-64 overflow-y-auto">
+              {mpsStatuses.map((mps) => (
+                <div
+                  key={mps.id}
+                  className="flex items-center justify-between p-2 rounded border text-xs"
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {mps.status === 'success' ? (
+                      <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
+                    ) : (
+                      <AlertTriangle className="h-3 w-3 text-orange-500 flex-shrink-0" />
+                    )}
+                    <span className="font-medium flex-shrink-0">MPS {mps.mps_number}:</span>
+                    <span className="truncate" title={mps.name}>{mps.name}</span>
+                    <span className="text-muted-foreground flex-shrink-0">
+                      ({mps.criteriaCount} criteria)
+                    </span>
+                  </div>
+                  
+                  {mps.status === 'missing' && (
+                    <Button
+                      onClick={() => regenerateSingleMps(mps.mps_number)}
+                      disabled={regeneratingMps.has(mps.mps_number) || regenerating}
+                      size="sm"
+                      variant="outline"
+                      className="ml-2 h-6"
+                    >
+                      {regeneratingMps.has(mps.mps_number) ? (
+                        <Clock className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <PlayCircle className="h-3 w-3" />
+                      )}
+                      <span className="ml-1">Retry</span>
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            <div className="mt-2 text-xs text-muted-foreground">
+              {mpsStatuses.filter(m => m.status === 'success').length} of {mpsStatuses.length} MPSs have criteria
+            </div>
+          </div>
+        )}
         
         {result && (
           <div className={`p-4 rounded-lg ${
