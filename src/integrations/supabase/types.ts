@@ -1798,6 +1798,45 @@ export type Database = {
         }
         Relationships: []
       }
+      refactor_qa_log: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          detected_by: string | null
+          finding_type: string
+          id: string
+          organization_id: string
+          recommended_action: string | null
+          run_at: string | null
+          severity: string
+          source_file: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          detected_by?: string | null
+          finding_type: string
+          id?: string
+          organization_id: string
+          recommended_action?: string | null
+          run_at?: string | null
+          severity: string
+          source_file: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          detected_by?: string | null
+          finding_type?: string
+          id?: string
+          organization_id?: string
+          recommended_action?: string | null
+          run_at?: string | null
+          severity?: string
+          source_file?: string
+        }
+        Relationships: []
+      }
       security_configuration: {
         Row: {
           created_at: string

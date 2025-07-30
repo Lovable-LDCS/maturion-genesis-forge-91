@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Settings, TestTube, FileText, CheckCircle } from 'lucide-react';
-import { QADebugHub, RegressionTestMode, AutomatedQALogs } from '@/components/qa';
+import { QADebugHub, RegressionTestMode, AutomatedQALogs, RefactorQALogs } from '@/components/qa';
 import { EdgeFunctionLinter } from '@/components/qa/EdgeFunctionLinter';
 import { MPSLinkageRebuilder } from '@/components/qa/MPSLinkageRebuilder';
 import { MPSDocumentReprocessor } from '@/components/qa/MPSDocumentReprocessor';
@@ -236,8 +236,9 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
 
       {/* QA Tools Tabs */}
       <Tabs defaultValue="automated-qa" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="automated-qa">Automated QA</TabsTrigger>
+          <TabsTrigger value="refactor-qa">Refactor Analysis</TabsTrigger>
           <TabsTrigger value="system-test">System Test</TabsTrigger>
           <TabsTrigger value="debug">QA Debug Hub</TabsTrigger>
           <TabsTrigger value="regression">Regression Tests</TabsTrigger>
@@ -246,6 +247,10 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
         
         <TabsContent value="automated-qa" className="space-y-4">
           <AutomatedQALogs />
+        </TabsContent>
+        
+        <TabsContent value="refactor-qa" className="space-y-4">
+          <RefactorQALogs />
         </TabsContent>
         
         <TabsContent value="system-test" className="space-y-4">

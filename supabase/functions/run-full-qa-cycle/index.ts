@@ -75,6 +75,29 @@ serve(async (req) => {
         await testRegressionForMPS(supabase, org.id, mps, results, isManual ? 'manual' : 'scheduled', triggeringUserId);
       }
       
+      // Also run refactor scan if this is a manual run
+      if (isManual) {
+        console.log(`🧹 Running integrated refactor scan for organization: ${org.name}`);
+        
+        try {
+          const { data: refactorResult, error: refactorError } = await supabase.functions.invoke('run-refactor-qa-cycle', {
+            body: {
+              manual: true,
+              organizationId: org.id,
+              triggeringUserId: triggeringUserId
+            }
+          });
+          
+          if (refactorError) {
+            console.error('Refactor scan failed:', refactorError);
+          } else {
+            console.log('Refactor scan completed:', refactorResult);
+          }
+        } catch (error) {
+          console.error('Error running integrated refactor scan:', error);
+        }
+      }
+      
       results.processedOrganizations++;
     }
 
