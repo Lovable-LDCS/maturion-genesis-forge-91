@@ -121,25 +121,18 @@ export const CriteriaRegenerationTool: React.FC = () => {
         .delete()
         .eq('criteria_id', mps.id);
 
-      // Generate new criteria for this MPS
-      const { data: aiResult, error: aiError } = await supabase.functions.invoke('maturion-ai-chat', {
+      // Generate and save new criteria for this MPS
+      const { data: saveResult, error: saveError } = await supabase.functions.invoke('generate-and-save-criteria', {
         body: {
-          prompt: `Generate comprehensive assessment criteria for MPS ${mpsNumber}: ${mps.name}. Use the uploaded MPS document content to create specific, measurable criteria.`,
-          organizationId: orgId,
-          context: {
-            action: 'generate_criteria',
-            mpsId: mps.id,
-            mpsNumber: mpsNumber,
-            mpsName: mps.name,
-            requireDocumentContext: true
-          },
-          knowledgeTier: 'full_context',
-          requireDocumentContext: true
+          mpsId: mps.id,
+          mpsNumber: mpsNumber,
+          mpsName: mps.name,
+          organizationId: orgId
         }
       });
 
-      if (aiError) {
-        throw new Error(aiError.message);
+      if (saveError || !saveResult?.success) {
+        throw new Error(saveError?.message || saveResult?.error || 'Failed to generate and save criteria');
       }
 
       console.log(`✅ Successfully regenerated criteria for MPS ${mpsNumber}`);
@@ -254,37 +247,30 @@ export const CriteriaRegenerationTool: React.FC = () => {
         try {
           console.log(`🤖 Generating criteria for MPS ${mps.mps_number}: ${mps.name}`);
           
-          // Call the AI function to generate criteria for this specific MPS
-          const { data: aiResult, error: aiError } = await supabase.functions.invoke('maturion-ai-chat', {
+          // Call the new function to generate AND save criteria for this specific MPS
+          const { data: saveResult, error: saveError } = await supabase.functions.invoke('generate-and-save-criteria', {
             body: {
-              prompt: `Generate comprehensive assessment criteria for MPS ${mps.mps_number}: ${mps.name}. Use the uploaded MPS document content to create specific, measurable criteria.`,
-              organizationId: orgId,
-              context: {
-                action: 'generate_criteria',
-                mpsId: mps.id,
-                mpsNumber: mps.mps_number,
-                mpsName: mps.name,
-                requireDocumentContext: true
-              },
-              knowledgeTier: 'full_context',
-              requireDocumentContext: true
+              mpsId: mps.id,
+              mpsNumber: mps.mps_number,
+              mpsName: mps.name,
+              organizationId: orgId
             }
           });
 
-          if (aiError) {
-            console.warn(`AI generation error for MPS ${mps.mps_number}:`, aiError);
+          if (saveError || !saveResult?.success) {
+            console.warn(`Criteria generation/save error for MPS ${mps.mps_number}:`, saveError || saveResult?.error);
             generationResults.push({
               mpsNumber: mps.mps_number,
               status: 'error',
-              error: aiError.message
+              error: saveError?.message || saveResult?.error || 'Unknown error'
             });
           } else {
-            console.log(`✅ Generated criteria for MPS ${mps.mps_number}`);
+            console.log(`✅ Generated and saved ${saveResult.criteriaGenerated} criteria for MPS ${mps.mps_number}`);
             generatedCount++;
             generationResults.push({
               mpsNumber: mps.mps_number,
               status: 'success',
-              result: aiResult
+              criteriaCount: saveResult.criteriaGenerated
             });
           }
 
