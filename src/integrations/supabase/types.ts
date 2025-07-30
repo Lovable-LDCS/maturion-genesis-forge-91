@@ -1295,6 +1295,36 @@ export type Database = {
           },
         ]
       }
+      migration_status: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          migration_name: string
+          notes: string | null
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          migration_name: string
+          notes?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          migration_name?: string
+          notes?: string | null
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       milestone_status_history: {
         Row: {
           change_reason: string | null
