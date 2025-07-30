@@ -1,6 +1,6 @@
 import { openAIApiKey, KNOWLEDGE_TIERS } from './constants.ts';
 import { determineKnowledgeTier, validateMpsNumber, sanitizeInput, supabase } from './utils.ts';
-import { getAIBehaviorPolicy, getIntentPromptLogic } from './policy.ts';
+import { getAIBehaviorPolicy, getIntentPromptLogic, getMaturionReasoningArchitecture } from './policy.ts';
 import { getDocumentContext } from './context.ts';
 import { buildOrganizationalContext } from './organization.ts';
 import { getExternalInsights } from './external.ts';
@@ -83,6 +83,7 @@ export async function buildPromptContext(request: PromptRequest) {
   let documentContext = '';
   let behaviorPolicy = '';
   let intentPromptLogic = '';
+  let maturionReasoningArchitecture = '';
   let organizationContext = '';
   let externalContext = '';
   let sourceType = 'general';
@@ -91,6 +92,12 @@ export async function buildPromptContext(request: PromptRequest) {
   if (knowledgeTier === 'ORGANIZATIONAL_CONTEXT' && finalOrgId) {
     console.log('🎯 ORGANIZATIONAL CONTEXT MODE: Building comprehensive profile');
     organizationContext = await buildOrganizationalContext(finalOrgId);
+  }
+
+  // 🧠 PLATFORM ANCHOR LOGIC: Always load Maturion Reasoning Architecture for ALL contexts
+  if (finalOrgId) {
+    console.log('🧠 Loading Platform Anchor Logic - Maturion Reasoning Architecture');
+    maturionReasoningArchitecture = await getMaturionReasoningArchitecture(finalOrgId);
   }
 
   // For Tier 1 (Internal Secure) contexts, enforce strict policy
@@ -132,6 +139,7 @@ export async function buildPromptContext(request: PromptRequest) {
     documentContext,
     behaviorPolicy,
     intentPromptLogic,
+    maturionReasoningArchitecture,
     organizationContext,
     externalContext,
     sourceType,
@@ -185,6 +193,7 @@ export function constructFinalPrompt(promptContext: any) {
     documentContext,
     behaviorPolicy,
     intentPromptLogic,
+    maturionReasoningArchitecture,
     organizationContext,
     externalContext,
     requiresInternalSecure
@@ -192,10 +201,11 @@ export function constructFinalPrompt(promptContext: any) {
 
   // Token limits for final assembly
   const MAX_TOTAL_TOKENS = 10000; // Reserve 2000 tokens for OpenAI response
-  const MAX_DOCUMENT_TOKENS = 6000;
-  const MAX_BEHAVIOR_TOKENS = 1000;
-  const MAX_INTENT_TOKENS = 800;
-  const MAX_ORG_TOKENS = 600;
+  const MAX_DOCUMENT_TOKENS = 5500; // Reduced to make room for anchor logic
+  const MAX_REASONING_TOKENS = 1200; // 🧠 PLATFORM ANCHOR LOGIC gets priority
+  const MAX_BEHAVIOR_TOKENS = 800;
+  const MAX_INTENT_TOKENS = 600;
+  const MAX_ORG_TOKENS = 500;
   const MAX_EXTERNAL_TOKENS = 400;
 
   const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
@@ -209,6 +219,21 @@ export function constructFinalPrompt(promptContext: any) {
   let currentTokens = 0;
   
   console.log('🔢 Starting prompt construction with token limits...');
+  
+  // 🧠 HIGHEST PRIORITY: Add Maturion Reasoning Architecture (Platform Anchor Logic)
+  if (maturionReasoningArchitecture) {
+    const truncatedReasoning = truncateToTokens(maturionReasoningArchitecture, MAX_REASONING_TOKENS);
+    const reasoningTokens = estimateTokens(truncatedReasoning);
+    
+    fullPrompt += `=== 🧠 PLATFORM ANCHOR LOGIC: MATURION REASONING ARCHITECTURE ===
+${truncatedReasoning}
+
+=== END PLATFORM ANCHOR LOGIC ===
+
+`;
+    currentTokens += reasoningTokens;
+    console.log(`🧠 Added Platform Anchor Logic: ${reasoningTokens} tokens`);
+  }
   
   // Add behavior policy if available (for internal secure contexts)
   if (behaviorPolicy && requiresInternalSecure) {

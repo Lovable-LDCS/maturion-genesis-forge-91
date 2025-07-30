@@ -41,6 +41,30 @@ export async function getIntentPromptLogic(organizationId: string): Promise<stri
   }
 }
 
+// 🧠 PLATFORM ANCHOR LOGIC: Get Maturion Reasoning Architecture Manifest
+export async function getMaturionReasoningArchitecture(organizationId: string): Promise<string> {
+  try {
+    const { data: architectureChunks, error } = await supabase
+      .from('ai_document_chunks')
+      .select('content, ai_documents!inner(title, document_type)')
+      .eq('organization_id', organizationId)
+      .eq('ai_documents.document_type', 'governance_reasoning_manifest')
+      .order('chunk_index', { ascending: true })
+      .limit(25);
+    
+    if (error || !architectureChunks?.length) {
+      console.log('No Maturion Reasoning Architecture found - falling back to default logic');
+      return '';
+    }
+    
+    console.log(`🧠 Platform Anchor Logic: Loaded ${architectureChunks.length} chunks from governance manifest`);
+    return architectureChunks.map(chunk => chunk.content).join('\n\n');
+  } catch (error) {
+    console.error('Error fetching Maturion Reasoning Architecture:', error);
+    return '';
+  }
+}
+
 // Function to retrieve internal documents from AI knowledge base
 export async function getInternalDocuments(organizationId: string, context: string) {
   try {
