@@ -388,10 +388,10 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
           const documentContentMatch = finalPrompt.match(/ACTUAL MPS DOCUMENT CONTENT:([\s\S]*?)(?=STRICT REQUIREMENTS:|$)/);
           if (documentContentMatch && documentContentMatch[1]) {
             const docContent = documentContentMatch[1];
-            console.log(`📄 DOCUMENT CONTENT SECTION (${docContent.length} chars):`);
-            console.log(`"${docContent.substring(0, 500)}${docContent.length > 500 ? '...' : '"}"`);
+            console.log('📄 DOCUMENT CONTENT SECTION (' + docContent.length + ' chars):');
+            console.log('"' + docContent.substring(0, 500) + (docContent.length > 500 ? '...' : '') + '"');
           } else {
-            console.log(`❌ NO DOCUMENT CONTENT SECTION FOUND`);
+            console.log('❌ NO DOCUMENT CONTENT SECTION FOUND');
           }
         }
         
@@ -400,7 +400,7 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
         const ourPromptInstructions = finalPrompt.replace(documentContentRegex, '[DOCUMENT_CONTENT_STRIPPED_FOR_VALIDATION]');
         
         if (isDebugMode) {
-          console.log(`\n🔍 ISOLATED PROMPT INSTRUCTIONS (for validation, ${ourPromptInstructions.length} chars):`);
+          console.log('\n🔍 ISOLATED PROMPT INSTRUCTIONS (for validation, ' + ourPromptInstructions.length + ' chars):');
           console.log(ourPromptInstructions);
         }
         
@@ -424,13 +424,13 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
               foundProblematicPatterns.push({ name, matches, count: matches.length });
               exactMatches.push(...matches);
               if (isDebugMode) {
-                console.log(`🚨 PATTERN "${name}" FOUND ${matches.length} times:`, matches);
+                console.log('🚨 PATTERN "' + name + '" FOUND ' + matches.length + ' times:', matches);
               }
             } else if (isDebugMode) {
-              console.log(`✅ PATTERN "${name}" - NOT FOUND`);
+              console.log('✅ PATTERN "' + name + '" - NOT FOUND');
             }
           } catch (regexError) {
-            console.warn(`⚠️ Error testing pattern ${name}:`, regexError);
+            console.warn('⚠️ Error testing pattern ' + name + ':', regexError);
           }
         }
         
@@ -448,15 +448,15 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
                 console.log(`   Context: "...${context}..."`);
               }
             } catch (contextError) {
-              console.warn(`⚠️ Error showing context for match ${index}:`, contextError);
+              console.warn('⚠️ Error showing context for match ' + index + ':', contextError);
             }
           });
         }
         
         // **SAFE NON-BLOCKING MODE** - Log warning and continue
         if (foundProblematicPatterns.length > 0) {
-          console.warn(`🚨 PLACEHOLDER PATTERNS DETECTED - BUT CONTINUING FOR TESTING`);
-          console.warn(`🔍 Found patterns:`, foundProblematicPatterns.map(p => `${p.name}: ${p.count}`));
+          console.warn('🚨 PLACEHOLDER PATTERNS DETECTED - BUT CONTINUING FOR TESTING');
+          console.warn('🔍 Found patterns:', foundProblematicPatterns.map(p => p.name + ': ' + p.count));
           
           // Safe debug storage (only if debug mode and window exists)
           if (isDebugMode && typeof window !== 'undefined') {
@@ -468,20 +468,20 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
                 promptLength: finalPrompt.length,
                 timestamp: new Date().toISOString()
               };
-              console.log(`⚠️ DEBUG: Saved problematic prompt info to window.maturionDebug`);
+              console.log('⚠️ DEBUG: Saved problematic prompt info to window.maturionDebug');
             } catch (debugStorageError) {
-              console.warn(`⚠️ Could not save debug info:`, debugStorageError);
+              console.warn('⚠️ Could not save debug info:', debugStorageError);
             }
           }
           
-          console.warn(`⚠️ ALLOWING PROMPT TO PROCEED FOR TESTING PURPOSES`);
+          console.warn('⚠️ ALLOWING PROMPT TO PROCEED FOR TESTING PURPOSES');
         } else {
-          console.log(`✅ PROMPT VALIDATION PASSED: No problematic placeholder patterns detected`);
+          console.log('✅ PROMPT VALIDATION PASSED: No problematic placeholder patterns detected');
         }
         
       } catch (debugError) {
-        console.error(`❌ Debug validation error (continuing anyway):`, debugError);
-        console.log(`✅ FALLBACK: Skipping validation due to debug error - allowing generation to proceed`);
+        console.error('❌ Debug validation error (continuing anyway):', debugError);
+        console.log('✅ FALLBACK: Skipping validation due to debug error - allowing generation to proceed');
       }
 
       const prompt = finalPrompt;
