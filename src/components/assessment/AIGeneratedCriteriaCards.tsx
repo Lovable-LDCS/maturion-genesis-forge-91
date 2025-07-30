@@ -357,6 +357,10 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
           { name: 'generic_brackets', pattern: /\[[A-Z][a-z_]*\]/gi },
           { name: 'criterion_letter_strict', pattern: /\bCriterion\s+[A-Z]\b/gi },
           { name: 'criterion_letter_flexible', pattern: /Criterion\s*[A-Z]/gi },
+          { name: 'criterion_with_punctuation', pattern: /Criterion\s*[A-Z][-:(\s]/gi },
+          { name: 'criterion_colon', pattern: /Criterion\s*[A-Z]:/gi },
+          { name: 'criterion_dash', pattern: /Criterion\s*[A-Z]\s*-/gi },
+          { name: 'criterion_paren', pattern: /Criterion\s*[A-Z]\s*\(/gi },
           { name: 'assessment_criterion', pattern: /\bAssessment criterion\b/gi },
           { name: 'criterion_numbered', pattern: /\bCriterion\s+[0-9]+/gi },
           { name: 'placeholder_text', pattern: /\b(TBD|TODO|PLACEHOLDER)\b/gi }
@@ -393,8 +397,8 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
         console.log(`📏 Length: ${prompt.length} → ${cleaned.length} chars (${prompt.length - cleaned.length} removed)`);
         console.log('📝 Cleaned prompt preview (first 1000 chars):', cleaned.substring(0, 1000));
         
-        // CRITICAL: Final verification check
-        const finalCheck = /Criterion\s*[A-Z]/gi;
+        // CRITICAL: Final verification check with expanded pattern
+        const finalCheck = /Criterion\s*[A-Z][-:(\s]*/gi;
         const remainingMatches = cleaned.match(finalCheck);
         if (remainingMatches) {
           console.error('🚨 CLEANUP FAILED: Still found Criterion [A-Z] patterns:', remainingMatches);
@@ -588,8 +592,8 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
       console.log('📝 Full prompt content (first 2000 chars):', prompt.substring(0, 2000));
       console.log('📝 Full prompt content (last 500 chars):', prompt.substring(Math.max(0, prompt.length - 500)));
       
-      // 🚨 IMMEDIATE PRE-QA VALIDATION CHECK
-      const immediateCheck = /Criterion\s*[A-Z]/gi;
+      // 🚨 IMMEDIATE PRE-QA VALIDATION CHECK  
+      const immediateCheck = /Criterion\s*[A-Z][-:(\s]*/gi;
       const foundPatterns = prompt.match(immediateCheck);
       if (foundPatterns) {
         console.error('🚨 PRE-QA CHECK FAILED: Criterion [A-Z] patterns still present!');
@@ -602,6 +606,9 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
       } else {
         console.log('✅ PRE-QA CHECK PASSED: No Criterion [A-Z] patterns detected');
       }
+      
+      // 🧠 FINAL PROMPT USED BY QA - EXACT CONTENT VALIDATION
+      console.log("🧠 FinalPromptUsedByQA:", finalPrompt);
       
       // QA Framework: Red Alert Monitoring
       const alerts = validateForRedAlerts(prompt, mps.mps_number, { organizationContext, mpsContext });
