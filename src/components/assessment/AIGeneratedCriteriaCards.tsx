@@ -145,33 +145,61 @@ export function AIGeneratedCriteriaCards({ mps, onCriteriaChange }: AIGeneratedC
   // 🔒 EVIDENCE ARTIFACT VALIDATOR: Check and rewrite non-compliant criteria
   const validateEvidenceArtifacts = useCallback((criteria: any[]): any[] => {
     console.log('🔍 VALIDATING EVIDENCE ARTIFACTS in generated criteria...');
+    console.log("🧠 Number of criteria returned by AI:", criteria.length);
     
     // Use the EXACT same pattern as the QA validation in promptUtils.ts
     const evidenceFirstPattern = /^A\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline|charter|plan)/i;
+    
+    // Define diverse evidence types to prevent duplicates
+    const evidenceTypes = [
+      'A documented policy',
+      'A formal quarterly report',
+      'A current KPI dashboard', 
+      'A comprehensive stakeholder plan',
+      'An approved succession document',
+      'A detailed training outline',
+      'A written code of conduct',
+      'A maintained organizational chart',
+      'Minutes of executive meetings',
+      'A formal leadership competency framework'
+    ];
+    
+    const usedTypes = new Set<string>();
     
     const validatedCriteria = criteria.map((criterion, index) => {
       const statement = criterion.statement || '';
       const passesValidation = evidenceFirstPattern.test(statement);
       
-      if (!passesValidation) {
-        console.warn(`🚨 CRITERION ${index + 1} FAILED QA EVIDENCE-FIRST VALIDATION:`, statement.substring(0, 100));
+      // Extract the evidence type from the statement
+      const evidenceTypeMatch = statement.match(/^(A [^t]+) that/i);
+      const currentType = evidenceTypeMatch ? evidenceTypeMatch[1].trim() : '';
+      
+      if (!passesValidation || usedTypes.has(currentType)) {
+        console.warn(`🚨 CRITERION ${index + 1} NEEDS REWRITING:`, statement.substring(0, 100));
         
-        // Auto-rewrite with evidence artifact structure that matches the QA pattern
-        const rewrittenStatement = `A documented policy that addresses the requirements related to ${statement.toLowerCase().replace(/^[^a-z]*/, '')}`;
-        console.log(`🔧 AUTO-REWRITTEN TO MATCH QA PATTERN:`, rewrittenStatement);
+        // Find an unused evidence type
+        const availableType = evidenceTypes.find(type => !usedTypes.has(type));
+        const typeToUse = availableType || evidenceTypes[index % evidenceTypes.length];
+        
+        usedTypes.add(typeToUse);
+        
+        const rewrittenStatement = `${typeToUse} that addresses the requirements related to ${statement.toLowerCase().replace(/^[^a-z]*/, '').replace(/^a\s+[^t]+\s+that\s+/i, '')}`;
+        console.log(`🔧 AUTO-REWRITTEN WITH DIVERSE TYPE:`, rewrittenStatement);
         
         return {
           ...criterion,
           statement: rewrittenStatement,
-          ai_decision_log: `${criterion.ai_decision_log || ''} | AUTO-REWRITTEN: Original failed QA evidence-first validation pattern`
+          ai_decision_log: `${criterion.ai_decision_log || ''} | AUTO-REWRITTEN: Ensured diverse evidence type and QA pattern compliance`
         };
       } else {
         console.log(`✅ CRITERION ${index + 1} PASSED QA PATTERN:`, statement.substring(0, 100));
+        usedTypes.add(currentType);
         return criterion;
       }
     });
     
     console.log(`🔍 QA PATTERN VALIDATION COMPLETE: ${criteria.length} criteria processed`);
+    console.log(`🎯 EVIDENCE TYPE DIVERSITY: ${usedTypes.size} unique types used`);
     return validatedCriteria;
   }, []);
 
@@ -250,22 +278,38 @@ A [documented/formal/current/comprehensive/detailed/written/approved/maintained/
 ❌ "Systems provide..."
 ❌ "Processes include..."
 
-Generate exactly 8-12 criteria following the template. Each criterion MUST start with "A [qualifier] [document_type] that":
+Generate exactly 10 criteria with diverse evidence types. Each criterion must start with a DIFFERENT evidence type from this list:
 
-🚨 CRITICAL: Return ONLY valid JSON array format. No markdown, no formatting, no explanations - ONLY JSON:
+🎯 REQUIRED EVIDENCE TYPES (use each only once):
+- A documented policy
+- A formal quarterly report  
+- A current KPI dashboard
+- A comprehensive stakeholder plan
+- An approved succession document
+- A detailed training outline
+- A written code of conduct
+- A maintained organizational chart
+- Minutes of executive meetings
+- A formal leadership competency framework
+
+🚨 CRITICAL: Return ONLY valid JSON array format with exactly 10 items. No markdown, no formatting, no explanations - ONLY JSON:
 
 [
   {
-    "statement": "A [qualifier] [document_type] that [specific_requirement]",
+    "statement": "A documented policy that [specific_requirement]",
     "summary": "Brief explanation of what this evidence demonstrates"
   },
   {
-    "statement": "A [qualifier] [document_type] that [specific_requirement]", 
+    "statement": "A formal quarterly report that [specific_requirement]", 
+    "summary": "Brief explanation of what this evidence demonstrates"
+  },
+  {
+    "statement": "A current KPI dashboard that [specific_requirement]",
     "summary": "Brief explanation of what this evidence demonstrates"
   }
 ]
 
-🔴 FINAL VALIDATION: Your response must be parseable by JSON.parse() - no text before or after the JSON array.`;
+🔴 FINAL VALIDATION: Your response must be parseable by JSON.parse() and contain exactly 10 different evidence types.`;
 
       // 🚨 CRITICAL: Clean placeholder patterns before sending to AI
       const cleanedPrompt = cleanPlaceholderPatterns(finalPrompt);
