@@ -109,6 +109,7 @@ export const RegressionTestMode: React.FC<RegressionTestModeProps> = ({
           query: `MPS ${mps.mpsNumber} ${mps.mpsTitle}`,
           organizationId: currentOrganization?.id,
           documentTypes: ['mps', 'standard'],
+          threshold: 0.3, // Lower threshold for regression testing
           limit: 1
         }
       });

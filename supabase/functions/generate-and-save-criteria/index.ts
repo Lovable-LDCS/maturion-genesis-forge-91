@@ -24,12 +24,13 @@ serve(async (req) => {
     // Create Supabase client with service role for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Get document chunks for this MPS
+    // Get document chunks for this MPS using more flexible search
     const { data: chunks, error: chunksError } = await supabase
       .from('ai_document_chunks')
-      .select('content')
+      .select('content, ai_documents!inner(title, document_type)')
       .eq('organization_id', organizationId)
-      .ilike('content', `%MPS ${mpsNumber}%`)
+      .or(`content.ilike.%MPS ${mpsNumber}%,content.ilike.%MPS${mpsNumber}%,ai_documents.title.ilike.%MPS ${mpsNumber}%`)
+      .eq('ai_documents.document_type', 'mps_document')
       .limit(10);
     
     if (chunksError) {
