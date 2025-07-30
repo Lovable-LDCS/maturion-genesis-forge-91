@@ -303,7 +303,9 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
 
             {/* Action Buttons */}
             <div className="flex gap-2 pt-2">
-              {(document.processing_status === 'failed' || document.processing_status === 'pending') && (
+              {(document.processing_status === 'failed' || 
+                document.processing_status === 'pending' || 
+                (document.processing_status === 'completed' && document.total_chunks === 0)) && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -319,13 +321,15 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
                   ) : (
                     <>
                       <RefreshCw className="h-3 w-3 mr-1" />
-                      Reprocess Document
+                      {document.processing_status === 'completed' && document.total_chunks === 0 
+                        ? 'Fix Missing Chunks' 
+                        : 'Reprocess Document'}
                     </>
                   )}
                 </Button>
               )}
 
-              {document.processing_status === 'completed' && (
+              {document.processing_status === 'completed' && document.total_chunks > 0 && (
                 <Button
                   size="sm"
                   variant="ghost"

@@ -24,22 +24,32 @@ serve(async (req) => {
       auth: { persistSession: false }
     });
 
-    // Find governance documents that have chunks but are still pending
+    // Find governance documents that need reprocessing:
+    // 1. Documents with status = 'pending'
+    // 2. Documents marked 'completed' but with actual_chunks = 0 (false positives)
     const { data: documents, error: docError } = await supabase
       .from('ai_documents')
       .select('id, title, processing_status, total_chunks')
       .eq('document_type', 'governance_reasoning_manifest')
-      .eq('processing_status', 'pending');
+      .or('processing_status.eq.pending,processing_status.eq.failed');
 
     if (docError) {
       throw new Error(`Failed to fetch documents: ${docError.message}`);
     }
 
-    console.log(`🔧 Found ${documents?.length || 0} pending governance documents`);
+    // Also get all completed documents to check for false positives (completed but 0 chunks)
+    const { data: completedDocs, error: completedError } = await supabase
+      .from('ai_documents')
+      .select('id, title, processing_status, total_chunks')
+      .eq('document_type', 'governance_reasoning_manifest')
+      .eq('processing_status', 'completed');
+
+    const allDocuments = [...(documents || []), ...(completedDocs || [])];
+    console.log(`🔧 Found ${documents?.length || 0} pending/failed and ${completedDocs?.length || 0} completed governance documents`);
 
     const results = [];
-    for (const doc of documents || []) {
-      console.log(`🔧 Processing document: ${doc.title} (${doc.id})`);
+    for (const doc of allDocuments) {
+      console.log(`🔧 Processing document: ${doc.title} (${doc.id}) - Status: ${doc.processing_status}`);
       
       // Count actual chunks in database
       const { data: chunks, error: chunkError } = await supabase
@@ -55,8 +65,29 @@ serve(async (req) => {
       const actualChunkCount = chunks?.length || 0;
       console.log(`🔧 Document ${doc.id} has ${actualChunkCount} chunks in database`);
 
-      if (actualChunkCount > 0) {
-        // Update document status to completed
+      // If document has 0 chunks, reset it for reprocessing regardless of current status
+      if (actualChunkCount === 0) {
+        console.log(`🔄 Resetting document ${doc.id} to pending (false positive: marked ${doc.processing_status} but has 0 chunks)`);
+        
+        const { error: resetError } = await supabase
+          .from('ai_documents')
+          .update({
+            processing_status: 'pending',
+            processed_at: null,
+            total_chunks: 0,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', doc.id);
+
+        if (resetError) {
+          console.error(`❌ Failed to reset document ${doc.id}:`, resetError);
+          results.push({ id: doc.id, title: doc.title, success: false, error: resetError.message, action: 'reset_failed' });
+        } else {
+          console.log(`✅ Reset document ${doc.id} to pending for reprocessing`);
+          results.push({ id: doc.id, title: doc.title, success: true, action: 'reset_for_reprocessing', reason: 'Missing chunks' });
+        }
+      } else if (actualChunkCount > 0 && doc.processing_status !== 'completed') {
+        // Update document status to completed if it has chunks but wrong status
         const { error: updateError } = await supabase
           .from('ai_documents')
           .update({
@@ -69,14 +100,14 @@ serve(async (req) => {
 
         if (updateError) {
           console.error(`❌ Failed to update document ${doc.id}:`, updateError);
-          results.push({ id: doc.id, title: doc.title, success: false, error: updateError.message });
+          results.push({ id: doc.id, title: doc.title, success: false, error: updateError.message, action: 'update_failed' });
         } else {
           console.log(`✅ Updated document ${doc.id} to completed with ${actualChunkCount} chunks`);
-          results.push({ id: doc.id, title: doc.title, success: true, chunks: actualChunkCount });
+          results.push({ id: doc.id, title: doc.title, success: true, chunks: actualChunkCount, action: 'status_corrected' });
         }
       } else {
-        console.log(`⚠️ Document ${doc.id} has no chunks, keeping as pending`);
-        results.push({ id: doc.id, title: doc.title, success: false, error: 'No chunks found' });
+        console.log(`✅ Document ${doc.id} is already correctly marked as completed with ${actualChunkCount} chunks`);
+        results.push({ id: doc.id, title: doc.title, success: true, chunks: actualChunkCount, action: 'no_change_needed' });
       }
     }
 
