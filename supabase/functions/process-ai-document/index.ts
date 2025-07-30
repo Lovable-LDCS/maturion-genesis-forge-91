@@ -219,36 +219,49 @@ serve(async (req: Request): Promise<Response> => {
       // Apply AI Policy validation
       console.log('🔍 Applying AI Policy validation...');
       
-      // For PDFs and unsupported types, force chunk creation
-      if (extractionMethod === 'pdf_emergency' || extractionMethod === 'unsupported_emergency' || extractionMethod === 'pdf_extraction_failed') {
-        console.log('🚨 FORCING EMERGENCY CHUNK CREATION FOR PDF/UNSUPPORTED');
+      // For PDFs and unsupported types, force chunk creation regardless of content quality
+      if (extractionMethod === 'pdf_emergency' || extractionMethod === 'unsupported_emergency' || extractionMethod === 'pdf_extraction_failed' || document.mime_type === 'application/pdf') {
+        console.log('🚨 FORCING EMERGENCY CHUNK CREATION FOR PDF/UNSUPPORTED - BYPASSING ALL VALIDATION');
         
         // Create emergency chunk regardless of content quality
-        const emergencyChunk = extractedText.length > 100 ? extractedText : 
-          `Emergency processed document: ${document.title}\n\nExtraction method: ${extractionMethod}\n\nNote: Content extraction was limited. Manual review recommended.`;
+        let emergencyChunkText = '';
+        
+        if (extractedText && extractedText.length > 10) {
+          emergencyChunkText = extractedText.substring(0, 2000);
+        } else {
+          emergencyChunkText = `[Forced fallback chunk – low quality]\n\nDocument: ${document.title}\nFile Type: ${document.mime_type}\nExtraction Method: emergency_pdf_override\nNote: Content extraction was limited. Manual review recommended.\n\nOriginal extracted content (${extractedText.length} chars): ${extractedText.substring(0, 500)}`;
+        }
+        
+        console.log(`📋 Emergency chunk text length: ${emergencyChunkText.length} characters`);
         
         // Delete existing chunks
         await supabase
-          .from('criteria_chunks')
+          .from('ai_document_chunks')
           .delete()
-          .eq('mps_document_id', documentId);
+          .eq('document_id', documentId);
 
-        // Insert emergency chunk
+        console.log('🗑️ Existing chunks deleted for emergency processing');
+
+        // Insert emergency chunk with comprehensive metadata
         const { error: chunkError } = await supabase
-          .from('criteria_chunks')
+          .from('ai_document_chunks')
           .insert({
-            mps_document_id: documentId,
-            chunk_text: emergencyChunk,
+            document_id: documentId,
+            organization_id: document.organization_id,
+            content: emergencyChunkText,
             chunk_index: 0,
-            word_count: emergencyChunk.split(/\s+/).filter(word => word.length > 0).length,
-            has_embedding: false,
-            embedding: null,
+            content_hash: `emergency_${Date.now()}`,
             metadata: {
-              extraction_method: 'fallback_pdf_emergency',
+              extraction_method: 'emergency_pdf_override',
               extraction_quality: 'poor',
-              reason: 'content_too_short_but_forced',
+              reason: 'forced_emergency_override',
+              quality_score: 0,
               forced_emergency_override: true,
-              manual_review_required: true
+              manual_review_required: true,
+              original_extraction_method: extractionMethod,
+              original_text_length: extractedText.length,
+              file_type: document.mime_type,
+              processing_timestamp: new Date().toISOString()
             }
           });
 
@@ -257,7 +270,9 @@ serve(async (req: Request): Promise<Response> => {
           throw chunkError;
         }
 
-        // Update document status
+        console.log('✅ Emergency chunk created successfully');
+
+        // Update document status with emergency metadata
         await supabase
           .from('ai_documents')
           .update({
@@ -265,15 +280,17 @@ serve(async (req: Request): Promise<Response> => {
             updated_at: new Date().toISOString(),
             metadata: {
               chunks_created: 1,
-              extraction_method: 'fallback_pdf_emergency',
+              extraction_method: 'emergency_pdf_override',
               forced_emergency_override: true,
-              processing_duration_ms: Date.now()
+              quality_score: 0,
+              processing_duration_ms: Date.now(),
+              emergency_processing_reason: 'PDF content below quality threshold - forced chunk creation'
             }
           })
           .eq('id', documentId);
 
-        console.log('✅ Emergency chunk created and document updated');
-        return { success: true, chunks: 1, emergency_override: true };
+        console.log('✅ Document status updated with emergency metadata');
+        return { success: true, chunks: 1, emergency_override: true, quality_score: 0 };
       }
 
       // Standard validation for other file types
@@ -362,9 +379,9 @@ serve(async (req: Request): Promise<Response> => {
 
       // Delete existing chunks
       const { error: deleteError } = await supabase
-        .from('criteria_chunks')
+        .from('ai_document_chunks')
         .delete()
-        .eq('mps_document_id', documentId);
+        .eq('document_id', documentId);
 
       if (deleteError) {
         console.error('⚠️ Error deleting existing chunks:', deleteError);
@@ -397,14 +414,13 @@ serve(async (req: Request): Promise<Response> => {
 
           // Insert chunk into database
           const { data: chunkData, error: chunkError } = await supabase
-            .from('criteria_chunks')
+            .from('ai_document_chunks')
             .insert({
-              mps_document_id: documentId,
-              chunk_text: chunk,
+              document_id: documentId,
+              organization_id: document.organization_id,
+              content: chunk,
               chunk_index: index,
-              word_count: chunk.split(/\s+/).filter(word => word.length > 0).length,
-              has_embedding: !!embedding,
-              embedding: embedding,
+              content_hash: `chunk_${index}_${Date.now()}`,
               metadata: {
                 extraction_method: extractionMethod,
                 chunk_size: chunk.length,
@@ -436,9 +452,9 @@ serve(async (req: Request): Promise<Response> => {
 
       // Verify final chunk count
       const { count: finalChunkCount, error: verifyError } = await supabase
-        .from('criteria_chunks')
+        .from('ai_document_chunks')
         .select('*', { count: 'exact' })
-        .eq('mps_document_id', documentId);
+        .eq('document_id', documentId);
 
       if (verifyError) {
         console.error('❌ Error verifying chunk count:', verifyError);
