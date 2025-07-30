@@ -24,14 +24,49 @@ serve(async (req) => {
     // Create Supabase client with service role for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Get document chunks for this MPS using simplified search approach
-    const { data: chunks, error: chunksError } = await supabase
+    // Get document chunks for this MPS using both direct and search methods
+    let chunks = [];
+    let chunksError = null;
+    
+    // Method 1: Direct database query (primary method)
+    const { data: directChunks, error: directError } = await supabase
       .from('ai_document_chunks')
       .select('content, ai_documents!inner(title, document_type)')
       .eq('organization_id', organizationId)
       .eq('ai_documents.document_type', 'mps_document')
       .ilike('content', `%MPS ${mpsNumber}%`)
       .limit(10);
+    
+    if (!directError && directChunks && directChunks.length > 0) {
+      chunks = directChunks;
+      console.log(`📄 Found ${chunks.length} document chunks using direct query for MPS ${mpsNumber}`);
+    } else {
+      // Method 2: Fallback to search function
+      console.log(`⚠️ Direct query found no chunks, trying search function for MPS ${mpsNumber}`);
+      try {
+        const { data: searchResult, error: searchError } = await supabase.functions.invoke('search-ai-context', {
+          body: {
+            query: `MPS ${mpsNumber}`,
+            organizationId: organizationId,
+            documentTypes: ['mps', 'standard'],
+            threshold: 0.3,
+            limit: 10
+          }
+        });
+        
+        if (!searchError && searchResult?.results?.length > 0) {
+          chunks = searchResult.results.map(r => ({
+            content: r.content,
+            ai_documents: { title: r.document_name, document_type: r.document_type }
+          }));
+          console.log(`📄 Found ${chunks.length} document chunks using search function for MPS ${mpsNumber}`);
+        } else {
+          chunksError = directError || new Error('No chunks found via either method');
+        }
+      } catch (searchErr) {
+        chunksError = searchErr;
+      }
+    }
     
     if (chunksError) {
       throw new Error(`Failed to fetch document chunks: ${chunksError.message}`);

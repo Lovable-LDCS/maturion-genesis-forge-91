@@ -103,13 +103,22 @@ export const RegressionTestMode: React.FC<RegressionTestModeProps> = ({
         .select('id')
         .eq('mps_id', mps.mpsId);
 
-      // Test document context availability
+      // Test document context availability using the same direct query method as criteria generation
+      const { data: directChunks, error: chunkError } = await supabase
+        .from('ai_document_chunks')
+        .select('content, ai_documents!inner(title, document_type)')
+        .eq('organization_id', currentOrganization?.id)
+        .eq('ai_documents.document_type', 'mps_document')
+        .ilike('content', `%MPS ${mps.mpsNumber}%`)
+        .limit(1);
+
+      // Also test using the search function for comparison
       const { data: contextTest } = await supabase.functions.invoke('search-ai-context', {
         body: {
-          query: `MPS ${mps.mpsNumber} ${mps.mpsTitle}`,
+          query: `MPS ${mps.mpsNumber}`,
           organizationId: currentOrganization?.id,
           documentTypes: ['mps', 'standard'],
-          threshold: 0.3, // Lower threshold for regression testing
+          threshold: 0.3,
           limit: 1
         }
       });
@@ -117,10 +126,13 @@ export const RegressionTestMode: React.FC<RegressionTestModeProps> = ({
       const issues: string[] = [];
       let status: RegressionTestResult['status'] = 'passed';
 
-      // Check for document availability
-      const documentFound = contextTest?.data?.results?.length > 0;
+      // Check for document availability using both methods
+      const directDocumentFound = !chunkError && directChunks && directChunks.length > 0;
+      const searchDocumentFound = contextTest?.data?.results?.length > 0;
+      const documentFound = directDocumentFound || searchDocumentFound;
+      
       if (!documentFound) {
-        issues.push('No document context available');
+        issues.push(`No document context available (Direct: ${directDocumentFound ? 'Found' : 'Not found'}, Search: ${searchDocumentFound ? 'Found' : 'Not found'})`);
         status = 'failed';
       }
 
