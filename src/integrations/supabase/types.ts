@@ -1762,7 +1762,9 @@ export type Database = {
           organization_id: string
           result: string
           run_at: string | null
+          run_type: string | null
           test_type: string
+          triggered_by: string | null
         }
         Insert: {
           created_at?: string | null
@@ -1775,7 +1777,9 @@ export type Database = {
           organization_id: string
           result: string
           run_at?: string | null
+          run_type?: string | null
           test_type: string
+          triggered_by?: string | null
         }
         Update: {
           created_at?: string | null
@@ -1788,7 +1792,9 @@ export type Database = {
           organization_id?: string
           result?: string
           run_at?: string | null
+          run_type?: string | null
           test_type?: string
+          triggered_by?: string | null
         }
         Relationships: []
       }

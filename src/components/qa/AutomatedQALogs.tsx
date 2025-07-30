@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Clock, Play, AlertTriangle, CheckCircle, XCircle, Loader, TestTube } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Clock, Play, AlertTriangle, CheckCircle, XCircle, Loader, TestTube, TrendingUp } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
 import { toast } from 'sonner';
@@ -19,6 +20,8 @@ interface QATestLog {
   criteria_generated: number;
   drift_detected: boolean;
   notes: string;
+  run_type: string;
+  triggered_by: string | null;
   created_at: string;
 }
 
@@ -36,6 +39,13 @@ interface QASummary {
     successRate: number;
   };
   alertsTriggered: number;
+  failedMPSs: number[];
+}
+
+interface TrendData {
+  date: string;
+  criteriaSuccessRate: number;
+  regressionSuccessRate: number;
 }
 
 export const AutomatedQALogs: React.FC = () => {
@@ -83,6 +93,7 @@ export const AutomatedQALogs: React.FC = () => {
         
         const totalMPSs = Math.max(criteriaGenLogs.length, regressionLogs.length);
         const alertsTriggered = recentLogs.filter(log => log.result === 'failed' || log.result === 'error').length;
+        const failedMPSs = recentLogs.filter(log => log.result !== 'passed').map(log => log.mps_number).filter((v, i, a) => a.indexOf(v) === i);
 
         setSummary({
           lastRun: latestRun,
@@ -97,7 +108,8 @@ export const AutomatedQALogs: React.FC = () => {
             failed: regressionFailed,
             successRate: regressionLogs.length > 0 ? (regressionPassed / regressionLogs.length) * 100 : 0
           },
-          alertsTriggered
+          alertsTriggered,
+          failedMPSs
         });
       } else {
         setSummary({
@@ -105,7 +117,8 @@ export const AutomatedQALogs: React.FC = () => {
           totalMPSs: 0,
           criteriaGeneration: { passed: 0, failed: 0, successRate: 0 },
           regression: { passed: 0, failed: 0, successRate: 0 },
-          alertsTriggered: 0
+          alertsTriggered: 0,
+          failedMPSs: []
         });
       }
     } catch (error) {
@@ -186,7 +199,34 @@ export const AutomatedQALogs: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <TooltipProvider>
+      <div className="space-y-6">
+        {/* Alert Panel for Recent Failures */}
+        {summary && summary.failedMPSs.length > 0 && (
+          <Alert className="border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            <AlertDescription>
+              <div className="font-medium text-red-800 dark:text-red-200 mb-1">
+                ⚠️ Last QA cycle detected {summary.failedMPSs.length} failures
+              </div>
+              <div className="text-sm text-red-700 dark:text-red-300">
+                Failed MPSs: {summary.failedMPSs.map(num => `MPS ${num}`).join(', ')} — check details below
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Success Alert */}
+        {summary && summary.failedMPSs.length === 0 && summary.lastRun && (
+          <Alert className="border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-800">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription>
+              <div className="font-medium text-green-800 dark:text-green-200">
+                ✅ All {summary.totalMPSs} MPSs passed the last QA cycle — no action required
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
       {/* QA Summary Dashboard */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
@@ -306,10 +346,25 @@ export const AutomatedQALogs: React.FC = () => {
                 {logs.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell className="text-sm">
-                      {new Date(log.run_at).toLocaleString()}
+                      <div>{new Date(log.run_at).toLocaleString()}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {log.run_type === 'manual' ? '👤 Manual' : '⏰ Scheduled'}
+                      </div>
                     </TableCell>
                     <TableCell>
-                      <div className="font-medium">MPS {log.mps_number}</div>
+                      <div className="font-medium flex items-center gap-2">
+                        MPS {log.mps_number}
+                        {log.drift_detected && (
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Drift detected between previous and current criteria. Investigate for AI hallucination or logic shift.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                       <div className="text-sm text-muted-foreground truncate max-w-[200px]">
                         {log.mps_title}
                       </div>
@@ -329,9 +384,6 @@ export const AutomatedQALogs: React.FC = () => {
                       <Badge variant="secondary" className="text-xs">
                         {log.criteria_generated}
                       </Badge>
-                      {log.drift_detected && (
-                        <div className="text-xs text-red-600 mt-1">Drift detected</div>
-                      )}
                     </TableCell>
                     <TableCell className="max-w-[300px]">
                       <div className="text-sm truncate" title={log.notes}>
@@ -346,5 +398,6 @@ export const AutomatedQALogs: React.FC = () => {
         </CardContent>
       </Card>
     </div>
+    </TooltipProvider>
   );
 };

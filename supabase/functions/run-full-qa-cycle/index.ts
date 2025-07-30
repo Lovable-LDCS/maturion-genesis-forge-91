@@ -16,7 +16,11 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🚀 Starting automated QA cycle');
+    const body = await req.json().catch(() => ({}));
+    const isManual = body.manual || false;
+    const triggeringUserId = body.triggeringUserId || null;
+    
+    console.log(`🚀 Starting ${isManual ? 'manual' : 'scheduled'} QA cycle`);
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
@@ -60,8 +64,8 @@ serve(async (req) => {
       
       // Test criteria generation for each MPS
       for (const mps of mpsList || []) {
-        await testCriteriaGeneration(supabase, org.id, mps, results);
-        await testRegressionForMPS(supabase, org.id, mps, results);
+        await testCriteriaGeneration(supabase, org.id, mps, results, isManual ? 'manual' : 'scheduled', triggeringUserId);
+        await testRegressionForMPS(supabase, org.id, mps, results, isManual ? 'manual' : 'scheduled', triggeringUserId);
       }
       
       results.processedOrganizations++;
@@ -95,7 +99,7 @@ serve(async (req) => {
   }
 });
 
-async function testCriteriaGeneration(supabase: any, organizationId: string, mps: any, results: any) {
+async function testCriteriaGeneration(supabase: any, organizationId: string, mps: any, results: any, runType: string, triggeredBy: string | null) {
   const runAt = new Date().toISOString();
   
   try {
@@ -121,7 +125,9 @@ async function testCriteriaGeneration(supabase: any, organizationId: string, mps
         result: 'failed',
         criteria_generated: 0,
         notes: genError?.message || genResult?.error || 'Unknown generation error',
-        organization_id: organizationId
+        organization_id: organizationId,
+        run_type: runType,
+        triggered_by: triggeredBy
       });
       
       results.failedGeneration++;
@@ -137,7 +143,9 @@ async function testCriteriaGeneration(supabase: any, organizationId: string, mps
       result: 'passed',
       criteria_generated: genResult.criteriaGenerated || 0,
       notes: `Generated ${genResult.criteriaGenerated} criteria successfully`,
-      organization_id: organizationId
+      organization_id: organizationId,
+      run_type: runType,
+      triggered_by: triggeredBy
     });
     
     results.passedGeneration++;
@@ -154,7 +162,9 @@ async function testCriteriaGeneration(supabase: any, organizationId: string, mps
       result: 'error',
       criteria_generated: 0,
       notes: error.message,
-      organization_id: organizationId
+      organization_id: organizationId,
+      run_type: runType,
+      triggered_by: triggeredBy
     });
     
     results.failedGeneration++;
@@ -162,7 +172,7 @@ async function testCriteriaGeneration(supabase: any, organizationId: string, mps
   }
 }
 
-async function testRegressionForMPS(supabase: any, organizationId: string, mps: any, results: any) {
+async function testRegressionForMPS(supabase: any, organizationId: string, mps: any, results: any, runType: string, triggeredBy: string | null) {
   const runAt = new Date().toISOString();
   
   try {
@@ -219,7 +229,9 @@ async function testRegressionForMPS(supabase: any, organizationId: string, mps: 
       criteria_generated: criteria?.length || 0,
       drift_detected: driftDetected,
       notes: notes.trim(),
-      organization_id: organizationId
+      organization_id: organizationId,
+      run_type: runType,
+      triggered_by: triggeredBy
     });
     
     if (result === 'passed') {
@@ -242,7 +254,9 @@ async function testRegressionForMPS(supabase: any, organizationId: string, mps: 
       criteria_generated: 0,
       drift_detected: true,
       notes: error.message,
-      organization_id: organizationId
+      organization_id: organizationId,
+      run_type: runType,
+      triggered_by: triggeredBy
     });
     
     results.failedRegression++;
@@ -254,23 +268,34 @@ async function sendFailureAlert(supabase: any, results: any) {
   try {
     console.log('📧 Sending failure alert');
     
-    const alertMessage = `
-🚨 QA Cycle Alert - Failures Detected
-
-Summary:
-- Organizations processed: ${results.processedOrganizations}/${results.totalOrganizations}
-- Total MPSs tested: ${results.totalMPSs}
-
-Criteria Generation:
-- ✅ Passed: ${results.passedGeneration}
-- ❌ Failed: ${results.failedGeneration}
-
-Regression Tests:
-- ✅ Passed: ${results.passedRegression}
-- ❌ Failed: ${results.failedRegression}
-
-Please check the QA dashboard for detailed logs.
-`;
+    // Get failed MPSs from the latest run
+    const { data: failedMPSs } = await supabase
+      .from('qa_test_log')
+      .select('mps_number, mps_title, test_type, result')
+      .gte('run_at', new Date(Date.now() - 5 * 60 * 1000).toISOString()) // Last 5 minutes
+      .neq('result', 'passed')
+      .order('mps_number');
+    
+    const runTime = new Date().toLocaleString('en-GB', { 
+      day: '2-digit', 
+      month: 'short', 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    
+    let alertMessage = '';
+    
+    if (results.failedGeneration === 0 && results.failedRegression === 0) {
+      alertMessage = `🧪 QA Run: ${runTime}\n✅ All ${results.totalMPSs} MPSs passed QA – no action required`;
+    } else {
+      const failedMPSNumbers = failedMPSs?.map(mps => `MPS ${mps.mps_number}`).filter((v, i, a) => a.indexOf(v) === i) || [];
+      
+      alertMessage = `🧪 QA Run: ${runTime}\n✅ Passed: ${results.passedGeneration + results.passedRegression}\n❌ Failed: ${failedMPSNumbers.join(', ') || 'Unknown MPSs'}`;
+      
+      if (failedMPSs?.some(mps => mps.drift_detected)) {
+        alertMessage += '\n⚠️ Drift detected in some MPSs';
+      }
+    }
 
     // Try to send webhook notification if configured
     const { data: orgs } = await supabase
@@ -287,7 +312,7 @@ Please check the QA dashboard for detailed logs.
           body: JSON.stringify({
             text: alertMessage,
             username: 'Maturion QA Bot',
-            icon_emoji: ':warning:'
+            icon_emoji: results.failedGeneration === 0 && results.failedRegression === 0 ? ':white_check_mark:' : ':warning:'
           })
         });
       } catch (webhookError) {
