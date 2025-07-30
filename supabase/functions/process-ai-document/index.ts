@@ -14,6 +14,15 @@ interface ProcessDocumentRequest {
 }
 
 serve(async (req) => {
+  console.log("✅ Function reached");
+  
+  // Early diagnostic return to test if function is hit
+  if (req.url.includes('diagnostic')) {
+    return new Response("Received doc: " + req.headers.get("content-type"), { 
+      headers: corsHeaders 
+    });
+  }
+  
   try {
     console.log("✅ Document ingestion function reached");
     console.log(`Request method: ${req.method}`);
