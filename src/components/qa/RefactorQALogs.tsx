@@ -58,6 +58,8 @@ export const RefactorQALogs: React.FC = () => {
         return;
       }
 
+      console.log('Fetched refactor findings:', findingsData?.length || 0, 'findings for org:', currentOrganization.id);
+
       setFindings((findingsData || []) as RefactorFinding[]);
 
       // Calculate summary statistics
@@ -103,6 +105,7 @@ export const RefactorQALogs: React.FC = () => {
   const triggerManualRefactorScan = async () => {
     try {
       setIsRunning(true);
+      console.log('Starting manual refactor scan for org:', currentOrganization?.id);
       toast.info('Manual refactor scan started!');
       
       const { data, error } = await supabase.functions.invoke('run-refactor-qa-cycle', {
