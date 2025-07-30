@@ -100,7 +100,10 @@ serve(async (req) => {
       // Map document type aliases for better compatibility
       const typeMapping: Record<string, string> = {
         'mps': 'mps_document',
-        'standard': 'mps_document'
+        'standard': 'mps_document',
+        'governance': 'governance_reasoning_manifest',
+        'ai_logic': 'ai_logic_rule_global',
+        'system': 'system_instruction'
       };
       const mappedTypes = documentTypes.map(type => typeMapping[type] || type);
       console.log('Mapped document types:', mappedTypes);

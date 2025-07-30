@@ -19,6 +19,7 @@ import { DataConsolidationTool } from '@/components/qa/DataConsolidationTool';
 import { CriteriaRegenerationTool } from '@/components/qa/CriteriaRegenerationTool';
 import { GovernanceDocumentFixer } from '@/components/qa/GovernanceDocumentFixer';
 import { ReasoningScopeTracker } from '@/components/admin/ReasoningScopeTracker';
+import { AIReasoningIntegrationTester } from '@/components/qa/AIReasoningIntegrationTester';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useEffect, useState as useReactState } from 'react';
@@ -171,6 +172,7 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           <CardContent>
           <GovernanceDocumentFixer />
           <ReasoningScopeTracker />
+          <AIReasoningIntegrationTester />
           </CardContent>
         </Card>
 
