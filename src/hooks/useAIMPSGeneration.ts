@@ -33,6 +33,8 @@ export const useAIMPSGeneration = () => {
 
     try {
       console.log(`🔍 Starting MPS generation for domain: ${domainName}`);
+      console.log(`🏢 Organization ID: ${currentOrganization.id}`);
+      console.log(`🏢 Organization Name: ${currentOrganization.name}`);
       
       // Enhanced search queries with comprehensive MPS coverage
       const searchQueries = [
@@ -53,7 +55,13 @@ export const useAIMPSGeneration = () => {
       for (const query of searchQueries) {
         try {
           console.log(`🔍 Executing search query: "${query}"`);
-          const { data: searchResults } = await supabase.functions.invoke('search-ai-context', {
+          console.log(`📡 Request body:`, { 
+            query,
+            organization_id: currentOrganization.id,
+            limit: 15
+          });
+          
+          const { data: searchResults, error: searchError } = await supabase.functions.invoke('search-ai-context', {
             body: { 
               query,
               organization_id: currentOrganization.id,
@@ -61,15 +69,28 @@ export const useAIMPSGeneration = () => {
             }
           });
 
+          if (searchError) {
+            console.error(`❌ Search error for "${query}":`, searchError);
+            throw searchError;
+          }
+
+          console.log(`📡 Full search response for "${query}":`, searchResults);
+
           if (searchResults?.results?.length > 0) {
             console.log(`📄 Search results for "${query}": ${searchResults.results.length} results`);
             allResults = [...allResults, ...searchResults.results];
             console.log(`📊 Added ${searchResults.results.length} results from query: ${query}`);
           } else {
             console.log(`⚠️ No results for query: "${query}"`);
+            console.log(`🔍 Search response details:`, { 
+              success: searchResults?.success,
+              total_results: searchResults?.total_results,
+              search_type: searchResults?.search_type,
+              message: searchResults?.message
+            });
           }
         } catch (searchError) {
-          console.warn(`Search failed for query "${query}":`, searchError);
+          console.error(`❌ Search failed for query "${query}":`, searchError);
         }
       }
 

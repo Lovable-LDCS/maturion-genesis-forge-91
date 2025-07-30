@@ -39,16 +39,36 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
+    const body = await req.json();
     const { 
       query, 
+      organization_id,
       organizationId, 
       documentTypes = [], 
       limit = 10, 
       threshold = 0.7,
       mpsNumber
-    }: SearchRequest = await req.json();
+    }: SearchRequest & { organization_id?: string } = body;
 
-    console.log(`Searching for: "${query}" in organization: ${organizationId}${mpsNumber ? ` (MPS ${mpsNumber} specific)` : ''}`);
+    // Handle both organizationId and organization_id parameter names
+    const orgId = organization_id || organizationId;
+    
+    if (!orgId) {
+      console.error('No organization ID provided in request:', body);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Organization ID is required',
+          results: []
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    console.log(`Searching for: "${query}" in organization: ${orgId}${mpsNumber ? ` (MPS ${mpsNumber} specific)` : ''}`);
 
     // Generate embedding for the search query
     const queryEmbedding = await generateEmbedding(query, openaiApiKey);
@@ -71,7 +91,7 @@ serve(async (req) => {
           document_type
         )
       `)
-      .eq('ai_documents.organization_id', organizationId)
+      .eq('ai_documents.organization_id', orgId)
       .not('embedding', 'is', null); // Only get chunks with embeddings
 
     // Filter by document types if specified
@@ -95,46 +115,15 @@ serve(async (req) => {
       throw new Error(`Failed to fetch document chunks: ${fetchError.message}`);
     }
 
-    console.log(`Found ${chunks?.length || 0} chunks with embeddings for organization ${organizationId}`);
+    console.log(`Found ${chunks?.length || 0} chunks with embeddings for organization ${orgId}`);
     
     // If no chunks found in the specified organization, check if this user has access to other organizations
     if (!chunks || chunks.length === 0) {
       console.log('No chunks found in specified organization, checking for user organizations...');
       
-      // Get all organizations this user has access to
-      const { data: userOrgs, error: userOrgsError } = await supabase
-        .from('organization_members')
-        .select('organization_id')
-        .eq('user_id', organizationId); // Assuming organizationId might be the user_id in some cases
-        
-      if (!userOrgsError && userOrgs && userOrgs.length > 0) {
-        const orgIds = userOrgs.map(org => org.organization_id);
-        console.log(`User has access to organizations: ${orgIds.join(', ')}`);
-        
-        // Try to find chunks in any of these organizations
-        const { data: altChunks, error: altFetchError } = await supabase
-          .from('ai_document_chunks')
-          .select(`
-            id,
-            content,
-            chunk_index,
-            embedding,
-            ai_documents!inner(
-              id,
-              title,
-              organization_id,
-              document_type
-            )
-          `)
-          .in('ai_documents.organization_id', orgIds)
-          .not('embedding', 'is', null)
-          .limit(100);
-          
-        if (altChunks && altChunks.length > 0) {
-          console.log(`Found ${altChunks.length} chunks across user's organizations`);
-          chunks = altChunks;
-        }
-      }
+      // Get all organizations this user has access to - but we need a user_id, not org_id
+      // Skip this fallback for now since we don't have user context
+      console.log('Skipping user organization fallback - no user context available');
     }
     
     // If no chunks with embeddings, fall back to text search
@@ -163,8 +152,8 @@ serve(async (req) => {
               organization_id,
               document_type
             )
-          `)
-          .eq('ai_documents.organization_id', organizationId);
+            `)
+            .eq('ai_documents.organization_id', orgId);
 
         // Use safer text search - apply each term individually
         searchTerms.forEach(term => {
@@ -194,7 +183,7 @@ serve(async (req) => {
                 organization_id
               )
             `)
-            .eq('ai_documents.organization_id', organizationId)
+            .eq('ai_documents.organization_id', orgId)
             .ilike('content', `%${searchTerms[0]}%`)
             .limit(10);
 
@@ -216,7 +205,7 @@ serve(async (req) => {
                 query: query,
                 total_results: simpleResults.length,
                 search_type: 'simple_text',
-                debug: { organizationId, searchTerms }
+                debug: { organizationId: orgId, searchTerms }
               }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
@@ -227,7 +216,7 @@ serve(async (req) => {
               success: false, 
               error: 'No matching documents found',
               debug: { 
-                organizationId, 
+                organizationId: orgId, 
                 searchTerms,
                 textError: textError.message,
                 simpleError: simpleError?.message
@@ -256,7 +245,7 @@ serve(async (req) => {
               query: query,
               total_results: textResults.length,
               search_type: 'text',
-              debug: { organizationId, searchTerms }
+              debug: { organizationId: orgId, searchTerms }
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
@@ -273,7 +262,7 @@ serve(async (req) => {
           search_type: 'no_results',
           message: 'No matching content found in organization documents',
           debug: { 
-            organizationId, 
+            organizationId: orgId, 
             searchTerms,
             chunksWithEmbeddings: 0,
             textSearchResults: 0
@@ -380,9 +369,9 @@ serve(async (req) => {
     await supabase
       .from('audit_trail')
       .insert({
-        organization_id: organizationId,
+        organization_id: orgId,
         table_name: 'ai_document_chunks',
-        record_id: organizationId,
+        record_id: orgId,
         action: 'search_ai_context_semantic',
         changed_by: '00000000-0000-0000-0000-000000000001',
         change_reason: JSON.stringify({
