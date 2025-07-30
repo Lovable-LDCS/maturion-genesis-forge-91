@@ -146,36 +146,32 @@ export function AIGeneratedCriteriaCards({ mps, onCriteriaChange }: AIGeneratedC
   const validateEvidenceArtifacts = useCallback((criteria: any[]): any[] => {
     console.log('🔍 VALIDATING EVIDENCE ARTIFACTS in generated criteria...');
     
-    const validStarters = [
-      'A documented', 'A formal', 'A current', 'A comprehensive', 'A detailed',
-      'A written', 'A approved', 'A maintained', 'A updated', 'A complete'
-    ];
+    // Use the EXACT same pattern as the QA validation in promptUtils.ts
+    const evidenceFirstPattern = /^A\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline|charter|plan)/i;
     
     const validatedCriteria = criteria.map((criterion, index) => {
       const statement = criterion.statement || '';
-      const startsWithEvidence = validStarters.some(starter => 
-        statement.toLowerCase().startsWith(starter.toLowerCase())
-      );
+      const passesValidation = evidenceFirstPattern.test(statement);
       
-      if (!startsWithEvidence) {
-        console.warn(`🚨 CRITERION ${index + 1} FAILED EVIDENCE-FIRST VALIDATION:`, statement.substring(0, 100));
+      if (!passesValidation) {
+        console.warn(`🚨 CRITERION ${index + 1} FAILED QA EVIDENCE-FIRST VALIDATION:`, statement.substring(0, 100));
         
-        // Auto-rewrite with evidence artifact structure
-        const rewrittenStatement = `A documented policy that addresses ${statement.toLowerCase()}`;
-        console.log(`🔧 AUTO-REWRITTEN TO:`, rewrittenStatement);
+        // Auto-rewrite with evidence artifact structure that matches the QA pattern
+        const rewrittenStatement = `A documented policy that addresses the requirements related to ${statement.toLowerCase().replace(/^[^a-z]*/, '')}`;
+        console.log(`🔧 AUTO-REWRITTEN TO MATCH QA PATTERN:`, rewrittenStatement);
         
         return {
           ...criterion,
           statement: rewrittenStatement,
-          ai_decision_log: `${criterion.ai_decision_log || ''} | AUTO-REWRITTEN: Original failed evidence-first validation`
+          ai_decision_log: `${criterion.ai_decision_log || ''} | AUTO-REWRITTEN: Original failed QA evidence-first validation pattern`
         };
       } else {
-        console.log(`✅ CRITERION ${index + 1} PASSED:`, statement.substring(0, 100));
+        console.log(`✅ CRITERION ${index + 1} PASSED QA PATTERN:`, statement.substring(0, 100));
         return criterion;
       }
     });
     
-    console.log(`🔍 VALIDATION COMPLETE: ${criteria.length} criteria processed`);
+    console.log(`🔍 QA PATTERN VALIDATION COMPLETE: ${criteria.length} criteria processed`);
     return validatedCriteria;
   }, []);
 
@@ -319,11 +315,18 @@ Generate exactly 8-12 criteria following the template. Each criterion MUST start
       // 🔒 APPLY EVIDENCE ARTIFACT VALIDATION AND AUTO-REWRITING
       console.log('🔍 APPLYING EVIDENCE ARTIFACT VALIDATION...');
       const evidenceValidatedCriteria = validateEvidenceArtifacts(parsedCriteria);
+      
+      // 🧠 DEBUG: Log exactly what's being sent to QA validation
+      console.log("🧠 ValidatedCriteriaSentToQA:", evidenceValidatedCriteria);
+      console.log("🔍 First criterion statement:", evidenceValidatedCriteria[0]?.statement?.substring(0, 100));
 
       const validationResult = validateCriteria(evidenceValidatedCriteria, organizationContext, mpsContext);
       
       if (!validationResult.isValid) {
-        console.error('Criteria validation failed after evidence validation:', validationResult.errors);
+        console.error('❌ CRITERIA VALIDATION FAILED after evidence validation:');
+        console.error('Validation errors:', validationResult.errors);
+        console.error('Evidence-first violations:', validationResult.hasEvidenceFirstViolations);
+        console.error('First failing criterion:', evidenceValidatedCriteria[0]?.statement);
         setError(`Generated criteria failed validation: ${validationResult.errors.join(', ')}`);
         return;
       }
