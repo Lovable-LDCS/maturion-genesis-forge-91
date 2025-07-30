@@ -140,11 +140,14 @@ export const validateCriteria = (criteria: any[], orgContext: OrganizationContex
   criteria.forEach((criterion, index) => {
     const statement = criterion.statement || '';
     
-    // 🚨 UPDATED: Comprehensive evidence-first pattern for all diverse evidence types
-    const evidenceFirstPattern = /^(A|An)\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline|charter|plan|dashboard|stakeholder plan|succession document|training outline|code of conduct|organizational chart|competency framework)|^Minutes of\s+/i;
+    // 🚨 ENHANCED: More robust evidence-first pattern with better coverage
+    const evidenceFirstPattern = /^(A|An)\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete|annual\s+executive|formal\s+quarterly|current\s+KPI)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline|charter|plan|dashboard|stakeholder plan|succession document|training outline|code of conduct|organizational chart|competency framework|KPI dashboard|executive meetings|leadership competency framework)|^Minutes\s+of\s+/i;
+    
+    console.log(`🔍 Criterion ${index + 1} pattern check: ${evidenceFirstPattern.test(statement) ? '✅ PASS' : '❌ FAIL'} | ${statement.substring(0, 100)}`);
     
     if (!evidenceFirstPattern.test(statement)) {
       hasEvidenceFirstViolations = true;
+      console.log(`❌ Rejected Criterion ${index + 1}:`, statement);
       errors.push(`Criterion ${index + 1}: BLOCKED - Evidence-first format violation`);
     }
   });
