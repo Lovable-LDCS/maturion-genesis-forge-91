@@ -435,18 +435,39 @@ STRICT REQUIREMENTS:
 - Target organization: ${organizationContext.name}
 - ABSOLUTE PROHIBITION: Never use placeholder patterns like "Assessment criterion" or generic templates
 
-MANDATORY EVIDENCE-FIRST FORMAT:
-Every criterion MUST follow this EXACT pattern:
+MANDATORY EVIDENCE-FIRST FORMAT - CRITICAL VALIDATION RULES:
+
+✅ REQUIRED SENTENCE STRUCTURE:
 "A [QUALIFIER] [DOCUMENT_TYPE] that [ACTION_VERB] [REQUIREMENT] for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 
-REQUIRED QUALIFIERS: documented, formal, quarterly, annual, comprehensive, detailed, written, approved, maintained, updated, current, complete
+✅ APPROVED QUALIFIERS (choose ONE):
+documented, formal, quarterly, annual, comprehensive, detailed, written, approved, maintained, updated, current, complete
 
-REQUIRED DOCUMENT TYPES: risk register, policy, report, document, procedure, assessment, analysis, review, register, record, log, matrix, framework, standard, guideline, charter, plan
+✅ APPROVED DOCUMENT TYPES (choose ONE):
+risk register, policy, report, document, procedure, assessment, analysis, review, register, record, log, matrix, framework, standard, guideline, charter, plan
 
-VALID EXAMPLES:
+❌ STRICT PROHIBITIONS - DO NOT START WITH:
+- "${organizationContext.name} must..."
+- "${organizationContext.name} has..."  
+- "${organizationContext.name} maintains..."
+- "The organization..."
+- "Management..."
+- "Leadership..."
+- "Executive team..."
+- "Board of directors..."
+- "Senior management..."
+- "The company..."
+- ANY organizational actor or entity name
+
+✅ VALID EXAMPLES:
 - "A documented policy that establishes governance oversight for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 - "A formal procedure that defines risk assessment processes for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 - "A comprehensive framework that outlines security controls for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+
+❌ INVALID EXAMPLES (DO NOT USE):
+- "${organizationContext.name} must maintain a policy..."
+- "The organization has documented procedures..."
+- "Management ensures that leadership..."
 
 Generate 8-12 specific criteria in JSON format based ONLY on the document content above:
 [{"statement": "A [qualifier] [document_type] that [action] [requirement] for [context]", "summary": "brief explanation"}]`;
