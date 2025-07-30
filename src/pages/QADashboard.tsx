@@ -7,6 +7,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Settings, TestTube, FileText, CheckCircle } from 'lucide-react';
 import { QADebugHub, RegressionTestMode, AutomatedQALogs, RefactorQALogs } from '@/components/qa';
 import { ChunkSourceConsistencyTest } from '@/components/qa/ChunkSourceConsistencyTest';
+import { AILogicDocumentReprocessor } from '@/components/qa/AILogicDocumentReprocessor';
 import { EdgeFunctionLinter } from '@/components/qa/EdgeFunctionLinter';
 import { MPSLinkageRebuilder } from '@/components/qa/MPSLinkageRebuilder';
 import { MPSDocumentReprocessor } from '@/components/qa/MPSDocumentReprocessor';
@@ -173,6 +174,7 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           </CardHeader>
           <CardContent>
           <GovernanceDocumentFixer />
+          <AILogicDocumentReprocessor />
           <ReasoningScopeTracker />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <AIReasoningIntegrationTester />
