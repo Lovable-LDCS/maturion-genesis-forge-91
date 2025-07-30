@@ -32,7 +32,8 @@ const documentTypeLabels: Record<MaturionDocument['document_type'], string> = {
   assessment_framework_component: 'Assessment Framework Component',
   ai_logic_rule_global: 'AI Logic Rule – Global',
   system_instruction: 'System Instruction – Global',
-  threat_intelligence_profile: 'Threat Intelligence Profile'
+  threat_intelligence_profile: 'Threat Intelligence Profile',
+  governance_reasoning_manifest: 'Maturion Governance & Reasoning Architecture Manifest'
 };
 
 // Domain options for MPS documents
