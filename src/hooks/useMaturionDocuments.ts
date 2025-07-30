@@ -142,12 +142,21 @@ export const useMaturionDocuments = () => {
         });
 
       // Trigger processing
-      const { error: processError } = await supabase.functions.invoke('process-ai-document', {
+      console.log('🔄 About to invoke process-ai-document function...');
+      console.log('🔄 Document ID:', docData.id);
+      console.log('🔄 Supabase client state:', !!supabase);
+      
+      const { data: processData, error: processError } = await supabase.functions.invoke('process-ai-document', {
         body: { documentId: docData.id }
       });
 
+      console.log('🔄 Function invocation completed');
+      console.log('🔄 Process data:', processData);
+      console.log('🔄 Process error:', processError);
+
       if (processError) {
-        console.error('Processing error:', processError);
+        console.error('❌ Processing error:', processError);
+        console.error('❌ Error details:', JSON.stringify(processError, null, 2));
         // Don't fail the upload if processing fails, just log it
       }
 

@@ -14,14 +14,19 @@ interface ProcessDocumentRequest {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  let documentId: string | undefined;
-  
   try {
+    console.log("✅ Document ingestion function reached");
+    console.log(`Request method: ${req.method}`);
+    console.log(`Request URL: ${req.url}`);
+    
+    // Handle CORS preflight requests
+    if (req.method === 'OPTIONS') {
+      console.log("Handling CORS preflight request");
+      return new Response(null, { headers: corsHeaders });
+    }
+
+    let documentId: string | undefined;
+    
     // Set up timeout for the entire operation (90 seconds)
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(() => reject(new Error('Processing timeout after 90 seconds')), 90000);
@@ -32,7 +37,9 @@ serve(async (req) => {
       console.log('🔧 FULL DEBUG MODE: Enhanced Mammoth.js Pipeline Analysis');
       
       // Parse request body first
+      console.log('📄 Parsing request body...');
       const requestBody = await req.json();
+      console.log('📄 Request body parsed:', JSON.stringify(requestBody));
       documentId = requestBody.documentId;
       const corruptionRecovery = requestBody.corruptionRecovery || false;
       const validateTextOnly = requestBody.validateTextOnly || true; // Enable by default
@@ -352,7 +359,19 @@ serve(async (req) => {
     });
     
   } catch (error: any) {
-    console.error('Error in process-ai-document function:', error);
+    console.error('❌ CRITICAL ERROR in process-ai-document function:', error.message);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Full error object:', JSON.stringify(error, null, 2));
+    
+    let documentId: string | undefined;
+    
+    // Try to extract documentId from the error context if possible
+    try {
+      const requestBody = await req.json();
+      documentId = requestBody.documentId;
+    } catch {
+      // If we can't parse the body, documentId remains undefined
+    }
     
     // Update document status to failed if we have a documentId
     if (documentId) {
