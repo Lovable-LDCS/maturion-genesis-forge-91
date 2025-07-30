@@ -228,14 +228,14 @@ serve(async (req) => {
           throw new Error(`BLOCKED: Content too short (${extractedText.length} chars, minimum ${minChunkSize}) - AI Policy violation`);
         }
         
-        // Additional content quality checks
-        const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
-        if (wordCount < 50) {
-          throw new Error(`BLOCKED: Insufficient word count (${wordCount} words) - AI Policy violation`);
-        }
-      } else {
-        // Relaxed validation for governance documents
-        console.log('📄 GOVERNANCE DOCUMENT: Applying relaxed validation rules');
+         // Additional content quality checks
+         const strictWordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
+         if (strictWordCount < 50) {
+           throw new Error(`BLOCKED: Insufficient word count (${strictWordCount} words) - AI Policy violation`);
+         }
+       } else {
+         // Relaxed validation for governance documents
+         console.log('📄 GOVERNANCE DOCUMENT: Applying relaxed validation rules');
         
         if (binaryContentRatio > 0.3) { // More lenient
           throw new Error(`BLOCKED: Extremely high binary content ratio (${(binaryContentRatio * 100).toFixed(1)}%) - Even governance documents must be readable`);
@@ -249,10 +249,10 @@ serve(async (req) => {
           throw new Error(`BLOCKED: Content too short (${extractedText.length} chars, minimum 200 for governance docs)`);
         }
         
-        const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
-        if (wordCount < 20) { // Much lower minimum
-          throw new Error(`BLOCKED: Insufficient word count (${wordCount} words, minimum 20 for governance docs)`);
-        }
+         const governanceWordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
+         if (governanceWordCount < 20) { // Much lower minimum
+           throw new Error(`BLOCKED: Insufficient word count (${governanceWordCount} words, minimum 20 for governance docs)`);
+         }
       }
       
       // Calculate word count for later use
@@ -407,7 +407,9 @@ serve(async (req) => {
               original_length: extractedText.length,
               word_count: wordCount,
               processing_duration_ms: Date.now(),
-              ai_policy_compliant: true
+              ai_policy_compliant: true,
+              document_type: document.document_type,
+              governance_mode: isGovernanceDocument
             }
           })
           .eq('id', documentId);
