@@ -68,34 +68,46 @@ If you receive this message, your Slack alerts are configured correctly!
 
 🔗 Check your QA Dashboard for more details.`;
 
-    console.log(`📤 Sending to Slack webhook: ${orgWithSlack.slack_webhook_url}`);
+    console.log(`📤 Using organization: ${orgWithSlack.name} (${orgWithSlack.organization_type}) - ID: ${orgWithSlack.id}`);
+    console.log(`📤 Slack webhook URL: ${orgWithSlack.slack_webhook_url}`);
     
-    // Send the test notification with improved error handling
-    const slackResponse = await fetch(orgWithSlack.slack_webhook_url, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'User-Agent': 'Maturion-QA-System/1.0'
-      },
-      body: JSON.stringify({
-        text: testMessage,
-        username: 'Maturion Test Bot',
-        icon_emoji: ':test_tube:'
-      })
-    });
+    // Create simple, Slack-compatible payload
+    const slackPayload = {
+      text: "🚨 Test alert from Maturion QA system"
+    };
     
-    console.log(`📊 Slack Response Status: ${slackResponse.status}`);
+    console.log(`📝 Payload being sent:`, JSON.stringify(slackPayload, null, 2));
     
-    if (!slackResponse.ok) {
-      const errorText = await slackResponse.text();
-      console.error(`❌ Slack webhook failed: ${slackResponse.status} - ${errorText}`);
-      throw new Error(`Slack webhook failed (HTTP ${slackResponse.status}): ${errorText || 'Unknown error'}`);
+    // Send the test notification with comprehensive debugging
+    try {
+      const slackResponse = await fetch(orgWithSlack.slack_webhook_url, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(slackPayload)
+      });
+      
+      console.log(`📊 Slack Response Status: ${slackResponse.status}`);
+      console.log(`📊 Slack Response Headers:`, JSON.stringify(Object.fromEntries(slackResponse.headers.entries())));
+      
+      // Get response body regardless of status
+      const responseText = await slackResponse.text();
+      console.log(`📊 Slack Response Body: "${responseText}"`);
+      
+      if (!slackResponse.ok) {
+        console.error(`❌ Slack webhook failed with status ${slackResponse.status}`);
+        throw new Error(`Slack webhook failed (HTTP ${slackResponse.status}): ${responseText || 'No response body'} | URL: ${orgWithSlack.slack_webhook_url.split('/').slice(-2).join('/...')} | Org: ${orgWithSlack.name}`);
+      }
+      
+      console.log(`✅ Slack notification sent successfully to ${orgWithSlack.name}`);
+      
+    } catch (fetchError) {
+      console.error(`💥 Fetch error:`, fetchError);
+      throw new Error(`Network error when calling Slack webhook: ${fetchError.message} | Org: ${orgWithSlack.name} (${orgWithSlack.organization_type})`);
     }
     
-    const slackResponseText = await slackResponse.text();
-    console.log(`✅ Slack Response: ${slackResponseText}`);
-    
-    console.log('✅ Test Slack notification sent successfully');
+    console.log('✅ Test Slack notification completed successfully');
     
     // Log the test in audit trail
     await supabase
@@ -124,10 +136,13 @@ If you receive this message, your Slack alerts are configured correctly!
     });
     
   } catch (error) {
-    console.error('❌ Test Slack notification failed:', error);
+    console.error('❌ Test Slack notification failed with error:', error);
+    console.error('❌ Error stack:', error.stack);
     return new Response(JSON.stringify({ 
       success: false,
-      error: error.message 
+      error: error.message,
+      error_type: error.name || 'UnknownError',
+      timestamp: new Date().toISOString()
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
