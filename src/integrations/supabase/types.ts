@@ -1302,6 +1302,7 @@ export type Database = {
           id: string
           migration_name: string
           notes: string | null
+          policy_log_id: string | null
           started_at: string | null
           status: string
         }
@@ -1311,6 +1312,7 @@ export type Database = {
           id?: string
           migration_name: string
           notes?: string | null
+          policy_log_id?: string | null
           started_at?: string | null
           status?: string
         }
@@ -1320,10 +1322,19 @@ export type Database = {
           id?: string
           migration_name?: string
           notes?: string | null
+          policy_log_id?: string | null
           started_at?: string | null
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "migration_status_policy_log_id_fkey"
+            columns: ["policy_log_id"]
+            isOneToOne: false
+            referencedRelation: "policy_change_log"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       milestone_status_history: {
         Row: {
