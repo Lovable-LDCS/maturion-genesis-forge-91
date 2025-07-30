@@ -434,15 +434,22 @@ STRICT REQUIREMENTS:
 - Generate criteria ONLY based on the above MPS ${mps.mps_number} document content
 - Target organization: ${organizationContext.name}
 - ABSOLUTE PROHIBITION: Never use placeholder patterns like "Assessment criterion" or generic templates
-- EVIDENCE-FIRST FORMAT (MANDATORY): Every criterion MUST start with evidence type:
-  "A documented (evidence type) that (action verb) the (requirement) for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 
-Example format:
-- "A formal policy that establishes governance oversight for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
-- "A documented procedure that defines risk assessment processes for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+MANDATORY EVIDENCE-FIRST FORMAT:
+Every criterion MUST follow this EXACT pattern:
+"A [QUALIFIER] [DOCUMENT_TYPE] that [ACTION_VERB] [REQUIREMENT] for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+
+REQUIRED QUALIFIERS: documented, formal, quarterly, annual, comprehensive, detailed, written, approved, maintained, updated, current, complete
+
+REQUIRED DOCUMENT TYPES: risk register, policy, report, document, procedure, assessment, analysis, review, register, record, log, matrix, framework, standard, guideline, charter, plan
+
+VALID EXAMPLES:
+- "A documented policy that establishes governance oversight for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+- "A formal procedure that defines risk assessment processes for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+- "A comprehensive framework that outlines security controls for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 
 Generate 8-12 specific criteria in JSON format based ONLY on the document content above:
-[{"statement": "evidence-first statement here", "summary": "brief explanation"}]`;
+[{"statement": "A [qualifier] [document_type] that [action] [requirement] for [context]", "summary": "brief explanation"}]`;
 
         // Apply cleanup to remove any placeholder patterns
         finalPrompt = cleanupPrompt(rawPrompt);
