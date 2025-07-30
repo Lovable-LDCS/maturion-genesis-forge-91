@@ -126,7 +126,7 @@ export const QASystemTest: React.FC = () => {
         });
       }
 
-      // Test 5: Test search-ai-context function
+      // Test 5: Test search-ai-context function (uses ai_document_chunks table)
       try {
         const { data: searchResult, error: searchError } = await supabase.functions.invoke('search-ai-context', {
           body: {

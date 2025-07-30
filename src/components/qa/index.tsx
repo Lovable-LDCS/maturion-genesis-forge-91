@@ -6,3 +6,4 @@ export { MaturionComplianceCheck } from './MaturionComplianceCheck';
 export { QASystemTest } from './QASystemTest';
 export { AutomatedQALogs } from './AutomatedQALogs';
 export { RefactorQALogs } from './RefactorQALogs';
+export { ChunkSourceConsistencyTest } from './ChunkSourceConsistencyTest';
