@@ -121,7 +121,7 @@ Make each criterion:
           criteria_number: `${mpsNumber}.${criteriaCounter}`,
           statement: criterion.statement,
           summary: criterion.summary,
-          status: 'draft',
+          status: 'not_started',
           created_by: '00000000-0000-0000-0000-000000000000', // System user
           updated_by: '00000000-0000-0000-0000-000000000000'
         })
