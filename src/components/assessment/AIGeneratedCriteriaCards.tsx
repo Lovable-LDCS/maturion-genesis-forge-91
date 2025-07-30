@@ -211,7 +211,7 @@ export function AIGeneratedCriteriaCards({ mps, onCriteriaChange }: AIGeneratedC
       const finalPrompt = customPrompt || `
 Generate professional assessment criteria for **${mps.name}** (MPS ${mps.mps_number}) at ${organizationContext.name}.
 
-🚨 DO NOT START with actors, departments, or verbs like "Ensure," "Verify," "Establish," "The organization," "Management," "Leadership," "Staff," "Personnel," "Teams," or any organizational entity. Always start with the evidence artifact.
+🚨 EVIDENCE-FIRST ENFORCEMENT: DO NOT START with actors, departments, or verbs like "Ensure," "Verify," "Establish," "The organization," "Management," "Leadership," "Staff," "Personnel," "Teams," or any organizational entity. Always start with the evidence artifact. Evidence must be tangible and auditable.
 
 🔴 MANDATORY TEMPLATE - USE THIS EXACT STRUCTURE FOR EVERY CRITERION:
 
@@ -318,7 +318,16 @@ Generate exactly 8-12 criteria following the template. Each criterion MUST start
       
       // 🧠 DEBUG: Log exactly what's being sent to QA validation
       console.log("🧠 ValidatedCriteriaSentToQA:", evidenceValidatedCriteria);
+      console.log("🧠 FinalValidatedCriteriaPassedToQA:", evidenceValidatedCriteria);
       console.log("🔍 First criterion statement:", evidenceValidatedCriteria[0]?.statement?.substring(0, 100));
+      console.log("🔍 Total criteria count:", evidenceValidatedCriteria.length);
+      
+      // 🔍 CRITICAL: Check if any criteria still fail the pattern
+      const evidenceFirstPattern = /^A\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline|charter|plan)/i;
+      evidenceValidatedCriteria.forEach((criterion, index) => {
+        const passes = evidenceFirstPattern.test(criterion.statement || '');
+        console.log(`🔍 Criterion ${index + 1} pattern check:`, passes ? '✅ PASS' : '❌ FAIL', '|', criterion.statement?.substring(0, 80));
+      });
 
       const validationResult = validateCriteria(evidenceValidatedCriteria, organizationContext, mpsContext);
       
