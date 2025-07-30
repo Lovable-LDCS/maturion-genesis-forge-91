@@ -178,7 +178,7 @@ export async function callOpenAI(fullPrompt: string) {
   return data.choices[0].message.content;
 }
 
-// Function to construct the final prompt
+// Function to construct the final prompt with token limiting and cleanup
 export function constructFinalPrompt(promptContext: any) {
   const {
     sanitizedPrompt,
@@ -190,46 +190,184 @@ export function constructFinalPrompt(promptContext: any) {
     requiresInternalSecure
   } = promptContext;
 
+  // Token limits for final assembly
+  const MAX_TOTAL_TOKENS = 10000; // Reserve 2000 tokens for OpenAI response
+  const MAX_DOCUMENT_TOKENS = 6000;
+  const MAX_BEHAVIOR_TOKENS = 1000;
+  const MAX_INTENT_TOKENS = 800;
+  const MAX_ORG_TOKENS = 600;
+  const MAX_EXTERNAL_TOKENS = 400;
+
+  const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
+  const truncateToTokens = (text: string, maxTokens: number): string => {
+    const maxChars = maxTokens * 4;
+    if (text.length <= maxChars) return text;
+    return text.substring(0, maxChars) + '\n...[TRUNCATED DUE TO TOKEN LIMIT]';
+  };
+
   let fullPrompt = '';
+  let currentTokens = 0;
+  
+  console.log('🔢 Starting prompt construction with token limits...');
   
   // Add behavior policy if available (for internal secure contexts)
   if (behaviorPolicy && requiresInternalSecure) {
-    fullPrompt += `${behaviorPolicy}\n\n`;
+    const truncatedPolicy = truncateToTokens(behaviorPolicy, MAX_BEHAVIOR_TOKENS);
+    const policyTokens = estimateTokens(truncatedPolicy);
+    
+    if (currentTokens + policyTokens <= MAX_TOTAL_TOKENS) {
+      fullPrompt += `${truncatedPolicy}\n\n`;
+      currentTokens += policyTokens;
+      console.log(`📋 Added behavior policy: ${policyTokens} tokens`);
+    } else {
+      console.log('⚠️ Skipping behavior policy due to token limit');
+    }
   }
   
   // Add intent prompt logic if available
   if (intentPromptLogic && requiresInternalSecure) {
-    fullPrompt += `${intentPromptLogic}\n\n`;
+    const truncatedIntent = truncateToTokens(intentPromptLogic, MAX_INTENT_TOKENS);
+    const intentTokens = estimateTokens(truncatedIntent);
+    
+    if (currentTokens + intentTokens <= MAX_TOTAL_TOKENS) {
+      fullPrompt += `${truncatedIntent}\n\n`;
+      currentTokens += intentTokens;
+      console.log(`🎯 Added intent logic: ${intentTokens} tokens`);
+    } else {
+      console.log('⚠️ Skipping intent logic due to token limit');
+    }
   }
   
   // Add organizational context if available
   if (organizationContext) {
-    fullPrompt += `${organizationContext}\n\n`;
+    const truncatedOrgContext = truncateToTokens(organizationContext, MAX_ORG_TOKENS);
+    const orgTokens = estimateTokens(truncatedOrgContext);
+    
+    if (currentTokens + orgTokens <= MAX_TOTAL_TOKENS) {
+      fullPrompt += `${truncatedOrgContext}\n\n`;
+      currentTokens += orgTokens;
+      console.log(`🏢 Added org context: ${orgTokens} tokens`);
+    } else {
+      console.log('⚠️ Skipping org context due to token limit');
+    }
   }
   
-  // Add document context (priority content)
+  // Add document context (priority content) with aggressive limiting
   if (documentContext) {
-    fullPrompt += `=== KNOWLEDGE BASE CONTEXT ===\n${documentContext}\n\n`;
+    const truncatedDocContext = truncateToTokens(documentContext, MAX_DOCUMENT_TOKENS);
+    const docTokens = estimateTokens(truncatedDocContext);
+    
+    if (currentTokens + docTokens <= MAX_TOTAL_TOKENS) {
+      fullPrompt += `=== ACTUAL MPS DOCUMENT CONTENT ===\n${truncatedDocContext}\n\n`;
+      currentTokens += docTokens;
+      console.log(`📄 Added document context: ${docTokens} tokens`);
+    } else {
+      console.log('⚠️ Document context exceeds remaining token budget, applying emergency truncation');
+      const remainingTokens = MAX_TOTAL_TOKENS - currentTokens - 500; // Reserve 500 for user prompt
+      if (remainingTokens > 1000) {
+        const emergencyTruncated = truncateToTokens(documentContext, remainingTokens);
+        fullPrompt += `=== ACTUAL MPS DOCUMENT CONTENT ===\n${emergencyTruncated}\n\n`;
+        currentTokens += estimateTokens(emergencyTruncated);
+        console.log(`🚨 Emergency truncated document context: ${estimateTokens(emergencyTruncated)} tokens`);
+      } else {
+        console.log('❌ No room for document context - skipping');
+      }
+    }
   }
   
-  // Add external context if available
-  if (externalContext) {
-    fullPrompt += `${externalContext}\n\n`;
+  // Add external context if available and space permits
+  if (externalContext && currentTokens < MAX_TOTAL_TOKENS * 0.8) {
+    const truncatedExternal = truncateToTokens(externalContext, MAX_EXTERNAL_TOKENS);
+    const externalTokens = estimateTokens(truncatedExternal);
+    
+    if (currentTokens + externalTokens <= MAX_TOTAL_TOKENS) {
+      fullPrompt += `${truncatedExternal}\n\n`;
+      currentTokens += externalTokens;
+      console.log(`🌐 Added external context: ${externalTokens} tokens`);
+    }
   }
   
   // Add the user's prompt
+  const userPromptTokens = estimateTokens(sanitizedPrompt);
   fullPrompt += `=== USER REQUEST ===\n${sanitizedPrompt}\n\n`;
+  currentTokens += userPromptTokens;
+  console.log(`👤 Added user prompt: ${userPromptTokens} tokens`);
   
-  // Add guidance for responses
+  // Add guidance for responses (keep minimal)
   if (requiresInternalSecure) {
-    fullPrompt += `
-=== RESPONSE GUIDELINES ===
-- Base your response ONLY on the provided knowledge base content and organizational context
-- Do not rely on general knowledge or external sources
-- If the knowledge base doesn't contain sufficient information, state this clearly
-- Maintain consistency with the AI Behavior Policy outlined above
-- Provide specific, actionable guidance relevant to the organization's profile`;
+    const guidance = `=== RESPONSE GUIDELINES ===
+- Base response ONLY on provided knowledge base content
+- If insufficient information, state this clearly
+- Provide specific, actionable guidance`;
+    
+    const guidanceTokens = estimateTokens(guidance);
+    if (currentTokens + guidanceTokens <= MAX_TOTAL_TOKENS) {
+      fullPrompt += guidance;
+      currentTokens += guidanceTokens;
+      console.log(`📋 Added response guidelines: ${guidanceTokens} tokens`);
+    }
   }
 
-  return fullPrompt;
+  console.log(`🔢 Pre-cleanup prompt: ${currentTokens} tokens (${fullPrompt.length} chars)`);
+
+  // CRITICAL: Final cleanup step to remove placeholder patterns
+  const cleanedPrompt = cleanupPrompt(fullPrompt);
+  const finalTokens = estimateTokens(cleanedPrompt);
+  
+  console.log(`✅ Final prompt after cleanup: ${finalTokens} tokens (${cleanedPrompt.length} chars)`);
+  
+  if (finalTokens > 12000) {
+    console.error(`🚨 FINAL PROMPT STILL EXCEEDS TOKEN LIMIT: ${finalTokens} > 12000`);
+    // Emergency final truncation
+    return cleanedPrompt.substring(0, 12000 * 4) + '\n...[EMERGENCY TRUNCATION]';
+  }
+
+  return cleanedPrompt;
+}
+
+// Final cleanup function to remove all placeholder patterns
+function cleanupPrompt(prompt: string): string {
+  console.log('🧹 Starting final prompt cleanup...');
+  
+  let cleaned = prompt;
+  
+  // Remove placeholder patterns that might have slipped through
+  const placeholderPatterns = [
+    /\[document_type\]/gi,
+    /\[action_verb\]/gi,
+    /\[requirement\]/gi,
+    /\[specific_[a-z_]+\]/gi,
+    /\bCriterion\s+[A-Z](?=\s*$|\s*\.|\s*,)/gi,
+    /\bCriterion\s+[0-9]+(?=\s*$|\s*\.|\s*,)/gi,
+    /\bAssessment criterion\b/gi,
+    /\bTBD\b/gi,
+    /\bTODO\b/gi,
+    /\[PLACEHOLDER[^\]]*\]/gi
+  ];
+  
+  const originalLength = cleaned.length;
+  
+  placeholderPatterns.forEach((pattern, index) => {
+    const matches = cleaned.match(pattern);
+    if (matches) {
+      console.log(`🔍 Found ${matches.length} matches for pattern ${index + 1}: ${pattern.source}`);
+      console.log(`   Examples: ${matches.slice(0, 3).join(', ')}`);
+      cleaned = cleaned.replace(pattern, '[PLACEHOLDER_REMOVED]');
+    }
+  });
+  
+  // Remove multiple consecutive placeholder removals
+  cleaned = cleaned.replace(/(\[PLACEHOLDER_REMOVED\]\s*){2,}/g, '[PLACEHOLDER_REMOVED]');
+  
+  // Clean up any remaining placeholder artifacts
+  cleaned = cleaned.replace(/\[PLACEHOLDER_REMOVED\]/g, '');
+  
+  const finalLength = cleaned.length;
+  if (finalLength !== originalLength) {
+    console.log(`🧹 Cleanup removed ${originalLength - finalLength} characters`);
+  } else {
+    console.log('✅ No placeholder patterns found during cleanup');
+  }
+  
+  return cleaned.trim();
 }
