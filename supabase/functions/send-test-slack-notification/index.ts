@@ -27,19 +27,22 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Get organization details and Slack webhook
-    const { data: org, error: orgError } = await supabase
+    // Get organization details and Slack webhook - check linked orgs too
+    const { data: orgs, error: orgError } = await supabase
       .from('organizations')
-      .select('name, slack_webhook_url')
-      .eq('id', organizationId)
-      .single();
+      .select('id, name, slack_webhook_url, organization_type')
+      .or(`id.eq.${organizationId},owner_id.eq.(SELECT owner_id FROM organizations WHERE id = '${organizationId}')`);
     
-    if (orgError || !org) {
+    if (orgError || !orgs || orgs.length === 0) {
       throw new Error(`Failed to fetch organization: ${orgError?.message || 'Organization not found'}`);
     }
     
-    if (!org.slack_webhook_url) {
-      throw new Error('No Slack webhook URL configured for this organization');
+    // Find an organization with a Slack webhook URL
+    const orgWithSlack = orgs.find(org => org.slack_webhook_url);
+    
+    if (!orgWithSlack) {
+      const availableOrgs = orgs.map(o => `${o.name} (${o.organization_type})`).join(', ');
+      throw new Error(`No Slack webhook URL configured for any related organizations. Available organizations: ${availableOrgs}. Please configure a Slack webhook URL in Organization Settings.`);
     }
     
     const testTime = new Date().toLocaleString('en-GB', { 
@@ -51,13 +54,13 @@ serve(async (req) => {
     
     const testMessage = `🧪 Test Notification: ${testTime}
 
-🏢 Organization: ${org.name}
+🏢 Organization: ${orgWithSlack.name} (${orgWithSlack.organization_type})
 🔧 Maturion QA System - Test Alert
 
 ✅ This is a test notification to verify your Slack integration is working correctly.
 
 Features being tested:
-• ✉️ Webhook connectivity
+• ✉️ Webhook connectivity  
 • 📡 Message formatting
 • 🔗 Integration setup
 
@@ -65,10 +68,15 @@ If you receive this message, your Slack alerts are configured correctly!
 
 🔗 Check your QA Dashboard for more details.`;
 
-    // Send the test notification
-    const slackResponse = await fetch(org.slack_webhook_url, {
+    console.log(`📤 Sending to Slack webhook: ${orgWithSlack.slack_webhook_url}`);
+    
+    // Send the test notification with improved error handling
+    const slackResponse = await fetch(orgWithSlack.slack_webhook_url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 
+        'Content-Type': 'application/json',
+        'User-Agent': 'Maturion-QA-System/1.0'
+      },
       body: JSON.stringify({
         text: testMessage,
         username: 'Maturion Test Bot',
@@ -76,10 +84,16 @@ If you receive this message, your Slack alerts are configured correctly!
       })
     });
     
+    console.log(`📊 Slack Response Status: ${slackResponse.status}`);
+    
     if (!slackResponse.ok) {
       const errorText = await slackResponse.text();
-      throw new Error(`Slack webhook failed: ${slackResponse.status} - ${errorText}`);
+      console.error(`❌ Slack webhook failed: ${slackResponse.status} - ${errorText}`);
+      throw new Error(`Slack webhook failed (HTTP ${slackResponse.status}): ${errorText || 'Unknown error'}`);
     }
+    
+    const slackResponseText = await slackResponse.text();
+    console.log(`✅ Slack Response: ${slackResponseText}`);
     
     console.log('✅ Test Slack notification sent successfully');
     
@@ -97,8 +111,13 @@ If you receive this message, your Slack alerts are configured correctly!
     
     return new Response(JSON.stringify({
       success: true,
-      message: 'Test Slack notification sent successfully',
-      webhook_url: org.slack_webhook_url.split('/').slice(-2).join('/...'), // Partial URL for security
+      message: `Test Slack notification sent successfully to ${orgWithSlack.name}`,
+      organization_used: {
+        name: orgWithSlack.name,
+        type: orgWithSlack.organization_type,
+        id: orgWithSlack.id
+      },
+      webhook_url: orgWithSlack.slack_webhook_url.split('/').slice(-2).join('/...'), // Partial URL for security
       timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

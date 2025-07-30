@@ -156,13 +156,25 @@ export const RefactorQALogs: React.FC = () => {
       });
 
       if (error) {
-        throw error;
+        throw new Error(error.message || 'Unknown error occurred');
       }
 
-      toast.success('Test Slack notification sent successfully! Check your Slack channel.');
+      if (data?.organization_used) {
+        toast.success(`✅ Slack Webhook Working! Test sent to ${data.organization_used.name} (${data.organization_used.type})`);
+      } else {
+        toast.success('✅ Slack Webhook Working – Test Sent!');
+      }
     } catch (error) {
       console.error('Error sending test Slack notification:', error);
-      toast.error(`Failed to send test notification: ${error.message}`);
+      const errorMessage = error.message || 'Unknown error';
+      
+      if (errorMessage.includes('No Slack webhook URL')) {
+        toast.error('❌ No Slack webhook configured. Please add a Slack webhook URL in Organization Settings.');
+      } else if (errorMessage.includes('HTTP')) {
+        toast.error(`❌ Slack Webhook Failed: ${errorMessage}`);
+      } else {
+        toast.error(`❌ Test notification failed: ${errorMessage}`);
+      }
     }
   };
 
