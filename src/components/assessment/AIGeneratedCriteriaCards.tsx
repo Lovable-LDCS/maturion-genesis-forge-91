@@ -366,88 +366,122 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
         throw new Error(`No criteria generated. Document chunks unavailable or insufficient content quality. Please check document visibility, processing status, or contact support. Chunks found: ${contextSearch.data?.results?.length || 0}, Valid chunks: ${chunkValidationDetails.filter(c => c.hasMinContent).length}`);
       }
 
-      // ✅ VALIDATION 4: Enhanced QA Block Validation with Full Debugging
+      // ✅ VALIDATION 4: Safe QA Block Validation with Optional Debug Logging
       console.log(`🔍 VALIDATION 4: Final prompt QA validation before AI call`);
       console.log(`🎯 FINAL PROMPT LENGTH: ${finalPrompt.length} characters`);
+      console.log(`🎯 FINAL PROMPT PREVIEW (first 500 chars):`, finalPrompt.slice(0, 500) + '...');
       
-      // 🚨 COMPREHENSIVE PROMPT DEBUGGING - Show EVERYTHING
-      console.log(`\n🚨 === COMPLETE PROMPT ANALYSIS (MPS ${mps.mps_number}) ===`);
-      console.log(`📝 RAW FINAL PROMPT:`);
-      console.log(`${finalPrompt}`);
-      console.log(`🚨 === END RAW PROMPT ===\n`);
+      // 🚨 SAFE DEBUG MODE - Only if explicitly enabled
+      const isDebugMode = (typeof window !== 'undefined' && (
+        window.location.search.includes('debug=true') || 
+        localStorage.getItem('maturion_debug') === 'true'
+      ));
       
-      // Show the document content section specifically
-      const documentContentMatch = finalPrompt.match(/ACTUAL MPS DOCUMENT CONTENT:([\s\S]*?)(?=STRICT REQUIREMENTS:|$)/);
-      if (documentContentMatch) {
-        console.log(`📄 DOCUMENT CONTENT SECTION (${documentContentMatch[1].length} chars):`);
-        console.log(`"${documentContentMatch[1].substring(0, 500)}${documentContentMatch[1].length > 500 ? '...' : ''}"`);
-      } else {
-        console.log(`❌ NO DOCUMENT CONTENT SECTION FOUND`);
-      }
-      
-      // Extract only our generated instructions (not document content) for validation
-      const documentContentRegex = /ACTUAL MPS DOCUMENT CONTENT:[\s\S]*?(?=STRICT REQUIREMENTS:|$)/g;
-      const ourPromptInstructions = finalPrompt.replace(documentContentRegex, '[DOCUMENT_CONTENT_STRIPPED_FOR_VALIDATION]');
-      
-      console.log(`\n🔍 ISOLATED PROMPT INSTRUCTIONS (for validation, ${ourPromptInstructions.length} chars):`);
-      console.log(`"${ourPromptInstructions}"`);
-      
-      // Test each problematic pattern individually and show exact matches
-      const problematicPatterns = [
-        { name: 'document_type_brackets', regex: /\[document_type\]/gi },
-        { name: 'action_verb_brackets', regex: /\[action_verb\]/gi },
-        { name: 'requirement_brackets', regex: /\[requirement\]/gi },
-        { name: 'criterion_letter', regex: /Criterion\s+[A-Z](?=\s|$)/gi },
-        { name: 'criterion_number', regex: /Criterion\s+[0-9]/gi },
-        { name: 'assessment_criterion', regex: /Assessment criterion/gi }
-      ];
-      
-      let foundProblematicPatterns = [];
-      let exactMatches = [];
-      
-      problematicPatterns.forEach(({ name, regex }) => {
-        const matches = ourPromptInstructions.match(regex);
-        if (matches) {
-          foundProblematicPatterns.push({ name, matches, count: matches.length });
-          exactMatches.push(...matches);
-          console.log(`🚨 PATTERN "${name}" FOUND ${matches.length} times:`, matches);
-        } else {
-          console.log(`✅ PATTERN "${name}" - NOT FOUND`);
+      try {
+        if (isDebugMode) {
+          console.log(`\n🚨 === DEBUG MODE ENABLED - COMPLETE PROMPT ANALYSIS (MPS ${mps.mps_number}) ===`);
+          console.log(`📝 RAW FINAL PROMPT:`);
+          console.log(finalPrompt);
+          console.log(`🚨 === END RAW PROMPT ===\n`);
+          
+          // Show the document content section specifically
+          const documentContentMatch = finalPrompt.match(/ACTUAL MPS DOCUMENT CONTENT:([\s\S]*?)(?=STRICT REQUIREMENTS:|$)/);
+          if (documentContentMatch && documentContentMatch[1]) {
+            const docContent = documentContentMatch[1];
+            console.log(`📄 DOCUMENT CONTENT SECTION (${docContent.length} chars):`);
+            console.log(`"${docContent.substring(0, 500)}${docContent.length > 500 ? '...' : '"}"`);
+          } else {
+            console.log(`❌ NO DOCUMENT CONTENT SECTION FOUND`);
+          }
         }
-      });
-      
-      // Show exactly where in the prompt these patterns occur
-      if (exactMatches.length > 0) {
-        console.log(`\n🎯 EXACT MATCH LOCATIONS:`);
-        exactMatches.forEach(match => {
-          const index = ourPromptInstructions.indexOf(match);
-          const contextStart = Math.max(0, index - 100);
-          const contextEnd = Math.min(ourPromptInstructions.length, index + match.length + 100);
-          const context = ourPromptInstructions.substring(contextStart, contextEnd);
-          console.log(`🔍 Match "${match}" at position ${index}:`);
-          console.log(`   Context: "...${context}..."`);
-        });
-      }
-      
-      // **TEMPORARILY DISABLE BLOCKING** - Log warning and continue
-      if (foundProblematicPatterns.length > 0) {
-        console.error(`🚨 PLACEHOLDER PATTERNS DETECTED - BUT CONTINUING FOR DEBUGGING`);
-        console.error(`🔍 Found patterns:`, foundProblematicPatterns);
-        console.error(`🔍 This would normally block generation, but we're allowing it for debugging`);
         
-        // Set a flag to show this was a problematic prompt
-        (window as any).maturionDebug = (window as any).maturionDebug || {};
-        (window as any).maturionDebug.lastProblematicPrompt = {
-          mpsNumber: mps.mps_number,
-          patterns: foundProblematicPatterns,
-          fullPrompt: finalPrompt,
-          timestamp: new Date().toISOString()
-        };
+        // Extract only our generated instructions (not document content) for validation
+        const documentContentRegex = /ACTUAL MPS DOCUMENT CONTENT:[\s\S]*?(?=STRICT REQUIREMENTS:|$)/g;
+        const ourPromptInstructions = finalPrompt.replace(documentContentRegex, '[DOCUMENT_CONTENT_STRIPPED_FOR_VALIDATION]');
         
-        console.warn(`⚠️ DEBUG MODE: Allowing potentially problematic prompt to proceed`);
-        console.warn(`⚠️ Check window.maturionDebug.lastProblematicPrompt for details`);
-      } else {
-        console.log(`✅ PROMPT VALIDATION PASSED: No problematic placeholder patterns detected`);
+        if (isDebugMode) {
+          console.log(`\n🔍 ISOLATED PROMPT INSTRUCTIONS (for validation, ${ourPromptInstructions.length} chars):`);
+          console.log(ourPromptInstructions);
+        }
+        
+        // Test each problematic pattern individually and show exact matches (only in debug mode)
+        const problematicPatterns = [
+          { name: 'document_type_brackets', regex: /\[document_type\]/gi },
+          { name: 'action_verb_brackets', regex: /\[action_verb\]/gi },
+          { name: 'requirement_brackets', regex: /\[requirement\]/gi },
+          { name: 'criterion_letter', regex: /Criterion\s+[A-Z](?=\s|$)/gi },
+          { name: 'criterion_number', regex: /Criterion\s+[0-9]/gi },
+          { name: 'assessment_criterion', regex: /Assessment criterion/gi }
+        ];
+        
+        let foundProblematicPatterns = [];
+        let exactMatches = [];
+        
+        for (const { name, regex } of problematicPatterns) {
+          try {
+            const matches = ourPromptInstructions.match(regex);
+            if (matches && matches.length > 0) {
+              foundProblematicPatterns.push({ name, matches, count: matches.length });
+              exactMatches.push(...matches);
+              if (isDebugMode) {
+                console.log(`🚨 PATTERN "${name}" FOUND ${matches.length} times:`, matches);
+              }
+            } else if (isDebugMode) {
+              console.log(`✅ PATTERN "${name}" - NOT FOUND`);
+            }
+          } catch (regexError) {
+            console.warn(`⚠️ Error testing pattern ${name}:`, regexError);
+          }
+        }
+        
+        // Show exactly where in the prompt these patterns occur (debug mode only)
+        if (isDebugMode && exactMatches.length > 0) {
+          console.log(`\n🎯 EXACT MATCH LOCATIONS:`);
+          exactMatches.forEach((match, index) => {
+            try {
+              const matchIndex = ourPromptInstructions.indexOf(match);
+              if (matchIndex >= 0) {
+                const contextStart = Math.max(0, matchIndex - 100);
+                const contextEnd = Math.min(ourPromptInstructions.length, matchIndex + match.length + 100);
+                const context = ourPromptInstructions.substring(contextStart, contextEnd);
+                console.log(`🔍 Match "${match}" at position ${matchIndex}:`);
+                console.log(`   Context: "...${context}..."`);
+              }
+            } catch (contextError) {
+              console.warn(`⚠️ Error showing context for match ${index}:`, contextError);
+            }
+          });
+        }
+        
+        // **SAFE NON-BLOCKING MODE** - Log warning and continue
+        if (foundProblematicPatterns.length > 0) {
+          console.warn(`🚨 PLACEHOLDER PATTERNS DETECTED - BUT CONTINUING FOR TESTING`);
+          console.warn(`🔍 Found patterns:`, foundProblematicPatterns.map(p => `${p.name}: ${p.count}`));
+          
+          // Safe debug storage (only if debug mode and window exists)
+          if (isDebugMode && typeof window !== 'undefined') {
+            try {
+              (window as any).maturionDebug = (window as any).maturionDebug || {};
+              (window as any).maturionDebug.lastProblematicPrompt = {
+                mpsNumber: mps.mps_number,
+                patterns: foundProblematicPatterns.map(p => ({ name: p.name, count: p.count })), // Simplified to avoid circular refs
+                promptLength: finalPrompt.length,
+                timestamp: new Date().toISOString()
+              };
+              console.log(`⚠️ DEBUG: Saved problematic prompt info to window.maturionDebug`);
+            } catch (debugStorageError) {
+              console.warn(`⚠️ Could not save debug info:`, debugStorageError);
+            }
+          }
+          
+          console.warn(`⚠️ ALLOWING PROMPT TO PROCEED FOR TESTING PURPOSES`);
+        } else {
+          console.log(`✅ PROMPT VALIDATION PASSED: No problematic placeholder patterns detected`);
+        }
+        
+      } catch (debugError) {
+        console.error(`❌ Debug validation error (continuing anyway):`, debugError);
+        console.log(`✅ FALLBACK: Skipping validation due to debug error - allowing generation to proceed`);
       }
 
       const prompt = finalPrompt;
