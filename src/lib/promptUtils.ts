@@ -139,7 +139,9 @@ export const validateCriteria = (criteria: any[], orgContext: OrganizationContex
   // Validate evidence-first format compliance
   criteria.forEach((criterion, index) => {
     const statement = criterion.statement || '';
-    const evidenceFirstPattern = /^A\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline|charter|plan)/i;
+    
+    // 🚨 UPDATED: Comprehensive evidence-first pattern for all diverse evidence types
+    const evidenceFirstPattern = /^(A|An)\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline|charter|plan|dashboard|stakeholder plan|succession document|training outline|code of conduct|organizational chart|competency framework)|^Minutes of\s+/i;
     
     if (!evidenceFirstPattern.test(statement)) {
       hasEvidenceFirstViolations = true;

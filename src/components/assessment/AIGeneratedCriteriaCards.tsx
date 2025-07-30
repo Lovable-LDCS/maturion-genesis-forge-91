@@ -314,6 +314,11 @@ Generate exactly 10 criteria with diverse evidence types. Each criterion must st
       // 🚨 CRITICAL: Clean placeholder patterns before sending to AI
       const cleanedPrompt = cleanPlaceholderPatterns(finalPrompt);
       
+      // 🧠 REQUESTED LOGGING: Track MPS detection and template usage
+      console.log("🔍 MPS Detected:", mps.mps_number);
+      console.log("🧠 Template Used:", cleanedPrompt.substring(0, 200) + "...");
+      console.log("🎯 Generating for MPS:", `${mps.mps_number} - ${mps.name}`);
+      
       console.log("🧠 Cleaned prompt being sent to AI:", cleanedPrompt.substring(0, 500) + '...');
 
       // QA Framework: Red Alert Monitoring
@@ -384,6 +389,7 @@ Generate exactly 10 criteria with diverse evidence types. Each criterion must st
       // 🧠 DEBUG: Log exactly what's being sent to QA validation
       console.log("🧠 ValidatedCriteriaSentToQA:", evidenceValidatedCriteria);
       console.log("🧠 FinalValidatedCriteriaPassedToQA:", evidenceValidatedCriteria);
+      console.log("📦 Criteria Returned:", evidenceValidatedCriteria.length);
       console.log("🔍 First criterion statement:", evidenceValidatedCriteria[0]?.statement?.substring(0, 100));
       console.log("🔍 Total criteria count:", evidenceValidatedCriteria.length);
       
