@@ -29,7 +29,7 @@ serve(async (req) => {
       .from('ai_document_chunks')
       .select('content, ai_documents!inner(title, document_type)')
       .eq('organization_id', organizationId)
-      .or(`content.ilike.%MPS ${mpsNumber}%,content.ilike.%MPS${mpsNumber}%,ai_documents.title.ilike.%MPS ${mpsNumber}%`)
+      .or(`content.ilike.*MPS ${mpsNumber}*,content.ilike.*MPS${mpsNumber}*,ai_documents.title.ilike.*MPS ${mpsNumber}*`)
       .eq('ai_documents.document_type', 'mps_document')
       .limit(10);
     
