@@ -42,12 +42,18 @@ export const MPSSelectionModal: React.FC<MPSSelectionModalProps> = ({
   const [editingMPS, setEditingMPS] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<MPS>>({});
 
-  // Generate MPSs when modal opens
+  // Generate MPSs when modal opens - but ensure organization context is loaded first
   useEffect(() => {
     if (isOpen && domainName) {
-      generateMPSsForDomain(domainName);
+      // Add a small delay to ensure organization context is fully loaded
+      const timer = setTimeout(() => {
+        console.log('🔍 MPSSelectionModal: Triggering MPS generation for domain:', domainName);
+        generateMPSsForDomain(domainName);
+      }, 100); // Small delay to ensure organization hook has initialized
+      
+      return () => clearTimeout(timer);
     }
-  }, [isOpen, domainName]);
+  }, [isOpen, domainName, generateMPSsForDomain]);
 
   // Update local state when AI generation completes
   useEffect(() => {

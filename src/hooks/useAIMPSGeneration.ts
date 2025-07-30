@@ -22,8 +22,24 @@ export const useAIMPSGeneration = () => {
   const [error, setError] = useState<string | null>(null);
 
   const generateMPSsForDomain = useCallback(async (domainName: string) => {
+    // CRITICAL: Wait for organization context to be fully loaded
     if (!currentOrganization?.id) {
-      setError('No organization context available');
+      console.error('❌ CRITICAL ERROR: Organization context not available');
+      console.log('🏢 Current organization state:', currentOrganization);
+      console.log('🔍 Available organization data:', { 
+        id: currentOrganization?.id, 
+        name: currentOrganization?.name,
+        loading: !currentOrganization 
+      });
+      setError('Organization context not loaded. Please refresh the page and try again.');
+      return;
+    }
+
+    // Validate organization ID is a proper UUID
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(currentOrganization.id)) {
+      console.error('❌ CRITICAL ERROR: Invalid organization ID format:', currentOrganization.id);
+      setError(`Invalid organization ID format: ${currentOrganization.id}`);
       return;
     }
 
@@ -33,7 +49,7 @@ export const useAIMPSGeneration = () => {
 
     try {
       console.log(`🔍 Starting MPS generation for domain: ${domainName}`);
-      console.log(`🏢 Organization ID: ${currentOrganization.id}`);
+      console.log(`🏢 Validated Organization ID: ${currentOrganization.id}`);
       console.log(`🏢 Organization Name: ${currentOrganization.name}`);
       
       // Enhanced search queries with comprehensive MPS coverage
@@ -55,18 +71,24 @@ export const useAIMPSGeneration = () => {
       for (const query of searchQueries) {
         try {
           console.log(`🔍 Executing search query: "${query}"`);
-          console.log(`📡 Request body:`, { 
+          
+          // CRITICAL: Ensure organization ID is present before API call
+          if (!currentOrganization?.id) {
+            throw new Error('Organization ID became undefined during MPS generation');
+          }
+          
+          const requestBody = { 
             query,
             organization_id: currentOrganization.id,
+            organizationId: currentOrganization.id, // Include both parameter names for compatibility
             limit: 15
-          });
+          };
+          
+          console.log(`📡 Request body:`, requestBody);
+          console.log(`🔍 Organization ID validation: ${currentOrganization.id} (length: ${currentOrganization.id.length})`);
           
           const { data: searchResults, error: searchError } = await supabase.functions.invoke('search-ai-context', {
-            body: { 
-              query,
-              organization_id: currentOrganization.id,
-              limit: 15 // Increased limit for better coverage
-            }
+            body: requestBody
           });
 
           if (searchError) {
