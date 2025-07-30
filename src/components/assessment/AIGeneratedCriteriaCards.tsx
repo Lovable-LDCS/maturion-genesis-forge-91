@@ -451,16 +451,17 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
         </div>
       )}
 
-      {/* Debug Components */}
+      {/* Debug Components - Temporarily disabled for core functionality */}
       {showAdminDebug && (
-        <AdminTestMode 
-          mps={mps}
-          onDebugGenerate={(prompt) => generateAICriteria(prompt)}
-        />
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-700">Debug mode enabled (components temporarily disabled)</p>
+        </div>
       )}
       
       {showQAHub && (
-        <QADebugHub organizationId={currentOrganization?.id || ''} />
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-700">QA Hub enabled (component temporarily disabled)</p>
+        </div>
       )}
     </div>
   );
