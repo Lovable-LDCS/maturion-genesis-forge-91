@@ -437,37 +437,32 @@ STRICT REQUIREMENTS:
 
 MANDATORY EVIDENCE-FIRST FORMAT - CRITICAL VALIDATION RULES:
 
-✅ REQUIRED SENTENCE STRUCTURE:
+🔴 ABSOLUTE REQUIREMENT: Every single criterion MUST start with "A [qualifier] [document_type]"
+🔴 ZERO TOLERANCE: Any criterion not starting with "A " followed by a qualifier and document type will be REJECTED
+
+✅ EXACT SENTENCE STRUCTURE (NO EXCEPTIONS):
 "A [QUALIFIER] [DOCUMENT_TYPE] that [ACTION_VERB] [REQUIREMENT] for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 
-✅ APPROVED QUALIFIERS (choose ONE):
+✅ APPROVED QUALIFIERS (use EXACTLY as written):
 documented, formal, quarterly, annual, comprehensive, detailed, written, approved, maintained, updated, current, complete
 
-✅ APPROVED DOCUMENT TYPES (choose ONE):
+✅ APPROVED DOCUMENT TYPES (use EXACTLY as written):
 risk register, policy, report, document, procedure, assessment, analysis, review, register, record, log, matrix, framework, standard, guideline, charter, plan
 
-❌ STRICT PROHIBITIONS - DO NOT START WITH:
-- "${organizationContext.name} must..."
-- "${organizationContext.name} has..."  
-- "${organizationContext.name} maintains..."
-- "The organization..."
-- "Management..."
-- "Leadership..."
-- "Executive team..."
-- "Board of directors..."
-- "Senior management..."
-- "The company..."
-- ANY organizational actor or entity name
+🔴 FORBIDDEN SENTENCE STARTERS (WILL CAUSE IMMEDIATE REJECTION):
+- ANY organization name including "${organizationContext.name}"
+- "The organization", "Management", "Leadership", "Executive", "Board", "Company", "Team"
+- "Personnel", "Staff", "Employees", "Users", "Stakeholders"
+- "Systems", "Processes", "Controls", "Measures"
+- ANY pronoun: "They", "It", "We", "You"
+- ANY verb: "Must", "Should", "Will", "Can", "Ensure", "Maintain", "Establish"
 
-✅ VALID EXAMPLES:
+✅ MANDATORY EXAMPLES (follow this EXACT pattern):
 - "A documented policy that establishes governance oversight for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 - "A formal procedure that defines risk assessment processes for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 - "A comprehensive framework that outlines security controls for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 
-❌ INVALID EXAMPLES (DO NOT USE):
-- "${organizationContext.name} must maintain a policy..."
-- "The organization has documented procedures..."
-- "Management ensures that leadership..."
+🔴 VALIDATION CHECK: Before generating, verify EVERY criterion starts with "A " + [approved qualifier] + [approved document type]
 
 Generate 8-12 specific criteria in JSON format based ONLY on the document content above:
 [{"statement": "A [qualifier] [document_type] that [action] [requirement] for [context]", "summary": "brief explanation"}]`;
@@ -638,8 +633,81 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
       // 🧠 FINAL PROMPT USED BY QA - EXACT CONTENT VALIDATION
       console.log("🧠 FinalPromptUsedByQA:", finalPrompt);
       
+      // 🔧 PRE-DISPATCH VALIDATION & AUTO-CORRECTION
+      const validateAndCorrectPrompt = (inputPrompt: string): string => {
+        console.log('🛡️ PRE-DISPATCH VALIDATION: Starting prompt structure validation...');
+        
+        // Define forbidden patterns that violate evidence-first format
+        const forbiddenPatterns = [
+          { pattern: /Generate criteria that start with ".*must.*"/gi, name: 'organizational_must' },
+          { pattern: /Generate criteria.*"The organization.*"/gi, name: 'the_organization_start' },
+          { pattern: /Generate criteria.*"Management.*"/gi, name: 'management_start' },
+          { pattern: /Generate criteria.*"Leadership.*"/gi, name: 'leadership_start' },
+          { pattern: /Generate criteria.*"[A-Z][a-z]+ must.*"/gi, name: 'entity_must_pattern' },
+          { pattern: /statement.*"[^A]\s*[A-Z][a-z]+/gi, name: 'non_article_start' }
+        ];
+        
+        let correctedPrompt = inputPrompt;
+        let correctionsMade = 0;
+        
+        // Check and log violations
+        forbiddenPatterns.forEach(({ pattern, name }) => {
+          const matches = correctedPrompt.match(pattern);
+          if (matches) {
+            console.warn(`🚨 FOUND FORBIDDEN PATTERN [${name}]:`, matches);
+            correctionsMade += matches.length;
+          }
+        });
+        
+        // Enhanced instruction reinforcement
+        const evidenceFirstEnforcement = `
+🔴 CRITICAL ENFORCEMENT: Every criterion statement MUST start with "A " followed by an approved qualifier and document type.
+
+MANDATORY FORMAT VALIDATION:
+- First word: "A" (article)
+- Second word: MUST be one of: documented, formal, quarterly, annual, comprehensive, detailed, written, approved, maintained, updated, current, complete
+- Third word: MUST be one of: risk register, policy, report, document, procedure, assessment, analysis, review, register, record, log, matrix, framework, standard, guideline, charter, plan
+- NO OTHER STARTING PATTERNS ARE ACCEPTABLE
+
+PRE-GENERATION SELF-CHECK:
+Before generating each criterion, verify it starts with "A [qualifier] [document_type]"
+If it doesn't, IMMEDIATELY rewrite to start with "A documented policy" or "A formal procedure"
+
+EXAMPLES OF REQUIRED FORMAT:
+✅ "A documented policy that establishes..."
+✅ "A formal procedure that defines..."
+✅ "A comprehensive framework that outlines..."
+
+ABSOLUTELY FORBIDDEN STARTS:
+❌ "${organizationContext.name} must..."
+❌ "The organization shall..."
+❌ "Management ensures..."
+❌ "Leadership maintains..."
+❌ "Staff should..."
+❌ "Personnel must..."
+
+VALIDATION RULE: If any criterion doesn't start with "A [qualifier] [document_type]", it will be automatically REJECTED.`;
+
+        // Insert the enforcement right before the JSON generation instruction
+        const jsonInstructionIndex = correctedPrompt.indexOf('Generate 8-12 specific criteria in JSON format');
+        if (jsonInstructionIndex > -1) {
+          correctedPrompt = correctedPrompt.slice(0, jsonInstructionIndex) + 
+                           evidenceFirstEnforcement + 
+                           '\n\n' + 
+                           correctedPrompt.slice(jsonInstructionIndex);
+          correctionsMade++;
+          console.log('✅ INSERTED ENHANCED EVIDENCE-FIRST ENFORCEMENT');
+        }
+        
+        console.log(`🛡️ PRE-DISPATCH VALIDATION COMPLETE: ${correctionsMade} corrections applied`);
+        return correctedPrompt;
+      };
+      
+      // Apply pre-dispatch validation
+      const validatedPrompt = validateAndCorrectPrompt(finalPrompt);
+      
       // QA Framework: Red Alert Monitoring
-      const alerts = validateForRedAlerts(prompt, mps.mps_number, { organizationContext, mpsContext });
+      const alerts = validateForRedAlerts(validatedPrompt, mps.mps_number, { organizationContext, mpsContext });
       if (alerts.length > 0) {
         console.error('🚨 QA FRAMEWORK BLOCKED GENERATION:');
         alerts.forEach(alert => {
@@ -651,9 +719,10 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
         throw new Error(`QA FRAMEWORK BLOCKED: ${alerts.filter(a => a.severity === 'CRITICAL').length} critical issues detected`);
       }
 
+      console.log("✅ Calling OpenAI with PRE-VALIDATED prompt, total tokens:", validatedPrompt.length);
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
-          prompt,
+          prompt: validatedPrompt,
           context: `Criteria generation for MPS ${mps.mps_number} - ${mps.name}`,
           organizationId: currentOrganization.id,
           currentDomain: mps.domain_id,
