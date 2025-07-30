@@ -20,6 +20,7 @@ import { CriteriaRegenerationTool } from '@/components/qa/CriteriaRegenerationTo
 import { GovernanceDocumentFixer } from '@/components/qa/GovernanceDocumentFixer';
 import { ReasoningScopeTracker } from '@/components/admin/ReasoningScopeTracker';
 import { AIReasoningIntegrationTester } from '@/components/qa/AIReasoningIntegrationTester';
+import { BatchDocumentReprocessor } from '@/components/qa/BatchDocumentReprocessor';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useEffect, useState as useReactState } from 'react';
@@ -172,7 +173,10 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           <CardContent>
           <GovernanceDocumentFixer />
           <ReasoningScopeTracker />
-          <AIReasoningIntegrationTester />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AIReasoningIntegrationTester />
+            <BatchDocumentReprocessor />
+          </div>
           </CardContent>
         </Card>
 

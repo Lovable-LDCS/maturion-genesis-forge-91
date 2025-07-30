@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log('🔧 GOVERNANCE FIX: Starting governance document status fix');
+    console.log('🔧 DOCUMENT FIX: Starting document reprocessing for all types');
     
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -24,13 +24,12 @@ serve(async (req) => {
       auth: { persistSession: false }
     });
 
-    // Find governance documents that need reprocessing:
-    // 1. Documents with status = 'pending'
+    // Find all AI documents that need reprocessing:
+    // 1. Documents with status = 'pending' or 'failed'
     // 2. Documents marked 'completed' but with actual_chunks = 0 (false positives)
     const { data: documents, error: docError } = await supabase
       .from('ai_documents')
-      .select('id, title, processing_status, total_chunks')
-      .eq('document_type', 'governance_reasoning_manifest')
+      .select('id, title, processing_status, total_chunks, document_type')
       .or('processing_status.eq.pending,processing_status.eq.failed');
 
     if (docError) {
@@ -40,16 +39,15 @@ serve(async (req) => {
     // Also get all completed documents to check for false positives (completed but 0 chunks)
     const { data: completedDocs, error: completedError } = await supabase
       .from('ai_documents')
-      .select('id, title, processing_status, total_chunks')
-      .eq('document_type', 'governance_reasoning_manifest')
+      .select('id, title, processing_status, total_chunks, document_type')
       .eq('processing_status', 'completed');
 
     const allDocuments = [...(documents || []), ...(completedDocs || [])];
-    console.log(`🔧 Found ${documents?.length || 0} pending/failed and ${completedDocs?.length || 0} completed governance documents`);
+    console.log(`🔧 Found ${documents?.length || 0} pending/failed and ${completedDocs?.length || 0} completed AI documents`);
 
     const results = [];
     for (const doc of allDocuments) {
-      console.log(`🔧 Processing document: ${doc.title} (${doc.id}) - Status: ${doc.processing_status}`);
+      console.log(`🔧 Processing document: ${doc.title} (${doc.id}) - Type: ${doc.document_type} - Status: ${doc.processing_status}`);
       
       // Count actual chunks in database
       const { data: chunks, error: chunkError } = await supabase
@@ -113,7 +111,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      message: 'Governance document status fix completed',
+      message: 'Document reprocessing fix completed for all types',
       results: results
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
