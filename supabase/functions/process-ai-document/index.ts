@@ -205,21 +205,23 @@ serve(async (req) => {
           console.log(`📄 PDF emergency processing: ${extractedText.length} characters (fallback mode)`);
           
         } catch (pdfError: any) {
-          console.error('❌ PDF processing failed, applying emergency chunking:', pdfError.message);
+          console.error('❌ PDF processing failed, applying forced emergency chunking:', pdfError.message);
           
-          // Emergency chunking with minimal content
-          extractedText = `Emergency Content: ${document.title}\n\nDocument Type: PDF\nFile: ${document.file_name}\n\nThis document requires manual processing or conversion to DOCX format.`;
-          extractionMethod = 'emergency_fallback';
-          extractionQuality = 'minimal_emergency';
+          // FORCED EMERGENCY CHUNK: Create minimal content even if extraction fails completely
+          extractedText = `EMERGENCY FALLBACK CHUNK\n\nDocument: ${document.title}\nType: PDF (${document.mime_type})\nFile: ${document.file_name}\n\nContent Extraction Status: Failed\nReason: PDF content could not be extracted automatically\n\nRecommendation: Convert to DOCX, TXT, or MD format for proper text extraction.\n\nThis chunk exists to maintain document presence in the AI knowledge base.`;
+          extractionMethod = 'fallback_pdf_emergency';
+          extractionQuality = 'poor';
+          
+          console.log('🚨 FORCED EMERGENCY CHUNK APPLIED: Document will be chunked despite extraction failure');
         }
         
       } else {
         console.log(`❌ Unsupported file type: ${document.mime_type}, applying emergency processing...`);
         
         // Emergency processing for any unsupported file type
-        extractedText = `Unsupported Document: ${document.title}\n\nFile Type: ${document.mime_type}\nFile: ${document.file_name}\n\nThis document type is not fully supported. Please convert to DOCX, TXT, or MD format for optimal processing.`;
+        extractedText = `EMERGENCY FALLBACK CHUNK\n\nDocument: ${document.title}\nType: ${document.mime_type}\nFile: ${document.file_name}\n\nContent Extraction Status: Unsupported file type\nReason: File format not supported by automatic processing\n\nRecommendation: Convert to DOCX, TXT, or MD format for proper text extraction.\n\nThis chunk exists to maintain document presence in the AI knowledge base.`;
         extractionMethod = 'unsupported_emergency';
-        extractionQuality = 'emergency_fallback';
+        extractionQuality = 'poor';
         
         console.log('Applied emergency processing for unsupported file type');
       }
@@ -230,11 +232,16 @@ serve(async (req) => {
         console.log('🚨 EMERGENCY MODE: minChunkSize adjusted to 30 characters');
       }
 
-      // AI POLICY VALIDATION: Enhanced corruption detection (relaxed for governance documents)
+      // AI POLICY VALIDATION: Enhanced corruption detection (OVERRIDE for forced emergency chunks)
       console.log('🔍 Applying AI Policy validation...');
       console.log(`🔍 DEBUG: Text length: ${extractedText.length} characters, method: ${extractionMethod}`);
       
-      // Check for binary content patterns
+      // FORCED EMERGENCY OVERRIDE: Skip validation for fallback_pdf_emergency
+      const isForcedEmergency = extractionMethod === 'fallback_pdf_emergency' || extractionQuality === 'poor';
+      
+      if (isForcedEmergency) {
+        console.log('🚨 FORCED EMERGENCY OVERRIDE: Skipping content validation for fallback chunk');
+      } else {
       const binaryContentRatio = (extractedText.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / extractedText.length;
       const hasXMLArtifacts = extractedText.includes('<?xml') || 
                             extractedText.includes('<w:') || 
@@ -378,9 +385,15 @@ serve(async (req) => {
           
           console.log(`Processing chunk ${index}: ${chunk.length} chars (${isGovernanceDocument ? 'GOVERNANCE' : 'STANDARD'} mode, ${isEmergencyMode ? 'EMERGENCY' : 'NORMAL'} extraction)`);
           
-          // Emergency mode embeddings: Only create embeddings if valid text exists (>= 10 words)
+          // Emergency mode embeddings: Force skip embeddings for poor quality content
           const chunkWordCount = chunk.split(/\s+/).filter(w => w.length > 0).length;
-          const shouldCreateEmbedding = isEmergencyMode ? chunkWordCount >= 10 : true;
+          const shouldCreateEmbedding = !(extractionQuality === 'poor' || extractionMethod === 'fallback_pdf_emergency') && 
+                                       (isEmergencyMode ? chunkWordCount >= 10 : true);
+          
+          // Force embedding = false for specific extraction methods
+          if (extractionMethod === 'fallback_pdf_emergency') {
+            console.log(`🚨 FORCED OVERRIDE: Skipping embedding for fallback_pdf_emergency chunk ${index}`);
+          }
           // For governance documents, accept even shorter chunks if they contain meaningful content
           if (isGovernanceDocument && chunk.length < 200) {
             const hasHeadings = /^#+\s|\*\*.*\*\*|##|---|•|◦/.test(chunk);
@@ -431,7 +444,11 @@ serve(async (req) => {
                 character_count: chunk.length,
                 processing_timestamp: new Date().toISOString(),
                 emergency_mode: isEmergencyMode,
-                has_embedding: embedding !== null
+                has_embedding: embedding !== null,
+                ...(extractionMethod === 'fallback_pdf_emergency' && {
+                  reason: 'content_too_short_but_forced',
+                  forced_override: true
+                })
               }
             });
 

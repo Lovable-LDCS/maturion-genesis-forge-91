@@ -147,7 +147,7 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
         .select('chunk_index, content, metadata')
         .eq('document_id', document.id)
         .order('chunk_index')
-        .limit(5); // Show first 5 chunks as sample
+        .limit(10); // Show up to 10 chunks
 
       if (error) throw error;
       setChunkDetails(data || []);
@@ -156,6 +156,16 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
       console.error('Error loading chunk details:', error);
     }
   };
+
+  // Check if this document has poor extraction quality or emergency chunks
+  const hasEmergencyChunks = chunkDetails.some(chunk => 
+    chunk.metadata?.extraction_method === 'fallback_pdf_emergency' ||
+    chunk.metadata?.extraction_quality === 'poor' ||
+    chunk.metadata?.forced_override === true
+  );
+
+  const isEmergencyDocument = document.processing_status === 'completed' && 
+    (document.total_chunks === 0 || hasEmergencyChunks);
 
   const formatDate = (dateString: string | null, includeTime: boolean = true) => {
     if (!dateString) return 'Not available';
@@ -288,10 +298,22 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
                 <Zap className="h-4 w-4" />
                 AI Search Readiness
               </h4>
-              {document.processing_status === 'completed' ? (
-                <div className="flex items-center gap-2 text-green-700">
-                  <CheckCircle className="h-4 w-4" />
-                  <span className="text-sm">✅ Ready for AI queries and MPS generation</span>
+              {document.processing_status === 'completed' && document.total_chunks > 0 ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-green-700">
+                    <CheckCircle className="h-4 w-4" />
+                    <span className="text-sm">✅ Ready for AI queries and MPS generation</span>
+                  </div>
+                  
+                  {/* Emergency Warning Badge */}
+                  {isEmergencyDocument && (
+                    <div className="flex items-center gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <AlertTriangle className="h-4 w-4 text-yellow-600" />
+                      <span className="text-xs text-yellow-700">
+                        ⚠️ Chunked with emergency override due to poor extractable content
+                      </span>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="flex items-center gap-2 text-orange-700">
@@ -345,19 +367,39 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
             {/* Chunk Preview (if loaded) */}
             {showChunkDetails && chunkDetails.length > 0 && (
               <div className="mt-4 p-3 bg-gray-50 rounded-md">
-                <h4 className="text-sm font-medium mb-2">Content Chunks Sample (First 5)</h4>
+                <h4 className="text-sm font-medium mb-2">
+                  Content Chunks {isEmergencyDocument ? '(Emergency Fallback)' : `(${chunkDetails.length} shown)`}
+                </h4>
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {chunkDetails.map((chunk, index) => (
                     <div key={index} className="text-xs p-2 bg-white rounded border">
                       <div className="flex items-center justify-between mb-1">
                         <span className="font-medium">Chunk {chunk.chunk_index + 1}</span>
-                        <span className="text-muted-foreground">
-                          {chunk.content.length} chars
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-muted-foreground">
+                            {chunk.content.length} chars
+                          </span>
+                          {chunk.metadata?.forced_override && (
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                              Forced
+                            </Badge>
+                          )}
+                          {chunk.metadata?.has_embedding === false && (
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                              No Embedding
+                            </Badge>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-gray-600 truncate">
-                        {chunk.content.substring(0, 150)}...
+                      <p className="text-gray-600 text-xs leading-relaxed">
+                        {chunk.content.substring(0, 300)}{chunk.content.length > 300 ? '...' : ''}
                       </p>
+                      {chunk.metadata && (
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          Method: {chunk.metadata.extraction_method} | Quality: {chunk.metadata.extraction_quality}
+                          {chunk.metadata.reason && ` | Reason: ${chunk.metadata.reason}`}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
