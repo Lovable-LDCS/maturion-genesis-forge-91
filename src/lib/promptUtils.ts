@@ -82,15 +82,40 @@ OUTPUT: JSON array of 8-12 criteria objects with statement, summary, rationale, 
 CONTEXT: ${orgContext.name} operates in ${orgContext.industry_tags.join(', ') || orgContext.custom_industry}, region: ${orgContext.region_operating}`;
   }
 
-  // Special handling for MPS 1 (Leadership & Governance)
-  return `Generate criteria for MPS 1 - Leadership & Governance at ${orgContext.name}
+  // Special handling for MPS 1 (Leadership & Governance) - PHASE LOCKED v2.0
+  return `Generate criteria for MPS 1 - Leadership & Governance within the organization
+
+MANDATORY REQUIREMENTS:
+- Generate exactly 10 criteria (not 8-12)
+- 2 criteria MUST include leadership non-performance triggers and remedial actions
+- Vary sentence structure - limit "addresses the requirements related to" to maximum 3 out of 10
 
 EVIDENCE-FIRST FORMAT (MANDATORY):
-Every criterion MUST start with evidence type:
-- "A documented governance charter that defines the board structure and oversight responsibilities at ${orgContext.name}."
-- "A formal strategic plan that outlines the organizational direction and priorities for ${orgContext.name}."
+Every criterion MUST start with evidence type using varied stems:
+- "A documented governance charter that defines..."
+- "A formal strategic plan that outlines..."
+- "A quarterly performance review that specifies..."
+- "An annual leadership assessment that demonstrates..."
+- "Minutes of executive meetings that support..."
 
-OUTPUT: JSON array of 8-12 criteria objects with statement, summary, rationale, evidence_guidance, explanation fields.`;
+BEHAVIORAL MATURITY TRIGGERS (Required in 2 criteria):
+Include references to:
+- Leadership performance thresholds and non-performance indicators
+- Required remedial actions when leadership fails to meet standards
+- Escalation procedures for leadership accountability failures
+
+SENTENCE VARIETY (MANDATORY):
+Alternate between these stems:
+- "...that defines..." / "...that outlines..." / "...that specifies..."
+- "...that demonstrates..." / "...that supports..." / "...that establishes..."
+- Limit "addresses the requirements related to" to maximum 3 occurrences
+
+GENERIC NAMING:
+- Use "within the organization" instead of specific company names
+- Use "organizational leaders" instead of company-specific references
+- Use "leadership strategies" instead of company-branded approaches
+
+OUTPUT: JSON array of exactly 10 criteria objects with statement, summary, rationale, evidence_guidance, explanation fields.`;
 };
 
 /**
@@ -136,21 +161,51 @@ export const validateCriteria = (criteria: any[], orgContext: OrganizationContex
     }
   });
 
-  // Validate evidence-first format compliance
+  // Validate evidence-first format compliance - EXPANDED for v2.0
   criteria.forEach((criterion, index) => {
     const statement = criterion.statement || '';
     
-    // 🚨 ENHANCED: More robust evidence-first pattern with better coverage
-    const evidenceFirstPattern = /^(A|An)\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete|annual\s+executive|formal\s+quarterly|current\s+KPI)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline|charter|plan|dashboard|stakeholder plan|succession document|training outline|code of conduct|organizational chart|competency framework|KPI dashboard|executive meetings|leadership competency framework)|^Minutes\s+of\s+/i;
+    // 🚨 PHASE LOCKED v2.0: Enhanced pattern with expanded stems
+    const evidenceFirstPattern = /^(A|An)\s+(documented|formal|quarterly|annual|comprehensive|detailed|written|approved|maintained|updated|current|complete|annual\s+executive|formal\s+quarterly|current\s+KPI)\s+(risk register|policy|report|document|procedure|assessment|analysis|review|register|record|log|matrix|framework|standard|guideline|charter|plan|dashboard|stakeholder plan|succession document|training outline|code of conduct|organizational chart|competency framework|KPI dashboard|executive meetings|leadership competency framework)\s+(that)\s+(defines|outlines|specifies|demonstrates|supports|establishes|addresses)/i;
     
-    console.log(`🔍 Criterion ${index + 1} pattern check: ${evidenceFirstPattern.test(statement) ? '✅ PASS' : '❌ FAIL'} | ${statement.substring(0, 100)}`);
+    // Alternative pattern for "Minutes of"
+    const minutesPattern = /^Minutes\s+of\s+/i;
     
-    if (!evidenceFirstPattern.test(statement)) {
+    const isValid = evidenceFirstPattern.test(statement) || minutesPattern.test(statement);
+    
+    console.log(`🔍 Criterion ${index + 1} pattern check: ${isValid ? '✅ PASS' : '❌ FAIL'} | ${statement.substring(0, 100)}`);
+    
+    if (!isValid) {
       hasEvidenceFirstViolations = true;
       console.log(`❌ Rejected Criterion ${index + 1}:`, statement);
       errors.push(`Criterion ${index + 1}: BLOCKED - Evidence-first format violation`);
     }
   });
+
+  // MPS 1 SPECIFIC: Tone and behavioral validation
+  if (mpsContext.mpsNumber === 1) {
+    const addressesCount = criteria.filter(c => 
+      (c.statement || '').toLowerCase().includes('addresses the requirements related to')
+    ).length;
+    
+    if (addressesCount > 3) {
+      errors.push(`TONE VIOLATION: Too many "addresses the requirements" phrases (${addressesCount}/10, max 3)`);
+    }
+    
+    const behavioralCount = criteria.filter(c => {
+      const statement = (c.statement || '').toLowerCase();
+      return statement.includes('non-performance') || 
+             statement.includes('remedial action') || 
+             statement.includes('performance threshold') ||
+             statement.includes('escalation procedure');
+    }).length;
+    
+    if (behavioralCount < 2) {
+      errors.push(`BEHAVIORAL VIOLATION: Missing leadership non-performance triggers (found ${behavioralCount}, need 2)`);
+    }
+    
+    console.log(`🎯 MPS 1 QA Check - Addresses count: ${addressesCount}/10, Behavioral triggers: ${behavioralCount}/2`);
+  }
 
   // HARD ABORT conditions
   if (hasAnnex1Fallback || hasPlaceholders || hasEvidenceFirstViolations) {
@@ -180,6 +235,31 @@ export const validateCriteria = (criteria: any[], orgContext: OrganizationContex
     hasPlaceholders: false,
     hasEvidenceFirstViolations: false
   };
+};
+
+/**
+ * EXPORT NEUTRALITY: Replace organization-specific names with generic terms
+ * Phase Lock v2.0 compliance for portability
+ */
+export const neutralizeOrganizationNames = (criteria: any[], orgName: string): any[] => {
+  return criteria.map(criterion => ({
+    ...criterion,
+    statement: criterion.statement
+      ?.replace(new RegExp(`\\bat ${orgName}\\b`, 'gi'), 'within the organization')
+      ?.replace(new RegExp(`\\b${orgName} strategies\\b`, 'gi'), 'leadership strategies')  
+      ?.replace(new RegExp(`\\b${orgName} leaders\\b`, 'gi'), 'organizational leaders')
+      ?.replace(new RegExp(`\\bfor ${orgName}\\b`, 'gi'), 'for the organization'),
+    summary: criterion.summary
+      ?.replace(new RegExp(`\\bat ${orgName}\\b`, 'gi'), 'within the organization')
+      ?.replace(new RegExp(`\\b${orgName} strategies\\b`, 'gi'), 'leadership strategies')
+      ?.replace(new RegExp(`\\b${orgName} leaders\\b`, 'gi'), 'organizational leaders')
+      ?.replace(new RegExp(`\\bfor ${orgName}\\b`, 'gi'), 'for the organization'),
+    explanation: criterion.explanation
+      ?.replace(new RegExp(`\\bat ${orgName}\\b`, 'gi'), 'within the organization')
+      ?.replace(new RegExp(`\\b${orgName} strategies\\b`, 'gi'), 'leadership strategies')
+      ?.replace(new RegExp(`\\b${orgName} leaders\\b`, 'gi'), 'organizational leaders')
+      ?.replace(new RegExp(`\\bfor ${orgName}\\b`, 'gi'), 'for the organization')
+  }));
 };
 
 /**

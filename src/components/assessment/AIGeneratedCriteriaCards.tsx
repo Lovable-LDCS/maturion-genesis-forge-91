@@ -9,7 +9,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { validateSecureInput } from '@/lib/security';
-import { buildAICriteriaPrompt, validateCriteria, cleanJSON, detectAnnex1Fallback, type MPSContext, type OrganizationContext, type ValidationResult } from '@/lib/promptUtils';
+import { buildAICriteriaPrompt, validateCriteria, cleanJSON, neutralizeOrganizationNames, detectAnnex1Fallback, type MPSContext, type OrganizationContext, type ValidationResult } from '@/lib/promptUtils';
 import { logCriticalError, logKeyDecision, logSecurityViolation, type DebugContext } from '@/lib/errorUtils';
 import { AdminTestMode } from './AdminTestMode';
 import { QADebugHub } from '@/components/qa/QADebugHub';
@@ -411,7 +411,11 @@ Generate exactly 10 criteria with diverse evidence types. Each criterion must st
         return;
       }
 
-      const formattedCriteria: Criterion[] = evidenceValidatedCriteria.map((criterion, index) => ({
+      // 🔒 PHASE LOCK v2.0: Apply export neutrality for organization names
+      const neutralizedCriteria = neutralizeOrganizationNames(evidenceValidatedCriteria, organizationContext.name);
+      console.log(`🔒 PHASE LOCK: Applied export neutrality for ${organizationContext.name}`);
+
+      const formattedCriteria: Criterion[] = neutralizedCriteria.map((criterion, index) => ({
         id: `temp-${index}`,
         statement: criterion.statement || '',
         summary: criterion.summary || '',
