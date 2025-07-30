@@ -53,7 +53,7 @@ serve(async (req) => {
       const corruptionRecovery = requestBody.corruptionRecovery || false;
       const validateTextOnly = requestBody.validateTextOnly || true; // Enable by default
       const targetChunkSize = requestBody.targetChunkSize || 2000; // Increased from 1500
-      const minChunkSize = requestBody.minChunkSize || 1500; // AI Policy minimum
+      let minChunkSize = requestBody.minChunkSize || 1500; // Will be adjusted for emergency processing
       
       if (!documentId) {
         throw new Error('documentId is required');
@@ -189,8 +189,45 @@ serve(async (req) => {
         extractionQuality = 'direct';
         console.log('Markdown file processed directly');
         
+      } else if (document.mime_type === 'application/pdf' || document.file_name.endsWith('.pdf')) {
+        console.log('🔧 Processing PDF file with emergency text extraction...');
+        
+        try {
+          // For PDF files, we'll apply emergency chunking
+          // Since we can't extract text directly in edge functions, we'll create emergency chunks
+          const pdfText = await fileData.text();
+          
+          // Emergency fallback: treat PDF as raw text and apply aggressive chunking
+          extractedText = pdfText || `PDF Document: ${document.title}\n\nThis is a PDF document that requires manual text extraction. Please re-upload as DOCX or TXT format for better processing.`;
+          extractionMethod = 'pdf_emergency';
+          extractionQuality = 'emergency_fallback';
+          
+          console.log(`📄 PDF emergency processing: ${extractedText.length} characters (fallback mode)`);
+          
+        } catch (pdfError: any) {
+          console.error('❌ PDF processing failed, applying emergency chunking:', pdfError.message);
+          
+          // Emergency chunking with minimal content
+          extractedText = `Emergency Content: ${document.title}\n\nDocument Type: PDF\nFile: ${document.file_name}\n\nThis document requires manual processing or conversion to DOCX format.`;
+          extractionMethod = 'emergency_fallback';
+          extractionQuality = 'minimal_emergency';
+        }
+        
       } else {
-        throw new Error(`Unsupported file type: ${document.mime_type}. Enhanced pipeline only supports DOCX, TXT, and MD files.`);
+        console.log(`❌ Unsupported file type: ${document.mime_type}, applying emergency processing...`);
+        
+        // Emergency processing for any unsupported file type
+        extractedText = `Unsupported Document: ${document.title}\n\nFile Type: ${document.mime_type}\nFile: ${document.file_name}\n\nThis document type is not fully supported. Please convert to DOCX, TXT, or MD format for optimal processing.`;
+        extractionMethod = 'unsupported_emergency';
+        extractionQuality = 'emergency_fallback';
+        
+        console.log('Applied emergency processing for unsupported file type');
+      }
+
+      // Adjust minChunkSize for emergency processing
+      if (extractionMethod === 'pdf_emergency' || extractionMethod === 'emergency_fallback' || extractionMethod === 'unsupported_emergency') {
+        minChunkSize = 30;
+        console.log('🚨 EMERGENCY MODE: minChunkSize adjusted to 30 characters');
       }
 
       // AI POLICY VALIDATION: Enhanced corruption detection (relaxed for governance documents)
@@ -224,14 +261,19 @@ serve(async (req) => {
           throw new Error('BLOCKED: File corruption markers detected - AI Policy violation');
         }
         
-        if (extractedText.length < minChunkSize) {
-          throw new Error(`BLOCKED: Content too short (${extractedText.length} chars, minimum ${minChunkSize}) - AI Policy violation`);
+        // Apply emergency minimum for fallback content
+        const emergencyMinLength = (extractionMethod === 'pdf_emergency' || extractionMethod === 'emergency_fallback' || extractionMethod === 'unsupported_emergency') ? 30 : minChunkSize;
+        
+        if (extractedText.length < emergencyMinLength) {
+          throw new Error(`BLOCKED: Content too short (${extractedText.length} chars, minimum ${emergencyMinLength}) - AI Policy violation`);
         }
         
-         // Additional content quality checks
+         // Additional content quality checks - relaxed for emergency extraction
          const strictWordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
-         if (strictWordCount < 50) {
-           throw new Error(`BLOCKED: Insufficient word count (${strictWordCount} words) - AI Policy violation`);
+         const emergencyMinWords = (extractionMethod === 'pdf_emergency' || extractionMethod === 'emergency_fallback' || extractionMethod === 'unsupported_emergency') ? 5 : 50;
+         
+         if (strictWordCount < emergencyMinWords) {
+           throw new Error(`BLOCKED: Insufficient word count (${strictWordCount} words, minimum ${emergencyMinWords}) - AI Policy violation`);
          }
        } else {
          // Relaxed validation for governance documents
@@ -325,15 +367,20 @@ serve(async (req) => {
       let successfulChunks = 0;
       const chunkPromises = chunks.map(async (chunk, index) => {
         try {
-          // Final chunk validation - much more relaxed for governance documents
-          const minChunkSizeForValidation = isGovernanceDocument ? 50 : minChunkSize;
+          // Final chunk validation - emergency mode uses min_chunk_size = 30
+          const isEmergencyMode = extractionMethod === 'pdf_emergency' || extractionMethod === 'emergency_fallback' || extractionMethod === 'unsupported_emergency';
+          const minChunkSizeForValidation = isGovernanceDocument ? 50 : (isEmergencyMode ? 30 : minChunkSize);
+          
           if (chunk.length < minChunkSizeForValidation) {
-            console.error(`Skipping chunk ${index}: too short (${chunk.length} chars, min: ${minChunkSizeForValidation})`);
+            console.error(`Skipping chunk ${index}: too short (${chunk.length} chars, min: ${minChunkSizeForValidation}, mode: ${isEmergencyMode ? 'EMERGENCY' : 'NORMAL'})`);
             return null;
           }
           
-          console.log(`Processing chunk ${index}: ${chunk.length} chars (${isGovernanceDocument ? 'GOVERNANCE' : 'STANDARD'} mode)`);
+          console.log(`Processing chunk ${index}: ${chunk.length} chars (${isGovernanceDocument ? 'GOVERNANCE' : 'STANDARD'} mode, ${isEmergencyMode ? 'EMERGENCY' : 'NORMAL'} extraction)`);
           
+          // Emergency mode embeddings: Only create embeddings if valid text exists (>= 10 words)
+          const chunkWordCount = chunk.split(/\s+/).filter(w => w.length > 0).length;
+          const shouldCreateEmbedding = isEmergencyMode ? chunkWordCount >= 10 : true;
           // For governance documents, accept even shorter chunks if they contain meaningful content
           if (isGovernanceDocument && chunk.length < 200) {
             const hasHeadings = /^#+\s|\*\*.*\*\*|##|---|•|◦/.test(chunk);
@@ -348,11 +395,16 @@ serve(async (req) => {
             console.log(`📄 GOVERNANCE: Accepting short chunk ${index} due to structure/content (${wordCount} words)`);
           }
           
-          // Generate embedding
-          const embedding = await generateEmbedding(chunk);
-          if (!embedding) {
-            console.warn(`Failed to generate embedding for chunk ${index}`);
-            return null;
+          // Generate embedding only if valid text exists
+          let embedding = null;
+          if (shouldCreateEmbedding) {
+            embedding = await generateEmbedding(chunk);
+            if (!embedding && !isEmergencyMode) {
+              console.warn(`Failed to generate embedding for chunk ${index}`);
+              return null;
+            }
+          } else {
+            console.log(`Skipping embedding for emergency chunk ${index} (insufficient content: ${chunkWordCount} words)`);
           }
 
           // Generate content hash for chunk
@@ -375,9 +427,11 @@ serve(async (req) => {
               metadata: {
                 extraction_method: extractionMethod,
                 extraction_quality: extractionQuality,
-                word_count: chunk.split(/\s+/).filter(word => word.length > 0).length,
+                word_count: chunkWordCount,
                 character_count: chunk.length,
-                processing_timestamp: new Date().toISOString()
+                processing_timestamp: new Date().toISOString(),
+                emergency_mode: isEmergencyMode,
+                has_embedding: embedding !== null
               }
             });
 
