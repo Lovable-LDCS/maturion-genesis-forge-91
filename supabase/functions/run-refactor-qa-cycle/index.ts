@@ -70,9 +70,10 @@ serve(async (req) => {
           .from('refactor_qa_log')
           .insert(
             findings.map(finding => ({
-              ...finding,
               source_file: finding.sourceFile,
               finding_type: finding.findingType,
+              severity: finding.severity,
+              description: finding.description,
               recommended_action: finding.recommendedAction,
               organization_id: org.id,
               run_at: new Date().toISOString()
