@@ -15,6 +15,7 @@ import { usePolicyChangeLog } from '@/hooks/usePolicyChangeLog';
 import { supabase } from '@/integrations/supabase/client';
 import PolicyChangeLogTable from '@/components/admin/PolicyChangeLogTable';
 import CreatePolicyLogDialog from '@/components/admin/CreatePolicyLogDialog';
+import { PolicyLogDiagnosticPanel } from '@/components/admin/PolicyLogDiagnosticPanel';
 
 const MaturionKnowledgeBase: React.FC = () => {
   const { documents, loading, refreshDocuments, bulkDeleteDocuments, uploadDocument } = useMaturionDocuments();
@@ -642,6 +643,9 @@ After submitting a custom criterion:
               }))}
             />
           </div>
+          
+          <PolicyLogDiagnosticPanel />
+          
           <PolicyChangeLogTable 
             logs={logs} 
             loading={logsLoading} 
