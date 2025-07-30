@@ -621,8 +621,6 @@ serve(async (req) => {
     console.error('❌ Error stack:', error.stack);
     console.error('❌ Full error object:', JSON.stringify(error, null, 2));
     
-    let documentId: string | undefined;
-    
     // Try to extract documentId from the error context if possible
     try {
       const requestBody = await req.json();
