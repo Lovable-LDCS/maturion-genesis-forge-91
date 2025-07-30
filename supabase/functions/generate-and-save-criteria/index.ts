@@ -45,27 +45,31 @@ serve(async (req) => {
     // Prepare context for AI
     const documentContext = chunks.map(chunk => chunk.content).join('\n\n');
     
-    // Generate criteria using OpenAI
-    const prompt = `Based on the following MPS document content, generate 3-5 specific, measurable assessment criteria for "${mpsName}".
+    // Generate criteria using OpenAI with improved prompt
+    const prompt = `You are a security assessment expert. Based on the following MPS document content, generate 3-5 specific, measurable assessment criteria for "${mpsName}".
 
 Document Content:
 ${documentContext}
 
-Generate criteria in this exact JSON format:
+IMPORTANT: You must respond with ONLY valid JSON in this exact format (no additional text, explanations, or markdown):
+
 {
   "criteria": [
     {
-      "statement": "Clear, specific assessment criterion",
-      "summary": "Brief explanation of what this criterion measures"
+      "statement": "Clear, specific assessment criterion that directly relates to the MPS content",
+      "summary": "Brief explanation of what this criterion measures and why it matters"
     }
   ]
 }
 
 Make each criterion:
 - Specific and measurable
-- Directly related to the MPS content
+- Directly related to the provided MPS document content
 - Actionable for security assessments
-- Focused on practical implementation`;
+- Focused on practical implementation
+- Based on actual content from the document, not generic statements
+
+Respond with ONLY the JSON object, no other text.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -92,20 +96,40 @@ Make each criterion:
     
     console.log(`🤖 Generated AI content for MPS ${mpsNumber}`);
     
-    // Parse AI response
+    // Parse AI response with improved error handling
     let criteriaData;
     try {
-      criteriaData = JSON.parse(aiContent);
+      // Clean the AI response to remove any markdown or extra text
+      let cleanedContent = aiContent.trim();
+      if (cleanedContent.startsWith('```json')) {
+        cleanedContent = cleanedContent.replace(/```json\n?/, '').replace(/\n?```$/, '');
+      }
+      if (cleanedContent.startsWith('```')) {
+        cleanedContent = cleanedContent.replace(/```\n?/, '').replace(/\n?```$/, '');
+      }
+      
+      criteriaData = JSON.parse(cleanedContent);
+      
+      // Validate the structure
+      if (!criteriaData.criteria || !Array.isArray(criteriaData.criteria)) {
+        throw new Error('Invalid criteria structure');
+      }
+      
+      console.log(`✅ Successfully parsed AI response with ${criteriaData.criteria.length} criteria`);
     } catch (parseError) {
-      console.error('Failed to parse AI response, using fallback criteria');
+      console.error('Failed to parse AI response:', parseError);
+      console.error('Raw AI response:', aiContent);
+      
+      // Use fallback criteria only as last resort
       criteriaData = {
         criteria: [
           {
-            statement: `Assessment criterion for ${mpsName} implementation`,
-            summary: `Evaluate the organization's compliance with ${mpsName} requirements`
+            statement: `Assessment criterion for ${mpsName} implementation based on document analysis`,
+            summary: `Evaluate the organization's compliance with ${mpsName} requirements and implementation standards`
           }
         ]
       };
+      console.log('Using fallback criteria due to parsing failure');
     }
     
     // Save criteria to database
