@@ -611,7 +611,8 @@ serve(async (req) => {
     
     return new Response(JSON.stringify({ 
       success: true, 
-      message: `Document ${documentId} processed successfully` 
+      message: `Document ${documentId} processed successfully`,
+      ...result
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
