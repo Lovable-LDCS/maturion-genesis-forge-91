@@ -148,9 +148,19 @@ export async function getDocumentContext(organizationId: string, query: string, 
       return '';
     }
     
-    // Build context sections with prioritization
+    // Build context sections with prioritization and token limits
     const contextSections = [];
     const sourceDocuments = new Set();
+    
+    // Token estimation: roughly 4 characters per token
+    const MAX_CONTEXT_TOKENS = 8000; // Reserve tokens for prompt instructions
+    let currentTokens = 0;
+    
+    const truncateContent = (content: string, maxTokens: number = 2000): string => {
+      const maxChars = maxTokens * 4;
+      if (content.length <= maxChars) return content;
+      return content.substring(0, maxChars) + '...[truncated]';
+    };
     
     // Prioritize MPS-specific content if MPS number is provided
     if (mpsNumber) {
@@ -160,13 +170,19 @@ export async function getDocumentContext(organizationId: string, query: string, 
         result.content.includes(`${mpsNumber}.`) ||
         result.document_name.toLowerCase().includes(`mps ${mpsNumber}`) ||
         result.document_name.toLowerCase().includes(`mps${mpsNumber}`)
-      );
+      ).slice(0, 3); // Limit to top 3 most relevant
       
-      if (mpsSpecificResults.length > 0) {
+      if (mpsSpecificResults.length > 0 && currentTokens < MAX_CONTEXT_TOKENS) {
         contextSections.push(`=== MPS ${mpsNumber} SPECIFIC CONTENT ===`);
         mpsSpecificResults.forEach(result => {
-          contextSections.push(`[Document: ${result.document_name}] ${result.content}`);
-          sourceDocuments.add(result.document_name);
+          const truncatedContent = truncateContent(result.content, 800);
+          const tokenEstimate = Math.ceil(truncatedContent.length / 4);
+          
+          if (currentTokens + tokenEstimate < MAX_CONTEXT_TOKENS) {
+            contextSections.push(`[Document: ${result.document_name}] ${truncatedContent}`);
+            sourceDocuments.add(result.document_name);
+            currentTokens += tokenEstimate;
+          }
         });
         contextSections.push('');
       }
@@ -177,33 +193,45 @@ export async function getDocumentContext(organizationId: string, query: string, 
       (result.content.toLowerCase().includes('annex 1') ||
        result.content.toLowerCase().includes('annex i')) &&
       (!mpsNumber || !result.content.toLowerCase().includes(`mps ${mpsNumber}`))
-    );
+    ).slice(0, 2); // Limit to top 2 Annex 1 results
     
-    if (annex1Results.length > 0 && (!mpsNumber || mpsNumber === 1)) {
+    if (annex1Results.length > 0 && (!mpsNumber || mpsNumber === 1) && currentTokens < MAX_CONTEXT_TOKENS) {
       contextSections.push('=== AUTHORITATIVE MPS SOURCE (Annex 1) ===');
       annex1Results.forEach(result => {
-        contextSections.push(`[Document: ${result.document_name}] ${result.content}`);
-        sourceDocuments.add(result.document_name);
+        const truncatedContent = truncateContent(result.content, 1000);
+        const tokenEstimate = Math.ceil(truncatedContent.length / 4);
+        
+        if (currentTokens + tokenEstimate < MAX_CONTEXT_TOKENS) {
+          contextSections.push(`[Document: ${result.document_name}] ${truncatedContent}`);
+          sourceDocuments.add(result.document_name);
+          currentTokens += tokenEstimate;
+        }
       });
       contextSections.push('');
     }
     
-    // Add Annex 2 content if available and relevant
+    // Add Annex 2 content if available and relevant (only if space permits)
     const annex2Results = uniqueResults.filter(result => 
       result.content.toLowerCase().includes('annex 2') ||
       result.content.toLowerCase().includes('annex ii')
-    );
+    ).slice(0, 1); // Limit to 1 Annex 2 result
     
-    if (annex2Results.length > 0) {
+    if (annex2Results.length > 0 && currentTokens < MAX_CONTEXT_TOKENS * 0.8) {
       contextSections.push('=== MATURITY LEVEL FRAMEWORK (Annex 2) ===');
       annex2Results.forEach(result => {
-        contextSections.push(`[Document: ${result.document_name}] ${result.content}`);
-        sourceDocuments.add(result.document_name);
+        const truncatedContent = truncateContent(result.content, 600);
+        const tokenEstimate = Math.ceil(truncatedContent.length / 4);
+        
+        if (currentTokens + tokenEstimate < MAX_CONTEXT_TOKENS) {
+          contextSections.push(`[Document: ${result.document_name}] ${truncatedContent}`);
+          sourceDocuments.add(result.document_name);
+          currentTokens += tokenEstimate;
+        }
       });
       contextSections.push('');
     }
     
-    // Add remaining high-relevance content
+    // Add remaining high-relevance content (only if space permits)
     const usedResults = [...(mpsNumber ? uniqueResults.filter(r => 
       r.content.toLowerCase().includes(`mps ${mpsNumber}`) ||
       r.content.toLowerCase().includes(`mps${mpsNumber}`) ||
@@ -213,23 +241,37 @@ export async function getDocumentContext(organizationId: string, query: string, 
     const remainingResults = uniqueResults
       .filter(result => !usedResults.includes(result))
       .filter(result => !result.content.toLowerCase().includes('annex'))
-      .slice(0, 8);
+      .slice(0, 3); // Reduce from 8 to 3
     
-    if (remainingResults.length > 0) {
+    if (remainingResults.length > 0 && currentTokens < MAX_CONTEXT_TOKENS * 0.9) {
       contextSections.push('=== RELEVANT KNOWLEDGE BASE CONTENT ===');
       remainingResults.forEach(result => {
-        contextSections.push(`[Document: ${result.document_name}] ${result.content}`);
-        sourceDocuments.add(result.document_name);
+        const truncatedContent = truncateContent(result.content, 400);
+        const tokenEstimate = Math.ceil(truncatedContent.length / 4);
+        
+        if (currentTokens + tokenEstimate < MAX_CONTEXT_TOKENS) {
+          contextSections.push(`[Document: ${result.document_name}] ${truncatedContent}`);
+          sourceDocuments.add(result.document_name);
+          currentTokens += tokenEstimate;
+        }
       });
     }
     
-    console.log(`Built context from ${sourceDocuments.size} source documents: ${Array.from(sourceDocuments).join(', ')}`);
+    const finalContext = contextSections.join('\n');
+    const finalTokens = Math.ceil(finalContext.length / 4);
+    
+    console.log(`Built context from ${sourceDocuments.size} source documents (${finalTokens} tokens): ${Array.from(sourceDocuments).join(', ')}`);
     
     if (mpsNumber && sourceDocuments.size === 0) {
       console.warn(`No MPS ${mpsNumber} specific content found despite having ${completedDocs.length} completed documents`);
     }
     
-    return contextSections.join('\n');
+    if (finalTokens > MAX_CONTEXT_TOKENS) {
+      console.warn(`Context still exceeds token limit (${finalTokens} > ${MAX_CONTEXT_TOKENS}), truncating...`);
+      return finalContext.substring(0, MAX_CONTEXT_TOKENS * 4) + '\n...[CONTEXT TRUNCATED DUE TO TOKEN LIMIT]';
+    }
+    
+    return finalContext;
     
   } catch (error) {
     console.error('Error getting enhanced document context:', error);

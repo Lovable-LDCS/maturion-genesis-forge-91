@@ -120,61 +120,28 @@ export const useAIMPSGeneration = () => {
       const uniqueResults = Array.from(new Map(allResults.map(r => [r.id || r.content, r])).values());
       console.log(`🔄 After deduplication: ${uniqueResults.length} unique knowledge base results for ${domainName}`);
 
-      // Enhanced AI generation prompt with explicit MPS requirements
-      const enhancedPrompt = `CRITICAL: Extract ONLY the Mini Performance Standards (MPSs) for "${domainName}" domain from the KNOWLEDGE BASE CONTEXT above.
+      // Simplified and token-efficient prompt for MPS extraction
+      const enhancedPrompt = `Extract Mini Performance Standards for "${domainName}" from the document context.
 
-STRICT DOMAIN FILTERING RULES:
-- "${domainName}" domain should ONLY contain MPS numbers 1 through 5
-- Do NOT include MPSs outside this range (e.g., if MPS 13 or 14 appear, they belong to People & Culture, not Leadership & Governance)
-- Leadership & Governance = MPS 1-5 ONLY (must include ALL: MPS 1, MPS 2, MPS 3, MPS 4, MPS 5)
-- Process Integrity = MPS 6-10 ONLY  
-- People & Culture = MPS 11-14 ONLY
-- Protection = MPS 15-20 ONLY
-- Proof it Works = MPS 21-25 ONLY
+DOMAIN SCOPE: ${domainName} = MPS 1-5 only
+REQUIREMENTS:
+- Find MPS 1, 2, 3, 4, 5 from documents
+- Use exact titles from source documents
+- Create specific intents based on document content
+- Exclude generic phrases
 
-PRIORITY INSTRUCTIONS:
-1. SCAN ALL DOCUMENTS: Look through every document in the knowledge base context for ALL MPS numbers 1-5
-2. MANDATORY INCLUSION: You MUST include ALL MPSs found within the number range, including MPS 3 and MPS 5 if they exist in documents
-3. COMPREHENSIVE SEARCH: Look for patterns like "MPS 1", "MPS 2", "MPS 3", "MPS 4", "MPS 5" - include every single one found
-4. Use ONLY the exact MPS titles, numbers, and content from the knowledge base - DO NOT create new ones
-5. Maintain exact wording and numbering from source documents
-6. If an MPS number is outside the range 1-5, EXCLUDE it (it belongs to a different domain)
-7. Reference the source document name for each MPS
+Return concise JSON:
+[{"number": "1-5", "title": "exact from docs", "intent": "specific purpose", "source_document": "name", "knowledge_base_used": true}]
 
-INTENT STATEMENT REQUIREMENTS:
-- Create SPECIFIC intents for each MPS based on document content, NOT generic templates
-- AVOID: "ensure compliance with legal and regulatory requirements" unless MPS is specifically about legal/regulatory
-- USE: Actual document focus (e.g., "Leadership" = governance structures, "Risk Management" = risk processes, "Legal" = regulatory compliance)
-- Format: "Establish [specific purpose based on MPS focus] to [specific outcome] through [specific method from document]"
+Organization: ${currentOrganization.name}
+Documents: ${uniqueResults.slice(0, 3).map(r => r.document_name).join(', ')}`;
 
-For EVERY valid MPS numbered 1-5 found in the knowledge base for "${domainName}", provide:
-- Exact MPS number (as stated in documents, must be 1-5)
-- Exact title (as stated in documents) 
-- Intent statement (synthesized from document content - be specific to each MPS focus area)
-- Source document name
-- Rationale explaining why this MPS appears in the uploaded documentation
-
-Organization: ${currentOrganization.name || 'APGI'}
-Domain: ${domainName} (MPS 1-5 ONLY)
-Source Documents: ${uniqueResults.map(r => r.document_name || r.title || 'Unknown').join(', ')}
-
-Return JSON format:
-[
-  {
-    "number": "exact number from documents (must be MPS 1-5)",
-    "title": "exact title from documents", 
-    "intent": "from documents or derived from context",
-    "source_document": "document name",
-    "rationale": "why this MPS is specified in the uploaded documents",
-    "knowledge_base_used": true
-  }
-]`;
-
-      // Call AI generation with enhanced context
+      // Build token-efficient context with truncation
       const contextualPrompt = uniqueResults.length > 0 
-        ? `KNOWLEDGE BASE CONTEXT for ${domainName}:\n\n${uniqueResults.map(result => 
-            `[Document: ${result.document_name || result.title || 'Unknown'}] ${result.content || result.chunk_content || ''}`
-          ).join('\n\n')}\n\n\n---\n\n\n\n${enhancedPrompt}`
+        ? `KNOWLEDGE BASE CONTEXT:\n${uniqueResults.slice(0, 5).map(result => {
+            const content = (result.content || result.chunk_content || '').substring(0, 1000);
+            return `[${result.document_name}] ${content}${content.length >= 1000 ? '...' : ''}`;
+          }).join('\n\n')}\n\n---\n\n${enhancedPrompt}`
         : enhancedPrompt;
 
       console.log(`🤖 Generating MPSs with AI for ${domainName}...`);

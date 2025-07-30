@@ -409,9 +409,10 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
           { name: 'document_type_brackets', regex: /\[document_type\]/gi },
           { name: 'action_verb_brackets', regex: /\[action_verb\]/gi },
           { name: 'requirement_brackets', regex: /\[requirement\]/gi },
-          { name: 'criterion_letter', regex: /Criterion\s+[A-Z](?=\s|$)/gi },
-          { name: 'criterion_number', regex: /Criterion\s+[0-9]/gi },
-          { name: 'assessment_criterion', regex: /Assessment criterion/gi }
+          { name: 'specific_brackets', regex: /\[specific_[a-z_]+\]/gi },
+          { name: 'criterion_letter', regex: /\bCriterion\s+[A-Z](?=\s*$)/gi },
+          { name: 'criterion_number', regex: /\bCriterion\s+[0-9]+(?=\s*$)/gi },
+          { name: 'assessment_criterion', regex: /\bAssessment criterion\b/gi }
         ];
         
         let foundProblematicPatterns = [];

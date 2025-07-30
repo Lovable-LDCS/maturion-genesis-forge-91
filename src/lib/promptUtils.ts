@@ -59,25 +59,23 @@ export const buildAICriteriaPrompt = (mpsContext: MPSContext, orgContext: Organi
     return `CRITICAL MPS BINDING: Generate criteria ONLY for MPS ${mpsContext.mpsNumber} - ${mpsContext.mpsTitle}
 
 HARD REQUIREMENTS:
-- SOURCE: Only "MPS ${mpsContext.mpsNumber}" document content
+- SOURCE: Only "MPS ${mpsContext.mpsNumber}" document content from ACTUAL MPS DOCUMENT CONTENT section
 - TARGET: ${mpsContext.mpsTitle} domain EXCLUSIVELY  
 - ABORT: If no MPS ${mpsContext.mpsNumber} document context available, return: "ERROR: No MPS ${mpsContext.mpsNumber} document context available"
 - FORBIDDEN: Any reference to Annex 1, Leadership & Governance, or other MPS content
 
 EVIDENCE-FIRST FORMAT (MANDATORY):
 Every criterion MUST start with evidence type:
-- "A documented [document_type] that [action_verb] the [requirement] for ${mpsContext.mpsTitle.toLowerCase()} at ${orgContext.name}."
+- "A documented [specific_document_type] that [specific_action] the [specific_requirement] for ${mpsContext.mpsTitle.toLowerCase()} at ${orgContext.name}."
 
 Examples for ${mpsContext.mpsTitle}:
 - "A formal risk register that identifies and categorizes all operational risks for ${mpsContext.mpsTitle.toLowerCase()} at ${orgContext.name}."
 - "A documented policy that defines roles and responsibilities for ${mpsContext.mpsTitle.toLowerCase()} at ${orgContext.name}."
 
-VALIDATION RULES:
-1. Evidence-first format (start with "A documented/formal/quarterly...")
-2. Single action verbs only (no "establish and maintain")
-3. Organization name: ${orgContext.name}
-4. MPS-specific content only: ${mpsContext.mpsTitle}
-5. No placeholder text like "Assessment criterion" or "Criterion X"
+PROHIBITED CONTENT:
+- Generic phrases: "ensure compliance", "establish and maintain", "comprehensive framework"
+- Placeholder text: "Assessment criterion", "Criterion A/B/C", bracketed templates
+- Fallback language from other MPS documents
 
 OUTPUT: JSON array of 8-12 criteria objects with statement, summary, rationale, evidence_guidance, explanation fields.
 
@@ -113,15 +111,26 @@ export const validateCriteria = (criteria: any[], orgContext: OrganizationContex
     }
   });
 
-  // Check for prohibited placeholder text
+  // Check for prohibited placeholder text (excluding valid MPS patterns)
   criteria.forEach((criterion, index) => {
     const statement = criterion.statement || '';
     const summary = criterion.summary || '';
     
-    if (statement.includes('Assessment criterion') ||
-        statement.includes('Criterion ') ||
-        summary.includes('Summary for criterion') ||
-        statement.startsWith(orgContext.name + ' must')) {
+    // More specific placeholder detection - avoid false positives
+    const placeholderPatterns = [
+      /Assessment criterion/i,
+      /Criterion\s+[A-Z]$/i, // "Criterion A", "Criterion B" but not "criterion for..."
+      /Summary for criterion/i,
+      /\[.*\]/g, // Bracketed placeholders like [requirement]
+      /^\s*\d+\.\s*Criterion/i, // "1. Criterion..."
+      new RegExp(`^${orgContext.name}\\s+must\\s+`, 'i') // Org name must...
+    ];
+    
+    const hasProhibitedPattern = placeholderPatterns.some(pattern => {
+      return pattern.test(statement) || pattern.test(summary);
+    });
+    
+    if (hasProhibitedPattern) {
       hasPlaceholders = true;
       errors.push(`Criterion ${index + 1}: BLOCKED - Placeholder text detected`);
     }
