@@ -31,6 +31,7 @@ const POLICY_TYPES = [
 
 const DOMAIN_SCOPES = [
   'Global',
+  'Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems',
   'Leadership & Governance',
   'Process Integrity',
   'People & Culture',

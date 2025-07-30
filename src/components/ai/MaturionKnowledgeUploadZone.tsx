@@ -46,6 +46,14 @@ const domainOptions = [
   'Global Instruction – applies across all MPS and domains'
 ];
 
+// Special domain scope for governance documents
+const getDocumentTypeScope = (documentType: string) => {
+  if (documentType === 'governance_reasoning_manifest') {
+    return 'Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems';
+  }
+  return null;
+};
+
 const statusIcons = {
   pending: <Clock className="h-4 w-4 text-yellow-500" />,
   processing: <AlertCircle className="h-4 w-4 text-blue-500" />,
@@ -128,13 +136,18 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
       // Auto-populate title from first file if empty
       const fileTitle = title || file.name.replace(/\.[^/.]+$/, '');
       
+      // Auto-assign domain for governance documents
+      const finalDomain = selectedDocumentType === 'governance_reasoning_manifest' 
+        ? 'Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems'
+        : selectedDomain || undefined;
+      
       await uploadDocument(
         file, 
         selectedDocumentType, 
         currentOrganization!.id, 
         user!.id,
         fileTitle,
-        selectedDomain || undefined,
+        finalDomain,
         tags || undefined,
         uploadNotes || undefined
       );
@@ -419,24 +432,35 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
               {selectedDocumentType === 'mps_document' && (
                 <span className="text-primary ml-1">- Recommended for MPS</span>
               )}
+              {selectedDocumentType === 'governance_reasoning_manifest' && (
+                <span className="text-primary ml-1">- Auto-assigned global scope</span>
+              )}
             </Label>
             <div className="flex gap-2">
-              <Select
-                value={selectedDomain}
-                onValueChange={setSelectedDomain}
-              >
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Select a domain..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {domainOptions.map((domain) => (
-                    <SelectItem key={domain} value={domain}>
-                      {domain}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedDomain && (
+              {selectedDocumentType === 'governance_reasoning_manifest' ? (
+                <div className="flex-1 p-3 bg-primary/10 rounded-md border">
+                  <span className="text-sm font-medium text-primary">
+                    Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems
+                  </span>
+                </div>
+              ) : (
+                <Select
+                  value={selectedDomain}
+                  onValueChange={setSelectedDomain}
+                >
+                  <SelectTrigger className="flex-1">
+                    <SelectValue placeholder="Select a domain..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {domainOptions.map((domain) => (
+                      <SelectItem key={domain} value={domain}>
+                        {domain}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {selectedDomain && selectedDocumentType !== 'governance_reasoning_manifest' && (
                 <ClearButton
                   type="button"
                   variant="outline"
