@@ -255,7 +255,9 @@ serve(async (req) => {
         }
       }
       
-      console.log(`✅ AI Policy validation passed: ${extractedText.length} chars, extraction: ${extractionMethod}`);
+      // Calculate word count for later use
+      const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
+      console.log(`✅ AI Policy validation passed: ${extractedText.length} chars, ${wordCount} words, extraction: ${extractionMethod}`);
       console.log(`📄 Validation mode: ${isGovernanceDocument ? 'RELAXED (governance)' : 'STRICT (standard)'}`);
 
       // Clean and normalize the text
@@ -316,11 +318,27 @@ serve(async (req) => {
       let successfulChunks = 0;
       const chunkPromises = chunks.map(async (chunk, index) => {
         try {
-          // Final chunk validation - relaxed for governance documents
-          const minChunkSizeForValidation = isGovernanceDocument ? 100 : minChunkSize;
+          // Final chunk validation - much more relaxed for governance documents
+          const minChunkSizeForValidation = isGovernanceDocument ? 50 : minChunkSize;
           if (chunk.length < minChunkSizeForValidation) {
-            console.warn(`Skipping chunk ${index}: too short (${chunk.length} chars, min: ${minChunkSizeForValidation})`);
+            console.error(`Skipping chunk ${index}: too short (${chunk.length} chars, min: ${minChunkSizeForValidation})`);
             return null;
+          }
+          
+          console.log(`Processing chunk ${index}: ${chunk.length} chars (${isGovernanceDocument ? 'GOVERNANCE' : 'STANDARD'} mode)`);
+          
+          // For governance documents, accept even shorter chunks if they contain meaningful content
+          if (isGovernanceDocument && chunk.length < 200) {
+            const hasHeadings = /^#+\s|\*\*.*\*\*|##|---|•|◦/.test(chunk);
+            const hasStructure = /:|;|\.|,|\(|\)/.test(chunk);
+            const wordCount = chunk.split(/\s+/).filter(w => w.length > 0).length;
+            
+            if (wordCount < 5 && !hasHeadings && !hasStructure) {
+              console.error(`Skipping governance chunk ${index}: insufficient content (${wordCount} words, no structure)`);
+              return null;
+            }
+            
+            console.log(`📄 GOVERNANCE: Accepting short chunk ${index} due to structure/content (${wordCount} words)`);
           }
           
           // Generate embedding
