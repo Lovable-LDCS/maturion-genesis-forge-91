@@ -366,67 +366,88 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
         throw new Error(`No criteria generated. Document chunks unavailable or insufficient content quality. Please check document visibility, processing status, or contact support. Chunks found: ${contextSearch.data?.results?.length || 0}, Valid chunks: ${chunkValidationDetails.filter(c => c.hasMinContent).length}`);
       }
 
-      // ✅ VALIDATION 4: Enhanced QA Block Validation with Full Logging
+      // ✅ VALIDATION 4: Enhanced QA Block Validation with Full Debugging
       console.log(`🔍 VALIDATION 4: Final prompt QA validation before AI call`);
       console.log(`🎯 FINAL PROMPT LENGTH: ${finalPrompt.length} characters`);
-      console.log(`🎯 FINAL PROMPT PREVIEW (first 500 chars):`, finalPrompt.slice(0, 500) + '...');
       
-      // 🚨 COMPREHENSIVE PROMPT DEBUGGING
-      console.log(`🚨 === FULL PROMPT DEBUG (MPS ${mps.mps_number}) ===`);
-      console.log(`📝 COMPLETE PROMPT CONTENT:`, finalPrompt);
-      console.log(`🚨 === END PROMPT DEBUG ===`);
+      // 🚨 COMPREHENSIVE PROMPT DEBUGGING - Show EVERYTHING
+      console.log(`\n🚨 === COMPLETE PROMPT ANALYSIS (MPS ${mps.mps_number}) ===`);
+      console.log(`📝 RAW FINAL PROMPT:`);
+      console.log(`${finalPrompt}`);
+      console.log(`🚨 === END RAW PROMPT ===\n`);
+      
+      // Show the document content section specifically
+      const documentContentMatch = finalPrompt.match(/ACTUAL MPS DOCUMENT CONTENT:([\s\S]*?)(?=STRICT REQUIREMENTS:|$)/);
+      if (documentContentMatch) {
+        console.log(`📄 DOCUMENT CONTENT SECTION (${documentContentMatch[1].length} chars):`);
+        console.log(`"${documentContentMatch[1].substring(0, 500)}${documentContentMatch[1].length > 500 ? '...' : ''}"`);
+      } else {
+        console.log(`❌ NO DOCUMENT CONTENT SECTION FOUND`);
+      }
       
       // Extract only our generated instructions (not document content) for validation
       const documentContentRegex = /ACTUAL MPS DOCUMENT CONTENT:[\s\S]*?(?=STRICT REQUIREMENTS:|$)/g;
-      const ourPromptInstructions = finalPrompt.replace(documentContentRegex, '[DOCUMENT_CONTENT_REMOVED_FOR_VALIDATION]');
+      const ourPromptInstructions = finalPrompt.replace(documentContentRegex, '[DOCUMENT_CONTENT_STRIPPED_FOR_VALIDATION]');
       
-      console.log(`🔍 ISOLATED PROMPT INSTRUCTIONS (for validation):`, ourPromptInstructions);
+      console.log(`\n🔍 ISOLATED PROMPT INSTRUCTIONS (for validation, ${ourPromptInstructions.length} chars):`);
+      console.log(`"${ourPromptInstructions}"`);
       
-      // More specific placeholder detection - only check for problematic patterns in OUR instructions
+      // Test each problematic pattern individually and show exact matches
       const problematicPatterns = [
-        /\[document_type\]/gi,
-        /\[action_verb\]/gi, 
-        /\[requirement\]/gi,
-        /Criterion\s+[A-Z](?=\s|$)/gi,  // More specific - must be followed by space or end
-        /Assessment criterion/gi
+        { name: 'document_type_brackets', regex: /\[document_type\]/gi },
+        { name: 'action_verb_brackets', regex: /\[action_verb\]/gi },
+        { name: 'requirement_brackets', regex: /\[requirement\]/gi },
+        { name: 'criterion_letter', regex: /Criterion\s+[A-Z](?=\s|$)/gi },
+        { name: 'criterion_number', regex: /Criterion\s+[0-9]/gi },
+        { name: 'assessment_criterion', regex: /Assessment criterion/gi }
       ];
       
       let foundProblematicPatterns = [];
-      let hasRealPlaceholders = false;
+      let exactMatches = [];
       
-      problematicPatterns.forEach((pattern, index) => {
-        const matches = ourPromptInstructions.match(pattern);
+      problematicPatterns.forEach(({ name, regex }) => {
+        const matches = ourPromptInstructions.match(regex);
         if (matches) {
-          foundProblematicPatterns.push({
-            pattern: pattern.source,
-            matches: matches,
-            count: matches.length
-          });
-          hasRealPlaceholders = true;
+          foundProblematicPatterns.push({ name, matches, count: matches.length });
+          exactMatches.push(...matches);
+          console.log(`🚨 PATTERN "${name}" FOUND ${matches.length} times:`, matches);
+        } else {
+          console.log(`✅ PATTERN "${name}" - NOT FOUND`);
         }
       });
       
-      if (hasRealPlaceholders) {
-        console.error(`🚨 POTENTIAL PLACEHOLDER PATTERNS DETECTED:`, foundProblematicPatterns);
-        console.error(`🔍 Full prompt for manual review:`, finalPrompt);
-        
-        // Instead of hard-blocking, log warning and continue with sanitized prompt
-        console.warn(`⚠️ PROCEEDING WITH CAUTION: Detected patterns may be false positives`);
-        console.warn(`⚠️ Manual verification recommended for prompt quality`);
-        
-        // Sanitize the prompt by removing any actual placeholders if found
-        let sanitizedPrompt = finalPrompt;
-        problematicPatterns.forEach(pattern => {
-          sanitizedPrompt = sanitizedPrompt.replace(pattern, '[PLACEHOLDER_REMOVED]');
+      // Show exactly where in the prompt these patterns occur
+      if (exactMatches.length > 0) {
+        console.log(`\n🎯 EXACT MATCH LOCATIONS:`);
+        exactMatches.forEach(match => {
+          const index = ourPromptInstructions.indexOf(match);
+          const contextStart = Math.max(0, index - 100);
+          const contextEnd = Math.min(ourPromptInstructions.length, index + match.length + 100);
+          const context = ourPromptInstructions.substring(contextStart, contextEnd);
+          console.log(`🔍 Match "${match}" at position ${index}:`);
+          console.log(`   Context: "...${context}..."`);
         });
+      }
+      
+      // **TEMPORARILY DISABLE BLOCKING** - Log warning and continue
+      if (foundProblematicPatterns.length > 0) {
+        console.error(`🚨 PLACEHOLDER PATTERNS DETECTED - BUT CONTINUING FOR DEBUGGING`);
+        console.error(`🔍 Found patterns:`, foundProblematicPatterns);
+        console.error(`🔍 This would normally block generation, but we're allowing it for debugging`);
         
-        if (sanitizedPrompt !== finalPrompt) {
-          console.log(`🔧 PROMPT SANITIZED: Removed ${finalPrompt.length - sanitizedPrompt.length} characters`);
-          finalPrompt = sanitizedPrompt;
-        }
+        // Set a flag to show this was a problematic prompt
+        (window as any).maturionDebug = (window as any).maturionDebug || {};
+        (window as any).maturionDebug.lastProblematicPrompt = {
+          mpsNumber: mps.mps_number,
+          patterns: foundProblematicPatterns,
+          fullPrompt: finalPrompt,
+          timestamp: new Date().toISOString()
+        };
+        
+        console.warn(`⚠️ DEBUG MODE: Allowing potentially problematic prompt to proceed`);
+        console.warn(`⚠️ Check window.maturionDebug.lastProblematicPrompt for details`);
       } else {
         console.log(`✅ PROMPT VALIDATION PASSED: No problematic placeholder patterns detected`);
-        console.log(`🔍 Validation performed on instructions only (document content excluded)`);
       }
 
       const prompt = finalPrompt;
