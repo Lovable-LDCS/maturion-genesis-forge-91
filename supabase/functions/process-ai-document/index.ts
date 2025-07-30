@@ -86,7 +86,7 @@ serve(async (req) => {
       // Get the document information
       const { data: document, error: docError } = await supabase
         .from('ai_documents')
-        .select('file_path, file_name, title, mime_type, organization_id')
+        .select('file_path, file_name, title, mime_type, organization_id, document_type')
         .eq('id', documentId)
         .single();
 
@@ -95,6 +95,13 @@ serve(async (req) => {
       }
 
       console.log(`Document found: ${document.title} (${document.mime_type})`);
+      console.log(`Document type: ${document.document_type}`);
+      
+      // Check if this is a governance document requiring relaxed validation
+      const isGovernanceDocument = document.document_type === 'governance_reasoning_manifest';
+      if (isGovernanceDocument) {
+        console.log('📄 Manifest fallback mode activated - Relaxed validation for governance document');
+      }
 
       // Download the file from Supabase storage
       const { data: fileData, error: fileError } = await supabase
@@ -186,7 +193,7 @@ serve(async (req) => {
         throw new Error(`Unsupported file type: ${document.mime_type}. Enhanced pipeline only supports DOCX, TXT, and MD files.`);
       }
 
-      // AI POLICY VALIDATION: Enhanced corruption detection
+      // AI POLICY VALIDATION: Enhanced corruption detection (relaxed for governance documents)
       console.log('🔍 Applying AI Policy validation...');
       console.log(`🔍 DEBUG: Text length: ${extractedText.length} characters, method: ${extractionMethod}`);
       
@@ -200,32 +207,56 @@ serve(async (req) => {
                                 extractedText.includes('\x00') ||
                                 extractedText.includes('��');
       
-      // STRICT validation based on AI Policy
+      // VALIDATION based on document type
       console.log(`🔍 DEBUG: Validation checks - Binary ratio: ${(binaryContentRatio * 100).toFixed(2)}%, XML artifacts: ${hasXMLArtifacts}, Corruption markers: ${hasCorruptedMarkers}`);
       
-      if (binaryContentRatio > 0.1) {
-        throw new Error(`BLOCKED: High binary content ratio (${(binaryContentRatio * 100).toFixed(1)}%) - AI Policy violation`);
+      if (!isGovernanceDocument) {
+        // Strict validation for regular documents
+        if (binaryContentRatio > 0.1) {
+          throw new Error(`BLOCKED: High binary content ratio (${(binaryContentRatio * 100).toFixed(1)}%) - AI Policy violation`);
+        }
+        
+        if (hasXMLArtifacts) {
+          throw new Error('BLOCKED: XML artifacts detected - AI Policy violation. Enhanced Mammoth.js should have prevented this.');
+        }
+        
+        if (hasCorruptedMarkers) {
+          throw new Error('BLOCKED: File corruption markers detected - AI Policy violation');
+        }
+        
+        if (extractedText.length < minChunkSize) {
+          throw new Error(`BLOCKED: Content too short (${extractedText.length} chars, minimum ${minChunkSize}) - AI Policy violation`);
+        }
+        
+        // Additional content quality checks
+        const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
+        if (wordCount < 50) {
+          throw new Error(`BLOCKED: Insufficient word count (${wordCount} words) - AI Policy violation`);
+        }
+      } else {
+        // Relaxed validation for governance documents
+        console.log('📄 GOVERNANCE DOCUMENT: Applying relaxed validation rules');
+        
+        if (binaryContentRatio > 0.3) { // More lenient
+          throw new Error(`BLOCKED: Extremely high binary content ratio (${(binaryContentRatio * 100).toFixed(1)}%) - Even governance documents must be readable`);
+        }
+        
+        if (hasCorruptedMarkers) {
+          console.warn('⚠️ GOVERNANCE: Corruption markers detected but proceeding due to governance document type');
+        }
+        
+        if (extractedText.length < 200) { // Much lower minimum
+          throw new Error(`BLOCKED: Content too short (${extractedText.length} chars, minimum 200 for governance docs)`);
+        }
+        
+        const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
+        if (wordCount < 20) { // Much lower minimum
+          throw new Error(`BLOCKED: Insufficient word count (${wordCount} words, minimum 20 for governance docs)`);
+        }
       }
       
-      if (hasXMLArtifacts) {
-        throw new Error('BLOCKED: XML artifacts detected - AI Policy violation. Enhanced Mammoth.js should have prevented this.');
-      }
-      
-      if (hasCorruptedMarkers) {
-        throw new Error('BLOCKED: File corruption markers detected - AI Policy violation');
-      }
-      
-      if (extractedText.length < minChunkSize) {
-        throw new Error(`BLOCKED: Content too short (${extractedText.length} chars, minimum ${minChunkSize}) - AI Policy violation`);
-      }
-      
-      // Additional content quality checks
-      const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
-      if (wordCount < 50) {
-        throw new Error(`BLOCKED: Insufficient word count (${wordCount} words) - AI Policy violation`);
-      }
-      
-      console.log(`✅ AI Policy validation passed: ${extractedText.length} chars, ${wordCount} words, extraction: ${extractionMethod}`);
+      console.log(`✅ AI Policy validation passed: ${extractedText.length} chars, extraction: ${extractionMethod}`);
+      console.log(`📄 Validation mode: ${isGovernanceDocument ? 'RELAXED (governance)' : 'STRICT (standard)'}`);
 
       // Clean and normalize the text
       extractedText = extractedText
@@ -236,12 +267,37 @@ serve(async (req) => {
 
       console.log(`Text extraction complete. Length: ${extractedText.length} characters`);
 
-      // Split text into chunks with enhanced logic
-      const chunks = splitTextIntoChunks(extractedText, targetChunkSize, 200);
-      console.log(`Text split into ${chunks.length} chunks`);
+      // Split text into chunks with enhanced logic for governance documents
+      let chunks = [];
+      
+      if (isGovernanceDocument) {
+        console.log('📄 GOVERNANCE: Applying enhanced chunking for concept-heavy document');
+        chunks = splitGovernanceTextIntoChunks(extractedText, targetChunkSize, 200);
+        console.log(`📄 GOVERNANCE: Initial chunking created ${chunks.length} chunks`);
+        
+        // Fallback chunking if no semantic chunks created
+        if (chunks.length === 0) {
+          console.log('📄 GOVERNANCE: No semantic chunks created, applying fallback chunking');
+          chunks = splitFallbackChunks(extractedText, 800, 100); // 800-1000 character chunks
+          console.log(`📄 GOVERNANCE: Fallback chunking created ${chunks.length} chunks`);
+        }
+      } else {
+        chunks = splitTextIntoChunks(extractedText, targetChunkSize, 200);
+      }
+      
+      console.log(`Text split into ${chunks.length} chunks (mode: ${isGovernanceDocument ? 'GOVERNANCE' : 'STANDARD'})`);
 
       if (chunks.length === 0) {
-        throw new Error('No valid chunks created from document content');
+        if (isGovernanceDocument) {
+          // One more fallback for governance docs - just split by paragraphs
+          console.log('📄 GOVERNANCE: Final fallback - splitting by paragraphs');
+          chunks = extractedText.split(/\n\s*\n/).filter(chunk => chunk.trim().length > 100);
+          console.log(`📄 GOVERNANCE: Paragraph split created ${chunks.length} chunks`);
+        }
+        
+        if (chunks.length === 0) {
+          throw new Error('No valid chunks created from document content');
+        }
       }
 
       // Clear any existing chunks for this document (for reprocessing)
@@ -260,9 +316,10 @@ serve(async (req) => {
       let successfulChunks = 0;
       const chunkPromises = chunks.map(async (chunk, index) => {
         try {
-          // Final chunk validation
-          if (chunk.length < minChunkSize) {
-            console.warn(`Skipping chunk ${index}: too short (${chunk.length} chars)`);
+          // Final chunk validation - relaxed for governance documents
+          const minChunkSizeForValidation = isGovernanceDocument ? 100 : minChunkSize;
+          if (chunk.length < minChunkSizeForValidation) {
+            console.warn(`Skipping chunk ${index}: too short (${chunk.length} chars, min: ${minChunkSizeForValidation})`);
             return null;
           }
           
@@ -475,4 +532,78 @@ async function generateEmbedding(text: string): Promise<number[] | null> {
     console.error('Error generating embedding:', error);
     return null;
   }
+}
+
+// Enhanced governance document chunking function
+function splitGovernanceTextIntoChunks(text: string, chunkSize: number, overlap: number): string[] {
+  const chunks: string[] = [];
+  
+  // First try to split by headings and structure
+  const sections = text.split(/(?=^#{1,6}\s|\n•|\n-|\n\d+\.|\nSection|\nChapter)/gm);
+  
+  for (const section of sections) {
+    const trimmedSection = section.trim();
+    if (trimmedSection.length === 0) continue;
+    
+    if (trimmedSection.length <= chunkSize) {
+      // Section fits in one chunk
+      chunks.push(trimmedSection);
+    } else {
+      // Split large sections by paragraphs
+      const paragraphs = trimmedSection.split(/\n\s*\n/);
+      let currentChunk = '';
+      
+      for (const paragraph of paragraphs) {
+        if ((currentChunk + paragraph).length <= chunkSize) {
+          currentChunk += (currentChunk ? '\n\n' : '') + paragraph;
+        } else {
+          if (currentChunk) {
+            chunks.push(currentChunk.trim());
+          }
+          currentChunk = paragraph;
+        }
+      }
+      
+      if (currentChunk.trim()) {
+        chunks.push(currentChunk.trim());
+      }
+    }
+  }
+  
+  return chunks.filter(chunk => chunk.length > 100); // Filter very short chunks
+}
+
+// Fallback chunking for when semantic splitting fails
+function splitFallbackChunks(text: string, chunkSize: number, overlap: number): string[] {
+  const chunks: string[] = [];
+  let startIndex = 0;
+  
+  while (startIndex < text.length) {
+    const endIndex = Math.min(startIndex + chunkSize, text.length);
+    let chunk = text.slice(startIndex, endIndex);
+    
+    // Try to end at a sentence boundary if possible
+    if (endIndex < text.length) {
+      const nextPeriod = chunk.lastIndexOf('.');
+      const nextNewline = chunk.lastIndexOf('\n');
+      const boundary = Math.max(nextPeriod, nextNewline);
+      
+      if (boundary > chunkSize * 0.7) { // Don't truncate too much
+        chunk = chunk.slice(0, boundary + 1);
+      }
+    }
+    
+    if (chunk.trim().length > 50) { // Very relaxed minimum for governance docs
+      chunks.push(chunk.trim());
+    }
+    
+    startIndex += chunk.length - overlap;
+    
+    // Safety check
+    if (startIndex <= 0) {
+      startIndex = endIndex;
+    }
+  }
+  
+  return chunks;
 }
