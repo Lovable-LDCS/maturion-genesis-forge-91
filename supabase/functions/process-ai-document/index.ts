@@ -282,6 +282,7 @@ serve(async (req) => {
          if (strictWordCount < emergencyMinWords) {
            throw new Error(`BLOCKED: Insufficient word count (${strictWordCount} words, minimum ${emergencyMinWords}) - AI Policy violation`);
          }
+        }
        } else {
          // Relaxed validation for governance documents
          console.log('📄 GOVERNANCE DOCUMENT: Applying relaxed validation rules');
