@@ -142,6 +142,43 @@ export function AIGeneratedCriteriaCards({ mps, onCriteriaChange }: AIGeneratedC
     return cleaned;
   }, []);
 
+  // 🔒 EVIDENCE ARTIFACT VALIDATOR: Check and rewrite non-compliant criteria
+  const validateEvidenceArtifacts = useCallback((criteria: any[]): any[] => {
+    console.log('🔍 VALIDATING EVIDENCE ARTIFACTS in generated criteria...');
+    
+    const validStarters = [
+      'A documented', 'A formal', 'A current', 'A comprehensive', 'A detailed',
+      'A written', 'A approved', 'A maintained', 'A updated', 'A complete'
+    ];
+    
+    const validatedCriteria = criteria.map((criterion, index) => {
+      const statement = criterion.statement || '';
+      const startsWithEvidence = validStarters.some(starter => 
+        statement.toLowerCase().startsWith(starter.toLowerCase())
+      );
+      
+      if (!startsWithEvidence) {
+        console.warn(`🚨 CRITERION ${index + 1} FAILED EVIDENCE-FIRST VALIDATION:`, statement.substring(0, 100));
+        
+        // Auto-rewrite with evidence artifact structure
+        const rewrittenStatement = `A documented policy that addresses ${statement.toLowerCase()}`;
+        console.log(`🔧 AUTO-REWRITTEN TO:`, rewrittenStatement);
+        
+        return {
+          ...criterion,
+          statement: rewrittenStatement,
+          ai_decision_log: `${criterion.ai_decision_log || ''} | AUTO-REWRITTEN: Original failed evidence-first validation`
+        };
+      } else {
+        console.log(`✅ CRITERION ${index + 1} PASSED:`, statement.substring(0, 100));
+        return criterion;
+      }
+    });
+    
+    console.log(`🔍 VALIDATION COMPLETE: ${criteria.length} criteria processed`);
+    return validatedCriteria;
+  }, []);
+
   const generateAICriteria = useCallback(async (customPrompt?: string) => {
     if (!currentOrganization?.id || !user || isGenerating) return;
 
@@ -174,84 +211,52 @@ export function AIGeneratedCriteriaCards({ mps, onCriteriaChange }: AIGeneratedC
         console.warn(`⚠️ Limited context for MPS ${mps.mps_number} - AI will use enhanced reasoning`);
       }
 
-      // Build the prompt with ULTRA-STRICT evidence-first enforcement
+      // Build the prompt with TEMPLATE-ENFORCED evidence-first structure
       const finalPrompt = customPrompt || `
 Generate professional assessment criteria for **${mps.name}** (MPS ${mps.mps_number}) at ${organizationContext.name}.
 
-**CONTEXT:**
-- Target organization: ${organizationContext.name}
-- ABSOLUTE PROHIBITION: Never use placeholder patterns like "Assessment criterion" or generic templates
+🚨 DO NOT START with actors, departments, or verbs like "Ensure," "Verify," "Establish," "The organization," "Management," "Leadership," "Staff," "Personnel," "Teams," or any organizational entity. Always start with the evidence artifact.
 
-**🔴 ULTRA-CRITICAL EVIDENCE-FIRST FORMAT ENFORCEMENT:**
+🔴 MANDATORY TEMPLATE - USE THIS EXACT STRUCTURE FOR EVERY CRITERION:
 
-🚨 MANDATORY SENTENCE STRUCTURE - NO EXCEPTIONS:
-Every single criterion MUST start with: "A [EVIDENCE_TYPE] [DOCUMENT_NOUN] that [ACTION_VERB]..."
+A [documented/formal/current/comprehensive/detailed/written/approved/maintained/updated/complete] [policy/report/procedure/framework/assessment/analysis/review/register/record/log/matrix/standard/guideline/charter/plan/dashboard/audit] that [contextual detail].
 
-🚨 REQUIRED EVIDENCE TYPES (choose ONE):
-documented, formal, quarterly, annual, comprehensive, detailed, written, approved, maintained, updated, current, complete
+🔴 TEMPLATE EXAMPLES (COPY THIS FORMAT EXACTLY):
+- A documented leadership policy that establishes delegation roles for ${organizationContext.name} governance oversight.
+- A formal quarterly ExCo report that outlines KPIs reviewed by senior management for ${mpsContext.mpsTitle.toLowerCase()}.
+- A current staff survey summary that highlights gaps in cultural alignment at ${organizationContext.name}.
+- A comprehensive risk register that documents identified threats relevant to ${mpsContext.mpsTitle.toLowerCase()}.
+- A detailed training record that tracks leadership development completion rates for ${organizationContext.name}.
+- A written succession plan that identifies key leadership replacement strategies for ${mpsContext.mpsTitle.toLowerCase()}.
 
-🚨 REQUIRED DOCUMENT NOUNS (choose ONE):
-policy, procedure, report, assessment, analysis, review, register, record, log, matrix, framework, standard, guideline, charter, plan, dashboard, audit
-
-🚨 SENTENCE CONSTRUCTION RULES:
-1. ALWAYS start with "A" (article)
-2. IMMEDIATELY follow with evidence type (documented/formal/etc.)
-3. IMMEDIATELY follow with document noun (policy/report/etc.)
-4. Use "that" to connect to action
+🔴 SENTENCE CONSTRUCTION TEMPLATE:
+1. Always start with "A"
+2. Choose ONE qualifier: documented, formal, current, comprehensive, detailed, written, approved, maintained, updated, complete
+3. Choose ONE document type: policy, report, procedure, framework, assessment, analysis, review, register, record, log, matrix, standard, guideline, charter, plan, dashboard, audit
+4. Add "that" connector
 5. Complete with specific requirement
 
-✅ PERFECT EXAMPLES (copy this format exactly):
-- "A documented leadership policy that establishes governance oversight responsibilities for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
-- "A formal quarterly report that demonstrates board engagement in strategic security decisions for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
-- "A current KPI dashboard that tracks leadership performance metrics for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
-- "A comprehensive risk register that documents identified threats relevant to ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
+🚨 VALIDATION CHECKLIST - BEFORE WRITING EACH CRITERION:
+□ Does it start with "A [qualifier] [document_type]"?
+□ Is it a tangible, auditable artifact?
+□ Does it avoid organizational actors?
+□ Does it reference something you can physically examine?
 
-🚨 ABSOLUTELY FORBIDDEN STARTERS (INSTANT REJECTION):
-❌ "${organizationContext.name} must..."
-❌ "${organizationContext.name} has..."  
-❌ "${organizationContext.name} maintains..."
+🔴 FORBIDDEN PATTERNS (INSTANT REJECTION):
 ❌ "The organization..."
 ❌ "Management..."
 ❌ "Leadership..."
-❌ "Executive team..."
-❌ "Board of directors..."
-❌ "Senior management..."
-❌ "The company..."
-❌ "Staff..."
-❌ "Personnel..."
-❌ "Employees..."
-❌ "Teams..."
-❌ "Departments..."
-❌ "Systems..."
-❌ "Processes..."
-❌ "Controls..."
-❌ ANY organizational entity or actor
+❌ "${organizationContext.name} must..."
+❌ "Staff should..."
+❌ "Personnel will..."
+❌ "Teams ensure..."
+❌ "Departments maintain..."
+❌ "Systems provide..."
+❌ "Processes include..."
 
-🔴 PRE-GENERATION VALIDATION:
-Before writing each criterion:
-1. Check: Does it start with "A [evidence_type] [document_noun]"?
-2. If NO: Rewrite to start with "A documented policy" or "A formal procedure"
-3. If YES: Continue with "that [action_verb] [specific_requirement]"
+Generate exactly 8-12 criteria following the template. Each criterion MUST start with "A [qualifier] [document_type] that":
 
-🔴 EVIDENCE ARTIFACT FOCUS:
-Each criterion must reference a tangible, auditable item:
-- Documents you can hold/read
-- Reports you can review
-- Records you can examine
-- Dashboards you can view
-- Policies you can reference
-
-🔴 FINAL VALIDATION CHECK:
-After generating all criteria, verify each one:
-- Starts with "A [approved_evidence_type] [approved_document_noun]"
-- No organizational actors in opening position
-- Describes tangible evidence artifacts
-- References specific, auditable items
-
-Generate 8-12 specific criteria in JSON format. Each "statement" field MUST follow the evidence-first pattern:
-[{"statement": "A [evidence_type] [document_noun] that [action] [requirement] for [context]", "summary": "brief explanation of what this evidence demonstrates"}]
-
-🚨 REMINDER: If any criterion doesn't start with "A [evidence_type] [document_noun]", it will be AUTOMATICALLY REJECTED by the validation system.`;
+[{"statement": "A [qualifier] [document_type] that [specific_requirement]", "summary": "Brief explanation of what this evidence demonstrates"}]`;
 
       // 🚨 CRITICAL: Clean placeholder patterns before sending to AI
       const cleanedPrompt = cleanPlaceholderPatterns(finalPrompt);
@@ -311,15 +316,19 @@ Generate 8-12 specific criteria in JSON format. Each "statement" field MUST foll
         throw new Error('AI response is not an array of criteria');
       }
 
-      const validationResult = validateCriteria(parsedCriteria, organizationContext, mpsContext);
+      // 🔒 APPLY EVIDENCE ARTIFACT VALIDATION AND AUTO-REWRITING
+      console.log('🔍 APPLYING EVIDENCE ARTIFACT VALIDATION...');
+      const evidenceValidatedCriteria = validateEvidenceArtifacts(parsedCriteria);
+
+      const validationResult = validateCriteria(evidenceValidatedCriteria, organizationContext, mpsContext);
       
       if (!validationResult.isValid) {
-        console.error('Criteria validation failed:', validationResult.errors);
+        console.error('Criteria validation failed after evidence validation:', validationResult.errors);
         setError(`Generated criteria failed validation: ${validationResult.errors.join(', ')}`);
         return;
       }
 
-      const formattedCriteria: Criterion[] = parsedCriteria.map((criterion, index) => ({
+      const formattedCriteria: Criterion[] = evidenceValidatedCriteria.map((criterion, index) => ({
         id: `temp-${index}`,
         statement: criterion.statement || '',
         summary: criterion.summary || '',
