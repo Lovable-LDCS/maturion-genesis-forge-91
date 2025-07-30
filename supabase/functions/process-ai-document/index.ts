@@ -39,14 +39,6 @@ serve(async (req) => {
       const targetChunkSize = requestBody.targetChunkSize || 2000; // Increased from 1500
       const minChunkSize = requestBody.minChunkSize || 1500; // AI Policy minimum
       
-      // Parse request body first
-      const requestBody = await req.json();
-      documentId = requestBody.documentId;
-      const corruptionRecovery = requestBody.corruptionRecovery || false;
-      const validateTextOnly = requestBody.validateTextOnly || true; // Enable by default
-      const targetChunkSize = requestBody.targetChunkSize || 2000; // Increased from 1500
-      const minChunkSize = requestBody.minChunkSize || 1500; // AI Policy minimum
-      
       if (!documentId) {
         throw new Error('documentId is required');
       }
