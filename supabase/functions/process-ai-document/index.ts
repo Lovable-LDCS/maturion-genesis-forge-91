@@ -607,7 +607,7 @@ serve(async (req) => {
     })();
 
     // Race between processing and timeout
-    await Promise.race([processingPromise, timeoutPromise]);
+    const result = await Promise.race([processingPromise, timeoutPromise]);
     
     return new Response(JSON.stringify({ 
       success: true, 
