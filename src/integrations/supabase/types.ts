@@ -1750,6 +1750,48 @@ export type Database = {
         }
         Relationships: []
       }
+      qa_test_log: {
+        Row: {
+          created_at: string | null
+          criteria_generated: number | null
+          drift_detected: boolean | null
+          id: string
+          mps_number: number
+          mps_title: string
+          notes: string | null
+          organization_id: string
+          result: string
+          run_at: string | null
+          test_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          criteria_generated?: number | null
+          drift_detected?: boolean | null
+          id?: string
+          mps_number: number
+          mps_title: string
+          notes?: string | null
+          organization_id: string
+          result: string
+          run_at?: string | null
+          test_type: string
+        }
+        Update: {
+          created_at?: string | null
+          criteria_generated?: number | null
+          drift_detected?: boolean | null
+          id?: string
+          mps_number?: number
+          mps_title?: string
+          notes?: string | null
+          organization_id?: string
+          result?: string
+          run_at?: string | null
+          test_type?: string
+        }
+        Relationships: []
+      }
       security_configuration: {
         Row: {
           created_at: string
