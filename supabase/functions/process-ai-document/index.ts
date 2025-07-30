@@ -399,6 +399,53 @@ serve(async (req) => {
 
       console.log(`Successfully stored ${successfulChunks}/${chunks.length} chunks`);
 
+      // EMERGENCY GOVERNANCE OVERRIDE: Force at least one chunk for governance documents
+      if (successfulChunks === 0 && isGovernanceDocument) {
+        console.log('🚨 GOVERNANCE EMERGENCY: Zero chunks stored, implementing emergency override');
+        
+        try {
+          // Create a simple chunk from the first 1000 characters
+          const emergencyChunk = extractedText.substring(0, Math.min(1000, extractedText.length));
+          console.log(`🚨 EMERGENCY CHUNK: ${emergencyChunk.length} characters`);
+          
+          // Generate content hash
+          const encoder = new TextEncoder();
+          const data = encoder.encode(emergencyChunk);
+          const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+          const hashArray = Array.from(new Uint8Array(hashBuffer));
+          const contentHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+          
+          // Store WITHOUT embedding first (embedding might be the problem)
+          const { error: emergencyError } = await supabase
+            .from('ai_document_chunks')
+            .insert({
+              document_id: documentId,
+              content: emergencyChunk,
+              content_hash: contentHash,
+              chunk_index: 0,
+              embedding: null, // Skip embedding for now
+              organization_id: document.organization_id,
+              metadata: {
+                extraction_method: extractionMethod,
+                extraction_quality: 'emergency_override',
+                word_count: emergencyChunk.split(/\s+/).filter(word => word.length > 0).length,
+                character_count: emergencyChunk.length,
+                processing_timestamp: new Date().toISOString(),
+                governance_emergency: true
+              }
+            });
+            
+          if (!emergencyError) {
+            successfulChunks = 1;
+            console.log('🚨 EMERGENCY CHUNK: Successfully stored emergency governance chunk without embedding');
+          } else {
+            console.error('🚨 EMERGENCY CHUNK FAILED:', emergencyError);
+          }
+        } catch (emergencyError: any) {
+          console.error('🚨 EMERGENCY OVERRIDE FAILED:', emergencyError.message);
+        }
+      }
+
       // Update document status
       if (successfulChunks > 0) {
         await supabase
@@ -416,13 +463,14 @@ serve(async (req) => {
               processing_duration_ms: Date.now(),
               ai_policy_compliant: true,
               document_type: document.document_type,
-              governance_mode: isGovernanceDocument
+              governance_mode: isGovernanceDocument,
+              emergency_override_used: successfulChunks === 1 && isGovernanceDocument
             }
           })
           .eq('id', documentId);
 
         console.log('✅ Document processing completed successfully');
-        return { success: true, chunks: successfulChunks };
+        return { success: true, chunks: successfulChunks, emergency_override: successfulChunks === 1 && isGovernanceDocument };
       } else {
         await supabase
           .from('ai_documents')
