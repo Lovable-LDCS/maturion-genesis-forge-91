@@ -397,16 +397,37 @@ serve(async (req) => {
       const chunkResults = await Promise.all(chunkPromises);
       const validChunks = chunkResults.filter(result => result !== null).length;
 
-      console.log(`Successfully stored ${successfulChunks}/${chunks.length} chunks`);
+      console.log(`📊 CHUNK PROCESSING RESULTS:`);
+      console.log(`📊 Total chunks attempted: ${chunks.length}`);
+      console.log(`📊 Successful chunks stored: ${successfulChunks}`);
+      console.log(`📊 Valid chunk results: ${validChunks}`);
+
+      // 🔍 CRITICAL: Verify actual chunks in database
+      console.log(`🔍 VERIFYING DATABASE: Checking actual chunks for document ${documentId}`);
+      const { data: actualChunks, error: verifyError } = await supabase
+        .from('ai_document_chunks')
+        .select('id')
+        .eq('document_id', documentId);
+      
+      const actualChunkCount = actualChunks?.length || 0;
+      console.log(`🔍 DATABASE VERIFICATION: Found ${actualChunkCount} chunks in database`);
+      
+      if (verifyError) {
+        console.error(`🔍 DATABASE VERIFICATION ERROR:`, verifyError);
+      }
+
+      // Use the actual database count as the source of truth
+      const finalChunkCount = Math.max(successfulChunks, actualChunkCount);
+      console.log(`📊 FINAL CHUNK COUNT: ${finalChunkCount} (using max of stored: ${successfulChunks}, verified: ${actualChunkCount})`);
 
       // EMERGENCY GOVERNANCE OVERRIDE: Force at least one chunk for governance documents
-      if (successfulChunks === 0 && isGovernanceDocument) {
-        console.log('🚨 GOVERNANCE EMERGENCY: Zero chunks stored, implementing emergency override');
+      if (finalChunkCount === 0 && isGovernanceDocument) {
+        console.log('🚨 GOVERNANCE EMERGENCY: Zero chunks detected, implementing emergency override');
         
         try {
-          // Create a simple chunk from the first 1000 characters
+          // Create emergency chunk from first 1000 characters
           const emergencyChunk = extractedText.substring(0, Math.min(1000, extractedText.length));
-          console.log(`🚨 EMERGENCY CHUNK: ${emergencyChunk.length} characters`);
+          console.log(`🚨 EMERGENCY CHUNK: Creating chunk with ${emergencyChunk.length} characters`);
           
           // Generate content hash
           const encoder = new TextEncoder();
@@ -415,15 +436,15 @@ serve(async (req) => {
           const hashArray = Array.from(new Uint8Array(hashBuffer));
           const contentHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
           
-          // Store WITHOUT embedding first (embedding might be the problem)
+          // Store emergency chunk WITHOUT embedding
           const { error: emergencyError } = await supabase
             .from('ai_document_chunks')
             .insert({
               document_id: documentId,
               content: emergencyChunk,
               content_hash: contentHash,
-              chunk_index: 0,
-              embedding: null, // Skip embedding for now
+              chunk_index: 999, // Special index for emergency chunks
+              embedding: null,
               organization_id: document.organization_id,
               metadata: {
                 extraction_method: extractionMethod,
@@ -436,8 +457,15 @@ serve(async (req) => {
             });
             
           if (!emergencyError) {
-            successfulChunks = 1;
-            console.log('🚨 EMERGENCY CHUNK: Successfully stored emergency governance chunk without embedding');
+            console.log('🚨 EMERGENCY CHUNK: Successfully stored emergency governance chunk');
+            // Re-verify the database count
+            const { data: postEmergencyChunks } = await supabase
+              .from('ai_document_chunks')
+              .select('id')
+              .eq('document_id', documentId);
+            const postEmergencyCount = postEmergencyChunks?.length || 0;
+            console.log(`🚨 POST-EMERGENCY VERIFICATION: ${postEmergencyCount} chunks now in database`);
+            successfulChunks = Math.max(1, postEmergencyCount);
           } else {
             console.error('🚨 EMERGENCY CHUNK FAILED:', emergencyError);
           }
@@ -446,14 +474,25 @@ serve(async (req) => {
         }
       }
 
-      // Update document status
-      if (successfulChunks > 0) {
-        await supabase
+      // 🔍 FINAL DATABASE VERIFICATION: Get the absolute final count
+      console.log(`🔍 FINAL VERIFICATION: Getting absolute final chunk count from database`);
+      const { data: finalChunks, error: finalVerifyError } = await supabase
+        .from('ai_document_chunks')
+        .select('id')
+        .eq('document_id', documentId);
+      
+      const absoluteFinalCount = finalChunks?.length || 0;
+      console.log(`🔍 ABSOLUTE FINAL COUNT: ${absoluteFinalCount} chunks in database`);
+      
+      // Update document status using the ACTUAL database count as source of truth
+      if (absoluteFinalCount > 0) {
+        console.log(`📊 UPDATING DOCUMENT STATUS: Using ${absoluteFinalCount} as total_chunks`);
+        const updateResult = await supabase
           .from('ai_documents')
           .update({
             processing_status: 'completed',
             processed_at: new Date().toISOString(),
-            total_chunks: successfulChunks,
+            total_chunks: absoluteFinalCount, // Use actual database count
             updated_at: new Date().toISOString(),
             metadata: {
               extraction_method: extractionMethod,
@@ -464,13 +503,20 @@ serve(async (req) => {
               ai_policy_compliant: true,
               document_type: document.document_type,
               governance_mode: isGovernanceDocument,
-              emergency_override_used: successfulChunks === 1 && isGovernanceDocument
+              actual_chunks_stored: absoluteFinalCount,
+              emergency_override_used: absoluteFinalCount === 1 && isGovernanceDocument
             }
           })
           .eq('id', documentId);
 
+        if (updateResult.error) {
+          console.error('❌ FAILED TO UPDATE DOCUMENT STATUS:', updateResult.error);
+        } else {
+          console.log('✅ DOCUMENT STATUS UPDATED SUCCESSFULLY');
+        }
+
         console.log('✅ Document processing completed successfully');
-        return { success: true, chunks: successfulChunks, emergency_override: successfulChunks === 1 && isGovernanceDocument };
+        return { success: true, chunks: absoluteFinalCount, emergency_override: absoluteFinalCount === 1 && isGovernanceDocument };
       } else {
         await supabase
           .from('ai_documents')

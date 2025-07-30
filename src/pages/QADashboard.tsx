@@ -17,6 +17,7 @@ import { MPSCriteriaLinker } from '@/components/qa/MPSCriteriaLinker';
 import { OrganizationDataSynchronizer } from '@/components/qa/OrganizationDataSynchronizer';
 import { DataConsolidationTool } from '@/components/qa/DataConsolidationTool';
 import { CriteriaRegenerationTool } from '@/components/qa/CriteriaRegenerationTool';
+import { GovernanceDocumentFixer } from '@/components/qa/GovernanceDocumentFixer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useEffect, useState as useReactState } from 'react';
@@ -157,8 +158,20 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
         </AlertDescription>
       </Alert>
 
-      {/* 🚨 URGENT: Edge Function Testing & MPS-Criteria Linking */}
+      {/* 🚨 URGENT: Governance Document Fix & Edge Function Testing */}
       <div className="space-y-4">
+        <Card className="border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
+          <CardHeader>
+            <CardTitle className="text-red-800 dark:text-red-200">🚨 CRITICAL: Governance Document Status Fix</CardTitle>
+            <CardDescription className="text-red-700 dark:text-red-300">
+              Fix governance documents that have chunks but are stuck in pending status. Your Maturion documents should show here.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <GovernanceDocumentFixer />
+          </CardContent>
+        </Card>
+
         <Card className="border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
           <CardHeader>
             <CardTitle className="text-red-800 dark:text-red-200">🚨 URGENT: Edge Function Recovery</CardTitle>
