@@ -78,34 +78,96 @@ serve(async (req) => {
     
     console.log(`📄 Found ${chunks.length} document chunks for MPS ${mpsNumber}`);
     
-    // Prepare context for AI
-    const documentContext = chunks.map(chunk => chunk.content).join('\n\n');
+    // CRITICAL: Apply token limiting to document context
+    const MAX_DOCUMENT_TOKENS = 6000;
+    const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
+    const truncateToTokens = (text: string, maxTokens: number): string => {
+      const maxChars = maxTokens * 4;
+      if (text.length <= maxChars) return text;
+      return text.substring(0, maxChars) + '\n...[TRUNCATED DUE TO TOKEN LIMIT]';
+    };
     
-    // Generate criteria using OpenAI with improved prompt
-    const prompt = `You are a security assessment expert. Based on the following MPS document content, generate 3-5 specific, measurable assessment criteria for "${mpsName}".
+    // Prepare context for AI with token limiting
+    const rawDocumentContext = chunks.map(chunk => chunk.content).slice(0, 5).join('\n\n'); // Limit to top 5 chunks
+    const documentContext = truncateToTokens(rawDocumentContext, MAX_DOCUMENT_TOKENS);
+    
+    console.log(`🔢 Document context: ${documentContext.length} chars, ~${estimateTokens(documentContext)} tokens`);
+    
+    // Generate criteria using OpenAI with improved prompt and token management
+    const basePrompt = `You are a security assessment expert. Based on the following MPS document content, generate 8-12 specific, measurable assessment criteria for "${mpsName}".
 
-Document Content:
+EVIDENCE-FIRST FORMAT (MANDATORY):
+Every criterion MUST start with evidence type:
+- "A documented [specific_document_type] that [specific_action] the [specific_requirement] for ${mpsName.toLowerCase()}."
+
+Examples:
+- "A formal governance charter that defines the board structure and oversight responsibilities."
+- "A documented strategic plan that outlines organizational direction and priorities."
+
+ACTUAL MPS DOCUMENT CONTENT:
 ${documentContext}
 
-IMPORTANT: You must respond with ONLY valid JSON in this exact format (no additional text, explanations, or markdown):
+STRICT REQUIREMENTS:
+- NO placeholder text like "Assessment criterion" or "Criterion A/B/C"
+- NO generic phrases like "ensure compliance" or "establish and maintain"
+- Use ONLY content from the provided MPS document above
+- Each criterion must be specific and measurable
+- Focus on practical implementation evidence
 
+Respond with ONLY valid JSON in this exact format:
 {
   "criteria": [
     {
-      "statement": "Clear, specific assessment criterion that directly relates to the MPS content",
+      "statement": "A documented [specific type] that [specific action] the [specific requirement] for ${mpsName.toLowerCase()}.",
       "summary": "Brief explanation of what this criterion measures and why it matters"
     }
   ]
-}
+}`;
 
-Make each criterion:
-- Specific and measurable
-- Directly related to the provided MPS document content
-- Actionable for security assessments
-- Focused on practical implementation
-- Based on actual content from the document, not generic statements
-
-Respond with ONLY the JSON object, no other text.`;
+    
+    // CRITICAL: Apply final cleanup to remove placeholder patterns
+    const cleanupPrompt = (prompt: string): string => {
+      console.log('🧹 Starting final prompt cleanup...');
+      
+      let cleaned = prompt;
+      const placeholderPatterns = [
+        /\[document_type\]/gi,
+        /\[action_verb\]/gi,
+        /\[requirement\]/gi,
+        /\[specific_[a-z_]+\]/gi,
+        /\bCriterion\s+[A-Z](?=\s*$|\s*\.|\s*,)/gi,
+        /\bCriterion\s+[0-9]+(?=\s*$|\s*\.|\s*,)/gi,
+        /\bAssessment criterion\b/gi,
+        /\bTBD\b/gi,
+        /\bTODO\b/gi
+      ];
+      
+      placeholderPatterns.forEach((pattern, index) => {
+        const matches = cleaned.match(pattern);
+        if (matches) {
+          console.log(`🔍 Found ${matches.length} matches for pattern ${index + 1}: ${pattern.source}`);
+          cleaned = cleaned.replace(pattern, '[PLACEHOLDER_REMOVED]');
+        }
+      });
+      
+      cleaned = cleaned.replace(/(\[PLACEHOLDER_REMOVED\]\s*){2,}/g, '[PLACEHOLDER_REMOVED]');
+      cleaned = cleaned.replace(/\[PLACEHOLDER_REMOVED\]/g, '');
+      
+      return cleaned.trim();
+    };
+    
+    const finalPrompt = cleanupPrompt(basePrompt);
+    const finalTokens = estimateTokens(finalPrompt);
+    
+    console.log(`🔢 FINAL PROMPT METRICS:`);
+    console.log(`   Total length: ${finalPrompt.length} characters`);
+    console.log(`   Estimated tokens: ${finalTokens}`);
+    console.log(`   Within 12K limit: ${finalTokens <= 12000 ? '✅' : '❌'}`);
+    
+    if (finalTokens > 12000) {
+      console.error(`❌ Token limit exceeded: ${finalTokens} > 12000`);
+      throw new Error(`Prompt exceeds token limit: ${finalTokens} tokens`);
+    }
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -116,10 +178,11 @@ Respond with ONLY the JSON object, no other text.`;
       body: JSON.stringify({
         model: 'gpt-4o-mini',
         messages: [
-          { role: 'system', content: 'You are a security assessment expert. Generate practical, specific criteria for maturity assessments.' },
-          { role: 'user', content: prompt }
+          { role: 'system', content: 'You are a security assessment expert. Generate practical, specific criteria for maturity assessments using evidence-first format.' },
+          { role: 'user', content: finalPrompt }
         ],
-        temperature: 0.7,
+        temperature: 0.3,
+        max_tokens: 2000,
       }),
     });
 
@@ -156,16 +219,16 @@ Respond with ONLY the JSON object, no other text.`;
       console.error('Failed to parse AI response:', parseError);
       console.error('Raw AI response:', aiContent);
       
-      // Use fallback criteria only as last resort
+      // Use fallback criteria only as last resort but avoid placeholder patterns
       criteriaData = {
         criteria: [
           {
-            statement: `Assessment criterion for ${mpsName} implementation based on document analysis`,
-            summary: `Evaluate the organization's compliance with ${mpsName} requirements and implementation standards`
+            statement: `A documented implementation assessment that evaluates the organization's ${mpsName.toLowerCase()} standards and procedures.`,
+            summary: `Assess the organization's compliance with ${mpsName} requirements and implementation standards`
           }
         ]
       };
-      console.log('Using fallback criteria due to parsing failure');
+      console.log('Using fallback criteria due to parsing failure (placeholder-free)');
     }
     
     // Save criteria to database

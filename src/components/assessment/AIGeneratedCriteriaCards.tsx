@@ -330,24 +330,63 @@ export const OptimizedAIGeneratedCriteriaCards: React.FC<AIGeneratedCriteriaCard
         });
       }
 
-      // ✅ VALIDATION 2: Prompt Construction Integrity
+      // ✅ VALIDATION 2: Prompt Construction Integrity with Token Limiting
       console.log(`🔍 VALIDATION 2: Constructing prompt with content validation`);
+      
+      // Helper functions for token management
+      const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
+      const truncateToTokens = (text: string, maxTokens: number): string => {
+        const maxChars = maxTokens * 4;
+        if (text.length <= maxChars) return text;
+        return text.substring(0, maxChars) + '\n...[TRUNCATED DUE TO TOKEN LIMIT]';
+      };
+      
+      const cleanupPrompt = (prompt: string): string => {
+        console.log('🧹 Starting prompt cleanup...');
+        let cleaned = prompt;
+        
+        const placeholderPatterns = [
+          /\[document_type\]/gi,
+          /\[action_verb\]/gi,
+          /\[requirement\]/gi,
+          /\[specific_[a-z_]+\]/gi,
+          /\bCriterion\s+[A-Z](?=\s*$|\s*\.|\s*,)/gi,
+          /\bCriterion\s+[0-9]+(?=\s*$|\s*\.|\s*,)/gi,
+          /\bAssessment criterion\b/gi,
+          /\bTBD\b/gi,
+          /\bTODO\b/gi
+        ];
+        
+        placeholderPatterns.forEach((pattern, index) => {
+          const matches = cleaned.match(pattern);
+          if (matches) {
+            console.log(`🔍 Cleaning ${matches.length} matches for pattern ${index + 1}: ${pattern.source}`);
+            cleaned = cleaned.replace(pattern, '');
+          }
+        });
+        
+        return cleaned.trim();
+      };
       
       let finalPrompt = '';
       
       if (hasValidContext && actualDocumentContent.length > 0) {
         console.log(`✅ USING DOCUMENT-BASED PROMPT (${actualDocumentContent.length} chars of content)`);
         
-        finalPrompt = customPrompt || `
-DOCUMENT-BASED CRITERIA GENERATION for MPS ${mps.mps_number} - ${mps.name}
+        // Apply token limiting to document content FIRST
+        const MAX_DOCUMENT_TOKENS = 6000;
+        const truncatedContent = truncateToTokens(actualDocumentContent, MAX_DOCUMENT_TOKENS);
+        console.log(`📏 Document content: ${actualDocumentContent.length} → ${truncatedContent.length} chars (${estimateTokens(truncatedContent)} tokens)`);
+        
+        const rawPrompt = customPrompt || `DOCUMENT-BASED CRITERIA GENERATION for MPS ${mps.mps_number} - ${mps.name}
 
 ACTUAL MPS DOCUMENT CONTENT:
-${actualDocumentContent}
+${truncatedContent}
 
 STRICT REQUIREMENTS:
 - Generate criteria ONLY based on the above MPS ${mps.mps_number} document content
 - Target organization: ${organizationContext.name}
-- ABSOLUTE PROHIBITION: Never use placeholder patterns like "Criterion A", "Criterion B", "Criterion [Letter]"
+- ABSOLUTE PROHIBITION: Never use placeholder patterns like "Assessment criterion" or generic templates
 - EVIDENCE-FIRST FORMAT (MANDATORY): Every criterion MUST start with evidence type:
   "A documented (evidence type) that (action verb) the (requirement) for ${mpsContext.mpsTitle.toLowerCase()} at ${organizationContext.name}."
 
@@ -357,6 +396,18 @@ Example format:
 
 Generate 8-12 specific criteria in JSON format based ONLY on the document content above:
 [{"statement": "evidence-first statement here", "summary": "brief explanation"}]`;
+
+        // Apply cleanup to remove any placeholder patterns
+        finalPrompt = cleanupPrompt(rawPrompt);
+        
+        // Final token check and truncation if needed
+        const finalTokens = estimateTokens(finalPrompt);
+        if (finalTokens > 10000) {
+          console.warn(`⚠️ Prompt exceeds 10K tokens (${finalTokens}), applying emergency truncation`);
+          finalPrompt = truncateToTokens(finalPrompt, 10000);
+        }
+        
+        console.log(`🔢 Final prompt: ${finalPrompt.length} chars, ~${estimateTokens(finalPrompt)} tokens`);
 
       } else {
         // ✅ VALIDATION 3: Fallback Override Enforcement
