@@ -293,8 +293,15 @@ serve(async (req) => {
         if (isGovernanceDocument) {
           // One more fallback for governance docs - just split by paragraphs
           console.log('📄 GOVERNANCE: Final fallback - splitting by paragraphs');
-          chunks = extractedText.split(/\n\s*\n/).filter(chunk => chunk.trim().length > 100);
+          chunks = extractedText.split(/\n\s*\n/).filter(chunk => chunk.trim().length > 30);
           console.log(`📄 GOVERNANCE: Paragraph split created ${chunks.length} chunks`);
+          
+          // Absolute last resort for governance documents - create at least one chunk
+          if (chunks.length === 0) {
+            console.log('📄 GOVERNANCE: EMERGENCY FALLBACK - Creating single chunk from entire content');
+            chunks = [extractedText.trim()];
+            console.log(`📄 GOVERNANCE: Emergency fallback created ${chunks.length} chunk(s)`);
+          }
         }
         
         if (chunks.length === 0) {
@@ -590,7 +597,7 @@ function splitGovernanceTextIntoChunks(text: string, chunkSize: number, overlap:
     }
   }
   
-  return chunks.filter(chunk => chunk.length > 100); // Filter very short chunks
+  return chunks.filter(chunk => chunk.length > 30); // Very permissive filter for governance docs
 }
 
 // Fallback chunking for when semantic splitting fails
