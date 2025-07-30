@@ -252,7 +252,20 @@ A [documented/formal/current/comprehensive/detailed/written/approved/maintained/
 
 Generate exactly 8-12 criteria following the template. Each criterion MUST start with "A [qualifier] [document_type] that":
 
-[{"statement": "A [qualifier] [document_type] that [specific_requirement]", "summary": "Brief explanation of what this evidence demonstrates"}]`;
+🚨 CRITICAL: Return ONLY valid JSON array format. No markdown, no formatting, no explanations - ONLY JSON:
+
+[
+  {
+    "statement": "A [qualifier] [document_type] that [specific_requirement]",
+    "summary": "Brief explanation of what this evidence demonstrates"
+  },
+  {
+    "statement": "A [qualifier] [document_type] that [specific_requirement]", 
+    "summary": "Brief explanation of what this evidence demonstrates"
+  }
+]
+
+🔴 FINAL VALIDATION: Your response must be parseable by JSON.parse() - no text before or after the JSON array.`;
 
       // 🚨 CRITICAL: Clean placeholder patterns before sending to AI
       const cleanedPrompt = cleanPlaceholderPatterns(finalPrompt);
@@ -291,10 +304,18 @@ Generate exactly 8-12 criteria following the template. Each criterion MUST start
         throw new Error(`AI generation failed: ${error.message}`);
       }
 
-      console.log('✅ Raw AI Response received:', data?.response?.substring(0, 200) + '...');
+      console.log("🧠 RawAIResponseBeforeParse:", data?.response);
+      console.log('✅ Raw AI Response received (first 200 chars):', data?.response?.substring(0, 200) + '...');
 
       if (!data?.response) {
         throw new Error('No response received from AI service');
+      }
+
+      // Check if response contains JSON array structure
+      const responseStr = data.response;
+      if (!responseStr.includes('[') || !responseStr.includes(']')) {
+        console.error('❌ Response does not contain JSON array structure');
+        throw new Error('AI response is not in JSON format - missing array brackets');
       }
 
       const cleanedResponse = cleanJSON(data.response);
