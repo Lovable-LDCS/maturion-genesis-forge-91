@@ -47,6 +47,8 @@ export const RefactorQALogs: React.FC = () => {
   const [acknowledgeDialogOpen, setAcknowledgeDialogOpen] = useState(false);
   const [selectedFinding, setSelectedFinding] = useState<RefactorFinding | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
+  const [diagnosticOpen, setDiagnosticOpen] = useState(false);
+  const [lastTestResult, setLastTestResult] = useState<any>(null);
 
   const fetchRefactorFindings = async () => {
     if (!currentOrganization?.id) return;
@@ -148,12 +150,30 @@ export const RefactorQALogs: React.FC = () => {
   const sendTestSlackNotification = async () => {
     try {
       toast.info('Sending test Slack notification...');
+      setLastTestResult(null);
       
+      const startTime = Date.now();
       const { data, error } = await supabase.functions.invoke('send-test-slack-notification', {
         body: { 
           organizationId: currentOrganization?.id
         }
       });
+      const endTime = Date.now();
+
+      const testResult = {
+        timestamp: new Date().toISOString(),
+        duration: endTime - startTime,
+        success: !error,
+        organizationId: currentOrganization?.id,
+        organizationName: currentOrganization?.name,
+        request: {
+          payload: { organizationId: currentOrganization?.id },
+          url: '/functions/v1/send-test-slack-notification'
+        },
+        response: error ? { error: error.message } : data
+      };
+      
+      setLastTestResult(testResult);
 
       if (error) {
         throw new Error(error.message || 'Unknown error occurred');
@@ -167,6 +187,21 @@ export const RefactorQALogs: React.FC = () => {
     } catch (error) {
       console.error('Error sending test Slack notification:', error);
       const errorMessage = error.message || 'Unknown error';
+      
+      const testResult = {
+        timestamp: new Date().toISOString(),
+        duration: 0,
+        success: false,
+        organizationId: currentOrganization?.id,
+        organizationName: currentOrganization?.name,
+        request: {
+          payload: { organizationId: currentOrganization?.id },
+          url: '/functions/v1/send-test-slack-notification'
+        },
+        response: { error: errorMessage }
+      };
+      
+      setLastTestResult(testResult);
       
       if (errorMessage.includes('No Slack webhook URL')) {
         toast.error('❌ No Slack webhook configured. Please add a Slack webhook URL in Organization Settings.');
@@ -342,8 +377,69 @@ export const RefactorQALogs: React.FC = () => {
               <CheckCircle className="h-6 w-6 mx-auto text-green-600 mb-2" />
               <div className="text-lg font-bold">{summary?.lowSeverityFindings || 0}</div>
               <div className="text-sm text-muted-foreground">Low Priority</div>
+          </CardContent>
+        </Card>
+
+        {/* Diagnostic Display */}
+        {lastTestResult && diagnosticOpen && (
+          <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+            <CardHeader>
+              <CardTitle className="text-sm flex items-center gap-2">
+                🔍 Slack Test Diagnostic Information
+                <Badge variant={lastTestResult.success ? "default" : "destructive"}>
+                  {lastTestResult.success ? "SUCCESS" : "FAILED"}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm font-medium mb-2">Request Details</div>
+                  <div className="text-xs bg-white dark:bg-gray-900 p-3 rounded border font-mono">
+                    <div><strong>Organization:</strong> {lastTestResult.organizationName} ({lastTestResult.organizationId})</div>
+                    <div><strong>Endpoint:</strong> {lastTestResult.request.url}</div>
+                    <div><strong>Duration:</strong> {lastTestResult.duration}ms</div>
+                    <div><strong>Timestamp:</strong> {new Date(lastTestResult.timestamp).toLocaleString()}</div>
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="text-sm font-medium mb-2">Response Details</div>
+                  <div className="text-xs bg-white dark:bg-gray-900 p-3 rounded border font-mono max-h-32 overflow-y-auto">
+                    <pre>{JSON.stringify(lastTestResult.response, null, 2)}</pre>
+                  </div>
+                </div>
+              </div>
+              
+              {lastTestResult.response?.organization_used && (
+                <div>
+                  <div className="text-sm font-medium mb-2">Webhook Used</div>
+                  <div className="text-xs bg-white dark:bg-gray-900 p-3 rounded border font-mono">
+                    <div><strong>Org:</strong> {lastTestResult.response.organization_used.name} ({lastTestResult.response.organization_used.type})</div>
+                    <div><strong>Webhook:</strong> {lastTestResult.response.webhook_url}</div>
+                  </div>
+                </div>
+              )}
+              
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigator.clipboard.writeText(JSON.stringify(lastTestResult, null, 2))}
+                >
+                  📋 Copy Debug Info
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => setDiagnosticOpen(false)}
+                >
+                  Hide
+                </Button>
+              </div>
             </CardContent>
           </Card>
+        )}
         </div>
 
         {/* Manual Trigger */}
@@ -392,6 +488,16 @@ export const RefactorQALogs: React.FC = () => {
                     <Button variant="outline" size="sm" onClick={sendTestSlackNotification}>
                       📧 Test Slack Alert
                     </Button>
+                    {lastTestResult && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => setDiagnosticOpen(!diagnosticOpen)}
+                        className="text-xs"
+                      >
+                        🔍 Debug Info
+                      </Button>
+                    )}
                   </div>
                 </AlertDescription>
               </Alert>

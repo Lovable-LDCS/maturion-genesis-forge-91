@@ -27,21 +27,42 @@ serve(async (req) => {
     
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
     
-    // Get organization details and Slack webhook - check linked orgs too
-    const { data: orgs, error: orgError } = await supabase
+    // Get current organization first
+    const { data: currentOrg, error: currentOrgError } = await supabase
+      .from('organizations')
+      .select('id, name, slack_webhook_url, organization_type, owner_id')
+      .eq('id', organizationId)
+      .single();
+    
+    if (currentOrgError || !currentOrg) {
+      throw new Error(`Failed to fetch organization: ${currentOrgError?.message || 'Organization not found'}`);
+    }
+    
+    // Get all related organizations (same owner)
+    const { data: relatedOrgs, error: relatedError } = await supabase
       .from('organizations')
       .select('id, name, slack_webhook_url, organization_type')
-      .or(`id.eq.${organizationId},owner_id.eq.(SELECT owner_id FROM organizations WHERE id = '${organizationId}')`);
+      .eq('owner_id', currentOrg.owner_id);
     
-    if (orgError || !orgs || orgs.length === 0) {
-      throw new Error(`Failed to fetch organization: ${orgError?.message || 'Organization not found'}`);
+    const orgs = relatedOrgs || [currentOrg];
+    
+    console.log(`📋 Found ${orgs?.length || 0} related organizations`);
+    orgs?.forEach(org => {
+      console.log(`  - ${org.name} (${org.organization_type}): ${org.slack_webhook_url ? 'HAS webhook' : 'NO webhook'}`);
+    });
+    
+    
+    if (!orgs || orgs.length === 0) {
+      console.error(`❌ No organizations found`);
+      throw new Error(`No organizations found for the specified ID`);
     }
     
     // Find an organization with a Slack webhook URL
     const orgWithSlack = orgs.find(org => org.slack_webhook_url);
     
     if (!orgWithSlack) {
-      const availableOrgs = orgs.map(o => `${o.name} (${o.organization_type})`).join(', ');
+      const availableOrgs = orgs.map(o => `${o.name} (${o.organization_type}) ${o.slack_webhook_url ? '[HAS webhook]' : '[NO webhook]'}`).join(', ');
+      console.error(`❌ No webhook found. Available orgs: ${availableOrgs}`);
       throw new Error(`No Slack webhook URL configured for any related organizations. Available organizations: ${availableOrgs}. Please configure a Slack webhook URL in Organization Settings.`);
     }
     
