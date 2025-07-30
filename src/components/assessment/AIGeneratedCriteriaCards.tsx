@@ -371,16 +371,23 @@ Generate 8-12 specific criteria in JSON format based ONLY on the document conten
       console.log(`🎯 FINAL PROMPT LENGTH: ${finalPrompt.length} characters`);
       console.log(`🎯 FINAL PROMPT PREVIEW (first 500 chars):`, finalPrompt.slice(0, 500) + '...');
       
-      // Check for any placeholder patterns in our own prompt (excluding legitimate template examples)
-      const placeholderCheck = /Criterion\s+[A-Z](?![a-z])/i.test(finalPrompt) || 
-                               /\[(document_type|action_verb|requirement)\]/i.test(finalPrompt) ||
-                               /Criterion\s+[0-9]/i.test(finalPrompt);
+      // Check for actual problematic placeholder patterns in our prompt (NOT in document content)
+      // Only check for patterns that would be in our generated instructions, not legitimate document content
+      const ourPromptInstructions = finalPrompt.replace(/ACTUAL MPS DOCUMENT CONTENT:[\s\S]*?(?=STRICT REQUIREMENTS:|$)/g, '[DOCUMENT_CONTENT_REMOVED_FOR_VALIDATION]');
+      
+      const placeholderCheck = /Criterion\s+[A-Z](?![a-z])/i.test(ourPromptInstructions) || 
+                               /\[document_type\]|\[action_verb\]|\[requirement\]/i.test(ourPromptInstructions) ||
+                               /Criterion\s+[0-9]/i.test(ourPromptInstructions) ||
+                               /Assessment criterion/i.test(ourPromptInstructions);
+      
       if (placeholderCheck) {
         console.error(`🚨 CRITICAL: Our own prompt contains placeholder patterns!`);
-        console.error(`🔍 Problematic prompt section:`, finalPrompt.match(/(Criterion\s+[A-Z](?![a-z])|\[(document_type|action_verb|requirement)\]|Criterion\s+[0-9])/gi));
+        console.error(`🔍 Full prompt for debugging:`, finalPrompt);
+        console.error(`🔍 Problematic prompt section:`, ourPromptInstructions.match(/(Criterion\s+[A-Z](?![a-z])|\[document_type\]|\[action_verb\]|\[requirement\]|Criterion\s+[0-9]|Assessment criterion)/gi));
         throw new Error(`PROMPT VALIDATION FAILED: Placeholder pattern detected in generated prompt. This should never happen.`);
       } else {
-        console.log(`✅ PROMPT VALIDATION PASSED: No placeholder patterns detected in our prompt`);
+        console.log(`✅ PROMPT VALIDATION PASSED: No placeholder patterns detected in our prompt instructions`);
+        console.log(`🔍 Validation performed on prompt instructions only (excluding document content)`);
       }
 
       const prompt = finalPrompt;
