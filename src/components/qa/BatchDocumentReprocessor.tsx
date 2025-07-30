@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
-import { RefreshCw, Database, AlertTriangle, CheckCircle } from 'lucide-react';
+import { RefreshCw, Database, AlertTriangle, CheckCircle, Play } from 'lucide-react';
 
 interface BatchReprocessingResult {
   documentsFound: number;
@@ -22,6 +22,7 @@ interface BatchReprocessingResult {
 
 export function BatchDocumentReprocessor() {
   const [isRunning, setIsRunning] = useState(false);
+  const [reprocessingDoc, setReprocessingDoc] = useState<string | null>(null);
   const [results, setResults] = useState<BatchReprocessingResult | null>(null);
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
@@ -76,9 +77,60 @@ export function BatchDocumentReprocessor() {
     }
   };
 
+  const reprocessSingleDocument = async (documentId: string, documentTitle: string) => {
+    setReprocessingDoc(documentId);
+    try {
+      // First reset the document status to pending
+      const { error: resetError } = await supabase
+        .from('ai_documents')
+        .update({
+          processing_status: 'pending',
+          processed_at: null,
+          total_chunks: 0,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', documentId);
+
+      if (resetError) throw resetError;
+
+      // Then trigger reprocessing
+      const { data, error } = await supabase.functions.invoke('process-ai-document', {
+        body: { documentId }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Document Reprocessing Started",
+        description: `"${documentTitle}" has been reset and queued for reprocessing`,
+      });
+
+      // Update the results to reflect the change
+      if (results) {
+        const updatedResults = results.results.map(result => 
+          result.id === documentId 
+            ? { ...result, action: 'reprocessing_triggered', success: true }
+            : result
+        );
+        setResults({ ...results, results: updatedResults });
+      }
+
+    } catch (error) {
+      console.error('Error reprocessing document:', error);
+      toast({
+        title: "Reprocessing Failed",
+        description: `Failed to reprocess "${documentTitle}"`,
+        variant: "destructive",
+      });
+    } finally {
+      setReprocessingDoc(null);
+    }
+  };
+
   const getActionBadgeVariant = (action: string) => {
     switch (action) {
       case 'reset_for_reprocessing': return 'destructive';
+      case 'reprocessing_triggered': return 'default';
       case 'status_corrected': return 'default';
       case 'no_change_needed': return 'secondary';
       default: return 'outline';
@@ -88,6 +140,7 @@ export function BatchDocumentReprocessor() {
   const getActionIcon = (action: string) => {
     switch (action) {
       case 'reset_for_reprocessing': return <RefreshCw className="h-3 w-3" />;
+      case 'reprocessing_triggered': return <Play className="h-3 w-3" />;
       case 'status_corrected': return <CheckCircle className="h-3 w-3" />;
       case 'no_change_needed': return <CheckCircle className="h-3 w-3" />;
       default: return <AlertTriangle className="h-3 w-3" />;
@@ -155,6 +208,30 @@ export function BatchDocumentReprocessor() {
                             {getActionIcon(result.action)}
                             {result.action.replace(/_/g, ' ')}
                           </Badge>
+                          
+                          {/* Add reprocess button for documents that need fixing */}
+                          {(result.action === 'reset_for_reprocessing' || result.reason === 'Missing chunks') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => reprocessSingleDocument(result.id, result.title)}
+                              disabled={reprocessingDoc === result.id}
+                              className="h-8 px-2 text-xs"
+                            >
+                              {reprocessingDoc === result.id ? (
+                                <>
+                                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                  Processing...
+                                </>
+                              ) : (
+                                <>
+                                  <Play className="h-3 w-3 mr-1" />
+                                  Reprocess
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          
                           {result.success ? (
                             <CheckCircle className="h-4 w-4 text-green-500" />
                           ) : (
