@@ -41,7 +41,7 @@ serve(async (req) => {
       setTimeout(() => reject(new Error('Processing timeout after 90 seconds')), 90000);
     });
 
-    const processingPromise = (async () => {
+    const processingPromise = async () => {
       console.log('=== Document Processing Started ===');
       console.log('🔧 FULL DEBUG MODE: Enhanced Mammoth.js Pipeline Analysis');
       
@@ -604,10 +604,10 @@ serve(async (req) => {
 
         throw new Error('No valid chunks were created from the document');
       }
-    })();
+    };
 
     // Race between processing and timeout
-    const result = await Promise.race([processingPromise, timeoutPromise]);
+    const result = await Promise.race([processingPromise(), timeoutPromise]);
     
     return new Response(JSON.stringify({ 
       success: true, 
