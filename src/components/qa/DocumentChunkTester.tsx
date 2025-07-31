@@ -418,6 +418,11 @@ export const DocumentChunkTester: React.FC = () => {
                       <SelectItem value="best_practice">Best Practice</SelectItem>
                       <SelectItem value="compliance">Compliance Framework</SelectItem>
                       <SelectItem value="risk_assessment">Risk Assessment</SelectItem>
+                      <SelectItem value="ai_ingestion_policy">AI Ingestion Policy</SelectItem>
+                      <SelectItem value="knowledge_model">Knowledge Model</SelectItem>
+                      <SelectItem value="governance_protocol">Governance Protocol</SelectItem>
+                      <SelectItem value="metadata_framework">Metadata Framework</SelectItem>
+                      <SelectItem value="chunking_strategy">Chunking Strategy</SelectItem>
                       <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
@@ -440,6 +445,10 @@ export const DocumentChunkTester: React.FC = () => {
                       <SelectItem value="proof_it_works">Proof it Works</SelectItem>
                       <SelectItem value="cross_domain">Cross-Domain</SelectItem>
                       <SelectItem value="general">General</SelectItem>
+                      <SelectItem value="system_architecture">System Architecture</SelectItem>
+                      <SelectItem value="ai_logic_behavior">AI Logic & Behavior</SelectItem>
+                      <SelectItem value="validation_rules">Validation Rules</SelectItem>
+                      <SelectItem value="security_controls">Security Controls</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
