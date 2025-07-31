@@ -104,22 +104,44 @@ export const DocumentReplacementDialog: React.FC<DocumentReplacementDialogProps>
     }
   };
 
+  const normalizeTitle = (title: string): string => {
+    return title
+      .toLowerCase()
+      .trim()
+      // Normalize version patterns
+      .replace(/\bversion\s+(\d+(?:\.\d+)*)\b/gi, 'v$1')
+      .replace(/\bver\s+(\d+(?:\.\d+)*)\b/gi, 'v$1')
+      .replace(/\bv\s+(\d+(?:\.\d+)*)\b/gi, 'v$1')
+      // Normalize punctuation and special characters
+      .replace(/[–—−]/g, '-')  // en dash, em dash, minus to hyphen
+      .replace(/['']/g, "'")   // smart quotes to regular quotes
+      .replace(/[""]/g, '"')   // smart quotes to regular quotes
+      .replace(/\s+/g, ' ')    // multiple spaces to single space
+      .replace(/[^\w\s.-]/g, '') // remove special chars except word chars, spaces, dots, hyphens
+      .trim();
+  };
+
   const detectPotentialDuplicates = () => {
     const duplicates = existingDocuments.filter(doc => {
       // Normalize titles for comparison - add null checks
       if (!doc.title || !newDocumentTitle) return false;
       
-      const normalizedExisting = doc.title.toLowerCase().trim();
-      const normalizedNew = newDocumentTitle.toLowerCase().trim();
+      const normalizedExisting = normalizeTitle(doc.title);
+      const normalizedNew = normalizeTitle(newDocumentTitle);
       
-      // Check for exact title match
+      // Check for exact title match after normalization
       if (normalizedExisting === normalizedNew) return true;
       
-      // Check for similar title (70% match) and same type/domain
+      // Check for similar title (75% match for better accuracy) and same type/domain
       const similarity = calculateSimilarity(normalizedExisting, normalizedNew);
-      if (similarity > 0.7 && 
+      if (similarity > 0.75 && 
           doc.document_type === newDocumentType && 
           doc.domain === newDocumentDomain) {
+        return true;
+      }
+      
+      // Additional check: high similarity (85%+) regardless of type/domain for very similar titles
+      if (similarity > 0.85) {
         return true;
       }
       
