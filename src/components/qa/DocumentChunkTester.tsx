@@ -376,7 +376,7 @@ export const DocumentChunkTester: React.FC = () => {
           file_path: `chunk-tester/${Date.now()}-${file?.name || 'upload'}`,
           file_size: file?.size || 0,
           mime_type: file?.type || 'application/octet-stream',
-          document_type: metadata.documentType || 'knowledge_model',
+          document_type: metadata.documentType || 'general',
           domain: metadata.domain || 'general',
           processing_status: 'completed',
           processed_at: new Date().toISOString(),
