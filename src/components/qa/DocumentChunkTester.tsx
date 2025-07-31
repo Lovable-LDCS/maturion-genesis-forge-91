@@ -51,7 +51,7 @@ export const DocumentChunkTester: React.FC = () => {
     title: '',
     documentType: 'guidance_document', // Valid document type for guidance content
     tags: '',
-    domain: '',
+    domain: 'Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems', // Valid domain for guidance content
     visibility: 'all_users',
     description: ''
   });
@@ -367,7 +367,7 @@ export const DocumentChunkTester: React.FC = () => {
         file_size: file?.size || 0,
         mime_type: file?.type || 'application/octet-stream',
         document_type: metadata.documentType || 'general',
-        domain: metadata.domain || 'general',
+        domain: metadata.domain || 'Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems',
         processing_status: 'completed',
         processed_at: new Date().toISOString(),
         total_chunks: chunks.length,
@@ -717,18 +717,13 @@ export const DocumentChunkTester: React.FC = () => {
                       <SelectValue placeholder="Select domain" />
                     </SelectTrigger>
                      <SelectContent>
-                       <SelectItem value="leadership_governance">Leadership & Governance</SelectItem>
-                       <SelectItem value="people_culture">People & Culture</SelectItem>
-                       <SelectItem value="process_integrity">Process Integrity</SelectItem>
-                       <SelectItem value="protection">Protection</SelectItem>
-                       <SelectItem value="proof_it_works">Proof it Works</SelectItem>
-                       <SelectItem value="cross_domain">Cross-Domain</SelectItem>
-                       <SelectItem value="general">General</SelectItem>
-                       <SelectItem value="system_architecture">System Architecture</SelectItem>
-                       <SelectItem value="ai_logic_behavior">AI Logic & Behavior</SelectItem>
-                       <SelectItem value="validation_rules">Validation Rules</SelectItem>
-                       <SelectItem value="security_controls">Security Controls</SelectItem>
-                       <SelectItem value="global_instruction">Global Instruction</SelectItem>
+                        <SelectItem value="Leadership & Governance">Leadership & Governance</SelectItem>
+                        <SelectItem value="People & Culture">People & Culture</SelectItem>
+                        <SelectItem value="Process Integrity">Process Integrity</SelectItem>
+                        <SelectItem value="Protection">Protection</SelectItem>
+                        <SelectItem value="Proof it Works">Proof it Works</SelectItem>
+                        <SelectItem value="Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems">Global Platform Logic</SelectItem>
+                        <SelectItem value="Global Instruction – applies across all MPS and domains">Global Instruction</SelectItem>
                      </SelectContent>
                   </Select>
                 </div>
