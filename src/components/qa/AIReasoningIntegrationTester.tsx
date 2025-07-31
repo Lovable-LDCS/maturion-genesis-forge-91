@@ -98,7 +98,7 @@ export function AIReasoningIntegrationTester() {
           AI Reasoning Integration Tester
         </CardTitle>
         <CardDescription>
-          Verify that governance documents and AI logic policies are actively integrated into Maturion's reasoning layer
+          Reasoning Layer Integration - Verify that governance documents and AI logic policies are actively integrated into Maturion's reasoning layer
         </CardDescription>
       </CardHeader>
       <CardContent>

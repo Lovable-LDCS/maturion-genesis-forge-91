@@ -266,6 +266,29 @@ export function AILogicIngestionDashboard() {
     }
 
     try {
+      // Check if any AI Logic documents have 0 chunks - this should fail the test
+      const documentsWithZeroChunks = documents.filter(doc => doc.total_chunks === 0);
+      const pendingDocuments = documents.filter(doc => doc.processing_status === 'pending');
+      
+      if (documentsWithZeroChunks.length > 0) {
+        toast({
+          title: "Integration Test Complete",
+          description: `Status: CRITICAL - ${documentsWithZeroChunks.length} documents with 0 chunks detected`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (pendingDocuments.length > 0) {
+        toast({
+          title: "Integration Test Complete", 
+          description: `Status: NEEDS_ATTENTION - ${pendingDocuments.length} documents still pending`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Run the full integration test if basic checks pass
       const { data, error } = await supabase.functions.invoke('test-ai-reasoning-integration', {
         body: {
           organizationId: currentOrganization.id,
@@ -277,7 +300,7 @@ export function AILogicIngestionDashboard() {
 
       toast({
         title: "Integration Test Complete",
-        description: `Status: ${data.status}`,
+        description: `Chunk Generation & Metadata Verification: ${data.status}`,
         variant: data.status === 'HEALTHY' ? 'default' : 'destructive',
       });
 
@@ -285,7 +308,7 @@ export function AILogicIngestionDashboard() {
       console.error('Error running integration test:', error);
       toast({
         title: "Test Failed",
-        description: "Failed to run integration test",
+        description: "Failed to run chunk generation test",
         variant: "destructive",
       });
     }
@@ -389,9 +412,10 @@ export function AILogicIngestionDashboard() {
               onClick={runIntegrationTest}
               variant="outline"
               className="flex items-center gap-2"
+              title="Chunk Generation & Metadata Verification - Checks if documents are properly chunked and tagged"
             >
               <Search className="w-4 h-4" />
-              Test Integration
+              Test Chunk Generation
             </Button>
           </div>
         </CardContent>
