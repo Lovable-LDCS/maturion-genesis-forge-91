@@ -661,7 +661,7 @@ After submitting a custom criterion:
                     <FileText className="h-5 w-5" />
                     📄 Annex 2: Document Upload & Processing
                   </CardTitle>
-                  <ChevronDown className="h-4 w-4 transition-transform data-[state=closed]:rotate-0 data-[state=open]:rotate-180" />
+                  <ChevronDown className="h-4 w-4 transition-transform" />
                 </div>
               </CardHeader>
             </Card>
@@ -673,7 +673,9 @@ After submitting a custom criterion:
                   <p className="text-muted-foreground mb-4">
                     Document chunk testing and validation facility for Maturion ingestion workflow.
                   </p>
-                  <DocumentChunkTester />
+                  <div className="border-2 border-dashed border-primary/50 p-4 rounded-lg">
+                    <DocumentChunkTester />
+                  </div>
                 </div>
               </CardContent>
             </Card>
