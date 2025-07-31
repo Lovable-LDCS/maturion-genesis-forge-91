@@ -43,6 +43,7 @@ const domainOptions = [
   'People & Culture',
   'Protection',
   'Proof it Works',
+  'Global Instruction',
   'Global Instruction – applies across all MPS and domains'
 ];
 
