@@ -409,6 +409,30 @@ export const DocumentChunkTester: React.FC = () => {
         confirmedOrgMatch: newDocument.organization_id === LOCKED_ORG_ID
       });
 
+      // CRITICAL: Verify document exists and is accessible before proceeding
+      console.log('🔍 VERIFYING DOCUMENT EXISTS IN DATABASE...');
+      const { data: verifyDoc, error: verifyError } = await supabase
+        .from('ai_documents')
+        .select('id, organization_id, title')
+        .eq('id', documentId)
+        .single();
+
+      if (verifyError || !verifyDoc) {
+        console.error('❌ DOCUMENT VERIFICATION FAILED:', {
+          verifyError,
+          documentId,
+          found: !!verifyDoc
+        });
+        throw new Error(`Created document cannot be found: ${verifyError?.message || 'Document not found'}`);
+      }
+
+      console.log('✅ DOCUMENT VERIFIED IN DATABASE:', {
+        foundId: verifyDoc.id,
+        foundOrgId: verifyDoc.organization_id,
+        idMatch: verifyDoc.id === documentId,
+        orgMatch: verifyDoc.organization_id === LOCKED_ORG_ID
+      });
+
       console.log('🔗 PREPARING CHUNKS FOR APPROVAL:', {
         chunksCount: chunks.length,
         documentId,
@@ -463,7 +487,42 @@ export const DocumentChunkTester: React.FC = () => {
         organizationId: LOCKED_ORG_ID 
       });
 
-      console.log('💾 INSERTING CHUNKS INTO APPROVED CACHE...');
+      // CRITICAL: Test inserting ONE chunk first to isolate the exact error
+      console.log('🧪 TESTING SINGLE CHUNK INSERT...');
+      const testChunk = {
+        document_id: documentId,
+        chunk_index: 0,
+        content: chunks[0].substring(0, 100) + '...', // Truncated for test
+        content_hash: `test_${documentId}_0_${Date.now()}`,
+        metadata: {
+          approved_via_tester: true,
+          extraction_method: 'test',
+          test_insert: true
+        },
+        approved_by: user.id,
+        organization_id: LOCKED_ORG_ID
+      };
+
+      const { data: testInsert, error: testInsertError } = await supabase
+        .from('approved_chunks_cache')
+        .insert([testChunk])
+        .select();
+
+      if (testInsertError) {
+        console.error('❌ SINGLE CHUNK TEST FAILED:', {
+          error: testInsertError,
+          code: testInsertError.code,
+          message: testInsertError.message,
+          details: testInsertError.details,
+          hint: testInsertError.hint,
+          testChunk
+        });
+        throw new Error(`Single chunk test failed: ${testInsertError.message} (Code: ${testInsertError.code})`);
+      }
+
+      console.log('✅ SINGLE CHUNK TEST PASSED:', testInsert);
+
+      console.log('💾 INSERTING ALL CHUNKS...');
       const { data: insertedChunks, error: chunksError } = await supabase
         .from('approved_chunks_cache')
         .insert(chunksToSave)
