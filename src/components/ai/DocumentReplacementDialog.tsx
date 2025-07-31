@@ -66,15 +66,24 @@ export const DocumentReplacementDialog: React.FC<DocumentReplacementDialogProps>
     }
   }, [existingDocuments, newDocumentTitle, newDocumentType, newDocumentDomain]);
 
-  // Filter documents based on search
+  // Filter documents based on search with normalization
   useEffect(() => {
     if (searchTerm) {
-      const filtered = existingDocuments.filter(doc =>
-        doc.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.document_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.domain?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.tags?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+      const normalizedSearchTerm = normalizeTitle(searchTerm);
+      const filtered = existingDocuments.filter(doc => {
+        const normalizedTitle = normalizeTitle(doc.title || '');
+        const normalizedType = normalizeTitle(doc.document_type || '');
+        const normalizedDomain = normalizeTitle(doc.domain || '');
+        const normalizedTags = normalizeTitle(doc.tags || '');
+        
+        // Check if normalized search term is contained in any normalized field
+        return normalizedTitle.includes(normalizedSearchTerm) ||
+               normalizedType.includes(normalizedSearchTerm) ||
+               normalizedDomain.includes(normalizedSearchTerm) ||
+               normalizedTags.includes(normalizedSearchTerm) ||
+               // Also check fuzzy similarity for more flexible matching
+               calculateSimilarity(normalizedTitle, normalizedSearchTerm) > 0.6;
+      });
       setFilteredDocuments(filtered);
     } else {
       setFilteredDocuments(existingDocuments);
