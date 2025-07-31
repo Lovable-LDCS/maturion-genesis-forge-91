@@ -9,3 +9,4 @@ export { RefactorQALogs } from './RefactorQALogs';
 export { ChunkSourceConsistencyTest } from './ChunkSourceConsistencyTest';
 export { AILogicDocumentReprocessor } from './AILogicDocumentReprocessor';
 export { AILogicIngestionDashboard } from './AILogicIngestionDashboard';
+export { DocumentUploadProcessor } from '../ai/DocumentUploadProcessor';
