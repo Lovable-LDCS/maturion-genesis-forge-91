@@ -16,7 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { DocumentVersionDialog } from './DocumentVersionDialog';
+import { useDocumentVersions } from '@/hooks/useDocumentVersions';
 import { DocumentProcessingVerificationBlock } from './DocumentProcessingVerificationBlock';
 import { DocumentContentViewer } from './DocumentContentViewer';
 import { DocumentPreviewPane } from './DocumentPreviewPane';
@@ -813,16 +813,7 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
         </DialogContent>
       </Dialog>
 
-      {/* Version History Dialog */}
-      <DocumentVersionDialog
-        document={versionDialogDocument}
-        open={showVersionDialog}
-        onClose={handleVersionDialogClose}
-        onDocumentUpdated={() => {
-          // Refresh the documents list after rollback
-          window.location.reload(); // Simple refresh for now
-        }}
-      />
+      {/* Version History - Removed for now */}
 
       {/* Content Viewer Dialog */}
       <DocumentContentViewer
