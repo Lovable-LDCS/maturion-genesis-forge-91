@@ -835,14 +835,14 @@ serve(async (req: Request): Promise<Response> => {
       }
 
       return { 
-        success: actualSuccess, // Only true if chunks were actually created
+        success: actualSuccess,
         chunks: successfulChunks,
         extraction_method: extractionMethod,
         is_governance_document: isGovernanceDocument,
         text_extracted: extractedText.length > 0,
         chunks_generated: chunks.length
       };
-    }; // End of processingPromise function
+    };
 
     // Race between processing and timeout
     const result = await Promise.race([processingPromise(), timeoutPromise]);
