@@ -841,8 +841,8 @@ serve(async (req: Request): Promise<Response> => {
         is_governance_document: isGovernanceDocument,
         text_extracted: extractedText.length > 0,
         chunks_generated: chunks.length
-      };
-    };
+      }
+    }
 
     // Race between processing and timeout
     const result = await Promise.race([processingPromise(), timeoutPromise]);
