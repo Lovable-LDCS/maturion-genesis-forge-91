@@ -117,7 +117,7 @@ serve(async (req: Request): Promise<Response> => {
 
       // Download file from Supabase Storage
       const { data: fileData, error: fileError } = await supabase.storage
-        .from('ai_documents')
+        .from('documents')
         .download(document.file_path);
 
       if (fileError || !fileData) {
