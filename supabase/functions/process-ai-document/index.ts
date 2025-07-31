@@ -41,7 +41,7 @@ serve(async (req: Request): Promise<Response> => {
       setTimeout(() => reject(new Error('Processing timeout after 90 seconds')), 90000);
     });
 
-    const processingPromise = async () => {
+    const processingPromise = async function() {
       console.log('=== Document Processing Started ===');
       console.log('🔧 FULL DEBUG MODE: Enhanced Mammoth.js Pipeline Analysis');
       
