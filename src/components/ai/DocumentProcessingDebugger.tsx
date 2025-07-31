@@ -54,7 +54,7 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
     clearLogs();
     
     try {
-      // Get user's organization first (check both ownership and membership)
+      // Get user's organization first (prioritize primary organization)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
@@ -62,25 +62,53 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
 
       let organizationId;
 
-      // First, check if user owns an organization
-      const { data: ownedOrg } = await supabase
+      // First, check if user owns a primary organization
+      const { data: primaryOrg } = await supabase
         .from('organizations')
         .select('id')
         .eq('owner_id', user.id)
+        .eq('organization_type', 'primary')
         .maybeSingle();
 
-      if (ownedOrg) {
-        organizationId = ownedOrg.id;
+      if (primaryOrg) {
+        organizationId = primaryOrg.id;
+        console.log('Using primary organization:', organizationId);
       } else {
-        // If not an owner, check if they're a member
-        const { data: orgMember } = await supabase
+        // If no primary org, check if they're a member of a primary organization
+        const { data: primaryMember } = await supabase
           .from('organization_members')
-          .select('organization_id')
+          .select('organization_id, organizations!inner(organization_type)')
           .eq('user_id', user.id)
+          .eq('organizations.organization_type', 'primary')
           .maybeSingle();
 
-        if (orgMember) {
-          organizationId = orgMember.organization_id;
+        if (primaryMember) {
+          organizationId = primaryMember.organization_id;
+          console.log('Using primary organization via membership:', organizationId);
+        } else {
+          // Fall back to any organization they own
+          const { data: anyOwnedOrg } = await supabase
+            .from('organizations')
+            .select('id')
+            .eq('owner_id', user.id)
+            .maybeSingle();
+
+          if (anyOwnedOrg) {
+            organizationId = anyOwnedOrg.id;
+            console.log('Using any owned organization:', organizationId);
+          } else {
+            // Finally, fall back to any organization they're a member of
+            const { data: anyMember } = await supabase
+              .from('organization_members')
+              .select('organization_id')
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+            if (anyMember) {
+              organizationId = anyMember.organization_id;
+              console.log('Using any organization via membership:', organizationId);
+            }
+          }
         }
       }
 
@@ -247,7 +275,7 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
     clearLogs();
     
     try {
-      // Get user's organization first (check both ownership and membership)
+      // Get user's organization first (prioritize primary organization)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
@@ -255,25 +283,53 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
 
       let organizationId;
 
-      // First, check if user owns an organization
-      const { data: ownedOrg } = await supabase
+      // First, check if user owns a primary organization
+      const { data: primaryOrg } = await supabase
         .from('organizations')
         .select('id')
         .eq('owner_id', user.id)
+        .eq('organization_type', 'primary')
         .maybeSingle();
 
-      if (ownedOrg) {
-        organizationId = ownedOrg.id;
+      if (primaryOrg) {
+        organizationId = primaryOrg.id;
+        console.log('Batch processing: Using primary organization:', organizationId);
       } else {
-        // If not an owner, check if they're a member
-        const { data: orgMember } = await supabase
+        // If no primary org, check if they're a member of a primary organization
+        const { data: primaryMember } = await supabase
           .from('organization_members')
-          .select('organization_id')
+          .select('organization_id, organizations!inner(organization_type)')
           .eq('user_id', user.id)
+          .eq('organizations.organization_type', 'primary')
           .maybeSingle();
 
-        if (orgMember) {
-          organizationId = orgMember.organization_id;
+        if (primaryMember) {
+          organizationId = primaryMember.organization_id;
+          console.log('Batch processing: Using primary organization via membership:', organizationId);
+        } else {
+          // Fall back to any organization they own
+          const { data: anyOwnedOrg } = await supabase
+            .from('organizations')
+            .select('id')
+            .eq('owner_id', user.id)
+            .maybeSingle();
+
+          if (anyOwnedOrg) {
+            organizationId = anyOwnedOrg.id;
+            console.log('Batch processing: Using any owned organization:', organizationId);
+          } else {
+            // Finally, fall back to any organization they're a member of
+            const { data: anyMember } = await supabase
+              .from('organization_members')
+              .select('organization_id')
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+            if (anyMember) {
+              organizationId = anyMember.organization_id;
+              console.log('Batch processing: Using any organization via membership:', organizationId);
+            }
+          }
         }
       }
 
