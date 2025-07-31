@@ -24,6 +24,7 @@ interface ExistingDocument {
   tags: string;
   created_at: string;
   file_name: string;
+  processing_status: string;
 }
 
 interface DocumentReplacementDialogProps {
@@ -95,8 +96,8 @@ export const DocumentReplacementDialog: React.FC<DocumentReplacementDialogProps>
     try {
       const { data, error } = await supabase
         .from('ai_documents')
-        .select('id, title, document_type, domain, tags, created_at, file_name')
-        .eq('processing_status', 'completed')
+        .select('id, title, document_type, domain, tags, created_at, file_name, processing_status')
+        .in('processing_status', ['completed', 'failed'])
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -260,14 +261,20 @@ export const DocumentReplacementDialog: React.FC<DocumentReplacementDialogProps>
                 Consider replacing to avoid duplicates.
               </p>
               <div className="space-y-2">
-                {potentialDuplicates.map(doc => (
-                  <div key={doc.id} className="text-xs bg-white p-2 rounded border">
-                    <div><strong>{doc.title}</strong></div>
-                    <div className="text-muted-foreground">
-                      {doc.document_type} • {doc.domain} • {formatDate(doc.created_at)}
-                    </div>
-                  </div>
-                ))}
+                 {potentialDuplicates.map(doc => (
+                   <div key={doc.id} className="text-xs bg-white p-2 rounded border">
+                     <div className="flex items-center justify-between">
+                       <strong>{doc.title}</strong>
+                       {doc.processing_status === 'failed' && (
+                         <span className="text-red-600 font-medium text-xs">FAILED</span>
+                       )}
+                     </div>
+                     <div className="text-muted-foreground">
+                       {doc.document_type} • {doc.domain} • {formatDate(doc.created_at)}
+                       {doc.processing_status === 'failed' && ' • Processing failed'}
+                     </div>
+                   </div>
+                 ))}
               </div>
             </div>
           )}
@@ -346,28 +353,50 @@ export const DocumentReplacementDialog: React.FC<DocumentReplacementDialogProps>
                     } />
                   </SelectTrigger>
                   <SelectContent>
-                    {filteredDocuments.map((doc) => (
-                      <SelectItem key={doc.id} value={doc.id}>
-                        <div className="flex flex-col">
-                          <div className="font-medium">{doc.title}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {doc.document_type} • {doc.domain} • {formatDate(doc.created_at)}
-                          </div>
-                        </div>
-                      </SelectItem>
-                    ))}
+                     {filteredDocuments.map((doc) => (
+                       <SelectItem key={doc.id} value={doc.id}>
+                         <div className="flex flex-col">
+                           <div className="flex items-center gap-2">
+                             <span className="font-medium">{doc.title}</span>
+                             {doc.processing_status === 'failed' && (
+                               <span className="text-red-600 font-medium text-xs">FAILED</span>
+                             )}
+                           </div>
+                           <div className="text-xs text-muted-foreground">
+                             {doc.document_type} • {doc.domain} • {formatDate(doc.created_at)}
+                             {doc.processing_status === 'failed' && ' • Processing failed'}
+                           </div>
+                         </div>
+                       </SelectItem>
+                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {selectedDocumentId && (
-                <div className="bg-red-50 border border-red-200 p-3 rounded-lg">
-                  <p className="text-sm text-red-700">
-                    <strong>Warning:</strong> The selected document will be archived and replaced. 
-                    This action will preserve the audit trail but the old version will no longer be active in the AI knowledge base.
-                  </p>
-                </div>
-              )}
+              {selectedDocumentId && (() => {
+                const selectedDoc = filteredDocuments.find(doc => doc.id === selectedDocumentId);
+                return (
+                  <div className={`p-3 rounded-lg border ${
+                    selectedDoc?.processing_status === 'failed' 
+                      ? 'bg-orange-50 border-orange-200' 
+                      : 'bg-red-50 border-red-200'
+                  }`}>
+                    <p className={`text-sm ${
+                      selectedDoc?.processing_status === 'failed' 
+                        ? 'text-orange-700' 
+                        : 'text-red-700'
+                    }`}>
+                      <strong>
+                        {selectedDoc?.processing_status === 'failed' ? 'Notice:' : 'Warning:'}
+                      </strong> 
+                      {selectedDoc?.processing_status === 'failed' 
+                        ? ' The selected document has failed processing and will be archived. The new document will replace it and attempt proper processing.'
+                        : ' The selected document will be archived and replaced. This action will preserve the audit trail but the old version will no longer be active in the AI knowledge base.'
+                      }
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>
