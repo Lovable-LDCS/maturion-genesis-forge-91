@@ -111,12 +111,22 @@ export const ApprovedFilesQueue: React.FC = () => {
       // Store the original processing status for audit trail
       const originalStatus = document.processing_status;
 
+      // Get the next version number for this document
+      const { data: maxVersionData } = await supabase
+        .from('ai_document_versions')
+        .select('version_number')
+        .eq('document_id', documentId)
+        .order('version_number', { ascending: false })
+        .limit(1);
+
+      const nextVersionNumber = (maxVersionData?.[0]?.version_number || 0) + 1;
+
       // Create version entry
       const { error: versionError } = await supabase
         .from('ai_document_versions')
         .insert({
           document_id: documentId,
-          version_number: 1, // In real implementation, increment based on existing versions
+          version_number: nextVersionNumber,
           title: document.title,
           file_name: document.file_name,
           file_path: document.file_path,
