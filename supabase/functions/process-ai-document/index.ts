@@ -834,7 +834,7 @@ serve(async (req: Request): Promise<Response> => {
         console.log(`❌ Document processing FAILED: ${document.title} created 0 chunks`);
       }
 
-      const result = {
+      const processingResult = {
         success: actualSuccess,
         chunks: successfulChunks,
         extraction_method: extractionMethod,
@@ -842,8 +842,9 @@ serve(async (req: Request): Promise<Response> => {
         text_extracted: extractedText.length > 0,
         chunks_generated: chunks.length
       };
-      return result;
-    };
+      
+      return processingResult;
+    }
 
     // Race between processing and timeout
     const result = await Promise.race([processingPromise(), timeoutPromise]);
