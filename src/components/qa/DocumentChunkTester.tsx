@@ -300,22 +300,43 @@ export const DocumentChunkTester: React.FC = () => {
         throw new Error('User not authenticated');
       }
 
-      // Get user's organization using maybeSingle for better error handling
-      const { data: orgMember, error: orgError } = await supabase
+      // Get user's organizations - handle multiple memberships by prioritizing primary organization
+      const { data: orgMembers, error: orgError } = await supabase
         .from('organization_members')
-        .select('organization_id')
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .select(`
+          organization_id,
+          role,
+          organizations!inner(
+            id,
+            organization_type,
+            name
+          )
+        `)
+        .eq('user_id', user.id);
 
       if (orgError) {
         console.error('Organization query error:', orgError);
-        throw new Error(`Failed to fetch organization: ${orgError.message}`);
+        throw new Error(`Failed to fetch organizations: ${orgError.message}`);
       }
 
-      if (!orgMember) {
-        console.error('No organization membership found for user:', user.id);
+      if (!orgMembers || orgMembers.length === 0) {
+        console.error('No organization memberships found for user:', user.id);
         throw new Error('User organization membership not found. Please ensure you are a member of an organization.');
       }
+
+      // Prioritize primary organization, fallback to first organization
+      const primaryOrg = orgMembers.find(member => 
+        member.organizations?.organization_type === 'primary'
+      );
+      const selectedOrg = primaryOrg || orgMembers[0];
+
+      console.log('Organization selection:', {
+        totalOrgs: orgMembers.length,
+        selectedOrgId: selectedOrg.organization_id,
+        selectedOrgType: selectedOrg.organizations?.organization_type,
+        selectedOrgName: selectedOrg.organizations?.name,
+        userRole: selectedOrg.role
+      });
 
       // Create a temporary document ID for chunk association
       const tempDocId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -323,7 +344,7 @@ export const DocumentChunkTester: React.FC = () => {
       console.log('Preparing to save chunks:', {
         chunksCount: chunks.length,
         userId: user.id,
-        organizationId: orgMember.organization_id,
+        organizationId: selectedOrg.organization_id,
         tempDocId
       });
 
@@ -339,13 +360,17 @@ export const DocumentChunkTester: React.FC = () => {
           chunk_size: content.length,
           verified_at: new Date().toISOString(),
           file_name: file?.name || 'unknown',
-          document_title: metadata.title
+          document_title: metadata.title,
+          organization_name: selectedOrg.organizations?.name
         },
         approved_by: user.id,
-        organization_id: orgMember.organization_id
+        organization_id: selectedOrg.organization_id
       }));
 
-      console.log('Attempting to insert chunks:', chunksToSave.length);
+      console.log('Attempting to insert chunks:', {
+        chunksCount: chunksToSave.length,
+        sampleChunk: chunksToSave[0]
+      });
 
       const { data: insertedChunks, error: chunksError } = await supabase
         .from('approved_chunks_cache')
