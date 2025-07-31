@@ -70,9 +70,9 @@ export const DocumentReplacementDialog: React.FC<DocumentReplacementDialogProps>
   useEffect(() => {
     if (searchTerm) {
       const filtered = existingDocuments.filter(doc =>
-        doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.document_type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.domain.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doc.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doc.document_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doc.domain?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         doc.tags?.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredDocuments(filtered);
@@ -106,7 +106,9 @@ export const DocumentReplacementDialog: React.FC<DocumentReplacementDialogProps>
 
   const detectPotentialDuplicates = () => {
     const duplicates = existingDocuments.filter(doc => {
-      // Normalize titles for comparison
+      // Normalize titles for comparison - add null checks
+      if (!doc.title || !newDocumentTitle) return false;
+      
       const normalizedExisting = doc.title.toLowerCase().trim();
       const normalizedNew = newDocumentTitle.toLowerCase().trim();
       
