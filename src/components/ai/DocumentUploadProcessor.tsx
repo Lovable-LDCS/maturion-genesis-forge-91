@@ -580,4 +580,5 @@ const DocumentUploadProcessor: React.FC = () => {
   );
 };
 
+export { DocumentUploadProcessor };
 export default DocumentUploadProcessor;

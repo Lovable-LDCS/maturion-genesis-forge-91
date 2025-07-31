@@ -9,6 +9,7 @@ import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter, Tr
 import { MaturionKnowledgeUploadZone } from '@/components/ai/MaturionKnowledgeUploadZone';
 import { ApprovedFilesQueue } from '@/components/ai/ApprovedFilesQueue';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
+import { DocumentUploadProcessor } from '@/components/ai/DocumentUploadProcessor';
 
 import { useMaturionDocuments } from '@/hooks/useMaturionDocuments';
 import { useOrganization } from '@/hooks/useOrganization';
