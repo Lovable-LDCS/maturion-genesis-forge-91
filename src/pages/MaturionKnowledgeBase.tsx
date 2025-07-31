@@ -649,6 +649,9 @@ After submitting a custom criterion:
           </CardContent>
         </Card>
 
+        {/* Document Upload & Processing */}
+        <DocumentUploadProcessor />
+
         {/* Policy Change Log Section */}
         <div className="mb-6">
           <div className="flex justify-between items-center mb-4">
