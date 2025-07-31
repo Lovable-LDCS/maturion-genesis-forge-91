@@ -208,15 +208,27 @@ serve(async (req: Request): Promise<Response> => {
             extractedText = new TextDecoder().decode(arrayBuffer);
             extractionMethod = 'text_fallback';
           } else {
+            console.log('✅ Valid DOCX signature detected, proceeding with Mammoth extraction...');
             const result = await mammoth.extractRawText({ arrayBuffer });
             extractedText = result.value;
             extractionMethod = 'mammoth_docx';
             
-            console.log(`📄 DOCX text extraction successful: ${extractedText.length} characters`);
+            console.log(`🔍 MAMMOTH DEBUG: Extraction result - Length: ${extractedText.length} chars`);
+            console.log(`🔍 MAMMOTH DEBUG: Content preview: "${extractedText.substring(0, 200)}"`);
+            console.log(`🔍 MAMMOTH DEBUG: Messages:`, result.messages || 'none');
+            console.log(`🔍 MAMMOTH DEBUG: Raw value type:`, typeof result.value);
+            console.log(`🔍 MAMMOTH DEBUG: Is empty?`, !extractedText || extractedText.trim().length === 0);
+            
+            if (!extractedText || extractedText.trim().length === 0) {
+              console.error('❌ MAMMOTH CRITICAL: Extracted text is empty or null!');
+              console.error('❌ MAMMOTH DEBUG: Raw result object:', JSON.stringify(result, null, 2));
+            }
             
             // Additional quality checks for DOCX
             const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
             const hasStructuralContent = /(?:section|chapter|heading|title|paragraph)/i.test(extractedText);
+            
+            console.log(`🔍 MAMMOTH DEBUG: Word count: ${wordCount}, Has structural content: ${hasStructuralContent}`);
             
             if (wordCount < 100) {
               extractionMethod = 'mammoth_docx_minimal';
@@ -244,8 +256,19 @@ serve(async (req: Request): Promise<Response> => {
         
       } else if (document.mime_type === 'text/markdown' || document.file_name.endsWith('.md')) {
         console.log('📄 Processing Markdown file...');
+        console.log(`🔍 MARKDOWN DEBUG: File size: ${fileData.size} bytes`);
+        
         extractedText = await fileData.text();
         extractionMethod = 'markdown';
+        
+        console.log(`🔍 MARKDOWN DEBUG: Extracted text length: ${extractedText.length} chars`);
+        console.log(`🔍 MARKDOWN DEBUG: Content preview: "${extractedText.substring(0, 200)}"`);
+        console.log(`🔍 MARKDOWN DEBUG: Is empty?`, !extractedText || extractedText.trim().length === 0);
+        
+        if (!extractedText || extractedText.trim().length === 0) {
+          console.error('❌ MARKDOWN CRITICAL: Extracted text is empty or null!');
+          console.error(`❌ MARKDOWN DEBUG: Raw file size: ${fileData.size}, type: ${typeof fileData}`);
+        }
         
       } else if (document.mime_type === 'application/pdf' || document.file_name.endsWith('.pdf')) {
         console.log('🔧 Processing PDF file with emergency text extraction...');
@@ -435,20 +458,43 @@ serve(async (req: Request): Promise<Response> => {
         console.log('🏛️ GOVERNANCE/AI LOGIC: Applying specialized chunking strategy');
         chunks = splitTextIntoChunks(extractedText, targetChunkSize, overlap);
         
+        console.log(`🔍 CHUNK DEBUG: splitTextIntoChunks returned ${chunks.length} chunks`);
+        console.log(`🔍 CHUNK DEBUG: Input text length: ${extractedText.length}`);
+        console.log(`🔍 CHUNK DEBUG: Target chunk size: ${targetChunkSize}, overlap: ${overlap}`);
+        
         if (chunks.length === 0) {
-          console.log('🚨 GOVERNANCE: Emergency single chunk creation');
+          console.error('🚨 GOVERNANCE: splitTextIntoChunks returned 0 chunks! Emergency single chunk creation');
+          console.error(`🔍 CHUNK DEBUG: Text preview for failed chunking: "${extractedText.substring(0, 500)}"`);
           chunks = [extractedText];
+        } else {
+          console.log(`🔍 CHUNK DEBUG: First chunk preview: "${chunks[0].substring(0, 200)}"`);
+          console.log(`🔍 CHUNK DEBUG: First chunk length: ${chunks[0].length}`);
         }
       } else {
         chunks = splitTextIntoChunks(extractedText, targetChunkSize, overlap);
+        
+        console.log(`🔍 CHUNK DEBUG: Standard chunking returned ${chunks.length} chunks`);
+        console.log(`🔍 CHUNK DEBUG: Input text length: ${extractedText.length}`);
+        
+        if (chunks.length === 0) {
+          console.error('🚨 STANDARD: splitTextIntoChunks returned 0 chunks!');
+          console.error(`🔍 CHUNK DEBUG: Text preview for failed chunking: "${extractedText.substring(0, 500)}"`);
+        } else {
+          console.log(`🔍 CHUNK DEBUG: First chunk preview: "${chunks[0].substring(0, 200)}"`);
+        }
       }
 
       if (chunks.length === 0) {
+        console.error('🚨 EMERGENCY: No chunks generated from text! Check text extraction output.');
+        console.error(`🔍 EMERGENCY DEBUG: Text was: "${extractedText}"`);
         console.log('🚨 EMERGENCY: Creating minimal fallback chunk');
         chunks = [`Document: ${document.title}\nContent: Processing failed, manual review required.`];
       }
 
-      console.log(`📄 Created ${chunks.length} chunks for processing`);
+      console.log(`✅ Chunks generated: ${chunks.length}`);
+      if (chunks.length > 0) {
+        console.log(`🔍 First chunk sample: "${chunks[0].substring(0, 100)}..."`);
+      }
 
       // Delete existing chunks
       const { error: deleteError } = await supabase
