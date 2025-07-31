@@ -25,6 +25,7 @@ import { AIReasoningIntegrationTester } from '@/components/qa/AIReasoningIntegra
 import { BatchDocumentReprocessor } from '@/components/qa/BatchDocumentReprocessor';
 import { AILogicIngestionDashboard } from '@/components/qa/AILogicIngestionDashboard';
 import { DocumentChunkTester } from '@/components/qa/DocumentChunkTester';
+import { ApprovedFilesQueue } from '@/components/ai/ApprovedFilesQueue';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useEffect, useState as useReactState } from 'react';
@@ -290,18 +291,12 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
         </TabsContent>
         
         <TabsContent value="chunk-tester" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Document Chunk Tester</CardTitle>
-              <CardDescription>
-                Test document processing locally without consuming AI credits. 
-                Validate text extraction, chunking, and content quality before triggering the full pipeline.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <DocumentChunkTester />
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <DocumentChunkTester />
+          </div>
+          
+          {/* Approved Files Queue */}
+          <ApprovedFilesQueue />
         </TabsContent>
         
         <TabsContent value="refactor-qa" className="space-y-4">

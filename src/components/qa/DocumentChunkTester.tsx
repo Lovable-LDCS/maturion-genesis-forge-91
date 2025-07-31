@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Upload, FileText, AlertTriangle, CheckCircle, Eye } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import mammoth from 'mammoth';
 
 interface ChunkResult {
@@ -33,6 +34,7 @@ export const DocumentChunkTester: React.FC = () => {
   const [result, setResult] = useState<ChunkResult | null>(null);
   const [validation, setValidation] = useState<FileValidation | null>(null);
   const [showChunkPreviews, setShowChunkPreviews] = useState(false);
+  const { toast } = useToast();
 
   // Preflight validation
   const validateFile = useCallback((file: File): FileValidation => {
@@ -337,6 +339,36 @@ export const DocumentChunkTester: React.FC = () => {
           >
             {isProcessing ? 'Processing...' : 'Test Document Processing'}
           </Button>
+        )}
+
+        {/* Approve for Upload Button */}
+        {result && result.success && result.chunks.length > 0 && (
+          <div className="pt-4 border-t">
+            <Button 
+              onClick={() => {
+                // Add to approved files queue
+                if ((window as any).addApprovedFile && file) {
+                  (window as any).addApprovedFile(file, result.chunks.length, result.extractionMethod);
+                  setFile(null);
+                  setResult(null);
+                  setValidation(null);
+                } else {
+                  toast({
+                    title: "Feature Unavailable",
+                    description: "Approved files queue is not available. Please refresh the page.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              className="w-full gap-2"
+            >
+              <CheckCircle className="h-4 w-4" />
+              Approve for Upload to Maturion
+            </Button>
+            <p className="text-xs text-muted-foreground text-center mt-2">
+              This will add the file to the approved queue for secure upload
+            </p>
+          </div>
         )}
 
         {/* Results */}
