@@ -347,22 +347,54 @@ export const DocumentChunkTester: React.FC = () => {
         throw new Error(`Insufficient permissions. Admin or Owner role required for chunk approval. Current role: ${selectedOrg.role}`);
       }
 
-      // Generate a proper UUID for temporary document ID
-      const tempDocId = crypto.randomUUID();
+      // First create a document in ai_documents table to satisfy foreign key constraint
+      console.log('Creating document record in ai_documents...');
+      const { data: newDocument, error: docError } = await supabase
+        .from('ai_documents')
+        .insert({
+          title: metadata.title || 'Chunk Tester Upload',
+          file_name: file?.name || 'unknown-file',
+          file_path: `chunk-tester/${Date.now()}-${file?.name || 'upload'}`,
+          file_size: file?.size || 0,
+          mime_type: file?.type || 'application/octet-stream',
+          document_type: metadata.documentType || 'knowledge_model',
+          domain: metadata.domain || 'general',
+          processing_status: 'completed',
+          processed_at: new Date().toISOString(),
+          total_chunks: chunks.length,
+          organization_id: selectedOrg.organization_id,
+          uploaded_by: user.id,
+          updated_by: user.id,
+          metadata: {
+            approved_via_tester: true,
+            extraction_method: 'mammoth_docx',
+            processing_source: 'chunk_tester'
+          }
+        })
+        .select()
+        .single();
+
+      if (docError) {
+        console.error('Failed to create document:', docError);
+        throw new Error(`Failed to create document: ${docError.message}`);
+      }
+
+      const documentId = newDocument.id;
+      console.log('Document created successfully:', documentId);
 
       console.log('Preparing to save chunks:', {
         chunksCount: chunks.length,
         userId: user.id,
         organizationId: selectedOrg.organization_id,
-        tempDocId
+        documentId
       });
 
-      // Save chunks to approved_chunks_cache
+      // Now create chunks with the real document ID
       const chunksToSave = chunks.map((content, index) => ({
-        document_id: tempDocId,
+        document_id: documentId,
         chunk_index: index,
         content,
-        content_hash: `tester_${tempDocId}_${index}_${Date.now()}`,
+        content_hash: `chunk_${documentId}_${index}_${Date.now()}`,
         metadata: {
           approved_via_tester: true,
           extraction_method: result?.extractionMethod || 'chunk_tester',
@@ -418,7 +450,7 @@ export const DocumentChunkTester: React.FC = () => {
       }
 
       console.log(`✅ Saved ${chunks.length} approved chunks for Smart Chunk Reuse:`, insertedChunks);
-      return tempDocId;
+      return documentId;
     } catch (error) {
       console.error('❌ Error saving approved chunks:', error);
       throw error;
