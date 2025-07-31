@@ -651,8 +651,34 @@ After submitting a custom criterion:
           </CardContent>
         </Card>
 
-        {/* Document Upload & Processing */}
-        <DocumentUploadProcessor />
+        {/* Annex 2: Document Upload & Processing */}
+        <Collapsible defaultOpen={true} className="mb-6">
+          <CollapsibleTrigger className="w-full">
+            <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    📄 Annex 2: Document Upload & Processing
+                  </CardTitle>
+                  <ChevronDown className="h-4 w-4 transition-transform data-[state=closed]:rotate-0 data-[state=open]:rotate-180" />
+                </div>
+              </CardHeader>
+            </Card>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <p className="text-muted-foreground mb-4">
+                    Document chunk testing and validation facility for Maturion ingestion workflow.
+                  </p>
+                  <DocumentUploadProcessor />
+                </div>
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Change Log Panel (Annex 3) */}
         <Collapsible defaultOpen={true} className="mb-6">
