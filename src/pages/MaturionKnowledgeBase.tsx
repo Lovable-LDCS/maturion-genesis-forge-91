@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/component
 import { MaturionKnowledgeUploadZone } from '@/components/ai/MaturionKnowledgeUploadZone';
 import { ApprovedFilesQueue } from '@/components/ai/ApprovedFilesQueue';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
-import { DocumentUploadProcessor } from '@/components/qa';
+import { DocumentChunkTester } from '@/components/qa/DocumentChunkTester';
 
 import { useMaturionDocuments } from '@/hooks/useMaturionDocuments';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -673,7 +673,7 @@ After submitting a custom criterion:
                   <p className="text-muted-foreground mb-4">
                     Document chunk testing and validation facility for Maturion ingestion workflow.
                   </p>
-                  <DocumentUploadProcessor />
+                  <DocumentChunkTester />
                 </div>
               </CardContent>
             </Card>
