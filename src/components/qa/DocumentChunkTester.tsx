@@ -347,8 +347,8 @@ export const DocumentChunkTester: React.FC = () => {
         throw new Error(`Insufficient permissions. Admin or Owner role required for chunk approval. Current role: ${selectedOrg.role}`);
       }
 
-      // Create a temporary document ID for chunk association
-      const tempDocId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      // Generate a proper UUID for temporary document ID
+      const tempDocId = crypto.randomUUID();
 
       console.log('Preparing to save chunks:', {
         chunksCount: chunks.length,
