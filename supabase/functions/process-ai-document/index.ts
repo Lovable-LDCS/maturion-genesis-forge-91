@@ -326,20 +326,20 @@ serve(async (req: Request): Promise<Response> => {
           .from('ai_documents')
           .update({
             processing_status: 'failed',
-              updated_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
               metadata: {
                 error_type: 'file_download_failed',
-                error_message: fileError?.message || 'Unknown file download error',
-                error_details: JSON.stringify(fileError),
+                error_message: documentsError?.message || 'Unknown file download error',
+                error_details: JSON.stringify(documentsError),
                 alternative_bucket_attempted: true,
-                alternative_bucket_error: JSON.stringify(altFileError),
+                alternative_bucket_error: JSON.stringify(aiDocsError),
                 file_path_attempted: document.file_path,
                 processing_timestamp: new Date().toISOString()
               }
             })
             .eq('id', documentId);
           
-          throw new Error(`Failed to download file from both 'documents' and 'ai_documents' buckets: ${fileError?.message || 'Unknown error'}`);
+          throw new Error(`Failed to download file from both 'documents' and 'ai_documents' buckets: ${documentsError?.message || 'Unknown error'}`);
         }
       } else {
         console.log(`✅ File downloaded successfully from 'documents' bucket, size: ${fileData.size} bytes`);
