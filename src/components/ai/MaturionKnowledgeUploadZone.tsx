@@ -64,9 +64,14 @@ const statusIcons = {
 interface MaturionKnowledgeUploadZoneProps {
   filteredDocuments?: MaturionDocument[];
   onDocumentChange?: () => Promise<void>;
+  enableUploads?: boolean; // New prop to control upload functionality
 }
 
-export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZoneProps> = ({ filteredDocuments, onDocumentChange }) => {
+export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZoneProps> = ({ 
+  filteredDocuments, 
+  onDocumentChange, 
+  enableUploads = false // Default to disabled for secure workflow
+}) => {
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const { documents, loading, uploading, uploadDocument, updateDocument, deleteDocument } = useMaturionDocuments();
@@ -378,183 +383,186 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Maturion Knowledge Base Upload</CardTitle>
-          <CardDescription>
-            Upload documents to train Maturion with your organization's specific knowledge, 
-            maturity models, and sector context.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* Document Type Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="document-type" className="text-sm font-medium">Document Type</Label>
-            <Select
-              value={selectedDocumentType}
-              onValueChange={(value: MaturionDocument['document_type']) => setSelectedDocumentType(value)}
+      {/* Upload Section - Only show when uploads are enabled */}
+      {enableUploads && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Maturion Knowledge Base Upload</CardTitle>
+            <CardDescription>
+              Upload documents to train Maturion with your organization's specific knowledge, 
+              maturity models, and sector context.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {/* Document Type Selection */}
+            <div className="space-y-2">
+              <Label htmlFor="document-type" className="text-sm font-medium">Document Type</Label>
+              <Select
+                value={selectedDocumentType}
+                onValueChange={(value: MaturionDocument['document_type']) => setSelectedDocumentType(value)}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(documentTypeLabels).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Title Field */}
+            <div className="space-y-2">
+              <Label htmlFor="title" className="text-sm font-medium">
+                Title <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="title"
+                placeholder="Enter document title (will auto-fill from filename)"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                This title will be used for display and AI referencing. Leave blank to auto-populate from filename.
+              </p>
+            </div>
+
+            {/* Domain Selection (optional, but highlighted for MPS docs) */}
+            <div className="space-y-2">
+              <Label htmlFor="domain" className="text-sm font-medium">
+                Domain
+                <span className="text-muted-foreground ml-1">(optional)</span>
+                {selectedDocumentType === 'mps_document' && (
+                  <span className="text-primary ml-1">- Recommended for MPS</span>
+                )}
+                {selectedDocumentType === 'governance_reasoning_manifest' && (
+                  <span className="text-primary ml-1">- Auto-assigned global scope</span>
+                )}
+              </Label>
+              <div className="flex gap-2">
+                {selectedDocumentType === 'governance_reasoning_manifest' ? (
+                  <div className="flex-1 p-3 bg-primary/10 rounded-md border">
+                    <span className="text-sm font-medium text-primary">
+                      Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems
+                    </span>
+                  </div>
+                ) : (
+                  <Select
+                    value={selectedDomain}
+                    onValueChange={setSelectedDomain}
+                  >
+                    <SelectTrigger className="flex-1">
+                      <SelectValue placeholder="Select a domain..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {domainOptions.map((domain) => (
+                        <SelectItem key={domain} value={domain}>
+                          {domain}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {selectedDomain && selectedDocumentType !== 'governance_reasoning_manifest' && (
+                  <ClearButton
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setSelectedDomain('')}
+                    className="shrink-0"
+                    title="Clear domain selection"
+                  >
+                    <X className="h-4 w-4" />
+                  </ClearButton>
+                )}
+              </div>
+            </div>
+
+            {/* Tags Field */}
+            <div className="space-y-2">
+              <Label htmlFor="tags" className="text-sm font-medium">
+                Tags
+                <span className="text-muted-foreground ml-1">(optional)</span>
+              </Label>
+              <Input
+                id="tags"
+                placeholder="e.g. security, compliance, risk-management"
+                value={tags}
+                onChange={(e) => setTags(e.target.value)}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter comma-separated tags to improve search and categorization
+              </p>
+            </div>
+
+            {/* Upload Notes */}
+            <div className="space-y-2">
+              <Label htmlFor="upload-notes" className="text-sm font-medium">
+                Upload Notes
+                <span className="text-muted-foreground ml-1">(optional, admin-only)</span>
+              </Label>
+              <Textarea
+                id="upload-notes"
+                placeholder="Internal notes about this document, context for AI processing, or special instructions..."
+                value={uploadNotes}
+                onChange={(e) => setUploadNotes(e.target.value)}
+                rows={3}
+                className="w-full"
+              />
+              <p className="text-xs text-muted-foreground">
+                These notes help provide context to the AI for better processing and retrieval
+              </p>
+            </div>
+
+            {/* Upload Zone */}
+            <div
+              {...getRootProps()}
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                isDragActive
+                  ? 'border-primary bg-primary/5'
+                  : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+              } ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
             >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(documentTypeLabels).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Title Field */}
-          <div className="space-y-2">
-            <Label htmlFor="title" className="text-sm font-medium">
-              Title <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="title"
-              placeholder="Enter document title (will auto-fill from filename)"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              This title will be used for display and AI referencing. Leave blank to auto-populate from filename.
-            </p>
-          </div>
-
-          {/* Domain Selection (optional, but highlighted for MPS docs) */}
-          <div className="space-y-2">
-            <Label htmlFor="domain" className="text-sm font-medium">
-              Domain
-              <span className="text-muted-foreground ml-1">(optional)</span>
-              {selectedDocumentType === 'mps_document' && (
-                <span className="text-primary ml-1">- Recommended for MPS</span>
-              )}
-              {selectedDocumentType === 'governance_reasoning_manifest' && (
-                <span className="text-primary ml-1">- Auto-assigned global scope</span>
-              )}
-            </Label>
-            <div className="flex gap-2">
-              {selectedDocumentType === 'governance_reasoning_manifest' ? (
-                <div className="flex-1 p-3 bg-primary/10 rounded-md border">
-                  <span className="text-sm font-medium text-primary">
-                    Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems
-                  </span>
-                </div>
+              <input {...getInputProps()} />
+              <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
+              {isDragActive ? (
+                <p className="text-lg font-medium">Drop the files here...</p>
               ) : (
-                <Select
-                  value={selectedDomain}
-                  onValueChange={setSelectedDomain}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select a domain..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {domainOptions.map((domain) => (
-                      <SelectItem key={domain} value={domain}>
-                        {domain}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <>
+                  <p className="text-lg font-medium mb-2">
+                    Drag & drop files here, or click to select
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    <strong>Documents:</strong> PDF, Word (.doc, .docx), Text (.txt), Markdown (.md), HTML, XML, RTF
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    <strong>Data:</strong> JSON, YAML, CSV, SQL
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-1">
+                    <strong>Code:</strong> JavaScript, TypeScript, CSS, Python
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    <strong>Images:</strong> JPG, PNG, SVG, WebP
+                  </p>
+                </>
               )}
-              {selectedDomain && selectedDocumentType !== 'governance_reasoning_manifest' && (
-                <ClearButton
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setSelectedDomain('')}
-                  className="shrink-0"
-                  title="Clear domain selection"
-                >
-                  <X className="h-4 w-4" />
-                </ClearButton>
+              {uploading && (
+                <div className="mt-4">
+                  <Progress value={undefined} className="w-full" />
+                  <p className="text-sm text-muted-foreground mt-2">Processing upload...</p>
+                </div>
               )}
             </div>
-          </div>
+          </CardContent>
+        </Card>
+      )}
 
-          {/* Tags Field */}
-          <div className="space-y-2">
-            <Label htmlFor="tags" className="text-sm font-medium">
-              Tags
-              <span className="text-muted-foreground ml-1">(optional)</span>
-            </Label>
-            <Input
-              id="tags"
-              placeholder="e.g. security, compliance, risk-management"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              Enter comma-separated tags to improve search and categorization
-            </p>
-          </div>
-
-          {/* Upload Notes */}
-          <div className="space-y-2">
-            <Label htmlFor="upload-notes" className="text-sm font-medium">
-              Upload Notes
-              <span className="text-muted-foreground ml-1">(optional, admin-only)</span>
-            </Label>
-            <Textarea
-              id="upload-notes"
-              placeholder="Internal notes about this document, context for AI processing, or special instructions..."
-              value={uploadNotes}
-              onChange={(e) => setUploadNotes(e.target.value)}
-              rows={3}
-              className="w-full"
-            />
-            <p className="text-xs text-muted-foreground">
-              These notes help provide context to the AI for better processing and retrieval
-            </p>
-          </div>
-
-          {/* Upload Zone */}
-          <div
-            {...getRootProps()}
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-              isDragActive
-                ? 'border-primary bg-primary/5'
-                : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-            } ${uploading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-          >
-            <input {...getInputProps()} />
-            <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
-            {isDragActive ? (
-              <p className="text-lg font-medium">Drop the files here...</p>
-            ) : (
-              <>
-                <p className="text-lg font-medium mb-2">
-                  Drag & drop files here, or click to select
-                </p>
-                <p className="text-sm text-muted-foreground mb-1">
-                  <strong>Documents:</strong> PDF, Word (.doc, .docx), Text (.txt), Markdown (.md), HTML, XML, RTF
-                </p>
-                <p className="text-sm text-muted-foreground mb-1">
-                  <strong>Data:</strong> JSON, YAML, CSV, SQL
-                </p>
-                <p className="text-sm text-muted-foreground mb-1">
-                  <strong>Code:</strong> JavaScript, TypeScript, CSS, Python
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  <strong>Images:</strong> JPG, PNG, SVG, WebP
-                </p>
-              </>
-            )}
-            {uploading && (
-              <div className="mt-4">
-                <Progress value={undefined} className="w-full" />
-                <p className="text-sm text-muted-foreground mt-2">Processing upload...</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Documents List */}
+      {/* Document Management Section - Always visible to admins */}
       <Card>
         <CardHeader>
           <CardTitle>Uploaded Documents</CardTitle>

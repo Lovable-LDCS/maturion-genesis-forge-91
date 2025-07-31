@@ -675,34 +675,26 @@ After submitting a custom criterion:
         <div className="space-y-6">
           <DocumentProcessingDebugger />
           
-          {/* Disabled Upload Zone - Replaced with Secure Workflow Notice */}
-          <Card className="border-dashed border-muted-foreground/25">
+          {/* Document Management Panel - Upload disabled but management features enabled */}
+          <Card className="border-l-4 border-l-orange-500">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-muted-foreground">
-                <Shield className="h-5 w-5" />
-                Direct Upload Disabled
+              <CardTitle className="text-sm flex items-center gap-2">
+                <Shield className="h-4 w-4 text-orange-500" />
+                Document Management Available
               </CardTitle>
               <CardDescription>
-                Secure upload workflow is now active. Use the QA Dashboard → Document Chunk Tester for file verification.
+                Direct uploads are disabled for security. Use QA Dashboard → Document Chunk Tester for new uploads.
+                However, you can still manage existing documents below.
               </CardDescription>
             </CardHeader>
-            <CardContent className="text-center py-8">
-              <div className="text-muted-foreground space-y-3">
-                <div className="bg-muted/30 p-4 rounded-lg">
-                  <p className="font-medium">New Secure Process:</p>
-                  <ol className="text-sm mt-2 space-y-1 text-left">
-                    <li>1. Go to QA Dashboard → Document Chunk Tester</li>
-                    <li>2. Test your document to verify chunks are generated</li>
-                    <li>3. Approved documents appear in the queue below</li>
-                    <li>4. Upload to knowledge base only after verification</li>
-                  </ol>
-                </div>
-                <Button variant="outline" asChild>
-                  <a href="/maturion/qa-dashboard">Go to Document Chunk Tester</a>
-                </Button>
-              </div>
-            </CardContent>
           </Card>
+
+          {/* Document Management Zone with uploads disabled */}
+          <MaturionKnowledgeUploadZone 
+            filteredDocuments={filteredDocuments} 
+            onDocumentChange={refreshDocuments}
+            enableUploads={false}
+          />
 
           {/* Approved Files Queue */}
           <ApprovedFilesQueue />
