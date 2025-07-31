@@ -267,14 +267,52 @@ export const DocumentReplacementDialog: React.FC<DocumentReplacementDialogProps>
                     onChange={(e) => setSearchTerm(e.target.value)}
                     className="pl-8"
                   />
+                  {searchTerm && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1 h-6 w-6 p-0"
+                      onClick={() => setSearchTerm('')}
+                    >
+                      ×
+                    </Button>
+                  )}
                 </div>
               </div>
 
+              {/* No Results Message */}
+              {searchTerm && filteredDocuments.length === 0 && (
+                <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg">
+                  <p className="text-sm text-blue-700 mb-3">
+                    ⚠️ No matching documents found. You may upload this as a new document instead.
+                  </p>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setReplaceOption('no');
+                      setSearchTerm('');
+                      setSelectedDocumentId('');
+                    }}
+                  >
+                    Switch to "Upload as New"
+                  </Button>
+                </div>
+              )}
+
               <div>
                 <Label htmlFor="document-select">Select document to replace</Label>
-                <Select value={selectedDocumentId} onValueChange={setSelectedDocumentId}>
+                <Select 
+                  value={selectedDocumentId} 
+                  onValueChange={setSelectedDocumentId}
+                  disabled={filteredDocuments.length === 0}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Choose a document to replace" />
+                    <SelectValue placeholder={
+                      filteredDocuments.length === 0 
+                        ? "No documents found" 
+                        : "Choose a document to replace"
+                    } />
                   </SelectTrigger>
                   <SelectContent>
                     {filteredDocuments.map((doc) => (
