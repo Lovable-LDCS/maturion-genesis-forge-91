@@ -115,7 +115,10 @@ serve(async (req: Request): Promise<Response> => {
         console.log('🏛️ GOVERNANCE/AI LOGIC DOCUMENT DETECTED: Applying specialized processing rules');
       }
 
-      // Download file from Supabase Storage
+      // Download file from Supabase Storage  
+      console.log(`🔍 DEBUG: Attempting to download file from bucket 'documents' with path: ${document.file_path}`);
+      console.log(`🔍 DEBUG: Document details - Title: ${document.title}, File name: ${document.file_name}, MIME: ${document.mime_type}`);
+      
       const { data: fileData, error: fileError } = await supabase.storage
         .from('documents')
         .download(document.file_path);
@@ -124,23 +127,60 @@ serve(async (req: Request): Promise<Response> => {
         console.error(`❌ CRITICAL ERROR in process-ai-document function: Failed to download file: ${JSON.stringify(fileError)}`);
         console.error(`❌ Full error object: ${JSON.stringify(fileError)}`);
         console.error(`❌ Error stack: ${fileError?.stack || 'No stack trace'}`);
+        console.error(`❌ DEBUG: File path attempted: ${document.file_path}`);
+        console.error(`❌ DEBUG: Bucket name used: documents`);
         
-        // Update document status to failed with specific error
-        await supabase
+        // Try alternative bucket names for debugging
+        console.log(`🔍 DEBUG: Attempting alternative bucket 'ai_documents'...`);
+        const { data: altFileData, error: altFileError } = await supabase.storage
           .from('ai_documents')
-          .update({
-            processing_status: 'failed',
-            updated_at: new Date().toISOString(),
-            metadata: {
-              error_type: 'file_download_failed',
-              error_message: fileError?.message || 'Unknown file download error',
-              error_details: JSON.stringify(fileError),
-              processing_timestamp: new Date().toISOString()
-            }
-          })
-          .eq('id', documentId);
-        
-        throw new Error(`Failed to download file: ${fileError?.message || 'Unknown error'}`);
+          .download(document.file_path);
+          
+        if (!altFileError && altFileData) {
+          console.log(`✅ SUCCESS: Found file in 'ai_documents' bucket instead!`);
+          console.log(`📄 File downloaded successfully from alternative bucket, size: ${altFileData.size} bytes`);
+          
+          // Update document status to note the bucket correction
+          await supabase
+            .from('ai_documents')
+            .update({
+              metadata: {
+                ...document.metadata,
+                bucket_correction_applied: true,
+                original_bucket_failed: 'documents',
+                working_bucket: 'ai_documents',
+                processing_timestamp: new Date().toISOString()
+              }
+            })
+            .eq('id', documentId);
+            
+          // Continue processing with the successfully downloaded file
+          fileData = altFileData;
+        } else {
+          console.error(`❌ Alternative bucket also failed: ${JSON.stringify(altFileError)}`);
+          
+          // Update document status to failed with specific error
+          await supabase
+            .from('ai_documents')
+            .update({
+              processing_status: 'failed',
+              updated_at: new Date().toISOString(),
+              metadata: {
+                error_type: 'file_download_failed',
+                error_message: fileError?.message || 'Unknown file download error',
+                error_details: JSON.stringify(fileError),
+                alternative_bucket_attempted: true,
+                alternative_bucket_error: JSON.stringify(altFileError),
+                file_path_attempted: document.file_path,
+                processing_timestamp: new Date().toISOString()
+              }
+            })
+            .eq('id', documentId);
+          
+          throw new Error(`Failed to download file from both 'documents' and 'ai_documents' buckets: ${fileError?.message || 'Unknown error'}`);
+        }
+      } else {
+        console.log(`✅ File downloaded successfully from 'documents' bucket, size: ${fileData.size} bytes`);
       }
 
       console.log('File downloaded successfully');
