@@ -437,19 +437,20 @@ export const DocumentChunkTester: React.FC = () => {
                     <SelectTrigger>
                       <SelectValue placeholder="Select domain" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="leadership_governance">Leadership & Governance</SelectItem>
-                      <SelectItem value="people_culture">People & Culture</SelectItem>
-                      <SelectItem value="process_integrity">Process Integrity</SelectItem>
-                      <SelectItem value="protection">Protection</SelectItem>
-                      <SelectItem value="proof_it_works">Proof it Works</SelectItem>
-                      <SelectItem value="cross_domain">Cross-Domain</SelectItem>
-                      <SelectItem value="general">General</SelectItem>
-                      <SelectItem value="system_architecture">System Architecture</SelectItem>
-                      <SelectItem value="ai_logic_behavior">AI Logic & Behavior</SelectItem>
-                      <SelectItem value="validation_rules">Validation Rules</SelectItem>
-                      <SelectItem value="security_controls">Security Controls</SelectItem>
-                    </SelectContent>
+                     <SelectContent>
+                       <SelectItem value="leadership_governance">Leadership & Governance</SelectItem>
+                       <SelectItem value="people_culture">People & Culture</SelectItem>
+                       <SelectItem value="process_integrity">Process Integrity</SelectItem>
+                       <SelectItem value="protection">Protection</SelectItem>
+                       <SelectItem value="proof_it_works">Proof it Works</SelectItem>
+                       <SelectItem value="cross_domain">Cross-Domain</SelectItem>
+                       <SelectItem value="general">General</SelectItem>
+                       <SelectItem value="system_architecture">System Architecture</SelectItem>
+                       <SelectItem value="ai_logic_behavior">AI Logic & Behavior</SelectItem>
+                       <SelectItem value="validation_rules">Validation Rules</SelectItem>
+                       <SelectItem value="security_controls">Security Controls</SelectItem>
+                       <SelectItem value="global_instruction">Global Instruction</SelectItem>
+                     </SelectContent>
                   </Select>
                 </div>
                 
