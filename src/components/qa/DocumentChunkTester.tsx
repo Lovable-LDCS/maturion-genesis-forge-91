@@ -330,25 +330,44 @@ export const DocumentChunkTester: React.FC = () => {
       );
       const selectedOrg = primaryOrg || orgMembers[0];
 
-      console.log('Organization selection:', {
+      console.log('🏢 ORGANIZATION CONTEXT SELECTION:', {
         totalOrgs: orgMembers.length,
+        allOrgs: orgMembers.map(org => ({
+          id: org.organization_id,
+          name: org.organizations?.name,
+          type: org.organizations?.organization_type,
+          role: org.role
+        })),
         selectedOrgId: selectedOrg.organization_id,
         selectedOrgType: selectedOrg.organizations?.organization_type,
         selectedOrgName: selectedOrg.organizations?.name,
-        userRole: selectedOrg.role
+        userRole: selectedOrg.role,
+        isPrimary: selectedOrg.organizations?.organization_type === 'primary'
       });
 
       // Verify user has admin/owner role for RLS policy
       if (!['admin', 'owner'].includes(selectedOrg.role)) {
-        console.error('Insufficient permissions for chunk approval:', {
+        console.error('❌ PERMISSION ERROR:', {
           requiredRoles: ['admin', 'owner'],
-          userRole: selectedOrg.role
+          userRole: selectedOrg.role,
+          organizationId: selectedOrg.organization_id
         });
         throw new Error(`Insufficient permissions. Admin or Owner role required for chunk approval. Current role: ${selectedOrg.role}`);
       }
 
+      // CRITICAL: Lock in the organization ID for the entire operation
+      const LOCKED_ORG_ID = selectedOrg.organization_id;
+      console.log('🔒 LOCKED ORGANIZATION ID FOR ENTIRE OPERATION:', LOCKED_ORG_ID);
+
       // First create a document in ai_documents table to satisfy foreign key constraint
-      console.log('Creating document record in ai_documents...');
+      console.log('📄 CREATING DOCUMENT RECORD:', {
+        organizationId: LOCKED_ORG_ID,
+        title: metadata.title,
+        fileName: file?.name,
+        documentType: metadata.documentType,
+        domain: metadata.domain
+      });
+
       const { data: newDocument, error: docError } = await supabase
         .from('ai_documents')
         .insert({
@@ -362,7 +381,7 @@ export const DocumentChunkTester: React.FC = () => {
           processing_status: 'completed',
           processed_at: new Date().toISOString(),
           total_chunks: chunks.length,
-          organization_id: selectedOrg.organization_id,
+          organization_id: LOCKED_ORG_ID, // Using locked org ID
           uploaded_by: user.id,
           updated_by: user.id,
           metadata: {
@@ -375,21 +394,31 @@ export const DocumentChunkTester: React.FC = () => {
         .single();
 
       if (docError) {
-        console.error('Failed to create document:', docError);
+        console.error('❌ DOCUMENT CREATION FAILED:', {
+          error: docError,
+          organizationId: LOCKED_ORG_ID,
+          userRole: selectedOrg.role
+        });
         throw new Error(`Failed to create document: ${docError.message}`);
       }
 
       const documentId = newDocument.id;
-      console.log('Document created successfully:', documentId);
-
-      console.log('Preparing to save chunks:', {
-        chunksCount: chunks.length,
-        userId: user.id,
-        organizationId: selectedOrg.organization_id,
-        documentId
+      console.log('✅ DOCUMENT CREATED SUCCESSFULLY:', {
+        documentId,
+        organizationId: newDocument.organization_id,
+        confirmedOrgMatch: newDocument.organization_id === LOCKED_ORG_ID
       });
 
-      // Now create chunks with the real document ID
+      console.log('🔗 PREPARING CHUNKS FOR APPROVAL:', {
+        chunksCount: chunks.length,
+        documentId,
+        organizationId: LOCKED_ORG_ID,
+        userId: user.id,
+        userRole: selectedOrg.role,
+        orgValidation: LOCKED_ORG_ID === newDocument.organization_id
+      });
+
+      // Create chunks with the real document ID and LOCKED organization ID
       const chunksToSave = chunks.map((content, index) => ({
         document_id: documentId,
         chunk_index: index,
@@ -405,51 +434,71 @@ export const DocumentChunkTester: React.FC = () => {
           organization_name: selectedOrg.organizations?.name
         },
         approved_by: user.id,
-        organization_id: selectedOrg.organization_id
+        organization_id: LOCKED_ORG_ID // Using same locked org ID
       }));
 
-      console.log('Attempting to insert chunks:', {
+      console.log('🔍 FINAL VALIDATION BEFORE INSERT:', {
         chunksCount: chunksToSave.length,
-        sampleChunk: chunksToSave[0]
+        sampleChunk: {
+          document_id: chunksToSave[0]?.document_id,
+          organization_id: chunksToSave[0]?.organization_id,
+          approved_by: chunksToSave[0]?.approved_by
+        },
+        allOrgIdsMatch: chunksToSave.every(chunk => chunk.organization_id === LOCKED_ORG_ID),
+        docIdExists: !!documentId,
+        confirmedOrgId: LOCKED_ORG_ID
       });
 
       // Test RLS access before attempting insert
-      console.log('Testing database access with current user permissions...');
+      console.log('🔐 TESTING DATABASE ACCESS...');
       const { data: testAccess, error: testError } = await supabase
         .from('approved_chunks_cache')
         .select('count')
-        .eq('organization_id', selectedOrg.organization_id)
+        .eq('organization_id', LOCKED_ORG_ID)
         .limit(1);
 
-      console.log('RLS test result:', { testAccess, testError });
+      console.log('🔐 RLS TEST RESULT:', { 
+        testAccess, 
+        testError,
+        organizationId: LOCKED_ORG_ID 
+      });
 
+      console.log('💾 INSERTING CHUNKS INTO APPROVED CACHE...');
       const { data: insertedChunks, error: chunksError } = await supabase
         .from('approved_chunks_cache')
         .insert(chunksToSave)
         .select();
 
       if (chunksError) {
-        console.error('CRITICAL: Chunks insert failed:', {
+        console.error('❌ CRITICAL: CHUNK INSERT FAILED:', {
           error: chunksError,
           code: chunksError.code,
           message: chunksError.message,
           details: chunksError.details,
           hint: chunksError.hint,
-          organizationId: selectedOrg.organization_id,
+          organizationId: LOCKED_ORG_ID,
+          documentId,
           userId: user.id,
           userRole: selectedOrg.role,
           chunksCount: chunksToSave.length,
-          sampleData: chunksToSave[0]
+          sampleChunkOrgId: chunksToSave[0]?.organization_id,
+          documentOrgId: newDocument.organization_id
         });
         throw new Error(`Failed to save approved chunks: ${chunksError.message} (Code: ${chunksError.code})`);
       }
 
       if (!insertedChunks || insertedChunks.length === 0) {
-        console.error('CRITICAL: No chunks were inserted despite no error');
+        console.error('❌ CRITICAL: No chunks were inserted despite no error');
         throw new Error('No chunks were saved - insert returned empty result');
       }
 
-      console.log(`✅ Saved ${chunks.length} approved chunks for Smart Chunk Reuse:`, insertedChunks);
+      console.log('🎉 SUCCESS! CHUNKS APPROVED AND SAVED:', {
+        chunksCount: insertedChunks.length,
+        documentId,
+        organizationId: LOCKED_ORG_ID,
+        insertedIds: insertedChunks.map(chunk => chunk.id)
+      });
+      
       return documentId;
     } catch (error) {
       console.error('❌ Error saving approved chunks:', error);
