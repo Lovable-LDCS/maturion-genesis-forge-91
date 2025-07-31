@@ -108,6 +108,9 @@ export const ApprovedFilesQueue: React.FC = () => {
 
       if (docError || !document) throw new Error('Document not found');
 
+      // Store the original processing status for audit trail
+      const originalStatus = document.processing_status;
+
       // Create version entry
       const { error: versionError } = await supabase
         .from('ai_document_versions')
@@ -142,13 +145,13 @@ export const ApprovedFilesQueue: React.FC = () => {
 
       if (archiveError) throw archiveError;
 
-      // Create audit log
+      // Create audit log with correct original status
       await supabase.from('audit_trail').insert({
         table_name: 'ai_documents',
         record_id: documentId,
         action: 'ARCHIVED',
         field_name: 'processing_status',
-        old_value: 'completed',
+        old_value: originalStatus, // Use actual original status instead of hardcoded 'completed'
         new_value: 'archived',
         changed_by: user.id,
         change_reason: reason,
