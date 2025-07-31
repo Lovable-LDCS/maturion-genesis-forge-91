@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, FileText, Upload, Calendar, Hash, Loader2, CheckSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { DocumentReplacementDialog } from './DocumentReplacementDialog';
 
 interface DocumentMetadata {
   title: string;
@@ -30,6 +31,8 @@ export const ApprovedFilesQueue: React.FC = () => {
   const [approvedFiles, setApprovedFiles] = useState<ApprovedFile[]>([]);
   const [uploadingFiles, setUploadingFiles] = useState<Set<string>>(new Set());
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [versionDialogOpen, setVersionDialogOpen] = useState(false);
+  const [currentUploadFile, setCurrentUploadFile] = useState<ApprovedFile | null>(null);
   const { toast } = useToast();
 
   // Load approved files from localStorage (temporary storage)
@@ -74,28 +77,125 @@ export const ApprovedFilesQueue: React.FC = () => {
     });
   };
 
+  // Start upload with version check
+  const initiateUpload = (fileId: string) => {
+    const approvedFile = approvedFiles.find(f => f.id === fileId);
+    if (!approvedFile) {
+      toast({
+        title: "Error",
+        description: "Approved file not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setCurrentUploadFile(approvedFile);
+    setVersionDialogOpen(true);
+  };
+
+  // Archive existing document
+  const archiveDocument = async (documentId: string, reason: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      // Create version before archiving
+      const { data: document, error: docError } = await supabase
+        .from('ai_documents')
+        .select('*')
+        .eq('id', documentId)
+        .single();
+
+      if (docError || !document) throw new Error('Document not found');
+
+      // Create version entry
+      const { error: versionError } = await supabase
+        .from('ai_document_versions')
+        .insert({
+          document_id: documentId,
+          version_number: 1, // In real implementation, increment based on existing versions
+          title: document.title,
+          file_name: document.file_name,
+          file_path: document.file_path,
+          file_size: document.file_size,
+          document_type: document.document_type,
+          domain: document.domain,
+          tags: document.tags,
+          metadata: document.metadata,
+          mime_type: document.mime_type,
+          organization_id: document.organization_id,
+          created_by: user.id,
+          change_reason: reason
+        });
+
+      if (versionError) throw versionError;
+
+      // Mark document as archived
+      const { error: archiveError } = await supabase
+        .from('ai_documents')
+        .update({ 
+          processing_status: 'archived',
+          updated_at: new Date().toISOString(),
+          updated_by: user.id
+        })
+        .eq('id', documentId);
+
+      if (archiveError) throw archiveError;
+
+      // Create audit log
+      await supabase.from('audit_trail').insert({
+        table_name: 'ai_documents',
+        record_id: documentId,
+        action: 'ARCHIVED',
+        field_name: 'processing_status',
+        old_value: 'completed',
+        new_value: 'archived',
+        changed_by: user.id,
+        change_reason: reason,
+        organization_id: document.organization_id
+      });
+
+      return true;
+    } catch (error) {
+      console.error('Error archiving document:', error);
+      return false;
+    }
+  };
+
   // Upload approved file to Maturion Knowledge Base
-  const uploadToMaturion = async (fileId: string) => {
+  const uploadToMaturion = async (replaceDocumentId?: string) => {
+    if (!currentUploadFile) return;
+
+    const fileId = currentUploadFile.id;
     setUploadingFiles(prev => new Set([...prev, fileId]));
 
     try {
-      // Find the approved file
-      const approvedFile = approvedFiles.find(f => f.id === fileId);
-      if (!approvedFile) {
-        throw new Error('Approved file not found');
-      }
-
       // Get current user and organization
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      // For now, we'll create a demo upload since we don't have the actual file data
-      // In a real implementation, you'd need to store the file data or re-upload
+      // If replacing, archive the old document first
+      if (replaceDocumentId) {
+        const archiveSuccess = await archiveDocument(
+          replaceDocumentId, 
+          `Replaced by new version: "${currentUploadFile.metadata.title}"`
+        );
+        
+        if (!archiveSuccess) {
+          throw new Error('Failed to archive existing document');
+        }
+
+        toast({
+          title: "Document Replaced",
+          description: "Previous version has been archived successfully",
+        });
+      }
+
       toast({
         title: "Upload Started",
-        description: `${approvedFile.fileName} is being uploaded to Maturion Knowledge Base`,
+        description: `${currentUploadFile.fileName} is being uploaded to Maturion Knowledge Base`,
       });
 
       // Simulate upload process
@@ -110,14 +210,14 @@ export const ApprovedFilesQueue: React.FC = () => {
         organization_id: '00000000-0000-0000-0000-000000000000', // System audit
         table_name: 'approved_files_queue',
         record_id: fileId,
-        action: 'APPROVED_UPLOAD',
+        action: replaceDocumentId ? 'REPLACEMENT_UPLOAD' : 'APPROVED_UPLOAD',
         changed_by: user.id,
-        change_reason: `Document "${approvedFile.metadata.title}" (${approvedFile.metadata.documentType}) uploaded after chunk verification (${approvedFile.chunksCount} chunks via ${approvedFile.extractionMethod}). Domain: ${approvedFile.metadata.domain}, Tags: ${approvedFile.metadata.tags}`
+        change_reason: `Document "${currentUploadFile.metadata.title}" (${currentUploadFile.metadata.documentType}) uploaded after chunk verification (${currentUploadFile.chunksCount} chunks via ${currentUploadFile.extractionMethod}). Domain: ${currentUploadFile.metadata.domain}, Tags: ${currentUploadFile.metadata.tags}${replaceDocumentId ? `. Replaced document ID: ${replaceDocumentId}` : ''}`
       });
 
       toast({
         title: "Upload Complete",
-        description: `${approvedFile.fileName} has been successfully uploaded to Maturion`,
+        description: `${currentUploadFile.fileName} has been successfully uploaded to Maturion`,
       });
 
     } catch (error) {
@@ -133,6 +233,8 @@ export const ApprovedFilesQueue: React.FC = () => {
         newSet.delete(fileId);
         return newSet;
       });
+      setVersionDialogOpen(false);
+      setCurrentUploadFile(null);
     }
   };
 
@@ -142,7 +244,9 @@ export const ApprovedFilesQueue: React.FC = () => {
     setSelectedFiles(new Set());
 
     for (const fileId of filesToUpload) {
-      await uploadToMaturion(fileId);
+      initiateUpload(fileId);
+      // Wait a bit between uploads to avoid overwhelming the dialog
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
   };
 
@@ -325,7 +429,7 @@ export const ApprovedFilesQueue: React.FC = () => {
                       Remove
                     </Button>
                     <Button
-                      onClick={() => uploadToMaturion(file.id)}
+                      onClick={() => initiateUpload(file.id)}
                       disabled={uploadingFiles.has(file.id)}
                       className="gap-2"
                     >
@@ -348,6 +452,21 @@ export const ApprovedFilesQueue: React.FC = () => {
           </div>
         )}
       </CardContent>
+
+      {/* Version Management Dialog */}
+      {currentUploadFile && (
+        <DocumentReplacementDialog
+          open={versionDialogOpen}
+          onClose={() => {
+            setVersionDialogOpen(false);
+            setCurrentUploadFile(null);
+          }}
+          onConfirm={uploadToMaturion}
+          newDocumentTitle={currentUploadFile.metadata.title}
+          newDocumentType={currentUploadFile.metadata.documentType}
+          newDocumentDomain={currentUploadFile.metadata.domain}
+        />
+      )}
     </Card>
   );
 };
