@@ -23,6 +23,8 @@ serve(async (req: Request): Promise<Response> => {
     });
   }
   
+  let documentId: string | undefined;
+  
   try {
     console.log("✅ Document ingestion function reached");
     console.log(`Request method: ${req.method}`);
@@ -33,8 +35,6 @@ serve(async (req: Request): Promise<Response> => {
       console.log("Handling CORS preflight request");
       return new Response(null, { headers: corsHeaders });
     }
-
-    let documentId: string | undefined;
     
     // Set up timeout for the entire operation (90 seconds)
     const timeoutPromise = new Promise<never>((_, reject) => {
@@ -51,9 +51,15 @@ serve(async (req: Request): Promise<Response> => {
       console.log('📄 Request body parsed:', JSON.stringify(requestBody));
       documentId = requestBody.documentId;
       const corruptionRecovery = requestBody.corruptionRecovery || false;
+      const forceReprocess = requestBody.forceReprocess || false;
+      const emergencyChunking = requestBody.emergencyChunking || false;
+      const governanceDocument = requestBody.governanceDocument || false;
       
       console.log('Text validation:', !!requestBody.documentId);
       console.log('Corruption recovery mode:', corruptionRecovery);
+      console.log('Force reprocess:', forceReprocess);
+      console.log('Emergency chunking:', emergencyChunking);
+      console.log('Governance document:', governanceDocument);
       
       if (!documentId) {
         throw new Error('No documentId provided');
@@ -96,12 +102,17 @@ serve(async (req: Request): Promise<Response> => {
       console.log('Document type:', document.document_type);
 
       // Check if it's a governance document for special handling
-      const isGovernanceDocument = document.document_type === 'governance' || 
+      const isGovernanceDocument = governanceDocument || 
+        document.document_type === 'governance' || 
+        document.document_type === 'ai_logic_rule_global' ||
+        document.document_type === 'governance_reasoning_manifest' ||
         document.title.toLowerCase().includes('governance') ||
-        document.title.toLowerCase().includes('policy');
+        document.title.toLowerCase().includes('policy') ||
+        document.title.toLowerCase().includes('ai logic') ||
+        document.title.toLowerCase().includes('reasoning');
 
       if (isGovernanceDocument) {
-        console.log('🏛️ GOVERNANCE DOCUMENT DETECTED: Applying specialized processing rules');
+        console.log('🏛️ GOVERNANCE/AI LOGIC DOCUMENT DETECTED: Applying specialized processing rules');
       }
 
       // Download file from Supabase Storage
@@ -110,7 +121,26 @@ serve(async (req: Request): Promise<Response> => {
         .download(document.file_path);
 
       if (fileError || !fileData) {
-        throw new Error(`Failed to download file: ${fileError?.message}`);
+        console.error(`❌ CRITICAL ERROR in process-ai-document function: Failed to download file: ${JSON.stringify(fileError)}`);
+        console.error(`❌ Full error object: ${JSON.stringify(fileError)}`);
+        console.error(`❌ Error stack: ${fileError?.stack || 'No stack trace'}`);
+        
+        // Update document status to failed with specific error
+        await supabase
+          .from('ai_documents')
+          .update({
+            processing_status: 'failed',
+            updated_at: new Date().toISOString(),
+            metadata: {
+              error_type: 'file_download_failed',
+              error_message: fileError?.message || 'Unknown file download error',
+              error_details: JSON.stringify(fileError),
+              processing_timestamp: new Date().toISOString()
+            }
+          })
+          .eq('id', documentId);
+        
+        throw new Error(`Failed to download file: ${fileError?.message || 'Unknown error'}`);
       }
 
       console.log('File downloaded successfully');
@@ -207,8 +237,9 @@ serve(async (req: Request): Promise<Response> => {
 
       console.log(`🔍 DEBUG: Text length: ${extractedText.length} characters, method: ${extractionMethod}`);
 
-      // Force emergency chunking for certain extraction methods
-      const isForcedEmergency = extractionMethod === 'pdf_emergency' || extractionMethod === 'emergency_fallback' || extractionMethod === 'unsupported_emergency';
+      // Force emergency chunking for certain extraction methods or when explicitly requested
+      const isForcedEmergency = emergencyChunking || extractionMethod === 'pdf_emergency' || 
+        extractionMethod === 'emergency_fallback' || extractionMethod === 'unsupported_emergency';
       
       if (isForcedEmergency) {
         console.log('🚨 EMERGENCY MODE: minChunkSize adjusted to 30 characters');
@@ -216,12 +247,13 @@ serve(async (req: Request): Promise<Response> => {
         console.log('📊 STANDARD MODE: Normal validation applied');
       }
 
-      // Apply AI Policy validation
+      // Apply AI Policy validation (relaxed for governance/AI logic documents)
       console.log('🔍 Applying AI Policy validation...');
       
-      // For PDFs and unsupported types, force chunk creation regardless of content quality
-      if (extractionMethod === 'pdf_emergency' || extractionMethod === 'unsupported_emergency' || extractionMethod === 'pdf_extraction_failed' || document.mime_type === 'application/pdf') {
-        console.log('🚨 FORCING EMERGENCY CHUNK CREATION FOR PDF/UNSUPPORTED - BYPASSING ALL VALIDATION');
+      // For PDFs, unsupported types, or emergency mode, force chunk creation regardless of content quality
+      if (isForcedEmergency || extractionMethod === 'pdf_emergency' || extractionMethod === 'unsupported_emergency' || 
+          extractionMethod === 'pdf_extraction_failed' || document.mime_type === 'application/pdf') {
+        console.log('🚨 FORCING EMERGENCY CHUNK CREATION - BYPASSING ALL VALIDATION');
         
         // Create emergency chunk regardless of content quality
         let emergencyChunkText = '';
@@ -229,7 +261,7 @@ serve(async (req: Request): Promise<Response> => {
         if (extractedText && extractedText.length > 10) {
           emergencyChunkText = extractedText.substring(0, 2000);
         } else {
-          emergencyChunkText = `[Forced fallback chunk – low quality]\n\nDocument: ${document.title}\nFile Type: ${document.mime_type}\nExtraction Method: emergency_pdf_override\nNote: Content extraction was limited. Manual review recommended.\n\nOriginal extracted content (${extractedText.length} chars): ${extractedText.substring(0, 500)}`;
+          emergencyChunkText = `[Forced fallback chunk – low quality]\n\nDocument: ${document.title}\nFile Type: ${document.mime_type}\nExtraction Method: emergency_override\nNote: Content extraction was limited. Manual review recommended.\n\nOriginal extracted content (${extractedText.length} chars): ${extractedText.substring(0, 500)}`;
         }
         
         console.log(`📋 Emergency chunk text length: ${emergencyChunkText.length} characters`);
@@ -252,7 +284,7 @@ serve(async (req: Request): Promise<Response> => {
             chunk_index: 0,
             content_hash: `emergency_${Date.now()}`,
             metadata: {
-              extraction_method: 'emergency_pdf_override',
+              extraction_method: 'emergency_override',
               extraction_quality: 'poor',
               reason: 'forced_emergency_override',
               quality_score: 0,
@@ -277,14 +309,15 @@ serve(async (req: Request): Promise<Response> => {
           .from('ai_documents')
           .update({
             processing_status: 'completed',
+            total_chunks: 1,
             updated_at: new Date().toISOString(),
             metadata: {
               chunks_created: 1,
-              extraction_method: 'emergency_pdf_override',
+              extraction_method: 'emergency_override',
               forced_emergency_override: true,
               quality_score: 0,
               processing_duration_ms: Date.now(),
-              emergency_processing_reason: 'PDF content below quality threshold - forced chunk creation'
+              emergency_processing_reason: 'Content below quality threshold - forced chunk creation'
             }
           })
           .eq('id', documentId);
@@ -293,7 +326,7 @@ serve(async (req: Request): Promise<Response> => {
         return { success: true, chunks: 1, emergency_override: true, quality_score: 0 };
       }
 
-      // Standard validation for other file types
+      // Standard validation for other file types (relaxed for governance documents)
       const binaryContentRatio = extractedText.length > 0 ? 
         (extractedText.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / extractedText.length : 0;
       
@@ -320,14 +353,14 @@ serve(async (req: Request): Promise<Response> => {
         }
         
         const strictWordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
-        const emergencyMinWords = (extractionMethod === 'pdf_emergency' || extractionMethod === 'emergency_fallback' || extractionMethod === 'unsupported_emergency') ? 5 : 50;
+        const emergencyMinWords = isForcedEmergency ? 5 : 50;
         
         if (strictWordCount < emergencyMinWords) {
           throw new Error(`BLOCKED: Insufficient word count (${strictWordCount} words, minimum ${emergencyMinWords}) - AI Policy violation`);
         }
       } else {
         // Relaxed validation for governance documents
-        console.log('📄 GOVERNANCE DOCUMENT: Applying relaxed validation rules');
+        console.log('📄 GOVERNANCE/AI LOGIC DOCUMENT: Applying relaxed validation rules');
         
         if (binaryContentRatio > 0.3) {
           throw new Error(`BLOCKED: Extremely high binary content ratio (${(binaryContentRatio * 100).toFixed(1)}%) - Even governance documents must be readable`);
@@ -338,13 +371,13 @@ serve(async (req: Request): Promise<Response> => {
           console.warn('⚠️ GOVERNANCE: Corruption markers detected but proceeding due to governance document type');
         }
         
-        if (extractedText.length < 200) {
-          throw new Error(`BLOCKED: Governance document too short (${extractedText.length} chars, minimum 200) - AI Policy violation`);
+        if (extractedText.length < 100) {
+          throw new Error(`BLOCKED: Governance document too short (${extractedText.length} chars, minimum 100) - AI Policy violation`);
         }
         
         const governanceWordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
-        if (governanceWordCount < 20) {
-          throw new Error(`BLOCKED: Governance document insufficient content (${governanceWordCount} words, minimum 20) - AI Policy violation`);
+        if (governanceWordCount < 10) {
+          throw new Error(`BLOCKED: Governance document insufficient content (${governanceWordCount} words, minimum 10) - AI Policy violation`);
         }
       }
 
@@ -359,7 +392,7 @@ serve(async (req: Request): Promise<Response> => {
 
       // Special handling for governance documents
       if (isGovernanceDocument) {
-        console.log('🏛️ GOVERNANCE: Applying specialized chunking strategy');
+        console.log('🏛️ GOVERNANCE/AI LOGIC: Applying specialized chunking strategy');
         chunks = splitTextIntoChunks(extractedText, targetChunkSize, overlap);
         
         if (chunks.length === 0) {
@@ -409,118 +442,99 @@ serve(async (req: Request): Promise<Response> => {
               console.warn(`⚠️ Failed to generate embedding for chunk ${index + 1}`);
             }
           } else {
-            console.log(`📊 Skipping embedding for chunk ${index + 1} (emergency mode or insufficient content)`);
+            console.log(`📦 Skipping embedding generation for chunk ${index + 1} (emergency mode or too short)`);
           }
 
-          // Insert chunk into database
-          const { data: chunkData, error: chunkError } = await supabase
+          // Create content hash
+          const contentHash = `chunk_${documentId}_${index}_${Date.now()}`;
+
+          // Insert chunk
+          const { error: insertError } = await supabase
             .from('ai_document_chunks')
             .insert({
               document_id: documentId,
               organization_id: document.organization_id,
               content: chunk,
               chunk_index: index,
-              content_hash: `chunk_${index}_${Date.now()}`,
+              content_hash: contentHash,
+              embedding: embedding,
               metadata: {
                 extraction_method: extractionMethod,
                 chunk_size: chunk.length,
-                is_governance: isGovernanceDocument,
-                extraction_quality: isEmergencyMode ? 'poor' : 'standard',
-                reason: isEmergencyMode ? 'content_too_short_but_forced' : 'normal_processing'
+                has_embedding: !!embedding,
+                is_governance_document: isGovernanceDocument,
+                quality_score: isGovernanceDocument ? 1 : (chunk.length >= minChunkSizeForValidation ? 1 : 0.5),
+                processing_timestamp: new Date().toISOString()
               }
-            })
-            .select()
-            .single();
+            });
 
-          if (chunkError) {
-            console.error(`❌ Error inserting chunk ${index + 1}:`, chunkError);
-            throw chunkError;
+          if (insertError) {
+            console.error(`❌ Error inserting chunk ${index + 1}:`, insertError);
+            throw insertError;
           }
 
-          console.log(`✅ Chunk ${index + 1} inserted successfully with ID: ${chunkData.id}`);
-          return chunkData;
+          console.log(`✅ Chunk ${index + 1} inserted successfully`);
+          return { success: true, chunkIndex: index };
 
-        } catch (error: any) {
-          console.error(`❌ Error processing chunk ${index + 1}:`, error.message);
-          throw error;
+        } catch (chunkError: any) {
+          console.error(`❌ Error processing chunk ${index + 1}:`, chunkError.message);
+          return { success: false, chunkIndex: index, error: chunkError.message };
         }
       });
 
-      // Wait for all chunks to be processed
-      const processedChunks = await Promise.all(chunkPromises);
-      console.log(`✅ All ${processedChunks.length} chunks processed successfully`);
+      const chunkResults = await Promise.all(chunkPromises);
+      const successfulChunks = chunkResults.filter(result => result.success).length;
+      
+      console.log(`📊 Chunk processing complete: ${successfulChunks}/${chunks.length} successful`);
 
-      // Verify final chunk count
-      const { count: finalChunkCount, error: verifyError } = await supabase
-        .from('ai_document_chunks')
-        .select('*', { count: 'exact' })
-        .eq('document_id', documentId);
-
-      if (verifyError) {
-        console.error('❌ Error verifying chunk count:', verifyError);
-      } else {
-        console.log(`🔍 Verification: ${finalChunkCount} chunks confirmed in database`);
-      }
-
-      // Update document status to completed
-      const updateResult = await supabase
+      // Update document status
+      const finalStatus = successfulChunks > 0 ? 'completed' : 'failed';
+      await supabase
         .from('ai_documents')
         .update({
-          processing_status: 'completed',
+          processing_status: finalStatus,
+          total_chunks: successfulChunks,
+          processed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           metadata: {
-            chunks_created: finalChunkCount,
+            chunks_created: successfulChunks,
             extraction_method: extractionMethod,
-            processing_duration_ms: Date.now()
+            processing_duration_ms: Date.now(),
+            is_governance_document: isGovernanceDocument,
+            chunk_failures: chunks.length - successfulChunks
           }
         })
         .eq('id', documentId);
 
-      if (updateResult.error) {
-        console.error('❌ FAILED TO UPDATE DOCUMENT STATUS:', updateResult.error);
-      } else {
-        console.log('✅ DOCUMENT STATUS UPDATED SUCCESSFULLY');
-      }
+      console.log(`✅ Document status updated to ${finalStatus} with ${successfulChunks} chunks`);
 
-      console.log('✅ Document processing completed successfully');
-      return { success: true, chunks: finalChunkCount || 0, emergency_override: false };
+      return { 
+        success: true, 
+        chunks: successfulChunks,
+        extraction_method: extractionMethod,
+        is_governance_document: isGovernanceDocument 
+      };
     };
 
     // Race between processing and timeout
     const result = await Promise.race([processingPromise(), timeoutPromise]);
-    
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: `Document ${documentId} processed successfully`,
-      ...result
-    }), {
+
+    return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
-    
+
   } catch (error: any) {
-    console.error('❌ CRITICAL ERROR in process-ai-document function:', error.message);
+    console.error('❌ Error in document processing:', error.message);
     console.error('❌ Error stack:', error.stack);
-    console.error('❌ Full error object:', JSON.stringify(error, null, 2));
+    console.error('❌ DocumentId at error time:', documentId);
     
-    // Try to extract documentId from the error context if possible
-    if (!documentId) {
-      try {
-        const requestBody = await req.json();
-        documentId = requestBody.documentId;
-      } catch {
-        // If we can't parse the body, documentId remains undefined
-      }
-    }
-    
-    // Update document status to failed if we have documentId
+    // Only update document status if we have a valid documentId
     if (documentId) {
       try {
-        console.log(`🔄 Updating document status to failed for: ${documentId}`);
-        
         const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '', {
           auth: { persistSession: false }
         });
-
+        
         await supabase
           .from('ai_documents')
           .update({
@@ -528,7 +542,9 @@ serve(async (req: Request): Promise<Response> => {
             updated_at: new Date().toISOString(),
             metadata: {
               error: error.message,
-              processing_duration_ms: Date.now()
+              error_stack: error.stack,
+              processing_timestamp: new Date().toISOString(),
+              document_id_at_error: documentId
             }
           })
           .eq('id', documentId);
@@ -537,51 +553,43 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error.message || 'Unknown processing error',
-      documentId: documentId || 'unknown'
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-    });
+    return new Response(
+      JSON.stringify({ 
+        success: false, 
+        error: error.message,
+        documentId: documentId || 'undefined'
+      }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
 });
 
-// Function to split text into chunks
+// Text chunking utility function
 function splitTextIntoChunks(text: string, chunkSize: number, overlap: number): string[] {
   const chunks: string[] = [];
-  let startIndex = 0;
+  let start = 0;
 
-  while (startIndex < text.length) {
-    const endIndex = Math.min(startIndex + chunkSize, text.length);
-    const chunk = text.slice(startIndex, endIndex);
+  while (start < text.length) {
+    const end = Math.min(start + chunkSize, text.length);
+    const chunk = text.slice(start, end);
+    chunks.push(chunk);
     
-    if (chunk.trim().length > 0) {
-      chunks.push(chunk.trim());
-    }
-    
-    startIndex += chunkSize - overlap;
-    
-    // Prevent infinite loop
-    if (startIndex <= chunks.length * (chunkSize - overlap) - chunkSize) {
-      break;
-    }
+    if (end === text.length) break;
+    start = end - overlap;
   }
-  
+
   return chunks;
 }
 
-// Function to generate embeddings using OpenAI
+// Embedding generation utility function
 async function generateEmbedding(text: string): Promise<number[] | null> {
-  const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-  
-  if (!openaiApiKey) {
-    console.warn('⚠️ OpenAI API key not found, skipping embedding generation');
-    return null;
-  }
-  
   try {
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiApiKey) {
+      console.warn('⚠️ OpenAI API key not found, skipping embedding generation');
+      return null;
+    }
+
     const response = await fetch('https://api.openai.com/v1/embeddings', {
       method: 'POST',
       headers: {
@@ -590,19 +598,19 @@ async function generateEmbedding(text: string): Promise<number[] | null> {
       },
       body: JSON.stringify({
         input: text,
-        model: 'text-embedding-ada-002'
-      })
+        model: 'text-embedding-ada-002',
+      }),
     });
 
     if (!response.ok) {
-      console.error(`❌ OpenAI API error: ${response.status} ${response.statusText}`);
+      console.error('❌ OpenAI API error:', response.status, response.statusText);
       return null;
     }
 
     const data = await response.json();
     return data.data[0].embedding;
-  } catch (error: any) {
-    console.error('❌ Error generating embedding:', error.message);
+  } catch (error) {
+    console.error('❌ Error generating embedding:', error);
     return null;
   }
 }

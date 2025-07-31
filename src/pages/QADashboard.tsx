@@ -23,6 +23,7 @@ import { GovernanceDocumentFixer } from '@/components/qa/GovernanceDocumentFixer
 import { ReasoningScopeTracker } from '@/components/admin/ReasoningScopeTracker';
 import { AIReasoningIntegrationTester } from '@/components/qa/AIReasoningIntegrationTester';
 import { BatchDocumentReprocessor } from '@/components/qa/BatchDocumentReprocessor';
+import { AILogicIngestionDashboard } from '@/components/qa/AILogicIngestionDashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useEffect, useState as useReactState } from 'react';
@@ -162,6 +163,19 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           </div>
         </AlertDescription>
       </Alert>
+
+      {/* 🧠 AI Logic Ingestion Comprehensive Dashboard */}
+      <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
+        <CardHeader>
+          <CardTitle className="text-blue-800 dark:text-blue-200">🧠 AI Logic Ingestion - Comprehensive Diagnostic Dashboard</CardTitle>
+          <CardDescription className="text-blue-700 dark:text-blue-300">
+            Complete AI Logic Document investigation and fix workflow with holistic diagnostics, metadata validation, and processing pipeline integrity checks.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AILogicIngestionDashboard />
+        </CardContent>
+      </Card>
 
       {/* 🚨 URGENT: Governance Document Fix & Edge Function Testing */}
       <div className="space-y-4">
