@@ -338,6 +338,15 @@ export const DocumentChunkTester: React.FC = () => {
         userRole: selectedOrg.role
       });
 
+      // Verify user has admin/owner role for RLS policy
+      if (!['admin', 'owner'].includes(selectedOrg.role)) {
+        console.error('Insufficient permissions for chunk approval:', {
+          requiredRoles: ['admin', 'owner'],
+          userRole: selectedOrg.role
+        });
+        throw new Error(`Insufficient permissions. Admin or Owner role required for chunk approval. Current role: ${selectedOrg.role}`);
+      }
+
       // Create a temporary document ID for chunk association
       const tempDocId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
@@ -371,6 +380,16 @@ export const DocumentChunkTester: React.FC = () => {
         chunksCount: chunksToSave.length,
         sampleChunk: chunksToSave[0]
       });
+
+      // Test RLS access before attempting insert
+      console.log('Testing database access with current user permissions...');
+      const { data: testAccess, error: testError } = await supabase
+        .from('approved_chunks_cache')
+        .select('count')
+        .eq('organization_id', selectedOrg.organization_id)
+        .limit(1);
+
+      console.log('RLS test result:', { testAccess, testError });
 
       const { data: insertedChunks, error: chunksError } = await supabase
         .from('approved_chunks_cache')
