@@ -249,21 +249,38 @@ export const ApprovedFilesQueue: React.FC = () => {
         throw new Error('User not authenticated');
       }
 
-      // If replacing, archive the old document first
+      // If replacing, attempt to archive the old document (non-blocking)
       if (replaceDocumentId) {
-        const archiveSuccess = await archiveDocument(
-          replaceDocumentId, 
-          `Replaced by new version: "${currentUploadFile.metadata.title}"`
-        );
+        console.log('🔄 REPLACEMENT MODE: Attempting to archive existing document:', replaceDocumentId);
         
-        if (!archiveSuccess) {
-          throw new Error('Failed to archive existing document');
+        try {
+          const archiveSuccess = await archiveDocument(
+            replaceDocumentId, 
+            `Replaced by new version: "${currentUploadFile.metadata.title}"`
+          );
+          
+          if (archiveSuccess) {
+            console.log('✅ ARCHIVE SUCCESS: Previous document archived');
+            toast({
+              title: "Document Replaced",
+              description: "Previous version has been archived successfully",
+            });
+          } else {
+            console.warn('⚠️ ARCHIVE FAILED: Could not archive previous document (upload continuing)');
+            toast({
+              title: "Upload Continuing",
+              description: "Previous document could not be archived, but upload will proceed",
+              variant: "default",
+            });
+          }
+        } catch (archiveError) {
+          console.warn('⚠️ ARCHIVE ERROR: Archive process failed (upload continuing):', archiveError);
+          toast({
+            title: "Archive Warning",
+            description: "Previous document archival failed, but upload will proceed",
+            variant: "default",
+          });
         }
-
-        toast({
-          title: "Document Replaced",
-          description: "Previous version has been archived successfully",
-        });
       }
 
       toast({
