@@ -24,7 +24,7 @@ import { ReasoningScopeTracker } from '@/components/admin/ReasoningScopeTracker'
 import { AIReasoningIntegrationTester } from '@/components/qa/AIReasoningIntegrationTester';
 import { BatchDocumentReprocessor } from '@/components/qa/BatchDocumentReprocessor';
 import { AILogicIngestionDashboard } from '@/components/qa/AILogicIngestionDashboard';
-import { DocumentChunkTester } from '@/components/qa/DocumentChunkTester';
+// import { DocumentChunkTester } from '@/components/qa/DocumentChunkTester'; // Disabled to avoid conflicts with Knowledge Base
 import { ApprovedFilesQueue } from '@/components/ai/ApprovedFilesQueue';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -292,7 +292,13 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
         
         <TabsContent value="chunk-tester" className="space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <DocumentChunkTester />
+            <div className="p-4 border rounded-lg bg-muted">
+              <p className="text-muted-foreground">
+                Document Chunk Tester has been moved to the Knowledge Base for focused testing.
+                <br />
+                Please use /maturion/knowledge-base for document uploads and chunk testing.
+              </p>
+            </div>
           </div>
           
           {/* Approved Files Queue */}
