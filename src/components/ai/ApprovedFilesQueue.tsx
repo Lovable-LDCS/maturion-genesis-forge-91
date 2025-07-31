@@ -14,6 +14,8 @@ interface DocumentMetadata {
   domain: string;
   visibility: string;
   description: string;
+  tempDocId?: string; // For Smart Chunk Reuse
+  preApprovedChunks?: boolean; // Flag indicating pre-approved chunks are available
 }
 
 interface ApprovedFile {
@@ -410,17 +412,22 @@ export const ApprovedFilesQueue: React.FC = () => {
                            {formatDate(file.verifiedAt)}
                          </span>
                        </div>
-                       <div className="flex items-center gap-2 flex-wrap">
-                         <Badge variant="outline" className="text-xs">
-                           {file.extractionMethod}
-                         </Badge>
-                         <Badge variant="secondary" className="text-xs">
-                           {file.metadata.documentType}
-                         </Badge>
-                         <Badge variant="outline" className="text-xs">
-                           {file.metadata.domain}
-                         </Badge>
-                       </div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className="text-xs">
+                            {file.extractionMethod}
+                          </Badge>
+                          <Badge variant="secondary" className="text-xs">
+                            {file.metadata.documentType}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {file.metadata.domain}
+                          </Badge>
+                          {file.metadata.preApprovedChunks && (
+                            <Badge variant="default" className="text-xs bg-green-600 hover:bg-green-700">
+                              ✅ Smart Chunk Reuse
+                            </Badge>
+                          )}
+                        </div>
                        <div className="text-xs">
                          <strong>Tags:</strong> {file.metadata.tags}
                        </div>

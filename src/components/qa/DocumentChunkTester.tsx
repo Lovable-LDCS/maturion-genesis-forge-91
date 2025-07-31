@@ -11,6 +11,7 @@ import { Upload, FileText, AlertTriangle, CheckCircle, Eye } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { supabase } from '@/integrations/supabase/client';
 import mammoth from 'mammoth';
 
 interface ChunkResult {
@@ -291,6 +292,62 @@ export const DocumentChunkTester: React.FC = () => {
     event.preventDefault();
   }, []);
 
+  // Save approved chunks to cache for Smart Chunk Reuse
+  const saveApprovedChunks = useCallback(async (chunks: string[]) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Get user's organization
+      const { data: orgMember } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!orgMember) {
+        throw new Error('User organization not found');
+      }
+
+      // Create a temporary document ID for chunk association
+      const tempDocId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      // Save chunks to approved_chunks_cache
+      const chunksToSave = chunks.map((content, index) => ({
+        document_id: tempDocId,
+        chunk_index: index,
+        content,
+        content_hash: `tester_${tempDocId}_${index}_${Date.now()}`,
+        metadata: {
+          approved_via_tester: true,
+          extraction_method: result?.extractionMethod || 'chunk_tester',
+          chunk_size: content.length,
+          verified_at: new Date().toISOString(),
+          file_name: file?.name || 'unknown',
+          document_title: metadata.title
+        },
+        approved_by: user.id,
+        organization_id: orgMember.organization_id
+      }));
+
+      const { error: chunksError } = await supabase
+        .from('approved_chunks_cache')
+        .insert(chunksToSave);
+
+      if (chunksError) {
+        throw new Error(`Failed to save approved chunks: ${chunksError.message}`);
+      }
+
+      console.log(`✅ Saved ${chunks.length} approved chunks for Smart Chunk Reuse`);
+      return tempDocId;
+    } catch (error) {
+      console.error('❌ Error saving approved chunks:', error);
+      throw error;
+    }
+  }, [result, file, metadata]);
+
   return (
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
@@ -527,40 +584,63 @@ export const DocumentChunkTester: React.FC = () => {
               </div>
               
               <Button 
-                onClick={() => {
-                  // Add to approved files queue with metadata
-                  if ((window as any).addApprovedFile && file) {
-                    const fileWithMetadata = {
-                      file,
-                      metadata,
-                      chunksCount: result.chunks.length,
-                      extractionMethod: result.extractionMethod
-                    };
-                    (window as any).addApprovedFile(fileWithMetadata);
-                    setFile(null);
-                    setResult(null);
-                    setValidation(null);
-                    setShowMetadataForm(false);
-                    setMetadata({
-                      title: '',
-                      documentType: '',
-                      tags: '',
-                      domain: '',
-                      visibility: 'all_users',
-                      description: ''
-                    });
-                  } else {
+                onClick={async () => {
+                  try {
+                    // Save approved chunks for Smart Chunk Reuse
+                    const tempDocId = await saveApprovedChunks(result.chunks);
+                    
+                    // Add to approved files queue with metadata and chunk reference
+                    if ((window as any).addApprovedFile && file) {
+                      const fileWithMetadata = {
+                        file,
+                        metadata: {
+                          ...metadata,
+                          tempDocId,
+                          preApprovedChunks: true
+                        },
+                        chunksCount: result.chunks.length,
+                        extractionMethod: result.extractionMethod
+                      };
+                      (window as any).addApprovedFile(fileWithMetadata);
+                      
+                      toast({
+                        title: "✅ Approved for Smart Upload",
+                        description: `${file.name} approved with ${result.chunks.length} pre-verified chunks ready for reuse.`,
+                      });
+                      
+                      setFile(null);
+                      setResult(null);
+                      setValidation(null);
+                      setShowMetadataForm(false);
+                      setMetadata({
+                        title: '',
+                        documentType: '',
+                        tags: '',
+                        domain: '',
+                        visibility: 'all_users',
+                        description: ''
+                      });
+                    } else {
+                      toast({
+                        title: "Feature Unavailable",
+                        description: "Approved files queue is not available. Please refresh the page.",
+                        variant: "destructive",
+                      });
+                    }
+                  } catch (error) {
+                    console.error('❌ Error approving file:', error);
                     toast({
-                      title: "Feature Unavailable",
-                      description: "Approved files queue is not available. Please refresh the page.",
+                      title: "Approval Failed",
+                      description: "Failed to save approved chunks. Please try again.",
                       variant: "destructive",
                     });
                   }
                 }}
                 className="w-full gap-2"
+                disabled={isProcessing}
               >
                 <CheckCircle className="h-4 w-4" />
-                Approve for Upload to Maturion
+                Approve for Smart Upload to Maturion
               </Button>
               <p className="text-xs text-muted-foreground text-center">
                 This will add the file with metadata to the approved queue for secure upload
@@ -584,6 +664,21 @@ export const DocumentChunkTester: React.FC = () => {
                 Processing {result.success ? 'Successful' : 'Failed'}
               </h3>
             </div>
+
+            {/* Smart Chunk Reuse Success Message */}
+            {result.success && showMetadataForm && (
+              <Alert className="border-green-200 bg-green-50">
+                <CheckCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <div className="space-y-1">
+                    <p className="font-medium text-green-800">✅ Ready for Smart Chunk Reuse</p>
+                    <p className="text-green-700">
+                      Once uploaded, this document will use pre-approved chunks to avoid reprocessing failures and save credits.
+                    </p>
+                  </div>
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Summary Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

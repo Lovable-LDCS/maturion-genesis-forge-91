@@ -99,6 +99,85 @@ serve(async (req: Request): Promise<Response> => {
         .eq('id', documentId)
         .single();
 
+      if (docError) {
+        throw new Error(`Failed to fetch document: ${docError.message}`);
+      }
+
+      console.log(`Document found: ${document.title} (${document.mime_type})`);
+      
+      // 🎯 SMART CHUNK REUSE: Check if document was already processed via chunk tester
+      if (document.chunked_from_tester && !forceReprocess) {
+        console.log('🔄 SMART CHUNK REUSE: Document already approved via chunk tester, reusing existing chunks...');
+        
+        // Fetch approved chunks from cache
+        const { data: approvedChunks, error: chunksError } = await supabase
+          .from('approved_chunks_cache')
+          .select('*')
+          .eq('document_id', documentId)
+          .order('chunk_index');
+        
+        if (chunksError) {
+          console.log('⚠️ Error fetching approved chunks, falling back to full processing:', chunksError.message);
+        } else if (approvedChunks && approvedChunks.length > 0) {
+          console.log(`✅ Found ${approvedChunks.length} pre-approved chunks, reusing them`);
+          
+          // Clear any existing chunks first
+          await supabase
+            .from('ai_document_chunks')
+            .delete()
+            .eq('document_id', documentId);
+          
+          // Insert the approved chunks into the main chunks table
+          const chunksToInsert = approvedChunks.map(chunk => ({
+            document_id: documentId,
+            chunk_index: chunk.chunk_index,
+            content: chunk.content,
+            content_hash: chunk.content_hash,
+            metadata: {
+              ...chunk.metadata,
+              reused_from_tester: true,
+              original_approved_at: chunk.approved_at,
+              original_approved_by: chunk.approved_by
+            },
+            organization_id: document.organization_id,
+            embedding: null // Will be generated if needed
+          }));
+          
+          const { error: insertError } = await supabase
+            .from('ai_document_chunks')
+            .insert(chunksToInsert);
+          
+          if (insertError) {
+            console.log('⚠️ Error inserting reused chunks, falling back to full processing:', insertError.message);
+          } else {
+            // Update document status
+            await supabase
+              .from('ai_documents')
+              .update({ 
+                processing_status: 'completed',
+                processed_at: new Date().toISOString(),
+                total_chunks: approvedChunks.length,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', documentId);
+            
+            console.log('✅ Smart chunk reuse completed successfully');
+            
+            return new Response(JSON.stringify({
+              success: true,
+              message: 'Document processed using pre-approved chunks from chunk tester',
+              documentId,
+              totalChunks: approvedChunks.length,
+              reusedFromTester: true
+            }), {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+        } else {
+          console.log('⚠️ No approved chunks found in cache, falling back to full processing');
+        }
+      }
+
       if (docError || !document) {
         throw new Error(`Document not found: ${docError?.message}`);
       }

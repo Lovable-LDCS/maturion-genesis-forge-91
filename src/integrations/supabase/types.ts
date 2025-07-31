@@ -242,6 +242,7 @@ export type Database = {
       }
       ai_documents: {
         Row: {
+          chunked_from_tester: boolean | null
           created_at: string
           document_type: string
           domain: string | null
@@ -255,6 +256,8 @@ export type Database = {
           processed_at: string | null
           processing_status: string
           tags: string | null
+          tester_approved_at: string | null
+          tester_approved_by: string | null
           title: string | null
           total_chunks: number | null
           updated_at: string
@@ -263,6 +266,7 @@ export type Database = {
           uploaded_by: string
         }
         Insert: {
+          chunked_from_tester?: boolean | null
           created_at?: string
           document_type: string
           domain?: string | null
@@ -276,6 +280,8 @@ export type Database = {
           processed_at?: string | null
           processing_status?: string
           tags?: string | null
+          tester_approved_at?: string | null
+          tester_approved_by?: string | null
           title?: string | null
           total_chunks?: number | null
           updated_at?: string
@@ -284,6 +290,7 @@ export type Database = {
           uploaded_by: string
         }
         Update: {
+          chunked_from_tester?: boolean | null
           created_at?: string
           document_type?: string
           domain?: string | null
@@ -297,6 +304,8 @@ export type Database = {
           processed_at?: string | null
           processing_status?: string
           tags?: string | null
+          tester_approved_at?: string | null
+          tester_approved_by?: string | null
           title?: string | null
           total_chunks?: number | null
           updated_at?: string
@@ -439,6 +448,56 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      approved_chunks_cache: {
+        Row: {
+          approved_at: string
+          approved_by: string
+          chunk_index: number
+          content: string
+          content_hash: string
+          created_at: string
+          document_id: string
+          extraction_method: string | null
+          id: string
+          metadata: Json | null
+          organization_id: string
+        }
+        Insert: {
+          approved_at?: string
+          approved_by: string
+          chunk_index: number
+          content: string
+          content_hash: string
+          created_at?: string
+          document_id: string
+          extraction_method?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+        }
+        Update: {
+          approved_at?: string
+          approved_by?: string
+          chunk_index?: number
+          content?: string
+          content_hash?: string
+          created_at?: string
+          document_id?: string
+          extraction_method?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approved_chunks_cache_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_documents"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       assessment_scores: {
         Row: {
