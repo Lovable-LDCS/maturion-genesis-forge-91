@@ -527,8 +527,47 @@ serve(async (req: Request): Promise<Response> => {
       
       console.log(`📊 Chunk processing complete: ${successfulChunks}/${chunks.length} successful`);
 
-      // Update document status
-      const finalStatus = successfulChunks > 0 ? 'completed' : 'failed';
+      // HARDENED SUCCESS LOGIC: Only report success if chunks were actually created
+      const actualSuccess = successfulChunks > 0;
+      const finalStatus = actualSuccess ? 'completed' : 'failed';
+      
+      // Enhanced error reporting when chunking fails
+      if (!actualSuccess) {
+        console.error(`🚨 CRITICAL FAILURE: Document "${document.title}" returned 0 chunks after processing`);
+        console.error(`📋 Failure Details:`);
+        console.error(`   - File type: ${document.mime_type}`);
+        console.error(`   - File size: ${fileData?.size || 'unknown'} bytes`);
+        console.error(`   - Extracted text length: ${extractedText.length} characters`);
+        console.error(`   - Extraction method: ${extractionMethod}`);
+        console.error(`   - Original chunks generated: ${chunks.length}`);
+        console.error(`   - Successful chunk insertions: ${successfulChunks}`);
+        
+        // Log chunk processing failures
+        const failedChunks = chunkResults.filter(result => !result.success);
+        if (failedChunks.length > 0) {
+          console.error(`❌ Failed chunk details:`);
+          failedChunks.forEach(failure => {
+            console.error(`   - Chunk ${failure.chunkIndex + 1}: ${failure.error}`);
+          });
+        }
+        
+        // Check text extraction issues
+        if (extractedText.length === 0) {
+          console.error(`❌ TEXT EXTRACTION FAILED: No content extracted from file`);
+          if (document.mime_type.includes('docx')) {
+            console.error(`   - DOCX extraction via Mammoth failed`);
+          } else if (document.mime_type.includes('pdf')) {
+            console.error(`   - PDF extraction failed`);
+          } else if (document.mime_type.includes('markdown')) {
+            console.error(`   - Markdown processing failed`);
+          }
+        } else if (chunks.length === 0) {
+          console.error(`❌ CHUNKING FAILED: Text extracted but no chunks created`);
+        } else {
+          console.error(`❌ CHUNK INSERTION FAILED: Chunks created but database insertion failed`);
+        }
+      }
+
       await supabase
         .from('ai_documents')
         .update({
@@ -541,18 +580,27 @@ serve(async (req: Request): Promise<Response> => {
             extraction_method: extractionMethod,
             processing_duration_ms: Date.now(),
             is_governance_document: isGovernanceDocument,
-            chunk_failures: chunks.length - successfulChunks
+            chunk_failures: chunks.length - successfulChunks,
+            text_length: extractedText.length,
+            chunks_generated: chunks.length,
+            actual_success: actualSuccess
           }
         })
         .eq('id', documentId);
 
-      console.log(`✅ Document status updated to ${finalStatus} with ${successfulChunks} chunks`);
+      if (actualSuccess) {
+        console.log(`✅ Document processing SUCCESS: ${document.title} created ${successfulChunks} chunks`);
+      } else {
+        console.log(`❌ Document processing FAILED: ${document.title} created 0 chunks`);
+      }
 
       return { 
-        success: true, 
+        success: actualSuccess, // Only true if chunks were actually created
         chunks: successfulChunks,
         extraction_method: extractionMethod,
-        is_governance_document: isGovernanceDocument 
+        is_governance_document: isGovernanceDocument,
+        text_extracted: extractedText.length > 0,
+        chunks_generated: chunks.length
       };
     };
 
