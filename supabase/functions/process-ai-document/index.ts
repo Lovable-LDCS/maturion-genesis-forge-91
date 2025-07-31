@@ -844,7 +844,7 @@ serve(async (req: Request): Promise<Response> => {
       };
       
       return processingResult;
-    }
+    };
 
     // Race between processing and timeout
     const result = await Promise.race([processingPromise(), timeoutPromise]);
