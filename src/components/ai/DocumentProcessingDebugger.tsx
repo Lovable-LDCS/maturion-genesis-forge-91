@@ -54,20 +54,37 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
     clearLogs();
     
     try {
-      // Get user's organization first
+      // Get user's organization first (check both ownership and membership)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      // Get user's organization
-      const { data: orgMember } = await supabase
-        .from('organization_members')
-        .select('organization_id')
-        .eq('user_id', user.id)
+      let organizationId;
+
+      // First, check if user owns an organization
+      const { data: ownedOrg } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('owner_id', user.id)
         .maybeSingle();
 
-      if (!orgMember) {
+      if (ownedOrg) {
+        organizationId = ownedOrg.id;
+      } else {
+        // If not an owner, check if they're a member
+        const { data: orgMember } = await supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (orgMember) {
+          organizationId = orgMember.organization_id;
+        }
+      }
+
+      if (!organizationId) {
         throw new Error('User not part of any organization');
       }
 
@@ -79,7 +96,7 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
         .from('ai_documents')
         .select('id, title, processing_status, organization_id')
         .eq('processing_status', 'pending')
-        .eq('organization_id', orgMember.organization_id)
+        .eq('organization_id', organizationId)
         .limit(1)
         .maybeSingle();
         
@@ -91,7 +108,7 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
           .from('ai_documents')
           .select('id, title, processing_status, organization_id')
           .eq('processing_status', 'failed')
-          .eq('organization_id', orgMember.organization_id)
+          .eq('organization_id', organizationId)
           .limit(1)
           .maybeSingle();
           
@@ -230,20 +247,37 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
     clearLogs();
     
     try {
-      // Get user's organization first
+      // Get user's organization first (check both ownership and membership)
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      // Get user's organization
-      const { data: orgMember } = await supabase
-        .from('organization_members')
-        .select('organization_id')
-        .eq('user_id', user.id)
+      let organizationId;
+
+      // First, check if user owns an organization
+      const { data: ownedOrg } = await supabase
+        .from('organizations')
+        .select('id')
+        .eq('owner_id', user.id)
         .maybeSingle();
 
-      if (!orgMember) {
+      if (ownedOrg) {
+        organizationId = ownedOrg.id;
+      } else {
+        // If not an owner, check if they're a member
+        const { data: orgMember } = await supabase
+          .from('organization_members')
+          .select('organization_id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (orgMember) {
+          organizationId = orgMember.organization_id;
+        }
+      }
+
+      if (!organizationId) {
         throw new Error('User not part of any organization');
       }
 
@@ -252,7 +286,7 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
         .from('ai_documents')
         .select('id, title, processing_status, organization_id')
         .in('processing_status', ['pending', 'failed'])
-        .eq('organization_id', orgMember.organization_id);
+        .eq('organization_id', organizationId);
 
       if (pendingError) throw pendingError;
 
