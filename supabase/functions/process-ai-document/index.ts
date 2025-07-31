@@ -185,6 +185,58 @@ serve(async (req: Request): Promise<Response> => {
       console.log(`Document found: ${document.title} (${document.mime_type})`);
       console.log('Document type:', document.document_type);
 
+      // Check if this document has pre-approved chunks (from DocumentChunkTester)
+      const hasPreApprovedChunks = document.metadata?.approved_via_tester === true || 
+        document.file_path?.startsWith('chunk-tester/');
+
+      if (hasPreApprovedChunks) {
+        console.log('🚀 PRE-APPROVED CHUNKS DETECTED: Document processed via DocumentChunkTester, skipping file download and processing');
+        
+        // Check if chunks already exist in approved_chunks_cache
+        const { data: existingChunks, error: chunksError } = await supabase
+          .from('approved_chunks_cache')
+          .select('id, content, chunk_index')
+          .eq('document_id', documentId);
+
+        if (chunksError) {
+          console.error('❌ Error checking for existing chunks:', chunksError);
+          throw new Error(`Failed to check existing chunks: ${chunksError.message}`);
+        }
+
+        if (existingChunks && existingChunks.length > 0) {
+          console.log(`✅ SMART CHUNK REUSE SUCCESS: Found ${existingChunks.length} pre-approved chunks, processing complete`);
+          
+          // Mark document as successfully processed
+          await supabase
+            .from('ai_documents')
+            .update({
+              processing_status: 'completed',
+              processed_at: new Date().toISOString(),
+              total_chunks: existingChunks.length,
+              metadata: {
+                ...document.metadata,
+                smart_chunk_reuse: true,
+                processed_via_tester: true,
+                processing_timestamp: new Date().toISOString()
+              }
+            })
+            .eq('id', documentId);
+
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              message: `Document processed via Smart Chunk Reuse: ${existingChunks.length} chunks ready`,
+              documentId,
+              chunksCount: existingChunks.length,
+              processing_method: 'smart_chunk_reuse'
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else {
+          console.log('⚠️ WARNING: Pre-approved document but no chunks found in cache, proceeding with normal processing');
+        }
+      }
+
       // Check if it's a governance document for special handling
       const isGovernanceDocument = governanceDocument || 
         document.document_type === 'governance' || 
@@ -199,55 +251,81 @@ serve(async (req: Request): Promise<Response> => {
         console.log('🏛️ GOVERNANCE/AI LOGIC DOCUMENT DETECTED: Applying specialized processing rules');
       }
 
-      // Download file from Supabase Storage  
+      // Download file from Supabase Storage - handle multiple bucket strategies
       console.log(`🔍 DEBUG: Attempting to download file from bucket 'documents' with path: ${document.file_path}`);
       console.log(`🔍 DEBUG: Document details - Title: ${document.title}, File name: ${document.file_name}, MIME: ${document.mime_type}`);
       
-      const { data: fileData, error: fileError } = await supabase.storage
+      let fileData: Blob | null = null;
+      let downloadSuccess = false;
+      
+      // Strategy 1: Try 'documents' bucket (standard uploads)
+      const { data: documentsData, error: documentsError } = await supabase.storage
         .from('documents')
         .download(document.file_path);
 
-      if (fileError || !fileData) {
-        console.error(`❌ CRITICAL ERROR in process-ai-document function: Failed to download file: ${JSON.stringify(fileError)}`);
-        console.error(`❌ Full error object: ${JSON.stringify(fileError)}`);
-        console.error(`❌ Error stack: ${fileError?.stack || 'No stack trace'}`);
+      if (!documentsError && documentsData) {
+        console.log(`✅ SUCCESS: Found file in 'documents' bucket, size: ${documentsData.size} bytes`);
+        fileData = documentsData;
+        downloadSuccess = true;
+      } else {
+        console.error(`❌ Documents bucket failed: ${JSON.stringify(documentsError)}`);
         console.error(`❌ DEBUG: File path attempted: ${document.file_path}`);
-        console.error(`❌ DEBUG: Bucket name used: documents`);
         
-        // Try alternative bucket names for debugging
+        // Strategy 2: Try 'ai_documents' bucket (alternative storage)
         console.log(`🔍 DEBUG: Attempting alternative bucket 'ai_documents'...`);
-        const { data: altFileData, error: altFileError } = await supabase.storage
+        const { data: aiDocsData, error: aiDocsError } = await supabase.storage
           .from('ai_documents')
           .download(document.file_path);
           
-        if (!altFileError && altFileData) {
-          console.log(`✅ SUCCESS: Found file in 'ai_documents' bucket instead!`);
-          console.log(`📄 File downloaded successfully from alternative bucket, size: ${altFileData.size} bytes`);
+        if (!aiDocsError && aiDocsData) {
+          console.log(`✅ SUCCESS: Found file in 'ai_documents' bucket, size: ${aiDocsData.size} bytes`);
+          fileData = aiDocsData;
+          downloadSuccess = true;
           
-          // Update document status to note the bucket correction
+          // Update document metadata to track successful bucket
           await supabase
             .from('ai_documents')
             .update({
               metadata: {
                 ...document.metadata,
                 bucket_correction_applied: true,
-                original_bucket_failed: 'documents',
                 working_bucket: 'ai_documents',
                 processing_timestamp: new Date().toISOString()
               }
             })
             .eq('id', documentId);
-            
-          // Continue processing with the successfully downloaded file
-          fileData = altFileData;
         } else {
-          console.error(`❌ Alternative bucket also failed: ${JSON.stringify(altFileError)}`);
+          console.error(`❌ Alternative bucket 'ai_documents' also failed: ${JSON.stringify(aiDocsError)}`);
           
-          // Update document status to failed with specific error
-          await supabase
-            .from('ai_documents')
-            .update({
-              processing_status: 'failed',
+          // Strategy 3: Try removing path prefixes for chunk-tester files
+          if (document.file_path.startsWith('chunk-tester/')) {
+            const simplifiedPath = document.file_path.replace('chunk-tester/', '');
+            console.log(`🔍 DEBUG: Attempting simplified path without 'chunk-tester/' prefix: ${simplifiedPath}`);
+            
+            const { data: simplifiedData, error: simplifiedError } = await supabase.storage
+              .from('documents')
+              .download(simplifiedPath);
+              
+            if (!simplifiedError && simplifiedData) {
+              console.log(`✅ SUCCESS: Found file with simplified path, size: ${simplifiedData.size} bytes`);
+              fileData = simplifiedData;
+              downloadSuccess = true;
+            } else {
+              console.error(`❌ Simplified path also failed: ${JSON.stringify(simplifiedError)}`);
+            }
+          }
+        }
+      }
+
+      if (!downloadSuccess || !fileData) {
+        const errorMsg = `Failed to download file from all attempted buckets and path variations`;
+        console.error(`❌ FINAL FAILURE: ${errorMsg}`);
+        
+        // Update document status to failed with comprehensive error info
+        await supabase
+          .from('ai_documents')
+          .update({
+            processing_status: 'failed',
               updated_at: new Date().toISOString(),
               metadata: {
                 error_type: 'file_download_failed',
