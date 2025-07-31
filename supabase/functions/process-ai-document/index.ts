@@ -341,7 +341,6 @@ serve(async (req: Request): Promise<Response> => {
             .eq('id', documentId);
           
           throw new Error(`Failed to download file from both 'documents' and 'ai_documents' buckets: ${documentsError?.message || 'Unknown error'}`);
-        }
       } else {
         console.log(`✅ File downloaded successfully from 'documents' bucket, size: ${fileData.size} bytes`);
       }
