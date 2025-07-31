@@ -41,7 +41,8 @@ serve(async (req: Request): Promise<Response> => {
       setTimeout(() => reject(new Error('Processing timeout after 90 seconds')), 90000);
     });
 
-    const processingPromise = async () => {
+    // Main processing logic
+    async function processDocument() {
       console.log('=== Document Processing Started ===');
       console.log('🔧 FULL DEBUG MODE: Enhanced Mammoth.js Pipeline Analysis');
       
@@ -847,7 +848,7 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Race between processing and timeout
-    const result = await Promise.race([processingPromise(), timeoutPromise]);
+    const result = await Promise.race([processDocument(), timeoutPromise]);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
