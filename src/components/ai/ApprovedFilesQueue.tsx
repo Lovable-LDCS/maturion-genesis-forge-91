@@ -98,8 +98,15 @@ export const ApprovedFilesQueue: React.FC = () => {
   // Archive existing document
   const archiveDocument = async (documentId: string, reason: string) => {
     try {
+      console.log('🗂️ ARCHIVE STEP: Starting archival process for document:', documentId);
+      
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) {
+        console.error('❌ ARCHIVE FAILED: User not authenticated');
+        throw new Error('User not authenticated');
+      }
+
+      console.log('👤 ARCHIVE USER:', user.id);
 
       // Create version before archiving
       const { data: document, error: docError } = await supabase
@@ -108,44 +115,78 @@ export const ApprovedFilesQueue: React.FC = () => {
         .eq('id', documentId)
         .single();
 
-      if (docError || !document) throw new Error('Document not found');
+      if (docError) {
+        console.error('❌ ARCHIVE FAILED: Document fetch error:', {
+          error: docError,
+          documentId,
+          code: docError.code,
+          message: docError.message
+        });
+        throw new Error(`Document not found: ${docError.message}`);
+      }
+
+      if (!document) {
+        console.error('❌ ARCHIVE FAILED: Document not found:', documentId);
+        throw new Error('Document not found');
+      }
+
+      console.log('📄 ARCHIVE DOCUMENT FOUND:', {
+        id: document.id,
+        title: document.title,
+        status: document.processing_status,
+        organization_id: document.organization_id
+      });
 
       // Store the original processing status for audit trail
       const originalStatus = document.processing_status;
 
       // Get the next version number for this document
-      const { data: maxVersionData } = await supabase
+      const { data: maxVersionData, error: versionFetchError } = await supabase
         .from('ai_document_versions')
         .select('version_number')
         .eq('document_id', documentId)
         .order('version_number', { ascending: false })
         .limit(1);
 
+      if (versionFetchError) {
+        console.warn('⚠️ ARCHIVE WARNING: Could not fetch version data:', versionFetchError);
+      }
+
       const nextVersionNumber = (maxVersionData?.[0]?.version_number || 0) + 1;
+      console.log('🔢 ARCHIVE VERSION:', nextVersionNumber);
 
-      // Create version entry
-      const { error: versionError } = await supabase
-        .from('ai_document_versions')
-        .insert({
-          document_id: documentId,
-          version_number: nextVersionNumber,
-          title: document.title,
-          file_name: document.file_name,
-          file_path: document.file_path,
-          file_size: document.file_size,
-          document_type: document.document_type,
-          domain: document.domain,
-          tags: document.tags,
-          metadata: document.metadata,
-          mime_type: document.mime_type,
-          organization_id: document.organization_id,
-          created_by: user.id,
-          change_reason: reason
-        });
+      // Create version entry (optional - don't fail archival if this fails)
+      try {
+        const { error: versionError } = await supabase
+          .from('ai_document_versions')
+          .insert({
+            document_id: documentId,
+            version_number: nextVersionNumber,
+            title: document.title,
+            file_name: document.file_name,
+            file_path: document.file_path,
+            file_size: document.file_size,
+            document_type: document.document_type,
+            domain: document.domain,
+            tags: document.tags,
+            metadata: document.metadata,
+            mime_type: document.mime_type,
+            organization_id: document.organization_id,
+            created_by: user.id,
+            change_reason: reason
+          });
 
-      if (versionError) throw versionError;
+        if (versionError) {
+          console.warn('⚠️ ARCHIVE WARNING: Version creation failed (continuing with archival):', versionError);
+        } else {
+          console.log('📝 ARCHIVE VERSION CREATED: Version ' + nextVersionNumber);
+        }
+      } catch (versionErr) {
+        console.warn('⚠️ ARCHIVE WARNING: Version creation exception (continuing):', versionErr);
+      }
 
-      // Mark document as archived
+      // Mark document as archived - this is the critical step
+      console.log('🗄️ ARCHIVE STEP: Marking document as archived...');
       const { error: archiveError } = await supabase
         .from('ai_documents')
         .update({ 
@@ -155,24 +196,41 @@ export const ApprovedFilesQueue: React.FC = () => {
         })
         .eq('id', documentId);
 
-      if (archiveError) throw archiveError;
+      if (archiveError) {
+        console.error('❌ ARCHIVE FAILED: Archive update error:', {
+          error: archiveError,
+          code: archiveError.code,
+          message: archiveError.message,
+          documentId,
+          userId: user.id
+        });
+        throw new Error(`Failed to archive document: ${archiveError.message} (Code: ${archiveError.code})`);
+      }
 
-      // Create audit log with correct original status
-      await supabase.from('audit_trail').insert({
-        table_name: 'ai_documents',
-        record_id: documentId,
-        action: 'ARCHIVED',
-        field_name: 'processing_status',
-        old_value: originalStatus, // Use actual original status instead of hardcoded 'completed'
-        new_value: 'archived',
-        changed_by: user.id,
-        change_reason: reason,
-        organization_id: document.organization_id
-      });
+      console.log('✅ ARCHIVE SUCCESS: Document marked as archived');
 
+      // Create audit log (optional - don't fail archival if this fails)
+      try {
+        await supabase.from('audit_trail').insert({
+          table_name: 'ai_documents',
+          record_id: documentId,
+          action: 'ARCHIVED',
+          field_name: 'processing_status',
+          old_value: originalStatus,
+          new_value: 'archived',
+          changed_by: user.id,
+          change_reason: reason,
+          organization_id: document.organization_id
+        });
+        console.log('📋 ARCHIVE AUDIT: Audit trail created');
+      } catch (auditErr) {
+        console.warn('⚠️ ARCHIVE WARNING: Audit trail creation failed (archival successful):', auditErr);
+      }
+
+      console.log('🎉 ARCHIVE COMPLETE: Document successfully archived');
       return true;
     } catch (error) {
-      console.error('Error archiving document:', error);
+      console.error('❌ ARCHIVE ERROR: Complete failure:', error);
       return false;
     }
   };
