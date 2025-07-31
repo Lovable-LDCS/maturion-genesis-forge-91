@@ -21,30 +21,56 @@ import { DocumentProcessingVerificationBlock } from './DocumentProcessingVerific
 import { DocumentContentViewer } from './DocumentContentViewer';
 import { DocumentPreviewPane } from './DocumentPreviewPane';
 
-const documentTypeLabels: Record<MaturionDocument['document_type'], string> = {
-  maturity_model: 'Maturity Model',
-  sector_context: 'Sector Context',
-  scoring_logic: 'Scoring Logic',
-  sop_template: 'SOP Template',
-  general: 'General Knowledge',
+const documentTypeLabels: Record<string, string> = {
+  guidance_document: 'Guidance Document',
   mps_document: 'MPS Document',
-  iso_alignment: 'ISO Alignment',
-  assessment_framework_component: 'Assessment Framework Component',
-  ai_logic_rule_global: 'AI Logic Rule – Global',
-  system_instruction: 'System Instruction – Global',
-  threat_intelligence_profile: 'Threat Intelligence Profile',
-  governance_reasoning_manifest: 'Maturion Governance & Reasoning Architecture Manifest'
+  best_practice: 'Best Practice',
+  case_study: 'Case Study',
+  template: 'Template',
+  checklist: 'Checklist',
+  governance_reasoning_manifest: 'Governance Reasoning',
+  scoring_logic: 'Scoring Logic',
+  assessment_framework_component: 'Assessment Framework',
+  ai_logic_rule_global: 'AI Logic Rule',
+  threat_intelligence_profile: 'Threat Intelligence',
+  policy_model: 'Policy Model',
+  sop_procedure: 'SOP (Standard Operating Procedure)',
+  policy_statement: 'Policy Statement',
+  evidence_sample: 'Evidence Sample',
+  training_module: 'Training Module',
+  awareness_material: 'Awareness Material',
+  implementation_guide: 'Implementation Guide',
+  tool_reference: 'Tool Reference',
+  audit_template: 'Audit Template',
+  use_case_scenario: 'Use Case / Scenario',
+  evaluation_rubric: 'Evaluation Rubric',
+  data_model: 'Data Model',
+  decision_tree_logic: 'Decision Tree / Logic Map',
+  general: 'General Knowledge',
+  maturity_model: 'Maturity Model'
 };
 
-// Domain options for MPS documents
+// Domain options for all documents
 const domainOptions = [
   'Leadership & Governance',
-  'Process Integrity',
   'People & Culture',
+  'Process Integrity',
   'Protection',
   'Proof it Works',
+  'Global Platform Logic',
   'Global Instruction',
-  'Global Instruction – applies across all MPS and domains'
+  'Control Environment',
+  'Surveillance & Monitoring',
+  'System Integrity & Infrastructure',
+  'Incident Management',
+  'Training & Awareness',
+  'Third-Party Risk',
+  'Legal & Compliance',
+  'Threat Environment',
+  'Assessment & Evidence Logic',
+  'Analytics & Reporting',
+  'AI Governance',
+  'Maturion Engine Logic'
 ];
 
 // Special domain scope for governance documents
@@ -81,7 +107,7 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
   // Use filtered documents if provided, otherwise use all documents
   const displayDocuments = filteredDocuments || documents;
   
-  const [selectedDocumentType, setSelectedDocumentType] = useState<MaturionDocument['document_type']>('mps_document');
+  const [selectedDocumentType, setSelectedDocumentType] = useState<string>('guidance_document');
   const [title, setTitle] = useState<string>('');
   const [selectedDomain, setSelectedDomain] = useState<string>('');
   const [tags, setTags] = useState<string>('');
@@ -93,7 +119,7 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
   const [editDomain, setEditDomain] = useState<string>('');
   const [editTags, setEditTags] = useState<string>('');
   const [editNotes, setEditNotes] = useState<string>('');
-  const [editDocumentType, setEditDocumentType] = useState<MaturionDocument['document_type']>('mps_document');
+  const [editDocumentType, setEditDocumentType] = useState<string>('guidance_document');
   const [isSaving, setIsSaving] = useState(false);
   const [editChangeReason, setEditChangeReason] = useState<string>('');
   
@@ -149,7 +175,7 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
       
       await uploadDocument(
         file, 
-        selectedDocumentType, 
+        selectedDocumentType as any, 
         currentOrganization!.id, 
         user!.id,
         fileTitle,
@@ -277,7 +303,7 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
       domain: editDomain || undefined,
       tags: editTags || undefined,
       upload_notes: editNotes || undefined,
-      document_type: editDocumentType,
+      document_type: editDocumentType as any,
       change_reason: editChangeReason || 'Document metadata updated'
     });
     
@@ -400,7 +426,7 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
               <Label htmlFor="document-type" className="text-sm font-medium">Document Type</Label>
               <Select
                 value={selectedDocumentType}
-                onValueChange={(value: MaturionDocument['document_type']) => setSelectedDocumentType(value)}
+                onValueChange={(value: string) => setSelectedDocumentType(value)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -706,7 +732,7 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
               <Label htmlFor="edit-document-type">Document Type</Label>
               <Select
                 value={editDocumentType}
-                onValueChange={(value: MaturionDocument['document_type']) => setEditDocumentType(value)}
+                onValueChange={(value: string) => setEditDocumentType(value)}
               >
                 <SelectTrigger>
                   <SelectValue />

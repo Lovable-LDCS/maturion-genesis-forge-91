@@ -51,7 +51,7 @@ export const DocumentChunkTester: React.FC = () => {
     title: '',
     documentType: 'guidance_document', // Valid document type for guidance content
     tags: '',
-    domain: 'Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems', // Valid domain for guidance content
+    domain: 'Global Platform Logic', // Valid domain for guidance content
     visibility: 'all_users',
     description: ''
   });
@@ -246,9 +246,9 @@ export const DocumentChunkTester: React.FC = () => {
       setShowMetadataForm(false);
       setMetadata({
         title: selectedFile.name.replace(/\.[^/.]+$/, ''), // Remove extension
-        documentType: '',
+        documentType: 'guidance_document',
         tags: '',
-        domain: '',
+        domain: 'Global Platform Logic',
         visibility: 'all_users',
         description: ''
       });
@@ -272,9 +272,9 @@ export const DocumentChunkTester: React.FC = () => {
       setShowMetadataForm(false);
       setMetadata({
         title: droppedFile.name.replace(/\.[^/.]+$/, ''), // Remove extension
-        documentType: '',
+        documentType: 'guidance_document',
         tags: '',
-        domain: '',
+        domain: 'Global Platform Logic',
         visibility: 'all_users',
         description: ''
       });
@@ -367,7 +367,7 @@ export const DocumentChunkTester: React.FC = () => {
         file_size: file?.size || 0,
         mime_type: file?.type || 'application/octet-stream',
         document_type: metadata.documentType || 'general',
-        domain: metadata.domain || 'Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems',
+        domain: metadata.domain || 'Global Platform Logic',
         processing_status: 'completed',
         processed_at: new Date().toISOString(),
         total_chunks: chunks.length,
@@ -701,6 +701,19 @@ export const DocumentChunkTester: React.FC = () => {
                       <SelectItem value="assessment_framework_component">Assessment Framework</SelectItem>
                       <SelectItem value="ai_logic_rule_global">AI Logic Rule</SelectItem>
                       <SelectItem value="threat_intelligence_profile">Threat Intelligence</SelectItem>
+                      <SelectItem value="policy_model">Policy Model</SelectItem>
+                      <SelectItem value="sop_procedure">SOP (Standard Operating Procedure)</SelectItem>
+                      <SelectItem value="policy_statement">Policy Statement</SelectItem>
+                      <SelectItem value="evidence_sample">Evidence Sample</SelectItem>
+                      <SelectItem value="training_module">Training Module</SelectItem>
+                      <SelectItem value="awareness_material">Awareness Material</SelectItem>
+                      <SelectItem value="implementation_guide">Implementation Guide</SelectItem>
+                      <SelectItem value="tool_reference">Tool Reference</SelectItem>
+                      <SelectItem value="audit_template">Audit Template</SelectItem>
+                      <SelectItem value="use_case_scenario">Use Case / Scenario</SelectItem>
+                      <SelectItem value="evaluation_rubric">Evaluation Rubric</SelectItem>
+                      <SelectItem value="data_model">Data Model</SelectItem>
+                      <SelectItem value="decision_tree_logic">Decision Tree / Logic Map</SelectItem>
                       <SelectItem value="maturity_model">Maturity Model</SelectItem>
                       <SelectItem value="general">General</SelectItem>
                     </SelectContent>
@@ -722,8 +735,20 @@ export const DocumentChunkTester: React.FC = () => {
                         <SelectItem value="Process Integrity">Process Integrity</SelectItem>
                         <SelectItem value="Protection">Protection</SelectItem>
                         <SelectItem value="Proof it Works">Proof it Works</SelectItem>
-                        <SelectItem value="Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems">Global Platform Logic</SelectItem>
-                        <SelectItem value="Global Instruction – applies across all MPS and domains">Global Instruction</SelectItem>
+                        <SelectItem value="Global Platform Logic">Global Platform Logic</SelectItem>
+                        <SelectItem value="Global Instruction">Global Instruction</SelectItem>
+                        <SelectItem value="Control Environment">Control Environment</SelectItem>
+                        <SelectItem value="Surveillance & Monitoring">Surveillance & Monitoring</SelectItem>
+                        <SelectItem value="System Integrity & Infrastructure">System Integrity & Infrastructure</SelectItem>
+                        <SelectItem value="Incident Management">Incident Management</SelectItem>
+                        <SelectItem value="Training & Awareness">Training & Awareness</SelectItem>
+                        <SelectItem value="Third-Party Risk">Third-Party Risk</SelectItem>
+                        <SelectItem value="Legal & Compliance">Legal & Compliance</SelectItem>
+                        <SelectItem value="Threat Environment">Threat Environment</SelectItem>
+                        <SelectItem value="Assessment & Evidence Logic">Assessment & Evidence Logic</SelectItem>
+                        <SelectItem value="Analytics & Reporting">Analytics & Reporting</SelectItem>
+                        <SelectItem value="AI Governance">AI Governance</SelectItem>
+                        <SelectItem value="Maturion Engine Logic">Maturion Engine Logic</SelectItem>
                      </SelectContent>
                   </Select>
                 </div>
