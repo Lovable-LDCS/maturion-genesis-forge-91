@@ -54,17 +54,34 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
     clearLogs();
     
     try {
+      // Get user's organization first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Get user's organization
+      const { data: orgMember } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!orgMember) {
+        throw new Error('User not part of any organization');
+      }
+
       // Get a pending or failed document (try pending first, then failed)
       let pendingDoc;
-      let fetchError;
       
       // First try pending documents
       const { data: pendingData, error: pendingError } = await supabase
         .from('ai_documents')
-        .select('id, title, processing_status')
+        .select('id, title, processing_status, organization_id')
         .eq('processing_status', 'pending')
+        .eq('organization_id', orgMember.organization_id)
         .limit(1)
-        .single();
+        .maybeSingle();
         
       if (!pendingError && pendingData) {
         pendingDoc = pendingData;
@@ -72,16 +89,17 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
         // If no pending, try failed documents
         const { data: failedData, error: failedError } = await supabase
           .from('ai_documents')
-          .select('id, title, processing_status')
+          .select('id, title, processing_status, organization_id')
           .eq('processing_status', 'failed')
+          .eq('organization_id', orgMember.organization_id)
           .limit(1)
-          .single();
+          .maybeSingle();
           
         if (!failedError && failedData) {
           pendingDoc = failedData;
           
           // Reset the failed document to pending first
-          await supabase
+          const { error: resetError } = await supabase
             .from('ai_documents')
             .update({ 
               processing_status: 'pending', 
@@ -90,12 +108,21 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
               updated_at: new Date().toISOString()
             })
             .eq('id', failedData.id);
+
+          if (resetError) {
+            throw new Error(`Failed to reset document status: ${resetError.message}`);
+          }
+
+          addLog({
+            timestamp: new Date().toLocaleTimeString(),
+            documentTitle: failedData.title,
+            status: 'processing',
+            message: 'Reset failed document to pending status'
+          });
         }
-        
-        fetchError = failedError;
       }
 
-      if (fetchError || !pendingDoc) {
+      if (!pendingDoc) {
         toast({
           title: "No pending documents",
           description: "All documents have been processed or there are no documents to process",
@@ -111,12 +138,15 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
         timestamp: new Date().toLocaleTimeString(),
         documentTitle: pendingDoc.title,
         status: 'processing',
-        message: 'Starting document processing...'
+        message: `Starting document processing for ID: ${pendingDoc.id}`
       });
 
-      // Call the edge function with timeout
+      // Call the edge function with timeout and proper error handling
+      console.log('Triggering edge function for document:', pendingDoc.id);
       const result = await processWithTimeout(pendingDoc.id, pendingDoc.title) as any;
       
+      console.log('Edge function result:', result);
+
       if (result.error) {
         // Enhanced error logging with specific failure details
         const errorMsg = result.error.message || result.error || 'Processing failed';
@@ -134,14 +164,21 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
         throw result.error;
       }
 
-      // Check final status
-      const { data: finalDoc } = await supabase
+      // Check final status with retry logic
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for processing to complete
+      
+      const { data: finalDoc, error: finalError } = await supabase
         .from('ai_documents')
         .select('processing_status, total_chunks')
         .eq('id', pendingDoc.id)
-        .single();
+        .maybeSingle();
+
+      if (finalError) {
+        throw new Error(`Failed to check final status: ${finalError.message}`);
+      }
 
       const chunks = finalDoc?.total_chunks || 0;
+      const status = finalDoc?.processing_status || 'unknown';
       setProcessedCount(1);
       
       addLog({
@@ -149,8 +186,8 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
         documentTitle: pendingDoc.title,
         status: chunks > 0 ? 'success' : 'error',
         message: chunks > 0 
-          ? `Successfully processed: ${chunks} chunks created`
-          : 'Processing completed but no valid chunks created',
+          ? `Successfully processed: ${chunks} chunks created (Status: ${status})`
+          : `Processing completed but no valid chunks created (Status: ${status})`,
         chunks
       });
 
@@ -193,11 +230,29 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
     clearLogs();
     
     try {
-      // Get all pending and failed documents
+      // Get user's organization first
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      // Get user's organization
+      const { data: orgMember } = await supabase
+        .from('organization_members')
+        .select('organization_id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!orgMember) {
+        throw new Error('User not part of any organization');
+      }
+
+      // Get all pending and failed documents for the user's organization
       const { data: pendingDocs, error: pendingError } = await supabase
         .from('ai_documents')
-        .select('id, title, processing_status')
-        .in('processing_status', ['pending', 'failed']);
+        .select('id, title, processing_status, organization_id')
+        .in('processing_status', ['pending', 'failed'])
+        .eq('organization_id', orgMember.organization_id);
 
       if (pendingError) throw pendingError;
 
@@ -273,12 +328,18 @@ export const DocumentProcessingDebugger: React.FC<DocumentProcessingDebuggerProp
             });
             failed++;
           } else {
-            // Check final status to get chunk count
-            const { data: finalDoc } = await supabase
+            // Check final status to get chunk count with retry logic
+            await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for processing to complete
+            
+            const { data: finalDoc, error: finalError } = await supabase
               .from('ai_documents')
               .select('processing_status, total_chunks')
               .eq('id', doc.id)
-              .single();
+              .maybeSingle();
+
+            if (finalError) {
+              throw new Error(`Failed to check final status: ${finalError.message}`);
+            }
 
             const chunks = finalDoc?.total_chunks || 0;
             
