@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter, Trash2, CheckSquare, Square, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { MaturionKnowledgeUploadZone } from '@/components/ai/MaturionKnowledgeUploadZone';
 import { ApprovedFilesQueue } from '@/components/ai/ApprovedFilesQueue';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
@@ -653,27 +654,52 @@ After submitting a custom criterion:
         {/* Document Upload & Processing */}
         <DocumentUploadProcessor />
 
-        {/* Policy Change Log Section */}
-        <div className="mb-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">Policy Management</h2>
-            <CreatePolicyLogDialog 
-              onCreateLog={createPolicyLog}
-              availableDocuments={documents.map(doc => ({
-                id: doc.id,
-                title: doc.title || '',
-                file_name: doc.file_name
-              }))}
-            />
-          </div>
-          
-          <PolicyLogDiagnosticPanel />
-          
-          <PolicyChangeLogTable 
-            logs={logs} 
-            loading={logsLoading} 
-          />
-        </div>
+        {/* Change Log Panel (Annex 3) */}
+        <Collapsible defaultOpen={true} className="mb-6">
+          <CollapsibleTrigger className="w-full">
+            <Card className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    📜 Change Log Panel (Annex 3)
+                  </CardTitle>
+                  <ChevronDown className="h-4 w-4 transition-transform data-[state=closed]:rotate-0 data-[state=open]:rotate-180" />
+                </div>
+              </CardHeader>
+            </Card>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <p className="text-muted-foreground mb-4">
+                    Comprehensive audit trail of platform changes for ISO compliance and regulatory requirements.
+                  </p>
+                  
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold">Policy Management</h3>
+                    <CreatePolicyLogDialog 
+                      onCreateLog={createPolicyLog}
+                      availableDocuments={documents.map(doc => ({
+                        id: doc.id,
+                        title: doc.title || '',
+                        file_name: doc.file_name
+                      }))}
+                    />
+                  </div>
+                  
+                  <PolicyLogDiagnosticPanel />
+                  
+                  <PolicyChangeLogTable 
+                    logs={logs} 
+                    loading={logsLoading} 
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Admin Tools */}
         <div className="space-y-6">
