@@ -397,8 +397,24 @@ export const DocumentChunkTester: React.FC = () => {
         .select();
 
       if (chunksError) {
-        console.error('Chunks insert error:', chunksError);
-        throw new Error(`Failed to save approved chunks: ${chunksError.message}`);
+        console.error('CRITICAL: Chunks insert failed:', {
+          error: chunksError,
+          code: chunksError.code,
+          message: chunksError.message,
+          details: chunksError.details,
+          hint: chunksError.hint,
+          organizationId: selectedOrg.organization_id,
+          userId: user.id,
+          userRole: selectedOrg.role,
+          chunksCount: chunksToSave.length,
+          sampleData: chunksToSave[0]
+        });
+        throw new Error(`Failed to save approved chunks: ${chunksError.message} (Code: ${chunksError.code})`);
+      }
+
+      if (!insertedChunks || insertedChunks.length === 0) {
+        console.error('CRITICAL: No chunks were inserted despite no error');
+        throw new Error('No chunks were saved - insert returned empty result');
       }
 
       console.log(`✅ Saved ${chunks.length} approved chunks for Smart Chunk Reuse:`, insertedChunks);
