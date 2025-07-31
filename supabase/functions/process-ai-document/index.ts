@@ -105,21 +105,43 @@ serve(async (req: Request): Promise<Response> => {
       }
 
       console.log(`Document found: ${document.title} (${document.mime_type})`);
+      console.log('Document type:', document.document_type);
       
-      // 🎯 SMART CHUNK REUSE: Check if document was already processed via chunk tester
-      if (document.chunked_from_tester && !forceReprocess) {
-        console.log('🔄 SMART CHUNK REUSE: Document already approved via chunk tester, reusing existing chunks...');
+      // 🎯 ENHANCED SMART CHUNK REUSE: Comprehensive detection of pre-approved documents
+      console.log('🔍 SMART REUSE CHECK: Analyzing document for chunk reuse opportunities...');
+      console.log(`   - chunked_from_tester: ${document.chunked_from_tester}`);
+      console.log(`   - metadata.approved_via_tester: ${document.metadata?.approved_via_tester}`);
+      console.log(`   - file_path starts with 'chunk-tester/': ${document.file_path?.startsWith('chunk-tester/')}`);
+      console.log(`   - tester_approved_by: ${document.tester_approved_by}`);
+      console.log(`   - tester_approved_at: ${document.tester_approved_at}`);
+      console.log(`   - forceReprocess: ${forceReprocess}`);
+      
+      // Enhanced detection: Check multiple indicators of chunk tester approval
+      const isChunkTesterApproved = !forceReprocess && (
+        document.chunked_from_tester === true ||
+        document.metadata?.approved_via_tester === true ||
+        document.file_path?.startsWith('chunk-tester/') ||
+        document.tester_approved_by !== null ||
+        document.tester_approved_at !== null
+      );
+      
+      if (isChunkTesterApproved) {
+        console.info("✅ Using pre-approved chunks from cache:", documentId);
+        console.log('🔄 SMART CHUNK REUSE: Document was processed via chunk tester, reusing existing chunks...');
         
-        // Fetch approved chunks from cache
+        // Fetch approved chunks from cache with organization context
+        console.log(`🔍 Querying approved_chunks_cache for document: ${documentId}, org: ${document.organization_id}`);
         const { data: approvedChunks, error: chunksError } = await supabase
           .from('approved_chunks_cache')
           .select('*')
           .eq('document_id', documentId)
+          .eq('organization_id', document.organization_id)
           .order('chunk_index');
         
         if (chunksError) {
           console.log('⚠️ Error fetching approved chunks, falling back to full processing:', chunksError.message);
         } else if (approvedChunks && approvedChunks.length > 0) {
+          console.info("🧩 Chunk count found:", approvedChunks.length);
           console.log(`✅ Found ${approvedChunks.length} pre-approved chunks, reusing them`);
           
           // Clear any existing chunks first
@@ -138,7 +160,8 @@ serve(async (req: Request): Promise<Response> => {
               ...chunk.metadata,
               reused_from_tester: true,
               original_approved_at: chunk.approved_at,
-              original_approved_by: chunk.approved_by
+              original_approved_by: chunk.approved_by,
+              smart_reuse_timestamp: new Date().toISOString()
             },
             organization_id: document.organization_id,
             embedding: null // Will be generated if needed
@@ -158,7 +181,14 @@ serve(async (req: Request): Promise<Response> => {
                 processing_status: 'completed',
                 processed_at: new Date().toISOString(),
                 total_chunks: approvedChunks.length,
-                updated_at: new Date().toISOString()
+                updated_at: new Date().toISOString(),
+                metadata: {
+                  ...document.metadata,
+                  smart_chunk_reuse: true,
+                  reused_from_tester: true,
+                  processing_method: 'smart_chunk_reuse',
+                  reuse_timestamp: new Date().toISOString()
+                }
               })
               .eq('id', documentId);
             
@@ -169,74 +199,21 @@ serve(async (req: Request): Promise<Response> => {
               message: 'Document processed using pre-approved chunks from chunk tester',
               documentId,
               totalChunks: approvedChunks.length,
-              reusedFromTester: true
+              reusedFromTester: true,
+              processingMethod: 'smart_chunk_reuse'
             }), {
               headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             });
           }
         } else {
           console.log('⚠️ No approved chunks found in cache, falling back to full processing');
+          console.log(`🔍 Fallback details: documentId=${documentId}, organizationId=${document.organization_id}`);
         }
+      } else {
+        console.log('🔍 SMART REUSE: Document not eligible for chunk reuse, proceeding with full processing');
       }
 
-      if (docError || !document) {
-        throw new Error(`Document not found: ${docError?.message}`);
-      }
-
-      console.log(`Document found: ${document.title} (${document.mime_type})`);
-      console.log('Document type:', document.document_type);
-
-      // Check if this document has pre-approved chunks (from DocumentChunkTester)
-      const hasPreApprovedChunks = document.metadata?.approved_via_tester === true || 
-        document.file_path?.startsWith('chunk-tester/');
-
-      if (hasPreApprovedChunks) {
-        console.log('🚀 PRE-APPROVED CHUNKS DETECTED: Document processed via DocumentChunkTester, skipping file download and processing');
-        
-        // Check if chunks already exist in approved_chunks_cache
-        const { data: existingChunks, error: chunksError } = await supabase
-          .from('approved_chunks_cache')
-          .select('id, content, chunk_index')
-          .eq('document_id', documentId);
-
-        if (chunksError) {
-          console.error('❌ Error checking for existing chunks:', chunksError);
-          throw new Error(`Failed to check existing chunks: ${chunksError.message}`);
-        }
-
-        if (existingChunks && existingChunks.length > 0) {
-          console.log(`✅ SMART CHUNK REUSE SUCCESS: Found ${existingChunks.length} pre-approved chunks, processing complete`);
-          
-          // Mark document as successfully processed
-          await supabase
-            .from('ai_documents')
-            .update({
-              processing_status: 'completed',
-              processed_at: new Date().toISOString(),
-              total_chunks: existingChunks.length,
-              metadata: {
-                ...document.metadata,
-                smart_chunk_reuse: true,
-                processed_via_tester: true,
-                processing_timestamp: new Date().toISOString()
-              }
-            })
-            .eq('id', documentId);
-
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              message: `Document processed via Smart Chunk Reuse: ${existingChunks.length} chunks ready`,
-              documentId,
-              chunksCount: existingChunks.length,
-              processing_method: 'smart_chunk_reuse'
-            }),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        } else {
-          console.log('⚠️ WARNING: Pre-approved document but no chunks found in cache, proceeding with normal processing');
-        }
-      }
+      // Continue with file download and processing for documents that weren't processed via chunk reuse
 
       // Check if it's a governance document for special handling
       const isGovernanceDocument = governanceDocument || 
@@ -299,7 +276,7 @@ serve(async (req: Request): Promise<Response> => {
           console.error(`❌ Alternative bucket 'ai_documents' also failed: ${JSON.stringify(aiDocsError)}`);
           
           // Strategy 3: Try removing path prefixes for chunk-tester files
-          if (document.file_path.startsWith('chunk-tester/')) {
+          if (document.file_path && document.file_path.startsWith('chunk-tester/')) {
             const simplifiedPath = document.file_path.replace('chunk-tester/', '');
             console.log(`🔍 DEBUG: Attempting simplified path without 'chunk-tester/' prefix: ${simplifiedPath}`);
             
