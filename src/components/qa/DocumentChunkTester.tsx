@@ -49,7 +49,7 @@ export const DocumentChunkTester: React.FC = () => {
   const [showMetadataForm, setShowMetadataForm] = useState(false);
   const [metadata, setMetadata] = useState<DocumentMetadata>({
     title: '',
-    documentType: '',
+    documentType: 'guidance_document', // Valid document type for guidance content
     tags: '',
     domain: '',
     visibility: 'all_users',
@@ -382,6 +382,8 @@ export const DocumentChunkTester: React.FC = () => {
       };
 
       console.log('📄 STEP 1: CREATING DOCUMENT WITH PAYLOAD:', documentPayload);
+      console.log('🔍 DEBUG: document_type being used:', documentPayload.document_type);
+      console.log('✅ VALID TYPES: mps_document, guidance_document, best_practice, case_study, template, checklist, governance_reasoning_manifest, scoring_logic, assessment_framework_component, ai_logic_rule_global, threat_intelligence_profile, general, maturity_model');
 
       const { data: newDocument, error: docError } = await supabase
         .from('ai_documents')
@@ -688,20 +690,19 @@ export const DocumentChunkTester: React.FC = () => {
                       <SelectValue placeholder="Select document type" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="mps">MPS (Maturity Practice Statement)</SelectItem>
-                      <SelectItem value="policy">Policy Document</SelectItem>
-                      <SelectItem value="threat_profile">Threat Profile</SelectItem>
-                      <SelectItem value="sop">Standard Operating Procedure</SelectItem>
-                      <SelectItem value="guidance">Guidance Document</SelectItem>
+                      <SelectItem value="guidance_document">Guidance Document</SelectItem>
+                      <SelectItem value="mps_document">MPS Document</SelectItem>
                       <SelectItem value="best_practice">Best Practice</SelectItem>
-                      <SelectItem value="compliance">Compliance Framework</SelectItem>
-                      <SelectItem value="risk_assessment">Risk Assessment</SelectItem>
-                      <SelectItem value="ai_ingestion_policy">AI Ingestion Policy</SelectItem>
-                      <SelectItem value="knowledge_model">Knowledge Model</SelectItem>
-                      <SelectItem value="governance_protocol">Governance Protocol</SelectItem>
-                      <SelectItem value="metadata_framework">Metadata Framework</SelectItem>
-                      <SelectItem value="chunking_strategy">Chunking Strategy</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="case_study">Case Study</SelectItem>
+                      <SelectItem value="template">Template</SelectItem>
+                      <SelectItem value="checklist">Checklist</SelectItem>
+                      <SelectItem value="governance_reasoning_manifest">Governance Reasoning</SelectItem>
+                      <SelectItem value="scoring_logic">Scoring Logic</SelectItem>
+                      <SelectItem value="assessment_framework_component">Assessment Framework</SelectItem>
+                      <SelectItem value="ai_logic_rule_global">AI Logic Rule</SelectItem>
+                      <SelectItem value="threat_intelligence_profile">Threat Intelligence</SelectItem>
+                      <SelectItem value="maturity_model">Maturity Model</SelectItem>
+                      <SelectItem value="general">General</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
