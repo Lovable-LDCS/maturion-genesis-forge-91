@@ -18,6 +18,7 @@ interface CreatePolicyLogDialogProps {
 
 const POLICY_TYPES = [
   'AI Logic Policy',
+  'AI processing fix',
   'Validation Rules',
   'Risk Model',
   'Security Policy',
