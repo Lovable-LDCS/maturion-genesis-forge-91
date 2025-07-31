@@ -300,19 +300,32 @@ export const DocumentChunkTester: React.FC = () => {
         throw new Error('User not authenticated');
       }
 
-      // Get user's organization
-      const { data: orgMember } = await supabase
+      // Get user's organization using maybeSingle for better error handling
+      const { data: orgMember, error: orgError } = await supabase
         .from('organization_members')
         .select('organization_id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
+
+      if (orgError) {
+        console.error('Organization query error:', orgError);
+        throw new Error(`Failed to fetch organization: ${orgError.message}`);
+      }
 
       if (!orgMember) {
-        throw new Error('User organization not found');
+        console.error('No organization membership found for user:', user.id);
+        throw new Error('User organization membership not found. Please ensure you are a member of an organization.');
       }
 
       // Create a temporary document ID for chunk association
       const tempDocId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+      console.log('Preparing to save chunks:', {
+        chunksCount: chunks.length,
+        userId: user.id,
+        organizationId: orgMember.organization_id,
+        tempDocId
+      });
 
       // Save chunks to approved_chunks_cache
       const chunksToSave = chunks.map((content, index) => ({
@@ -332,15 +345,19 @@ export const DocumentChunkTester: React.FC = () => {
         organization_id: orgMember.organization_id
       }));
 
-      const { error: chunksError } = await supabase
+      console.log('Attempting to insert chunks:', chunksToSave.length);
+
+      const { data: insertedChunks, error: chunksError } = await supabase
         .from('approved_chunks_cache')
-        .insert(chunksToSave);
+        .insert(chunksToSave)
+        .select();
 
       if (chunksError) {
+        console.error('Chunks insert error:', chunksError);
         throw new Error(`Failed to save approved chunks: ${chunksError.message}`);
       }
 
-      console.log(`✅ Saved ${chunks.length} approved chunks for Smart Chunk Reuse`);
+      console.log(`✅ Saved ${chunks.length} approved chunks for Smart Chunk Reuse:`, insertedChunks);
       return tempDocId;
     } catch (error) {
       console.error('❌ Error saving approved chunks:', error);
