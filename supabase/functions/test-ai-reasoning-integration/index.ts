@@ -139,7 +139,19 @@ serve(async (req) => {
     // 5. Generate analysis and recommendations
     console.log('🔍 Step 5: Generating analysis and recommendations...');
     
-    // Check for documents with missing chunks
+    // CRITICAL: Check for any documents with 0 chunks (this should fail the test)
+    const zeroChunkDocs = [...results.governanceDocuments, ...results.aiLogicDocuments]
+      .filter(doc => doc.actual_chunks === 0);
+    
+    if (zeroChunkDocs.length > 0) {
+      results.issues.push(`CRITICAL: ${zeroChunkDocs.length} documents have 0 chunks - AI reasoning cannot function`);
+      results.recommendations.push("Run emergency reprocessing for all documents with 0 chunks");
+      zeroChunkDocs.forEach(doc => {
+        results.issues.push(`  • ${doc.title}: ${doc.processing_status} but 0 chunks`);
+      });
+    }
+
+    // Check for documents with missing chunks (completed but no actual chunks)
     const brokenDocs = [...results.governanceDocuments, ...results.aiLogicDocuments]
       .filter(doc => doc.total_chunks > 0 && doc.actual_chunks === 0);
     
@@ -158,6 +170,18 @@ serve(async (req) => {
       results.recommendations.push("Upload and process Maturion Reasoning Architecture Manifest");
     } else {
       console.log(`✅ Found ${activeGovDocs.length} active governance documents`);
+    }
+
+    // Check AI Logic document availability  
+    const activeAiLogicDocs = results.aiLogicDocuments.filter(doc => 
+      doc.processing_status === 'completed' && doc.actual_chunks > 0
+    );
+    
+    if (activeAiLogicDocs.length === 0) {
+      results.issues.push("CRITICAL: No AI logic documents with chunks found");
+      results.recommendations.push("Process AI logic documents immediately - reasoning system cannot function");
+    } else {
+      console.log(`✅ Found ${activeAiLogicDocs.length} active AI logic documents`);
     }
 
     // Check search functionality
