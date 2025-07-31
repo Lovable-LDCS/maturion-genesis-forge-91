@@ -19,8 +19,11 @@ import {
   Database,
   Tag,
   Shield,
-  Zap
+  Zap,
+  TestTube
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface AILogicDocument {
   id: string;
@@ -60,6 +63,7 @@ export function AILogicIngestionDashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [results, setResults] = useState<ProcessingResult[]>([]);
+  const [isDryRunMode, setIsDryRunMode] = useState(false); // New dry run state
   const [currentDoc, setCurrentDoc] = useState<string | null>(null);
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
@@ -172,13 +176,14 @@ export function AILogicIngestionDashboard() {
 
       if (resetError) throw resetError;
 
-      // Trigger reprocessing with emergency mode
+      // Trigger reprocessing with emergency mode and dry run support
       const { data, error } = await supabase.functions.invoke('process-ai-document', {
         body: { 
           documentId: doc.id,
           forceReprocess: true,
           emergencyChunking: true,
-          governanceDocument: true
+          governanceDocument: true,
+          dryRun: isDryRunMode // Use dry run mode
         }
       });
 
@@ -388,35 +393,50 @@ export function AILogicIngestionDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              onClick={fetchAILogicDocuments}
-              disabled={isLoading}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              Refresh Status
-            </Button>
+          <div className="space-y-4">
+            {/* Dry Run Mode Toggle */}
+            <div className="flex items-center space-x-2 p-3 border rounded-lg bg-muted/50">
+              <TestTube className="w-4 h-4 text-blue-600" />
+              <Label htmlFor="dry-run-mode" className="flex-1">
+                Dry Run Mode (No credits consumed - testing only)
+              </Label>
+              <Switch
+                id="dry-run-mode"
+                checked={isDryRunMode}
+                onCheckedChange={setIsDryRunMode}
+              />
+            </div>
             
-            <Button
-              onClick={reprocessAllPending}
-              disabled={isProcessing || documents.filter(d => d.processing_status === 'pending' || d.total_chunks === 0).length === 0}
-              className="flex items-center gap-2"
-            >
-              <Zap className={`w-4 h-4 ${isProcessing ? 'animate-pulse' : ''}`} />
-              {isProcessing ? 'Processing...' : 'Fix All Pending'}
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={fetchAILogicDocuments}
+                disabled={isLoading}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+                Refresh Status
+              </Button>
+              
+              <Button
+                onClick={reprocessAllPending}
+                disabled={isProcessing || documents.filter(d => d.processing_status === 'pending' || d.total_chunks === 0).length === 0}
+                className="flex items-center gap-2"
+              >
+                <Zap className={`w-4 h-4 ${isProcessing ? 'animate-pulse' : ''}`} />
+                {isProcessing ? 'Processing...' : isDryRunMode ? 'Test All Pending' : 'Fix All Pending'}
+              </Button>
 
-            <Button
-              onClick={runIntegrationTest}
-              variant="outline"
-              className="flex items-center gap-2"
-              title="Chunk Generation & Metadata Verification - Checks if documents are properly chunked and tagged"
-            >
-              <Search className="w-4 h-4" />
-              Test Chunk Generation
-            </Button>
+              <Button
+                onClick={runIntegrationTest}
+                variant="outline"
+                className="flex items-center gap-2"
+                title="Chunk Generation & Metadata Verification - Checks if documents are properly chunked and tagged"
+              >
+                <Search className="w-4 h-4" />
+                Test Chunk Generation
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>

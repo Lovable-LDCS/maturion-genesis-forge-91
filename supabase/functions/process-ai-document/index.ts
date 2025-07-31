@@ -54,6 +54,11 @@ serve(async (req: Request): Promise<Response> => {
       const forceReprocess = requestBody.forceReprocess || false;
       const emergencyChunking = requestBody.emergencyChunking || false;
       const governanceDocument = requestBody.governanceDocument || false;
+      const dryRun = requestBody.dryRun || false; // New dry run parameter
+      
+      if (dryRun) {
+        console.log('🧪 DRY RUN MODE ENABLED - No embeddings or DB writes will be performed');
+      }
       
       console.log('Text validation:', !!requestBody.documentId);
       console.log('Corruption recovery mode:', corruptionRecovery);
@@ -494,6 +499,38 @@ serve(async (req: Request): Promise<Response> => {
       console.log(`✅ Chunks generated: ${chunks.length}`);
       if (chunks.length > 0) {
         console.log(`🔍 First chunk sample: "${chunks[0].substring(0, 100)}..."`);
+      }
+
+      // DRY RUN MODE: Skip database operations and return preview
+      if (dryRun) {
+        console.log('🧪 DRY RUN MODE: Skipping embeddings and database writes');
+        console.log(`🧪 DRY RUN RESULTS: Successfully generated ${chunks.length} chunks`);
+        
+        // Log preview of first 3 chunks
+        const previewChunks = chunks.slice(0, 3);
+        previewChunks.forEach((chunk, index) => {
+          console.log(`🧪 DRY RUN CHUNK ${index + 1}: Length: ${chunk.length} chars`);
+          console.log(`🧪 DRY RUN CHUNK ${index + 1} Preview: "${chunk.substring(0, 200)}..."`);
+        });
+        
+        if (chunks.length > 3) {
+          console.log(`🧪 DRY RUN: ${chunks.length - 3} additional chunks not shown in preview`);
+        }
+        
+        return {
+          success: true,
+          dryRun: true,
+          chunks: chunks.length,
+          extraction_method: extractionMethod,
+          is_governance_document: isGovernanceDocument,
+          text_extracted: extractedText.length > 0,
+          text_length: extractedText.length,
+          chunk_previews: previewChunks.map((chunk, index) => ({
+            index: index + 1,
+            length: chunk.length,
+            preview: chunk.substring(0, 200)
+          }))
+        };
       }
 
       // Delete existing chunks

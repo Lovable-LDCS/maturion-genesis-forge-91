@@ -24,6 +24,7 @@ import { ReasoningScopeTracker } from '@/components/admin/ReasoningScopeTracker'
 import { AIReasoningIntegrationTester } from '@/components/qa/AIReasoningIntegrationTester';
 import { BatchDocumentReprocessor } from '@/components/qa/BatchDocumentReprocessor';
 import { AILogicIngestionDashboard } from '@/components/qa/AILogicIngestionDashboard';
+import { DocumentChunkTester } from '@/components/qa/DocumentChunkTester';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useEffect, useState as useReactState } from 'react';
@@ -274,8 +275,9 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
 
       {/* QA Tools Tabs */}
       <Tabs defaultValue="automated-qa" className="w-full">
-        <TabsList className="grid w-full grid-cols-6">
+        <TabsList className="grid w-full grid-cols-7">
           <TabsTrigger value="automated-qa">Automated QA</TabsTrigger>
+          <TabsTrigger value="chunk-tester">Chunk Tester</TabsTrigger>
           <TabsTrigger value="refactor-qa">Refactor Analysis</TabsTrigger>
           <TabsTrigger value="system-test">System Test</TabsTrigger>
           <TabsTrigger value="debug">QA Debug Hub</TabsTrigger>
@@ -285,6 +287,21 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
         
         <TabsContent value="automated-qa" className="space-y-4">
           <AutomatedQALogs />
+        </TabsContent>
+        
+        <TabsContent value="chunk-tester" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Document Chunk Tester</CardTitle>
+              <CardDescription>
+                Test document processing locally without consuming AI credits. 
+                Validate text extraction, chunking, and content quality before triggering the full pipeline.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DocumentChunkTester />
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="refactor-qa" className="space-y-4">
