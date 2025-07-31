@@ -359,66 +359,67 @@ export const DocumentChunkTester: React.FC = () => {
       const LOCKED_ORG_ID = selectedOrg.organization_id;
       console.log('🔒 LOCKED ORGANIZATION ID FOR ENTIRE OPERATION:', LOCKED_ORG_ID);
 
-      // First create a document in ai_documents table to satisfy foreign key constraint
-      console.log('📄 CREATING DOCUMENT RECORD:', {
-        organizationId: LOCKED_ORG_ID,
-        title: metadata.title,
-        fileName: file?.name,
-        documentType: metadata.documentType,
-        domain: metadata.domain
-      });
+      // STEP 1: Create document in ai_documents table with full validation
+      const documentPayload = {
+        title: metadata.title || 'Chunk Tester Upload',
+        file_name: file?.name || 'unknown-file',
+        file_path: `chunk-tester/${Date.now()}-${file?.name || 'upload'}`,
+        file_size: file?.size || 0,
+        mime_type: file?.type || 'application/octet-stream',
+        document_type: metadata.documentType || 'general',
+        domain: metadata.domain || 'general',
+        processing_status: 'completed',
+        processed_at: new Date().toISOString(),
+        total_chunks: chunks.length,
+        organization_id: LOCKED_ORG_ID,
+        uploaded_by: user.id,
+        updated_by: user.id,
+        metadata: {
+          approved_via_tester: true,
+          extraction_method: 'mammoth_docx',
+          processing_source: 'chunk_tester'
+        }
+      };
+
+      console.log('📄 STEP 1: CREATING DOCUMENT WITH PAYLOAD:', documentPayload);
 
       const { data: newDocument, error: docError } = await supabase
         .from('ai_documents')
-        .insert({
-          title: metadata.title || 'Chunk Tester Upload',
-          file_name: file?.name || 'unknown-file',
-          file_path: `chunk-tester/${Date.now()}-${file?.name || 'upload'}`,
-          file_size: file?.size || 0,
-          mime_type: file?.type || 'application/octet-stream',
-          document_type: metadata.documentType || 'general',
-          domain: metadata.domain || 'general',
-          processing_status: 'completed',
-          processed_at: new Date().toISOString(),
-          total_chunks: chunks.length,
-          organization_id: LOCKED_ORG_ID, // Using locked org ID
-          uploaded_by: user.id,
-          updated_by: user.id,
-          metadata: {
-            approved_via_tester: true,
-            extraction_method: 'mammoth_docx',
-            processing_source: 'chunk_tester'
-          }
-        })
+        .insert(documentPayload)
         .select()
         .single();
 
       if (docError) {
-        console.error('❌ DOCUMENT CREATION FAILED:', {
+        console.error('❌ STEP 1 FAILED - DOCUMENT CREATION:', {
           error: docError,
-          organizationId: LOCKED_ORG_ID,
-          userRole: selectedOrg.role
+          code: docError.code,
+          message: docError.message,
+          details: docError.details,
+          hint: docError.hint,
+          payload: documentPayload
         });
-        throw new Error(`Failed to create document: ${docError.message}`);
+        throw new Error(`Failed to create document: ${docError.message} (Code: ${docError.code})`);
       }
 
       const documentId = newDocument.id;
-      console.log('✅ DOCUMENT CREATED SUCCESSFULLY:', {
+      console.log('✅ STEP 1 SUCCESS - DOCUMENT CREATED:', {
         documentId,
         organizationId: newDocument.organization_id,
-        confirmedOrgMatch: newDocument.organization_id === LOCKED_ORG_ID
+        documentType: newDocument.document_type,
+        title: newDocument.title,
+        fullDocument: newDocument
       });
 
-      // CRITICAL: Verify document exists and is accessible before proceeding
-      console.log('🔍 VERIFYING DOCUMENT EXISTS IN DATABASE...');
+      // STEP 2: Verify document exists and is accessible
+      console.log('🔍 STEP 2: VERIFYING DOCUMENT EXISTS IN DATABASE...');
       const { data: verifyDoc, error: verifyError } = await supabase
         .from('ai_documents')
-        .select('id, organization_id, title')
+        .select('id, organization_id, title, document_type')
         .eq('id', documentId)
         .single();
 
       if (verifyError || !verifyDoc) {
-        console.error('❌ DOCUMENT VERIFICATION FAILED:', {
+        console.error('❌ STEP 2 FAILED - DOCUMENT VERIFICATION:', {
           verifyError,
           documentId,
           found: !!verifyDoc
@@ -426,136 +427,139 @@ export const DocumentChunkTester: React.FC = () => {
         throw new Error(`Created document cannot be found: ${verifyError?.message || 'Document not found'}`);
       }
 
-      console.log('✅ DOCUMENT VERIFIED IN DATABASE:', {
+      console.log('✅ STEP 2 SUCCESS - DOCUMENT VERIFIED:', {
         foundId: verifyDoc.id,
         foundOrgId: verifyDoc.organization_id,
+        foundType: verifyDoc.document_type,
         idMatch: verifyDoc.id === documentId,
         orgMatch: verifyDoc.organization_id === LOCKED_ORG_ID
       });
 
-      console.log('🔗 PREPARING CHUNKS FOR APPROVAL:', {
-        chunksCount: chunks.length,
-        documentId,
-        organizationId: LOCKED_ORG_ID,
-        userId: user.id,
-        userRole: selectedOrg.role,
-        orgValidation: LOCKED_ORG_ID === newDocument.organization_id
-      });
-
-      // Create chunks with the real document ID and LOCKED organization ID
-      const chunksToSave = chunks.map((content, index) => ({
-        document_id: documentId,
-        chunk_index: index,
-        content,
-        content_hash: `chunk_${documentId}_${index}_${Date.now()}`,
-        metadata: {
-          approved_via_tester: true,
-          extraction_method: result?.extractionMethod || 'chunk_tester',
-          chunk_size: content.length,
-          verified_at: new Date().toISOString(),
-          file_name: file?.name || 'unknown',
-          document_title: metadata.title,
-          organization_name: selectedOrg.organizations?.name
-        },
-        approved_by: user.id,
-        organization_id: LOCKED_ORG_ID // Using same locked org ID
-      }));
-
-      console.log('🔍 FINAL VALIDATION BEFORE INSERT:', {
-        chunksCount: chunksToSave.length,
-        sampleChunk: {
-          document_id: chunksToSave[0]?.document_id,
-          organization_id: chunksToSave[0]?.organization_id,
-          approved_by: chunksToSave[0]?.approved_by
-        },
-        allOrgIdsMatch: chunksToSave.every(chunk => chunk.organization_id === LOCKED_ORG_ID),
-        docIdExists: !!documentId,
-        confirmedOrgId: LOCKED_ORG_ID
-      });
-
-      // Test RLS access before attempting insert
-      console.log('🔐 TESTING DATABASE ACCESS...');
-      const { data: testAccess, error: testError } = await supabase
-        .from('approved_chunks_cache')
-        .select('count')
-        .eq('organization_id', LOCKED_ORG_ID)
-        .limit(1);
-
-      console.log('🔐 RLS TEST RESULT:', { 
-        testAccess, 
-        testError,
-        organizationId: LOCKED_ORG_ID 
-      });
-
-      // CRITICAL: Test inserting ONE chunk first to isolate the exact error
-      console.log('🧪 TESTING SINGLE CHUNK INSERT...');
+      // STEP 3: Test foreign key relationship with a minimal insert
+      console.log('🧪 STEP 3: TESTING FOREIGN KEY RELATIONSHIP...');
       const testChunk = {
-        document_id: documentId,
-        chunk_index: 0,
-        content: chunks[0].substring(0, 100) + '...', // Truncated for test
-        content_hash: `test_${documentId}_0_${Date.now()}`,
-        metadata: {
-          approved_via_tester: true,
-          extraction_method: 'test',
-          test_insert: true
-        },
+        document_id: documentId, // Using the verified document ID
+        chunk_index: 999, // Unique index to avoid conflicts
+        content: 'TEST FOREIGN KEY RELATIONSHIP',
+        content_hash: `fk_test_${documentId}_${Date.now()}`,
+        metadata: { test: true },
         approved_by: user.id,
         organization_id: LOCKED_ORG_ID
       };
 
-      const { data: testInsert, error: testInsertError } = await supabase
+      console.log('🧪 STEP 3: INSERTING TEST CHUNK:', testChunk);
+
+      const { data: testResult, error: testError } = await supabase
         .from('approved_chunks_cache')
         .insert([testChunk])
         .select();
 
-      if (testInsertError) {
-        console.error('❌ SINGLE CHUNK TEST FAILED:', {
-          error: testInsertError,
-          code: testInsertError.code,
-          message: testInsertError.message,
-          details: testInsertError.details,
-          hint: testInsertError.hint,
-          testChunk
+      if (testError) {
+        console.error('❌ STEP 3 FAILED - FOREIGN KEY TEST:', {
+          error: testError,
+          code: testError.code,
+          message: testError.message,
+          testChunk,
+          documentId,
+          documentExists: !!verifyDoc
         });
-        throw new Error(`Single chunk test failed: ${testInsertError.message} (Code: ${testInsertError.code})`);
+        throw new Error(`Foreign key test failed: ${testError.message} (Code: ${testError.code})`);
       }
 
-      console.log('✅ SINGLE CHUNK TEST PASSED:', testInsert);
+      console.log('✅ STEP 3 SUCCESS - FOREIGN KEY WORKS:', testResult);
 
-      console.log('💾 INSERTING ALL CHUNKS...');
+      // STEP 4: Delete test chunk and proceed with real chunks
+      await supabase
+        .from('approved_chunks_cache')
+        .delete()
+        .eq('id', testResult[0].id);
+
+      console.log('🧹 STEP 3 CLEANUP: Test chunk deleted');
+
+      // STEP 4: Prepare actual chunks with verified document ID
+      console.log('🔗 STEP 4: PREPARING REAL CHUNKS...');
+      const chunksToSave = chunks.map((content, index) => {
+        const chunk = {
+          document_id: documentId, // Using verified document ID
+          chunk_index: index,
+          content,
+          content_hash: `chunk_${documentId}_${index}_${Date.now()}`,
+          metadata: {
+            approved_via_tester: true,
+            extraction_method: result?.extractionMethod || 'chunk_tester',
+            chunk_size: content.length,
+            verified_at: new Date().toISOString(),
+            file_name: file?.name || 'unknown',
+            document_title: metadata.title,
+            organization_name: selectedOrg.organizations?.name
+          },
+          approved_by: user.id,
+          organization_id: LOCKED_ORG_ID // Using same locked org ID
+        };
+        
+        console.log(`🧩 CHUNK ${index}:`, {
+          document_id: chunk.document_id,
+          organization_id: chunk.organization_id,
+          chunk_index: chunk.chunk_index,
+          content_length: chunk.content.length
+        });
+        
+        return chunk;
+      });
+
+      console.log('✅ STEP 4 SUCCESS - CHUNKS PREPARED:', {
+        totalChunks: chunksToSave.length,
+        documentId,
+        organizationId: LOCKED_ORG_ID,
+        allIdsMatch: chunksToSave.every(c => c.document_id === documentId && c.organization_id === LOCKED_ORG_ID)
+      });
+
+      // STEP 5: Insert all chunks
+      console.log('💾 STEP 5: INSERTING ALL CHUNKS...');
       const { data: insertedChunks, error: chunksError } = await supabase
         .from('approved_chunks_cache')
         .insert(chunksToSave)
         .select();
 
       if (chunksError) {
-        console.error('❌ CRITICAL: CHUNK INSERT FAILED:', {
+        console.error('❌ STEP 5 FAILED - CHUNKS INSERT:', {
           error: chunksError,
           code: chunksError.code,
           message: chunksError.message,
           details: chunksError.details,
           hint: chunksError.hint,
-          organizationId: LOCKED_ORG_ID,
           documentId,
-          userId: user.id,
-          userRole: selectedOrg.role,
+          organizationId: LOCKED_ORG_ID,
           chunksCount: chunksToSave.length,
-          sampleChunkOrgId: chunksToSave[0]?.organization_id,
-          documentOrgId: newDocument.organization_id
+          sampleChunk: chunksToSave[0]
         });
         throw new Error(`Failed to save approved chunks: ${chunksError.message} (Code: ${chunksError.code})`);
       }
 
       if (!insertedChunks || insertedChunks.length === 0) {
-        console.error('❌ CRITICAL: No chunks were inserted despite no error');
+        console.error('❌ STEP 5 FAILED - No chunks inserted despite no error');
         throw new Error('No chunks were saved - insert returned empty result');
       }
 
-      console.log('🎉 SUCCESS! CHUNKS APPROVED AND SAVED:', {
-        chunksCount: insertedChunks.length,
+      console.log('🎉 STEP 5 SUCCESS - ALL CHUNKS INSERTED:', {
+        insertedCount: insertedChunks.length,
+        expectedCount: chunks.length,
         documentId,
         organizationId: LOCKED_ORG_ID,
-        insertedIds: insertedChunks.map(chunk => chunk.id)
+        insertedIds: insertedChunks.map(chunk => chunk.id),
+        firstChunkId: insertedChunks[0]?.id,
+        lastChunkId: insertedChunks[insertedChunks.length - 1]?.id
+      });
+
+      // FINAL SUCCESS LOG
+      console.log('🏆 COMPLETE SUCCESS - DOCUMENT APPROVED:', {
+        finalDocumentId: documentId,
+        finalOrganizationId: LOCKED_ORG_ID,
+        totalChunksApproved: insertedChunks.length,
+        documentTitle: metadata.title,
+        documentType: newDocument.document_type,
+        approvedBy: user.id,
+        approvedAt: new Date().toISOString()
       });
       
       return documentId;
