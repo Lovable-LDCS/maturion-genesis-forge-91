@@ -9,6 +9,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Upload, FileText, AlertTriangle, CheckCircle, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import mammoth from 'mammoth';
 
 interface ChunkResult {
@@ -28,12 +30,30 @@ interface FileValidation {
   mimeType: string;
 }
 
+interface DocumentMetadata {
+  title: string;
+  documentType: string;
+  tags: string;
+  domain: string;
+  visibility: string;
+  description: string;
+}
+
 export const DocumentChunkTester: React.FC = () => {
   const [file, setFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<ChunkResult | null>(null);
   const [validation, setValidation] = useState<FileValidation | null>(null);
   const [showChunkPreviews, setShowChunkPreviews] = useState(false);
+  const [showMetadataForm, setShowMetadataForm] = useState(false);
+  const [metadata, setMetadata] = useState<DocumentMetadata>({
+    title: '',
+    documentType: '',
+    tags: '',
+    domain: '',
+    visibility: 'all_users',
+    description: ''
+  });
   const { toast } = useToast();
 
   // Preflight validation
@@ -222,8 +242,22 @@ export const DocumentChunkTester: React.FC = () => {
     if (selectedFile) {
       setFile(selectedFile);
       setResult(null);
+      setShowMetadataForm(false);
+      setMetadata({
+        title: selectedFile.name.replace(/\.[^/.]+$/, ''), // Remove extension
+        documentType: '',
+        tags: '',
+        domain: '',
+        visibility: 'all_users',
+        description: ''
+      });
       const fileValidation = validateFile(selectedFile);
       setValidation(fileValidation);
+      
+      // Show metadata form if file is valid
+      if (fileValidation.isValid) {
+        setShowMetadataForm(true);
+      }
     }
   }, [validateFile]);
 
@@ -234,8 +268,22 @@ export const DocumentChunkTester: React.FC = () => {
     if (droppedFile) {
       setFile(droppedFile);
       setResult(null);
+      setShowMetadataForm(false);
+      setMetadata({
+        title: droppedFile.name.replace(/\.[^/.]+$/, ''), // Remove extension
+        documentType: '',
+        tags: '',
+        domain: '',
+        visibility: 'all_users',
+        description: ''
+      });
       const fileValidation = validateFile(droppedFile);
       setValidation(fileValidation);
+      
+      // Show metadata form if file is valid
+      if (fileValidation.isValid) {
+        setShowMetadataForm(true);
+      }
     }
   }, [validateFile]);
 
@@ -330,8 +378,119 @@ export const DocumentChunkTester: React.FC = () => {
           </div>
         )}
 
+        {/* Metadata Form */}
+        {showMetadataForm && file && validation?.isValid && (
+          <Card className="border-2 border-primary">
+            <CardHeader>
+              <CardTitle className="text-lg">Document Metadata</CardTitle>
+              <CardDescription>
+                Please provide metadata for this document before testing. This information will be preserved throughout the approval process.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Document Title *</Label>
+                  <Input
+                    id="title"
+                    value={metadata.title}
+                    onChange={(e) => setMetadata(prev => ({ ...prev, title: e.target.value }))}
+                    placeholder="Enter document title"
+                    required
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="documentType">Document Type *</Label>
+                  <Select 
+                    value={metadata.documentType} 
+                    onValueChange={(value) => setMetadata(prev => ({ ...prev, documentType: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select document type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="mps">MPS (Maturity Practice Statement)</SelectItem>
+                      <SelectItem value="policy">Policy Document</SelectItem>
+                      <SelectItem value="threat_profile">Threat Profile</SelectItem>
+                      <SelectItem value="sop">Standard Operating Procedure</SelectItem>
+                      <SelectItem value="guidance">Guidance Document</SelectItem>
+                      <SelectItem value="best_practice">Best Practice</SelectItem>
+                      <SelectItem value="compliance">Compliance Framework</SelectItem>
+                      <SelectItem value="risk_assessment">Risk Assessment</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="domain">Domain *</Label>
+                  <Select 
+                    value={metadata.domain} 
+                    onValueChange={(value) => setMetadata(prev => ({ ...prev, domain: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select domain" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="leadership_governance">Leadership & Governance</SelectItem>
+                      <SelectItem value="people_culture">People & Culture</SelectItem>
+                      <SelectItem value="process_integrity">Process Integrity</SelectItem>
+                      <SelectItem value="protection">Protection</SelectItem>
+                      <SelectItem value="proof_it_works">Proof it Works</SelectItem>
+                      <SelectItem value="cross_domain">Cross-Domain</SelectItem>
+                      <SelectItem value="general">General</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="visibility">Visibility *</Label>
+                  <Select 
+                    value={metadata.visibility} 
+                    onValueChange={(value) => setMetadata(prev => ({ ...prev, visibility: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select visibility" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all_users">All Users</SelectItem>
+                      <SelectItem value="superusers_only">Superusers Only</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="tags">Tags *</Label>
+                <Input
+                  id="tags"
+                  value={metadata.tags}
+                  onChange={(e) => setMetadata(prev => ({ ...prev, tags: e.target.value }))}
+                  placeholder="Enter tags separated by commas (e.g., iso27001, risk-management, audit)"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Use comma-separated tags for better searchability and filtering
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="description">AI Backoffice Description</Label>
+                <Textarea
+                  id="description"
+                  value={metadata.description}
+                  onChange={(e) => setMetadata(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Optional: Provide context or notes about this document for AI processing"
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Process Button */}
-        {file && validation?.isValid && (
+        {file && validation?.isValid && metadata.title && metadata.documentType && metadata.domain && metadata.tags && (
           <Button 
             onClick={() => processFile(file)} 
             disabled={isProcessing}
@@ -344,30 +503,59 @@ export const DocumentChunkTester: React.FC = () => {
         {/* Approve for Upload Button */}
         {result && result.success && result.chunks.length > 0 && (
           <div className="pt-4 border-t">
-            <Button 
-              onClick={() => {
-                // Add to approved files queue
-                if ((window as any).addApprovedFile && file) {
-                  (window as any).addApprovedFile(file, result.chunks.length, result.extractionMethod);
-                  setFile(null);
-                  setResult(null);
-                  setValidation(null);
-                } else {
-                  toast({
-                    title: "Feature Unavailable",
-                    description: "Approved files queue is not available. Please refresh the page.",
-                    variant: "destructive",
-                  });
-                }
-              }}
-              className="w-full gap-2"
-            >
-              <CheckCircle className="h-4 w-4" />
-              Approve for Upload to Maturion
-            </Button>
-            <p className="text-xs text-muted-foreground text-center mt-2">
-              This will add the file to the approved queue for secure upload
-            </p>
+            <div className="space-y-3">
+              <div className="bg-muted/30 p-3 rounded-lg">
+                <h4 className="font-medium text-sm mb-2">Document Metadata Summary</h4>
+                <div className="text-xs space-y-1 text-muted-foreground">
+                  <p><strong>Title:</strong> {metadata.title}</p>
+                  <p><strong>Type:</strong> {metadata.documentType}</p>
+                  <p><strong>Domain:</strong> {metadata.domain}</p>
+                  <p><strong>Tags:</strong> {metadata.tags}</p>
+                  <p><strong>Visibility:</strong> {metadata.visibility}</p>
+                  {metadata.description && <p><strong>Description:</strong> {metadata.description}</p>}
+                </div>
+              </div>
+              
+              <Button 
+                onClick={() => {
+                  // Add to approved files queue with metadata
+                  if ((window as any).addApprovedFile && file) {
+                    const fileWithMetadata = {
+                      file,
+                      metadata,
+                      chunksCount: result.chunks.length,
+                      extractionMethod: result.extractionMethod
+                    };
+                    (window as any).addApprovedFile(fileWithMetadata);
+                    setFile(null);
+                    setResult(null);
+                    setValidation(null);
+                    setShowMetadataForm(false);
+                    setMetadata({
+                      title: '',
+                      documentType: '',
+                      tags: '',
+                      domain: '',
+                      visibility: 'all_users',
+                      description: ''
+                    });
+                  } else {
+                    toast({
+                      title: "Feature Unavailable",
+                      description: "Approved files queue is not available. Please refresh the page.",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                className="w-full gap-2"
+              >
+                <CheckCircle className="h-4 w-4" />
+                Approve for Upload to Maturion
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">
+                This will add the file with metadata to the approved queue for secure upload
+              </p>
+            </div>
           </div>
         )}
 

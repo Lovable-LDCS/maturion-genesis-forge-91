@@ -6,6 +6,15 @@ import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, FileText, Upload, Calendar, Hash, Loader2, CheckSquare } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
+interface DocumentMetadata {
+  title: string;
+  documentType: string;
+  tags: string;
+  domain: string;
+  visibility: string;
+  description: string;
+}
+
 interface ApprovedFile {
   id: string;
   fileName: string;
@@ -13,6 +22,7 @@ interface ApprovedFile {
   chunksCount: number;
   extractionMethod: string;
   verifiedAt: string;
+  metadata: DocumentMetadata;
   fileData?: File; // Store the actual file data for upload
 }
 
@@ -42,7 +52,9 @@ export const ApprovedFilesQueue: React.FC = () => {
   };
 
   // Add a file to the approved queue (called from Document Chunk Tester)
-  const addApprovedFile = (file: File, chunksCount: number, extractionMethod: string) => {
+  const addApprovedFile = (fileWithMetadata: { file: File; metadata: DocumentMetadata; chunksCount: number; extractionMethod: string }) => {
+    const { file, metadata, chunksCount, extractionMethod } = fileWithMetadata;
+    
     const approvedFile: ApprovedFile = {
       id: crypto.randomUUID(),
       fileName: file.name,
@@ -50,6 +62,7 @@ export const ApprovedFilesQueue: React.FC = () => {
       chunksCount,
       extractionMethod,
       verifiedAt: new Date().toISOString(),
+      metadata,
     };
 
     const updatedFiles = [...approvedFiles, approvedFile];
@@ -57,7 +70,7 @@ export const ApprovedFilesQueue: React.FC = () => {
 
     toast({
       title: "File Approved",
-      description: `${file.name} has been verified and added to the upload queue`,
+      description: `${metadata.title} has been verified and added to the upload queue with metadata`,
     });
   };
 
@@ -99,7 +112,7 @@ export const ApprovedFilesQueue: React.FC = () => {
         record_id: fileId,
         action: 'APPROVED_UPLOAD',
         changed_by: user.id,
-        change_reason: `File ${approvedFile.fileName} uploaded after chunk verification (${approvedFile.chunksCount} chunks via ${approvedFile.extractionMethod})`
+        change_reason: `Document "${approvedFile.metadata.title}" (${approvedFile.metadata.documentType}) uploaded after chunk verification (${approvedFile.chunksCount} chunks via ${approvedFile.extractionMethod}). Domain: ${approvedFile.metadata.domain}, Tags: ${approvedFile.metadata.tags}`
       });
 
       toast({
@@ -266,25 +279,41 @@ export const ApprovedFilesQueue: React.FC = () => {
                   
                   <FileText className="h-5 w-5 text-green-500 flex-shrink-0" />
                   
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium truncate">{file.fileName}</div>
-                    <div className="text-sm text-muted-foreground space-y-1">
-                      <div className="flex items-center gap-4">
-                        <span className="flex items-center gap-1">
-                          <Hash className="h-3 w-3" />
-                          {file.chunksCount} chunks
-                        </span>
-                        <span>{formatFileSize(file.fileSize)}</span>
-                        <span className="flex items-center gap-1">
-                          <Calendar className="h-3 w-3" />
-                          {formatDate(file.verifiedAt)}
-                        </span>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {file.extractionMethod}
-                      </Badge>
-                    </div>
-                  </div>
+                   <div className="flex-1 min-w-0">
+                     <div className="font-medium truncate">{file.metadata.title}</div>
+                     <div className="text-sm text-muted-foreground space-y-1">
+                       <div className="flex items-center gap-4 flex-wrap">
+                         <span className="flex items-center gap-1">
+                           <Hash className="h-3 w-3" />
+                           {file.chunksCount} chunks
+                         </span>
+                         <span>{formatFileSize(file.fileSize)}</span>
+                         <span className="flex items-center gap-1">
+                           <Calendar className="h-3 w-3" />
+                           {formatDate(file.verifiedAt)}
+                         </span>
+                       </div>
+                       <div className="flex items-center gap-2 flex-wrap">
+                         <Badge variant="outline" className="text-xs">
+                           {file.extractionMethod}
+                         </Badge>
+                         <Badge variant="secondary" className="text-xs">
+                           {file.metadata.documentType}
+                         </Badge>
+                         <Badge variant="outline" className="text-xs">
+                           {file.metadata.domain}
+                         </Badge>
+                       </div>
+                       <div className="text-xs">
+                         <strong>Tags:</strong> {file.metadata.tags}
+                       </div>
+                       {file.metadata.description && (
+                         <div className="text-xs">
+                           <strong>Description:</strong> {file.metadata.description.substring(0, 100)}{file.metadata.description.length > 100 ? '...' : ''}
+                         </div>
+                       )}
+                     </div>
+                   </div>
                   
                   <div className="flex items-center gap-2">
                     <Button
