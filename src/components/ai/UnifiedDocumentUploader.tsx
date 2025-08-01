@@ -58,11 +58,18 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
 
   // Create new upload session
   const createUploadSession = useCallback((): UploadSession => {
+    if (!currentOrganization?.id) {
+      throw new Error('No organization context available. Please refresh the page.');
+    }
+    if (!user?.id) {
+      throw new Error('No user context available. Please log in again.');
+    }
+
     const sessionId = crypto.randomUUID();
     return {
       sessionId,
-      organizationId: currentOrganization!.id,
-      userId: user!.id,
+      organizationId: currentOrganization.id,
+      userId: user.id,
       files: [],
       startedAt: new Date(),
       totalFiles: 0,
@@ -123,6 +130,15 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
       return;
     }
 
+    if (!currentOrganization.id) {
+      toast({
+        title: "Organization context missing",
+        description: "Please refresh the page and try again",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Check max files limit
     const currentFileCount = uploadSession?.files.length || 0;
     if (currentFileCount + acceptedFiles.length > maxFiles) {
@@ -137,8 +153,17 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
     // Create session if none exists
     let session = uploadSession;
     if (!session) {
-      session = createUploadSession();
-      setUploadSession(session);
+      try {
+        session = createUploadSession();
+        setUploadSession(session);
+      } catch (error) {
+        toast({
+          title: "Session creation failed",
+          description: error instanceof Error ? error.message : "Unable to create upload session",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     // Validate and add files to session
