@@ -426,13 +426,17 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
         }
       }
 
-      // Update session completion
+      // Calculate final session counts after all processing is complete
       const finalSession = uploadSession!;
+      const completedFiles = finalSession.files.filter(f => f.status === 'completed').length;
+      const failedFiles = finalSession.files.filter(f => f.status === 'failed').length;
+      
+      // Update session completion with actual counts
       await supabase.from('upload_session_log')
         .update({
           completed_at: new Date().toISOString(),
-          success_count: finalSession.successCount,
-          failure_count: finalSession.failureCount
+          success_count: completedFiles,
+          failure_count: failedFiles
         })
         .eq('session_id', session.sessionId);
 
@@ -443,8 +447,8 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
 
       toast({
         title: "Upload completed",
-        description: `${finalSession.successCount} files uploaded successfully, ${finalSession.failureCount} failed`,
-        variant: finalSession.failureCount > 0 ? "destructive" : "default"
+        description: `${completedFiles} files uploaded successfully, ${failedFiles} failed`,
+        variant: failedFiles > 0 ? "destructive" : "default"
       });
 
     } catch (error) {
