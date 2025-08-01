@@ -582,3 +582,5 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
     </div>
   );
 };
+
+export default UnifiedDocumentUploader;
