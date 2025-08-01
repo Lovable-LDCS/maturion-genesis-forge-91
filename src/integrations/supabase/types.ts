@@ -759,6 +759,33 @@ export type Database = {
           },
         ]
       }
+      backoffice_admins: {
+        Row: {
+          created_at: string | null
+          email: string
+          granted_at: string | null
+          granted_by: string | null
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          granted_at?: string | null
+          granted_by?: string | null
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       criteria: {
         Row: {
           ai_suggested_statement: string | null
@@ -2314,6 +2341,10 @@ export type Database = {
       accept_invitation: {
         Args: { invitation_token_param: string }
         Returns: Json
+      }
+      add_backoffice_admin: {
+        Args: { admin_email: string; admin_user_id: string }
+        Returns: boolean
       }
       binary_quantize: {
         Args: { "": string } | { "": unknown }
