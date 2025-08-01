@@ -22,6 +22,7 @@ import InvitationAcceptance from "./pages/InvitationAcceptance";
 import OrganizationSettings from "./pages/OrganizationSettings";
 import MilestoneDetail from "./pages/MilestoneDetail";
 import MaturionKnowledgeBase from "./pages/MaturionKnowledgeBase";
+import MaturionUploads from "./pages/MaturionUploads";
 import Journey from "./pages/Journey";
 import Subscribe from "./pages/Subscribe";
 import AdminConfig from "./pages/AdminConfig";
@@ -66,6 +67,7 @@ const App = () => (
               <Route path="/team" element={<TeamPage />} />
               <Route path="/organization/settings" element={<OrganizationSettings />} />
               <Route path="/maturion/knowledge-base" element={<MaturionKnowledgeBase />} />
+              <Route path="/maturion/uploads" element={<MaturionUploads />} />
               <Route path="/accept-invitation" element={<InvitationAcceptance />} />
               <Route path="/journey" element={<Journey />} />
               <Route path="/subscribe" element={<Subscribe />} />

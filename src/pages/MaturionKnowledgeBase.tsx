@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle, AlertCircle, Clock, FileText, Database, Shield, Filter, Trash2, CheckSquare, Square, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { UnifiedDocumentUploader } from '@/components/ai/UnifiedDocumentUploader';
+
 import { MaturionKnowledgeUploadZone } from '@/components/ai/MaturionKnowledgeUploadZone';
 import { ApprovedFilesQueue } from '@/components/ai/ApprovedFilesQueue';
 import { DocumentProcessingDebugger } from '@/components/ai/DocumentProcessingDebugger';
@@ -730,29 +730,6 @@ After submitting a custom criterion:
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Phase 1: Unified Document Upload Engine */}
-        <Card className="mb-6 border-l-4 border-l-green-500">
-          <CardHeader>
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Shield className="h-4 w-4 text-green-500" />
-              Phase 1: Unified Document Upload Engine
-            </CardTitle>
-            <CardDescription>
-              New standardized upload system with metadata validation, processing pipeline tracking, and QA metrics
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <UnifiedDocumentUploader 
-              onUploadComplete={(sessionId, results) => {
-                console.log('Upload session completed:', sessionId, results);
-                refreshDocuments();
-              }}
-              onFileStatusChange={(fileId, status) => {
-                console.log('File status changed:', fileId, status);
-              }}
-            />
-          </CardContent>
-        </Card>
 
         {/* Admin Tools */}
         <div className="space-y-6">
