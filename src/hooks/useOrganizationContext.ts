@@ -120,19 +120,34 @@ export const useOrganizationContext = () => {
 
   // Check if current context has specific permissions
   const hasPermission = useCallback((permission: 'upload' | 'admin' | 'view') => {
-    if (!currentContext) return false;
+    if (!currentContext) {
+      // Log permission check without context
+      logContextValidation(user?.id || 'no-user', 'no-org', false, 
+        `Permission check '${permission}' failed: No organization context`);
+      return false;
+    }
 
+    let hasAccess = false;
     switch (permission) {
       case 'upload':
-        return currentContext.can_upload;
+        hasAccess = currentContext.can_upload;
+        break;
       case 'admin':
-        return ['admin', 'owner'].includes(currentContext.user_role);
+        hasAccess = ['admin', 'owner'].includes(currentContext.user_role);
+        break;
       case 'view':
-        return ['viewer', 'assessor', 'admin', 'owner'].includes(currentContext.user_role);
+        hasAccess = ['viewer', 'assessor', 'admin', 'owner'].includes(currentContext.user_role);
+        break;
       default:
-        return false;
+        hasAccess = false;
     }
-  }, [currentContext]);
+
+    // Log permission check
+    logContextValidation(user?.id || 'no-user', currentContext.organization_id, hasAccess,
+      `Permission check '${permission}': ${hasAccess ? 'granted' : 'denied'} for role ${currentContext.user_role}`);
+
+    return hasAccess;
+  }, [currentContext, user, logContextValidation]);
 
   useEffect(() => {
     fetchOrganizationContexts();

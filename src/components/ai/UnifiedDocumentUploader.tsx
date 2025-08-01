@@ -5,10 +5,11 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useDropzone } from 'react-dropzone';
-import { Upload, FileText, CheckCircle, AlertTriangle, Clock, X } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertTriangle, Clock, X, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useOrganizationContext } from '@/hooks/useOrganizationContext';
+import { useSecureForm } from '@/hooks/useSecureForm';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { UnifiedDocumentMetadataDialog, type DocumentMetadata } from './UnifiedDocumentMetadataDialog';
@@ -46,9 +47,15 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
   maxFiles = 10,
   allowedFileTypes = ['.docx', '.pdf', '.txt', '.md']
 }) => {
-  const { user } = useAuth();
+  const { user, isSessionValid } = useAuth();
   const { currentOrganization } = useOrganization();
   const { currentContext, validateUploadPermission, logContextValidation } = useOrganizationContext();
+  const { validateFormData, isValidating } = useSecureForm({
+    maxInputLength: 1000,
+    requireSessionValidation: true,
+    requireOrganizationContext: true,
+    organizationId: currentOrganization?.id
+  });
   const { toast } = useToast();
 
   const [uploadSession, setUploadSession] = useState<UploadSession | null>(null);
@@ -123,6 +130,16 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
 
   // Handle file drop/selection
   const onDrop = useCallback(async (acceptedFiles: File[]) => {
+    // Enhanced security validation
+    if (!isSessionValid) {
+      toast({
+        title: "Session Invalid",
+        description: "Please log in again to upload documents",
+        variant: "destructive",
+      });
+      return;
+    }
+
     if (!user || !currentOrganization || !isAdmin) {
       toast({
         title: "Access denied",
@@ -558,7 +575,7 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
       'text/markdown': ['.md']
     },
     multiple: true,
-    disabled: !isAdmin || isProcessing,
+    disabled: !isAdmin || isProcessing || !isSessionValid || isValidating,
     maxFiles
   });
 
@@ -585,8 +602,9 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
       <Card>
         <CardHeader>
           <CardTitle>Unified Document Upload Engine</CardTitle>
-          <CardDescription>
-            Phase 1: Clean, standardized document upload with metadata validation and processing pipeline
+          <CardDescription className="flex items-center gap-2">
+            <Shield className="h-4 w-4 text-green-500" />
+            Secure document upload with enhanced validation and audit trail
           </CardDescription>
         </CardHeader>
         
