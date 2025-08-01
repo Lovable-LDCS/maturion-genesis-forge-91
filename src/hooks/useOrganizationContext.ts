@@ -65,14 +65,15 @@ export const useOrganizationContext = () => {
     }
   }, [user?.id, toast]);
 
-  // Validate if user can upload to a specific organization
+  // Validate if user can upload to a specific organization using secure validation
   const validateUploadPermission = useCallback(async (organizationId: string): Promise<boolean> => {
     if (!user?.id) return false;
 
     try {
+      // Use the new secure validation function
       const { data, error } = await supabase
-        .rpc('user_can_upload_to_organization', {
-          org_id: organizationId
+        .rpc('validate_organization_access', {
+          target_org_id: organizationId
         });
 
       if (error) {

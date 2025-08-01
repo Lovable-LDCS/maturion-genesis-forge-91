@@ -98,24 +98,41 @@ export const useSecurityValidation = () => {
     }
   }, [user]);
 
-  const validateInput = useCallback((input: string, maxLength?: number) => {
-    const result = validateSecureInput(input, maxLength);
-    
-    if (!result.isValid) {
-      logSecurityEvent('INVALID_INPUT_DETECTED', {
-        userId: user?.id,
-        errors: result.errors,
-        inputLength: input.length
+  const validateInput = useCallback(async (input: string, maxLength?: number) => {
+    try {
+      // Use the new secure validation function
+      const { data: isValid, error } = await supabase.rpc('validate_secure_input', {
+        input_text: input
       });
-      
-      toast({
-        title: "Invalid Input",
-        description: result.errors.join(', '),
-        variant: "destructive",
-      });
-    }
 
-    return result;
+      if (error) {
+        console.error('Input validation error:', error);
+        return { isValid: false, sanitized: input, errors: ['Validation failed'] };
+      }
+
+      if (!isValid) {
+        toast({
+          title: "Invalid Input",
+          description: "Input contains potentially unsafe content",
+          variant: "destructive",
+        });
+        return { isValid: false, sanitized: input, errors: ['Unsafe content detected'] };
+      }
+
+      // Additional length validation
+      if (maxLength && input.length > maxLength) {
+        return { 
+          isValid: false, 
+          sanitized: input.substring(0, maxLength), 
+          errors: [`Input exceeds maximum length of ${maxLength}`] 
+        };
+      }
+
+      return { isValid: true, sanitized: input, errors: [] };
+    } catch (error) {
+      console.error('Input validation exception:', error);
+      return { isValid: false, sanitized: input, errors: ['Validation error'] };
+    }
   }, [user, toast]);
 
   const logAuditEvent = useCallback(async (action: string, details: Record<string, any>) => {
