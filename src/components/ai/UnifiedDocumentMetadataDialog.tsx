@@ -91,7 +91,7 @@ const visibilityOptions = [
   { value: 'superusers_only', label: 'Superusers Only' }
 ];
 
-export const UnifiedDocumentMetadataDialog: React.FC<UnifiedDocumentMetadataDialogProps> = ({
+const UnifiedDocumentMetadataDialog: React.FC<UnifiedDocumentMetadataDialogProps> = ({
   open,
   onClose,
   onSave,
@@ -339,3 +339,6 @@ export const UnifiedDocumentMetadataDialog: React.FC<UnifiedDocumentMetadataDial
     </Dialog>
   );
 };
+
+export { UnifiedDocumentMetadataDialog };
+export default UnifiedDocumentMetadataDialog;
