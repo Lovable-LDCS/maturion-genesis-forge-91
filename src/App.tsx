@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { LoginForm } from "@/components/auth/LoginForm";
 import { MaturionChat } from "@/components/ai/MaturionChat";
 import { useMaturionContext } from "@/hooks/useMaturionContext";
 import Index from "./pages/Index";
@@ -75,6 +76,7 @@ const App = () => (
               <Route path="/admin/config" element={<AdminConfig />} />
               <Route path="/qa-dashboard" element={<QADashboard />} />
               <Route path="/milestones/:id" element={<MilestoneDetail />} />
+              <Route path="/auth" element={<LoginForm />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

@@ -126,7 +126,7 @@ const FEATURE_PROMISES = [
 ];
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [hoveredDomain, setHoveredDomain] = useState<number | null>(null);
@@ -177,6 +177,20 @@ const Index = () => {
     navigate('/auth');
   };
 
+  const handleLogout = async () => {
+    console.log('Landing Page - Logout Click:', {
+      timestamp: new Date().toISOString(),
+      action: 'Logout'
+    });
+    
+    await signOut();
+    
+    toast({
+      title: "Signed Out",
+      description: "You have been signed out successfully.",
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-violet-50/40">
       {/* Header */}
@@ -191,13 +205,26 @@ const Index = () => {
             </div>
             
             {user ? (
-              <Button 
-                onClick={() => navigate('/dashboard')} 
-                className="flex items-center space-x-2"
-              >
-                <Target className="h-4 w-4" />
-                <span>Go to Dashboard</span>
-              </Button>
+              <div className="flex items-center space-x-3">
+                <span className="text-sm text-muted-foreground">
+                  Welcome, {user.email}
+                </span>
+                <Button 
+                  onClick={() => navigate('/dashboard')} 
+                  className="flex items-center space-x-2"
+                >
+                  <Target className="h-4 w-4" />
+                  <span>Dashboard</span>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleLogout} 
+                  className="flex items-center space-x-2"
+                >
+                  <LogIn className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </Button>
+              </div>
             ) : (
               <Button variant="outline" onClick={handleLogin} className="flex items-center space-x-2">
                 <LogIn className="h-4 w-4" />
