@@ -255,11 +255,14 @@ export type Database = {
           organization_id: string
           processed_at: string | null
           processing_status: string
+          processing_version: number | null
+          schema_version: number | null
           tags: string | null
           tester_approved_at: string | null
           tester_approved_by: string | null
           title: string | null
           total_chunks: number | null
+          unified_upload_metadata: Json | null
           updated_at: string
           updated_by: string
           upload_notes: string | null
@@ -279,11 +282,14 @@ export type Database = {
           organization_id: string
           processed_at?: string | null
           processing_status?: string
+          processing_version?: number | null
+          schema_version?: number | null
           tags?: string | null
           tester_approved_at?: string | null
           tester_approved_by?: string | null
           title?: string | null
           total_chunks?: number | null
+          unified_upload_metadata?: Json | null
           updated_at?: string
           updated_by: string
           upload_notes?: string | null
@@ -303,11 +309,14 @@ export type Database = {
           organization_id?: string
           processed_at?: string | null
           processing_status?: string
+          processing_version?: number | null
+          schema_version?: number | null
           tags?: string | null
           tester_approved_at?: string | null
           tester_approved_by?: string | null
           title?: string | null
           total_chunks?: number | null
+          unified_upload_metadata?: Json | null
           updated_at?: string
           updated_by?: string
           upload_notes?: string | null
@@ -980,6 +989,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      deduplication_reports: {
+        Row: {
+          created_at: string
+          duplicates_found: number | null
+          duplicates_merged: number | null
+          generated_at: string
+          generated_by: string | null
+          id: string
+          organization_id: string
+          report_data: Json | null
+          report_type: string
+        }
+        Insert: {
+          created_at?: string
+          duplicates_found?: number | null
+          duplicates_merged?: number | null
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          organization_id: string
+          report_data?: Json | null
+          report_type?: string
+        }
+        Update: {
+          created_at?: string
+          duplicates_found?: number | null
+          duplicates_merged?: number | null
+          generated_at?: string
+          generated_by?: string | null
+          id?: string
+          organization_id?: string
+          report_data?: Json | null
+          report_type?: string
+        }
+        Relationships: []
       }
       discount_codes: {
         Row: {
@@ -1820,6 +1865,50 @@ export type Database = {
           },
         ]
       }
+      processing_pipeline_status: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          document_id: string
+          error_details: Json | null
+          id: string
+          organization_id: string
+          stage: string
+          started_at: string | null
+          status: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          document_id: string
+          error_details?: Json | null
+          id?: string
+          organization_id: string
+          stage: string
+          started_at?: string | null
+          status?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          document_id?: string
+          error_details?: Json | null
+          id?: string
+          organization_id?: string
+          stage?: string
+          started_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "processing_pipeline_status_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -1847,6 +1936,36 @@ export type Database = {
           id?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      qa_metrics: {
+        Row: {
+          created_at: string
+          id: string
+          metric_data: Json | null
+          metric_type: string
+          metric_value: number
+          organization_id: string
+          recorded_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metric_data?: Json | null
+          metric_type: string
+          metric_value: number
+          organization_id: string
+          recorded_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metric_data?: Json | null
+          metric_type?: string
+          metric_value?: number
+          organization_id?: string
+          recorded_at?: string
         }
         Relationships: []
       }
@@ -2119,6 +2238,51 @@ export type Database = {
           updated_at?: string
           updated_by?: string
           yearly_discount_percentage?: number
+        }
+        Relationships: []
+      }
+      upload_session_log: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          document_count: number | null
+          failure_count: number | null
+          id: string
+          organization_id: string
+          session_data: Json | null
+          session_id: string
+          started_at: string
+          success_count: number | null
+          total_size_bytes: number | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          document_count?: number | null
+          failure_count?: number | null
+          id?: string
+          organization_id: string
+          session_data?: Json | null
+          session_id: string
+          started_at?: string
+          success_count?: number | null
+          total_size_bytes?: number | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          document_count?: number | null
+          failure_count?: number | null
+          id?: string
+          organization_id?: string
+          session_data?: Json | null
+          session_id?: string
+          started_at?: string
+          success_count?: number | null
+          total_size_bytes?: number | null
+          user_id?: string
         }
         Relationships: []
       }
