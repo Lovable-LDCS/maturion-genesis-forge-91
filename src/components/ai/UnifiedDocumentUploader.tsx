@@ -139,6 +139,13 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
       return;
     }
 
+    console.log('Upload validation context:', {
+      userId: user.id,
+      organizationId: currentOrganization.id,
+      userRole: currentOrganization.user_role,
+      isAdmin
+    });
+
     // Check max files limit
     const currentFileCount = uploadSession?.files.length || 0;
     if (currentFileCount + acceptedFiles.length > maxFiles) {
@@ -248,8 +255,20 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
     setIsProcessing(true);
 
     try {
+      // Validate session context before proceeding
+      if (!session.organizationId || !session.userId) {
+        throw new Error('Invalid session context: missing organization or user ID');
+      }
+
+      console.log('Upload session validation:', {
+        sessionId: session.sessionId,
+        organizationId: session.organizationId,
+        userId: session.userId,
+        fileCount: session.files.length
+      });
+
       // Log upload session start
-      await supabase.from('upload_session_log').insert({
+      const { error: sessionLogError } = await supabase.from('upload_session_log').insert({
         session_id: session.sessionId,
         organization_id: session.organizationId,
         user_id: session.userId,
@@ -261,6 +280,11 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
           unified_upload: true
         }
       });
+
+      if (sessionLogError) {
+        console.error('Session log error:', sessionLogError);
+        throw new Error(`Session logging failed: ${sessionLogError.message}`);
+      }
 
       // Process files sequentially to avoid overwhelming the system
       for (const file of session.files) {
@@ -330,7 +354,19 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
 
       updateFileStatus(uploadFile.id, 'processing', 60);
 
-      // Create document record
+      // Validate session data before document creation
+      if (!session.organizationId || !session.userId) {
+        throw new Error('Session validation failed: missing organization or user ID');
+      }
+
+      console.log('Document creation payload:', {
+        organizationId: session.organizationId,
+        userId: session.userId,
+        fileName: uploadFile.file.name,
+        documentType: uploadFile.metadata!.documentType
+      });
+
+      // Create document record with explicit validation
       const documentPayload = {
         title: uploadFile.metadata!.title,
         file_name: uploadFile.file.name,
@@ -341,7 +377,7 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
         domain: uploadFile.metadata!.domain || undefined,
         tags: uploadFile.metadata!.tags || undefined,
         upload_notes: uploadFile.metadata!.description || undefined,
-        processing_status: 'pending',
+        processing_status: 'pending' as const,
         processing_version: 2,
         schema_version: 2,
         unified_upload_metadata: {
