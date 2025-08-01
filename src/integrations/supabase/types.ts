@@ -2288,7 +2288,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      user_organization_access: {
+        Row: {
+          can_upload: boolean | null
+          can_view_documents: boolean | null
+          linked_domains: string[] | null
+          organization_id: string | null
+          organization_name: string | null
+          organization_type: string | null
+          role: string | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_invitation: {
@@ -2314,6 +2334,15 @@ export type Database = {
       get_security_setting: {
         Args: { setting_name_param: string }
         Returns: Json
+      }
+      get_user_organization_context: {
+        Args: { target_user_id?: string }
+        Returns: {
+          organization_id: string
+          user_role: string
+          organization_type: string
+          can_upload: boolean
+        }[]
       }
       get_user_primary_organization: {
         Args: { user_uuid?: string }
@@ -2406,6 +2435,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      log_upload_context_validation: {
+        Args: {
+          session_id_param: string
+          organization_id_param: string
+          user_id_param: string
+          validation_result_param: boolean
+          error_details_param?: string
+        }
+        Returns: undefined
+      }
       reset_failed_document: {
         Args: { doc_id: string }
         Returns: boolean
@@ -2432,6 +2471,10 @@ export type Database = {
       }
       user_can_manage_org_invitations: {
         Args: { org_id: string }
+        Returns: boolean
+      }
+      user_can_upload_to_organization: {
+        Args: { org_id: string; user_id?: string }
         Returns: boolean
       }
       user_can_view_organization: {
