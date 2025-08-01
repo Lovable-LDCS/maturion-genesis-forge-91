@@ -658,144 +658,141 @@ export const DocumentChunkTester: React.FC = () => {
           </div>
         )}
 
-        {/* Metadata Form */}
+        {/* Unified Metadata Form */}
         {showMetadataForm && file && validation?.isValid && (
-          <Card className="border-2 border-primary">
-            <CardHeader>
-              <CardTitle className="text-lg">Document Metadata</CardTitle>
-              <CardDescription>
-                Please provide metadata for this document before testing. This information will be preserved throughout the approval process.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="title">Document Title *</Label>
-                  <Input
-                    id="title"
-                    value={metadata.title}
-                    onChange={(e) => setMetadata(prev => ({ ...prev, title: e.target.value }))}
-                    placeholder="Enter document title"
-                    required
-                  />
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="documentType">Document Type *</Label>
-                  <Select 
-                    value={metadata.documentType} 
-                    onValueChange={(value) => setMetadata(prev => ({ ...prev, documentType: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select document type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="guidance_document">Guidance Document</SelectItem>
-                      <SelectItem value="mps_document">MPS Document</SelectItem>
-                      <SelectItem value="best_practice">Best Practice</SelectItem>
-                      <SelectItem value="case_study">Case Study</SelectItem>
-                      <SelectItem value="template">Template</SelectItem>
-                      <SelectItem value="checklist">Checklist</SelectItem>
-                      <SelectItem value="governance_reasoning_manifest">Governance Reasoning</SelectItem>
-                      <SelectItem value="scoring_logic">Scoring Logic</SelectItem>
-                      <SelectItem value="assessment_framework_component">Assessment Framework</SelectItem>
-                      <SelectItem value="ai_logic_rule_global">AI Logic Rule</SelectItem>
-                      <SelectItem value="threat_intelligence_profile">Threat Intelligence</SelectItem>
-                      <SelectItem value="policy_model">Policy Model</SelectItem>
-                      <SelectItem value="sop_procedure">SOP (Standard Operating Procedure)</SelectItem>
-                      <SelectItem value="policy_statement">Policy Statement</SelectItem>
-                      <SelectItem value="evidence_sample">Evidence Sample</SelectItem>
-                      <SelectItem value="training_module">Training Module</SelectItem>
-                      <SelectItem value="awareness_material">Awareness Material</SelectItem>
-                      <SelectItem value="implementation_guide">Implementation Guide</SelectItem>
-                      <SelectItem value="tool_reference">Tool Reference</SelectItem>
-                      <SelectItem value="audit_template">Audit Template</SelectItem>
-                      <SelectItem value="use_case_scenario">Use Case / Scenario</SelectItem>
-                      <SelectItem value="evaluation_rubric">Evaluation Rubric</SelectItem>
-                      <SelectItem value="data_model">Data Model</SelectItem>
-                      <SelectItem value="decision_tree_logic">Decision Tree / Logic Map</SelectItem>
-                      <SelectItem value="maturity_model">Maturity Model</SelectItem>
-                      <SelectItem value="general">General</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="domain">Domain *</Label>
-                  <Select 
-                    value={metadata.domain} 
-                    onValueChange={(value) => setMetadata(prev => ({ ...prev, domain: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select domain" />
-                    </SelectTrigger>
-                     <SelectContent>
-                        <SelectItem value="Leadership & Governance">Leadership & Governance</SelectItem>
-                        <SelectItem value="People & Culture">People & Culture</SelectItem>
-                        <SelectItem value="Process Integrity">Process Integrity</SelectItem>
-                        <SelectItem value="Protection">Protection</SelectItem>
-                        <SelectItem value="Proof it Works">Proof it Works</SelectItem>
-                        <SelectItem value="Global Platform Logic">Global Platform Logic</SelectItem>
-                        <SelectItem value="Global Instruction">Global Instruction</SelectItem>
-                        <SelectItem value="Control Environment">Control Environment</SelectItem>
-                        <SelectItem value="Surveillance & Monitoring">Surveillance & Monitoring</SelectItem>
-                        <SelectItem value="System Integrity & Infrastructure">System Integrity & Infrastructure</SelectItem>
-                        <SelectItem value="Incident Management">Incident Management</SelectItem>
-                        <SelectItem value="Training & Awareness">Training & Awareness</SelectItem>
-                        <SelectItem value="Third-Party Risk">Third-Party Risk</SelectItem>
-                        <SelectItem value="Legal & Compliance">Legal & Compliance</SelectItem>
-                        <SelectItem value="Threat Environment">Threat Environment</SelectItem>
-                        <SelectItem value="Assessment & Evidence Logic">Assessment & Evidence Logic</SelectItem>
-                        <SelectItem value="Analytics & Reporting">Analytics & Reporting</SelectItem>
-                        <SelectItem value="AI Governance">AI Governance</SelectItem>
-                        <SelectItem value="Maturion Engine Logic">Maturion Engine Logic</SelectItem>
-                     </SelectContent>
-                  </Select>
-                </div>
-                
-                <div className="space-y-2">
-                  <Label htmlFor="visibility">Visibility *</Label>
-                  <Select 
-                    value={metadata.visibility} 
-                    onValueChange={(value) => setMetadata(prev => ({ ...prev, visibility: value }))}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select visibility" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all_users">All Users</SelectItem>
-                      <SelectItem value="superusers_only">Superusers Only</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Document Metadata Required</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Please provide metadata for this document before testing. This information will be preserved throughout the approval process.
+            </p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="tags">Tags *</Label>
+                <Label htmlFor="title">Document Title *</Label>
                 <Input
-                  id="tags"
-                  value={metadata.tags}
-                  onChange={(e) => setMetadata(prev => ({ ...prev, tags: e.target.value }))}
-                  placeholder="Enter tags separated by commas (e.g., iso27001, risk-management, audit)"
+                  id="title"
+                  value={metadata.title}
+                  onChange={(e) => setMetadata(prev => ({ ...prev, title: e.target.value }))}
+                  placeholder="Enter document title"
                   required
                 />
-                <p className="text-xs text-muted-foreground">
-                  Use comma-separated tags for better searchability and filtering
-                </p>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="description">AI Backoffice Description</Label>
-                <Textarea
-                  id="description"
-                  value={metadata.description}
-                  onChange={(e) => setMetadata(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Optional: Provide context or notes about this document for AI processing"
-                  rows={3}
-                />
+                <Label htmlFor="documentType">Document Type *</Label>
+                <Select 
+                  value={metadata.documentType} 
+                  onValueChange={(value) => setMetadata(prev => ({ ...prev, documentType: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select document type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="guidance_document">Guidance Document</SelectItem>
+                    <SelectItem value="mps_document">MPS Document</SelectItem>
+                    <SelectItem value="best_practice">Best Practice</SelectItem>
+                    <SelectItem value="case_study">Case Study</SelectItem>
+                    <SelectItem value="template">Template</SelectItem>
+                    <SelectItem value="checklist">Checklist</SelectItem>
+                    <SelectItem value="governance_reasoning_manifest">Governance Reasoning</SelectItem>
+                    <SelectItem value="scoring_logic">Scoring Logic</SelectItem>
+                    <SelectItem value="assessment_framework_component">Assessment Framework</SelectItem>
+                    <SelectItem value="ai_logic_rule_global">AI Logic Rule</SelectItem>
+                    <SelectItem value="threat_intelligence_profile">Threat Intelligence</SelectItem>
+                    <SelectItem value="policy_model">Policy Model</SelectItem>
+                    <SelectItem value="sop_procedure">SOP (Standard Operating Procedure)</SelectItem>
+                    <SelectItem value="policy_statement">Policy Statement</SelectItem>
+                    <SelectItem value="evidence_sample">Evidence Sample</SelectItem>
+                    <SelectItem value="training_module">Training Module</SelectItem>
+                    <SelectItem value="awareness_material">Awareness Material</SelectItem>
+                    <SelectItem value="implementation_guide">Implementation Guide</SelectItem>
+                    <SelectItem value="tool_reference">Tool Reference</SelectItem>
+                    <SelectItem value="audit_template">Audit Template</SelectItem>
+                    <SelectItem value="use_case_scenario">Use Case / Scenario</SelectItem>
+                    <SelectItem value="evaluation_rubric">Evaluation Rubric</SelectItem>
+                    <SelectItem value="data_model">Data Model</SelectItem>
+                    <SelectItem value="decision_tree_logic">Decision Tree / Logic Map</SelectItem>
+                    <SelectItem value="maturity_model">Maturity Model</SelectItem>
+                    <SelectItem value="general">General</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            </CardContent>
-          </Card>
+              
+              <div className="space-y-2">
+                <Label htmlFor="domain">Domain *</Label>
+                <Select 
+                  value={metadata.domain} 
+                  onValueChange={(value) => setMetadata(prev => ({ ...prev, domain: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select domain" />
+                  </SelectTrigger>
+                   <SelectContent>
+                      <SelectItem value="Leadership & Governance">Leadership & Governance</SelectItem>
+                      <SelectItem value="People & Culture">People & Culture</SelectItem>
+                      <SelectItem value="Process Integrity">Process Integrity</SelectItem>
+                      <SelectItem value="Protection">Protection</SelectItem>
+                      <SelectItem value="Proof it Works">Proof it Works</SelectItem>
+                      <SelectItem value="Global Platform Logic">Global Platform Logic</SelectItem>
+                      <SelectItem value="Global Instruction">Global Instruction</SelectItem>
+                      <SelectItem value="Control Environment">Control Environment</SelectItem>
+                      <SelectItem value="Surveillance & Monitoring">Surveillance & Monitoring</SelectItem>
+                      <SelectItem value="System Integrity & Infrastructure">System Integrity & Infrastructure</SelectItem>
+                      <SelectItem value="Incident Management">Incident Management</SelectItem>
+                      <SelectItem value="Training & Awareness">Training & Awareness</SelectItem>
+                      <SelectItem value="Third-Party Risk">Third-Party Risk</SelectItem>
+                      <SelectItem value="Legal & Compliance">Legal & Compliance</SelectItem>
+                      <SelectItem value="Threat Environment">Threat Environment</SelectItem>
+                      <SelectItem value="Assessment & Evidence Logic">Assessment & Evidence Logic</SelectItem>
+                      <SelectItem value="Analytics & Reporting">Analytics & Reporting</SelectItem>
+                      <SelectItem value="AI Governance">AI Governance</SelectItem>
+                      <SelectItem value="Maturion Engine Logic">Maturion Engine Logic</SelectItem>
+                   </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="visibility">Visibility *</Label>
+                <Select 
+                  value={metadata.visibility} 
+                  onValueChange={(value) => setMetadata(prev => ({ ...prev, visibility: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select visibility" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all_users">All Users</SelectItem>
+                    <SelectItem value="superusers_only">Superusers Only</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags *</Label>
+              <Input
+                id="tags"
+                value={metadata.tags}
+                onChange={(e) => setMetadata(prev => ({ ...prev, tags: e.target.value }))}
+                placeholder="Enter tags separated by commas (e.g., iso27001, risk-management, audit)"
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Use comma-separated tags for better searchability and filtering
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="description">AI Backoffice Description</Label>
+              <Textarea
+                id="description"
+                value={metadata.description}
+                onChange={(e) => setMetadata(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Optional: Provide context or notes about this document for AI processing"
+                rows={3}
+              />
+            </div>
+          </div>
         )}
 
         {/* Process Button */}

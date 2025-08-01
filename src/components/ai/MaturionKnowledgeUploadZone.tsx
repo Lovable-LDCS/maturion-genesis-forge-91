@@ -20,6 +20,7 @@ import { useDocumentVersions } from '@/hooks/useDocumentVersions';
 import { DocumentProcessingVerificationBlock } from './DocumentProcessingVerificationBlock';
 import { DocumentContentViewer } from './DocumentContentViewer';
 import { DocumentPreviewPane } from './DocumentPreviewPane';
+import { UnifiedDocumentMetadataDialog, type DocumentMetadata } from './UnifiedDocumentMetadataDialog';
 
 const documentTypeLabels: Record<string, string> = {
   guidance_document: 'Guidance Document',
@@ -115,13 +116,7 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
   
   // Edit dialog state
   const [editingDocument, setEditingDocument] = useState<MaturionDocument | null>(null);
-  const [editTitle, setEditTitle] = useState<string>('');
-  const [editDomain, setEditDomain] = useState<string>('');
-  const [editTags, setEditTags] = useState<string>('');
-  const [editNotes, setEditNotes] = useState<string>('');
-  const [editDocumentType, setEditDocumentType] = useState<string>('guidance_document');
   const [isSaving, setIsSaving] = useState(false);
-  const [editChangeReason, setEditChangeReason] = useState<string>('');
   
   // Version history dialog state
   const [versionDialogDocument, setVersionDialogDocument] = useState<MaturionDocument | null>(null);
@@ -286,35 +281,60 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
 
   const handleEditDocument = (doc: MaturionDocument) => {
     setEditingDocument(doc);
-    setEditTitle(doc.title || doc.file_name);
-    setEditDomain(doc.domain || '');
-    setEditTags(doc.tags || '');
-    setEditNotes(doc.upload_notes || '');
-    setEditDocumentType(doc.document_type);
-    setEditChangeReason('');
   };
 
-  const handleSaveEdit = async () => {
+  const handleSaveEdit = async (metadata: DocumentMetadata) => {
     if (!editingDocument) return;
     
     setIsSaving(true);
-    const success = await updateDocument(editingDocument.id, {
-      title: editTitle,
-      domain: editDomain || undefined,
-      tags: editTags || undefined,
-      upload_notes: editNotes || undefined,
-      document_type: editDocumentType as any,
-      change_reason: editChangeReason || 'Document metadata updated'
-    });
-    
-    if (success) {
-      setEditingDocument(null);
-      // Trigger parent refresh if callback provided
-      if (onDocumentChange) {
-        await onDocumentChange();
+    try {
+      // First, update the document using the existing updateDocument function
+      const success = await updateDocument(editingDocument.id, {
+        title: metadata.title,
+        domain: metadata.domain || undefined,
+        tags: metadata.tags || undefined,
+        upload_notes: metadata.description || undefined, // Map AI Backoffice Description to upload_notes
+        document_type: metadata.documentType as any,
+        change_reason: metadata.changeReason || 'Document metadata updated'
+      });
+      
+      if (success) {
+        // Then update the metadata field separately if needed
+        try {
+          const { error: metadataError } = await supabase
+            .from('ai_documents')
+            .update({
+              metadata: {
+                ...editingDocument.metadata,
+                visibility: metadata.visibility,
+                ai_backoffice_description: metadata.description
+              }
+            })
+            .eq('id', editingDocument.id);
+            
+          if (metadataError) {
+            console.warn('Warning: Failed to update metadata field:', metadataError);
+          }
+        } catch (metadataUpdateError) {
+          console.warn('Warning: Failed to update metadata field:', metadataUpdateError);
+        }
+        
+        setEditingDocument(null);
+        // Trigger parent refresh if callback provided
+        if (onDocumentChange) {
+          await onDocumentChange();
+        }
       }
+    } catch (error) {
+      console.error('Error saving document metadata:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save document metadata",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const handleCancelEdit = () => {
@@ -716,137 +736,23 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
         </CardContent>
       </Card>
 
-      {/* Edit Document Dialog */}
-      <Dialog open={!!editingDocument} onOpenChange={() => setEditingDocument(null)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Document</DialogTitle>
-            <DialogDescription>
-              Update the document metadata and categorization
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            {/* Document Type */}
-            <div className="space-y-2">
-              <Label htmlFor="edit-document-type">Document Type</Label>
-              <Select
-                value={editDocumentType}
-                onValueChange={(value: string) => setEditDocumentType(value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(documentTypeLabels).map(([value, label]) => (
-                    <SelectItem key={value} value={value}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Title */}
-            <div className="space-y-2">
-              <Label htmlFor="edit-title">Title</Label>
-              <Input
-                id="edit-title"
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                placeholder="Document title"
-              />
-            </div>
-
-            {/* Domain */}
-            <div className="space-y-2">
-              <Label htmlFor="edit-domain">Domain</Label>
-              <div className="flex gap-2">
-                <Select
-                  value={editDomain}
-                  onValueChange={setEditDomain}
-                >
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Select a domain..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {domainOptions.map((domain) => (
-                      <SelectItem key={domain} value={domain}>
-                        {domain}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {editDomain && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={() => setEditDomain('')}
-                    className="shrink-0"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Tags */}
-            <div className="space-y-2">
-              <Label htmlFor="edit-tags">Tags</Label>
-              <Input
-                id="edit-tags"
-                value={editTags}
-                onChange={(e) => setEditTags(e.target.value)}
-                placeholder="e.g. security, compliance, risk-management"
-              />
-            </div>
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <Label htmlFor="edit-notes">Upload Notes</Label>
-              <Textarea
-                id="edit-notes"
-                value={editNotes}
-                onChange={(e) => setEditNotes(e.target.value)}
-                placeholder="Internal notes about this document..."
-                rows={3}
-              />
-            </div>
-            {/* Change Reason */}
-            <div className="space-y-2">
-              <Label htmlFor="edit-change-reason">Change Reason</Label>
-              <Input
-                id="edit-change-reason"
-                value={editChangeReason}
-                onChange={(e) => setEditChangeReason(e.target.value)}
-                placeholder="Brief description of changes made..."
-              />
-              <p className="text-xs text-muted-foreground">
-                This will be logged for audit and compliance purposes
-              </p>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={handleCancelEdit}
-              disabled={isSaving}
-            >
-              <XCircle className="h-4 w-4 mr-2" />
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={isSaving || !editTitle.trim()}
-            >
-              <Save className="h-4 w-4 mr-2" />
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Unified Edit Document Dialog */}
+      <UnifiedDocumentMetadataDialog
+        open={!!editingDocument}
+        onClose={handleCancelEdit}
+        onSave={handleSaveEdit}
+        initialMetadata={{
+          title: editingDocument?.title || editingDocument?.file_name || '',
+          documentType: editingDocument?.document_type || 'guidance_document',
+          domain: editingDocument?.domain || '',
+          tags: editingDocument?.tags || '',
+          visibility: (editingDocument?.metadata as any)?.visibility || 'all_users',
+          description: (editingDocument?.metadata as any)?.ai_backoffice_description || editingDocument?.upload_notes || ''
+        }}
+        isPreApproved={(editingDocument?.metadata as any)?.approved_via_tester === true}
+        isSaving={isSaving}
+        mode="edit"
+      />
 
       {/* Version History - Removed for now */}
 
