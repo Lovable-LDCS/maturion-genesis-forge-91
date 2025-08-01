@@ -8,6 +8,7 @@ import { useDropzone } from 'react-dropzone';
 import { Upload, FileText, CheckCircle, AlertTriangle, Clock, X } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { UnifiedDocumentMetadataDialog, type DocumentMetadata } from './UnifiedDocumentMetadataDialog';
@@ -47,14 +48,15 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
 }) => {
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
+  const { currentContext, validateUploadPermission, logContextValidation } = useOrganizationContext();
   const { toast } = useToast();
 
   const [uploadSession, setUploadSession] = useState<UploadSession | null>(null);
   const [metadataDialogFile, setMetadataDialogFile] = useState<UploadFile | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Check if user has admin/owner permissions
-  const isAdmin = currentOrganization?.user_role === 'admin' || currentOrganization?.user_role === 'owner';
+  // Check if user has admin/owner permissions using the enhanced context
+  const isAdmin = currentContext?.can_upload || currentOrganization?.user_role === 'admin' || currentOrganization?.user_role === 'owner';
 
   // Create new upload session
   const createUploadSession = useCallback((): UploadSession => {
@@ -139,10 +141,22 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
       return;
     }
 
+    // Enhanced organizational context validation
+    const canUpload = await validateUploadPermission(currentOrganization.id);
+    if (!canUpload) {
+      toast({
+        title: "Upload permission denied",
+        description: "You do not have upload permissions for this organization",
+        variant: "destructive",
+      });
+      return;
+    }
+
     console.log('Upload validation context:', {
       userId: user.id,
       organizationId: currentOrganization.id,
       userRole: currentOrganization.user_role,
+      contextCanUpload: currentContext?.can_upload,
       isAdmin
     });
 
@@ -216,7 +230,7 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
         description: `${newFiles.length} file(s) added to upload queue`,
       });
     }
-  }, [user, currentOrganization, isAdmin, uploadSession, maxFiles, createUploadSession, validateFile, toast]);
+  }, [user, currentOrganization, isAdmin, uploadSession, maxFiles, createUploadSession, validateFile, validateUploadPermission, currentContext, toast]);
 
   // Handle metadata save
   const handleMetadataSave = useCallback(async (metadata: DocumentMetadata) => {
@@ -255,16 +269,62 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
     setIsProcessing(true);
 
     try {
-      // Validate session context before proceeding
+      // Validate session context before proceeding using new security functions
       if (!session.organizationId || !session.userId) {
         throw new Error('Invalid session context: missing organization or user ID');
       }
 
-      console.log('Upload session validation:', {
+      // Use the new organization context validation function
+      const { data: orgContext, error: contextError } = await supabase
+        .rpc('get_user_organization_context')
+        .single();
+
+      if (contextError || !orgContext) {
+        console.error('Organization context validation failed:', contextError);
+        await supabase.rpc('log_upload_context_validation', {
+          session_id_param: session.sessionId,
+          organization_id_param: session.organizationId,
+          user_id_param: session.userId,
+          validation_result_param: false,
+          error_details_param: `Context validation failed: ${contextError?.message || 'No context returned'}`
+        });
+        throw new Error('Unable to validate organization context. Please refresh and try again.');
+      }
+
+      // Ensure user has upload permissions for the selected organization
+      const { data: canUpload, error: permissionError } = await supabase
+        .rpc('user_can_upload_to_organization', {
+          org_id: session.organizationId
+        });
+
+      if (permissionError || !canUpload) {
+        console.error('Upload permission validation failed:', permissionError);
+        await supabase.rpc('log_upload_context_validation', {
+          session_id_param: session.sessionId,
+          organization_id_param: session.organizationId,
+          user_id_param: session.userId,
+          validation_result_param: false,
+          error_details_param: `Permission validation failed: ${permissionError?.message || 'User lacks upload permissions'}`
+        });
+        throw new Error('You do not have upload permissions for this organization.');
+      }
+
+      console.log('Upload session validation successful:', {
         sessionId: session.sessionId,
         organizationId: session.organizationId,
-        userId: session.userId,
+        organizationType: orgContext.organization_type,
+        userRole: orgContext.user_role,
+        canUpload: orgContext.can_upload,
         fileCount: session.files.length
+      });
+
+      // Log successful validation
+      await supabase.rpc('log_upload_context_validation', {
+        session_id_param: session.sessionId,
+        organization_id_param: session.organizationId,
+        user_id_param: session.userId,
+        validation_result_param: true,
+        error_details_param: `Upload authorized for ${orgContext.organization_type} organization with ${orgContext.user_role} role`
       });
 
       // Log upload session start
