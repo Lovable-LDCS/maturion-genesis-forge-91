@@ -426,10 +426,27 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
         }
       }
 
-      // Calculate final session counts after all processing is complete
-      const finalSession = uploadSession!;
-      const completedFiles = finalSession.files.filter(f => f.status === 'completed').length;
-      const failedFiles = finalSession.files.filter(f => f.status === 'failed').length;
+      // Access current state using a state callback to ensure we get the latest state
+      let completedFiles = 0;
+      let failedFiles = 0;
+      let finalSessionFiles: UploadFile[] = [];
+      
+      // Get the current state directly from React state
+      setUploadSession(currentSessionState => {
+        if (currentSessionState) {
+          completedFiles = currentSessionState.files.filter(f => f.status === 'completed').length;
+          failedFiles = currentSessionState.files.filter(f => f.status === 'failed').length;
+          finalSessionFiles = currentSessionState.files;
+          
+          console.log('Final count calculation from current state:', {
+            totalFiles: currentSessionState.files.length,
+            completedFiles,
+            failedFiles,
+            fileStatuses: currentSessionState.files.map(f => ({ name: f.file.name, status: f.status }))
+          });
+        }
+        return currentSessionState; // Don't modify state, just read it
+      });
       
       // Update session completion with actual counts
       await supabase.from('upload_session_log')
@@ -442,7 +459,7 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
 
       // Notify completion
       if (onUploadComplete) {
-        onUploadComplete(session.sessionId, finalSession.files);
+        onUploadComplete(session.sessionId, finalSessionFiles);
       }
 
       toast({
