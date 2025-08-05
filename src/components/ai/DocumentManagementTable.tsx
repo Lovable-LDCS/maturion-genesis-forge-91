@@ -7,8 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Search, Filter, MoreHorizontal, Edit, Trash2, RefreshCw, Download, Calendar, FileText, Database, Clock } from 'lucide-react';
+import { Search, Filter, MoreHorizontal, Edit, Trash2, RefreshCw, Download, Calendar, FileText, Database, Clock, Upload, Eye, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { MaturionDocument } from '@/hooks/useMaturionDocuments';
 
@@ -20,6 +21,8 @@ interface DocumentManagementTableProps {
   onReprocess: (documentId: string) => void;
   onBulkDelete: (documentIds: string[]) => void;
   onRefresh: () => void;
+  onReplace?: (document: MaturionDocument) => void;
+  onViewAuditLog?: (documentId: string) => void;
 }
 
 interface DocumentFilters {
@@ -40,13 +43,33 @@ const getStatusVariant = (status: string) => {
   }
 };
 
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case 'completed': return 'bg-green-100 text-green-800 border-green-300';
+    case 'processing': return 'bg-blue-100 text-blue-800 border-blue-300 animate-pulse';
+    case 'failed': return 'bg-red-100 text-red-800 border-red-300';
+    case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+    default: return 'bg-gray-100 text-gray-800 border-gray-300';
+  }
+};
+
 const getStatusIcon = (status: string) => {
   switch (status) {
-    case 'completed': return <Database className="h-3 w-3" />;
-    case 'processing': return <Clock className="h-3 w-3 animate-spin" />;
-    case 'failed': return <Trash2 className="h-3 w-3" />;
-    case 'pending': return <FileText className="h-3 w-3" />;
+    case 'completed': return <CheckCircle className="h-3 w-3" />;
+    case 'processing': return <Loader2 className="h-3 w-3 animate-spin" />;
+    case 'failed': return <AlertTriangle className="h-3 w-3" />;
+    case 'pending': return <Clock className="h-3 w-3" />;
     default: return <FileText className="h-3 w-3" />;
+  }
+};
+
+const getStatusTooltip = (status: string) => {
+  switch (status) {
+    case 'completed': return 'Document successfully processed and chunked';
+    case 'processing': return 'Document is being processed and analyzed';
+    case 'failed': return 'Document processing failed - click to reprocess';
+    case 'pending': return 'Document queued for processing';
+    default: return 'Unknown status';
   }
 };
 
@@ -57,7 +80,9 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
   onDelete,
   onReprocess,
   onBulkDelete,
-  onRefresh
+  onRefresh,
+  onReplace,
+  onViewAuditLog
 }) => {
   const [filters, setFilters] = useState<DocumentFilters>({
     search: '',
@@ -207,26 +232,35 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Completed</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              Completed
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-success">{stats.completed}</div>
+            <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Processing</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Processing
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-warning">{stats.processing}</div>
+            <div className="text-2xl font-bold text-blue-600">{stats.processing}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Failed</CardTitle>
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              Failed
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-destructive">{stats.failed}</div>
+            <div className="text-2xl font-bold text-red-600">{stats.failed}</div>
           </CardContent>
         </Card>
         <Card>
@@ -479,10 +513,22 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                         )}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={getStatusVariant(doc.processing_status)} className="flex items-center gap-1 w-fit">
-                          {getStatusIcon(doc.processing_status)}
-                          {doc.processing_status}
-                        </Badge>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Badge 
+                                variant={getStatusVariant(doc.processing_status)} 
+                                className={`flex items-center gap-1 w-fit border ${getStatusColor(doc.processing_status)}`}
+                              >
+                                {getStatusIcon(doc.processing_status)}
+                                {doc.processing_status}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{getStatusTooltip(doc.processing_status)}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </TableCell>
                       <TableCell>
                         <span className="font-mono">{doc.total_chunks || 0}</span>
@@ -504,10 +550,22 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                               <Edit className="h-4 w-4 mr-2" />
                               Edit Metadata
                             </DropdownMenuItem>
-                            {doc.processing_status === 'failed' && (
+                            {onReplace && (
+                              <DropdownMenuItem onClick={() => onReplace(doc)}>
+                                <Upload className="h-4 w-4 mr-2" />
+                                Replace Document
+                              </DropdownMenuItem>
+                            )}
+                            {onViewAuditLog && (
+                              <DropdownMenuItem onClick={() => onViewAuditLog(doc.id)}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                View Audit Log
+                              </DropdownMenuItem>
+                            )}
+                            {(doc.processing_status === 'failed' || doc.processing_status === 'pending') && (
                               <DropdownMenuItem onClick={() => onReprocess(doc.id)}>
                                 <RefreshCw className="h-4 w-4 mr-2" />
-                                Reprocess
+                                {doc.processing_status === 'failed' ? 'Reprocess' : 'Force Process'}
                               </DropdownMenuItem>
                             )}
                             <DropdownMenuSeparator />

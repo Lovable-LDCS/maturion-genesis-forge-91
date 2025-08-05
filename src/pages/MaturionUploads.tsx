@@ -84,6 +84,24 @@ export default function MaturionUploads() {
     await bulkDeleteDocuments(documentIds);
   };
 
+  const handleReplace = (document: MaturionDocument) => {
+    // Open edit dialog with replace mode
+    setEditDialog({ open: true, document, saving: false });
+    toast({
+      title: "Replace Document",
+      description: "Upload a new version to replace this document",
+    });
+  };
+
+  const handleViewAuditLog = (documentId: string) => {
+    // TODO: Implement audit log viewer
+    toast({
+      title: "Audit Log",
+      description: "Opening audit trail for document",
+    });
+    console.log('View audit log for document:', documentId);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
@@ -120,6 +138,8 @@ export default function MaturionUploads() {
             onReprocess={handleReprocess}
             onBulkDelete={handleBulkDelete}
             onRefresh={refreshDocuments}
+            onReplace={handleReplace}
+            onViewAuditLog={handleViewAuditLog}
           />
         </TabsContent>
 
