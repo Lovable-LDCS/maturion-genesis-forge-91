@@ -485,8 +485,23 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
     updateFileStatus(uploadFile.id, 'processing', 10);
 
     try {
-      // Upload to storage
-      const filePath = `unified-uploads/${session.organizationId}/${session.sessionId}/${uploadFile.file.name}`;
+      // Validate and sanitize filename before upload
+      const { data: validation, error: validationError } = await supabase
+        .rpc('validate_file_upload', {
+          file_name: uploadFile.file.name,
+          file_size: uploadFile.file.size,
+          mime_type: uploadFile.file.type
+        });
+
+      const validationResult = validation as { valid: boolean; error?: string; sanitized_name?: string };
+
+      if (validationError || !validationResult?.valid) {
+        throw new Error(validationResult?.error || 'File validation failed');
+      }
+
+      // Use sanitized filename from validation
+      const sanitizedFileName = validationResult.sanitized_name || uploadFile.file.name;
+      const filePath = `unified-uploads/${session.organizationId}/${session.sessionId}/${sanitizedFileName}`;
       
       updateFileStatus(uploadFile.id, 'processing', 30);
 
