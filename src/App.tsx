@@ -28,6 +28,7 @@ import Journey from "./pages/Journey";
 import Subscribe from "./pages/Subscribe";
 import AdminConfig from "./pages/AdminConfig";
 import QADashboard from "./pages/QADashboard";
+import WatchdogDashboard from "./pages/WatchdogDashboard";
 import NotFound from "./pages/NotFound";
 import SubscribeCheckout from "./pages/SubscribeCheckout";
 
@@ -75,6 +76,7 @@ const App = () => (
               <Route path="/subscribe/checkout" element={<SubscribeCheckout />} />
               <Route path="/admin/config" element={<AdminConfig />} />
               <Route path="/qa-dashboard" element={<QADashboard />} />
+              <Route path="/watchdog" element={<WatchdogDashboard />} />
               <Route path="/milestones/:id" element={<MilestoneDetail />} />
               <Route path="/auth" element={<LoginForm />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -7,6 +7,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
 import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 import { useAdminAccess } from '@/hooks/useAdminAccess';
+import { useWatchdogRealTime } from '@/hooks/useWatchdogRealTime';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertTriangle, Brain, Shield, Activity, TrendingUp, AlertCircle, CheckCircle, Clock, X } from 'lucide-react';
 import { AIConfidenceHeatmap } from './AIConfidenceHeatmap';
@@ -52,6 +53,13 @@ export const WatchdogControlPanel: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [autoRefresh, setAutoRefresh] = useState(true);
+  const { 
+    metrics: realtimeMetrics, 
+    recentAlerts, 
+    isConnected,
+    triggerManualQA,
+    sendTestNotification 
+  } = useWatchdogRealTime(organization?.organization_id, autoRefresh);
 
   useEffect(() => {
     if (organization?.organization_id) {
@@ -238,6 +246,13 @@ export const WatchdogControlPanel: React.FC = () => {
             <Shield className="h-4 w-4 mr-2" />
             System Recovery
           </Button>
+          <Button onClick={triggerManualQA} size="sm" variant="outline">
+            <Activity className="h-4 w-4 mr-2" />
+            Manual QA Test
+          </Button>
+          <Button onClick={sendTestNotification} size="sm" variant="secondary">
+            📧 Test Notification
+          </Button>
         </div>
       </div>
 
@@ -246,11 +261,14 @@ export const WatchdogControlPanel: React.FC = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">System Health</CardTitle>
-            <Activity className={`h-4 w-4 ${getHealthColor(stats.systemHealth)}`} />
+            <Activity className={`h-4 w-4 ${getHealthColor(realtimeMetrics.systemHealth)}`} />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.systemHealth}%</div>
-            <Progress value={stats.systemHealth} className="mt-2" />
+            <div className="text-2xl font-bold">{realtimeMetrics.systemHealth}%</div>
+            <Progress value={realtimeMetrics.systemHealth} className="mt-2" />
+            <p className="text-xs text-muted-foreground mt-1">
+              {isConnected ? '🟢 Live' : '🔴 Offline'} • Updated: {new Date(realtimeMetrics.lastUpdate).toLocaleTimeString()}
+            </p>
           </CardContent>
         </Card>
 
@@ -260,7 +278,7 @@ export const WatchdogControlPanel: React.FC = () => {
             <AlertCircle className="h-4 w-4 text-red-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.activeAlerts}</div>
+            <div className="text-2xl font-bold">{realtimeMetrics.activeAlerts}</div>
             <p className="text-xs text-muted-foreground">
               {stats.totalIncidents} total incidents
             </p>
@@ -274,7 +292,7 @@ export const WatchdogControlPanel: React.FC = () => {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {(stats.avgConfidenceScore * 100).toFixed(1)}%
+              {(realtimeMetrics.avgConfidenceScore * 100).toFixed(1)}%
             </div>
             <p className="text-xs text-muted-foreground">
               Average confidence score
@@ -288,9 +306,9 @@ export const WatchdogControlPanel: React.FC = () => {
             <TrendingUp className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.driftDetections}</div>
+            <div className="text-2xl font-bold">{realtimeMetrics.driftDetections}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.behaviorAnomalies} behavior anomalies
+              {realtimeMetrics.behaviorAnomalies} behavior anomalies
             </p>
           </CardContent>
         </Card>

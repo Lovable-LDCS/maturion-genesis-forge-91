@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { NavigationHelper } from '@/components/ui/navigation-helper';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -100,6 +101,7 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
 
   return (
     <div className="container mx-auto py-6 space-y-6">
+      <NavigationHelper />
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">QA Dashboard</h1>

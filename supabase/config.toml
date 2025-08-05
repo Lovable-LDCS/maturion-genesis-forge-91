@@ -20,3 +20,9 @@ verify_jwt = false
 
 [functions.delete-corrupted-chunks]
 verify_jwt = true
+
+[functions.process-watchdog-alerts]
+verify_jwt = true
+
+[functions.send-watchdog-notifications]
+verify_jwt = true
