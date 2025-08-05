@@ -128,6 +128,157 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_behavior_monitoring: {
+        Row: {
+          auto_flagged: boolean
+          behavior_type: string
+          confidence_score: number
+          created_at: string
+          criteria_id: string | null
+          detected_content: string
+          document_id: string | null
+          expected_pattern: string | null
+          id: string
+          metadata: Json | null
+          organization_id: string
+          review_status: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          severity_level: string
+        }
+        Insert: {
+          auto_flagged?: boolean
+          behavior_type: string
+          confidence_score?: number
+          created_at?: string
+          criteria_id?: string | null
+          detected_content: string
+          document_id?: string | null
+          expected_pattern?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          review_status?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          severity_level?: string
+        }
+        Update: {
+          auto_flagged?: boolean
+          behavior_type?: string
+          confidence_score?: number
+          created_at?: string
+          criteria_id?: string | null
+          detected_content?: string
+          document_id?: string | null
+          expected_pattern?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          review_status?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          severity_level?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_behavior_monitoring_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "criteria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_behavior_monitoring_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_confidence_scoring: {
+        Row: {
+          adjusted_confidence: number
+          assessment_id: string | null
+          base_confidence: number
+          confidence_category: string
+          confidence_factors: Json | null
+          created_at: string
+          criteria_id: string | null
+          document_id: string | null
+          drift_detected: boolean
+          human_override_confidence: number | null
+          id: string
+          organization_id: string
+          override_reason: string | null
+          quality_indicators: Json | null
+          requires_human_review: boolean
+          reviewed_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          adjusted_confidence: number
+          assessment_id?: string | null
+          base_confidence: number
+          confidence_category: string
+          confidence_factors?: Json | null
+          created_at?: string
+          criteria_id?: string | null
+          document_id?: string | null
+          drift_detected?: boolean
+          human_override_confidence?: number | null
+          id?: string
+          organization_id: string
+          override_reason?: string | null
+          quality_indicators?: Json | null
+          requires_human_review?: boolean
+          reviewed_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          adjusted_confidence?: number
+          assessment_id?: string | null
+          base_confidence?: number
+          confidence_category?: string
+          confidence_factors?: Json | null
+          created_at?: string
+          criteria_id?: string | null
+          document_id?: string | null
+          drift_detected?: boolean
+          human_override_confidence?: number | null
+          id?: string
+          organization_id?: string
+          override_reason?: string | null
+          quality_indicators?: Json | null
+          requires_human_review?: boolean
+          reviewed_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_confidence_scoring_assessment_id_fkey"
+            columns: ["assessment_id"]
+            isOneToOne: false
+            referencedRelation: "assessments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_confidence_scoring_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "criteria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_confidence_scoring_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_document_chunks: {
         Row: {
           chunk_index: number
@@ -359,6 +510,63 @@ export type Database = {
           reason?: string
           rejected_text?: string
           replacement_text?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      ai_feedback_loop_log: {
+        Row: {
+          applied_at: string | null
+          applied_to_model: boolean
+          confidence_impact: number | null
+          correction_type: string | null
+          created_at: string
+          cross_org_applicable: boolean
+          feedback_type: string
+          id: string
+          learning_weight: number | null
+          metadata: Json | null
+          modified_content: string | null
+          organization_id: string
+          original_content: string
+          pattern_extracted: boolean
+          rejection_reason: string | null
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_to_model?: boolean
+          confidence_impact?: number | null
+          correction_type?: string | null
+          created_at?: string
+          cross_org_applicable?: boolean
+          feedback_type: string
+          id?: string
+          learning_weight?: number | null
+          metadata?: Json | null
+          modified_content?: string | null
+          organization_id: string
+          original_content: string
+          pattern_extracted?: boolean
+          rejection_reason?: string | null
+          user_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          applied_to_model?: boolean
+          confidence_impact?: number | null
+          correction_type?: string | null
+          created_at?: string
+          cross_org_applicable?: boolean
+          feedback_type?: string
+          id?: string
+          learning_weight?: number | null
+          metadata?: Json | null
+          modified_content?: string | null
+          organization_id?: string
+          original_content?: string
+          pattern_extracted?: boolean
+          rejection_reason?: string | null
           user_id?: string
         }
         Relationships: []
@@ -1016,6 +1224,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cross_org_tracking: {
+        Row: {
+          action_taken: string | null
+          content_hash: string
+          created_at: string
+          flagged_for_review: boolean
+          id: string
+          metadata: Json | null
+          review_status: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          similarity_score: number | null
+          source_organization_id: string
+          target_organization_id: string | null
+          tracking_type: string
+        }
+        Insert: {
+          action_taken?: string | null
+          content_hash: string
+          created_at?: string
+          flagged_for_review?: boolean
+          id?: string
+          metadata?: Json | null
+          review_status?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          similarity_score?: number | null
+          source_organization_id: string
+          target_organization_id?: string | null
+          tracking_type: string
+        }
+        Update: {
+          action_taken?: string | null
+          content_hash?: string
+          created_at?: string
+          flagged_for_review?: boolean
+          id?: string
+          metadata?: Json | null
+          review_status?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          similarity_score?: number | null
+          source_organization_id?: string
+          target_organization_id?: string | null
+          tracking_type?: string
+        }
+        Relationships: []
       }
       deduplication_reports: {
         Row: {
@@ -2364,6 +2620,54 @@ export type Database = {
         }
         Relationships: []
       }
+      system_drift_detection: {
+        Row: {
+          alert_triggered: boolean
+          baseline_value: number
+          current_value: number
+          detected_at: string
+          drift_percentage: number
+          drift_type: string
+          id: string
+          metadata: Json | null
+          organization_id: string
+          recovery_action_suggested: string | null
+          recovery_status: string | null
+          resolved_at: string | null
+          threshold_exceeded: boolean
+        }
+        Insert: {
+          alert_triggered?: boolean
+          baseline_value: number
+          current_value: number
+          detected_at?: string
+          drift_percentage: number
+          drift_type: string
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          recovery_action_suggested?: string | null
+          recovery_status?: string | null
+          resolved_at?: string | null
+          threshold_exceeded?: boolean
+        }
+        Update: {
+          alert_triggered?: boolean
+          baseline_value?: number
+          current_value?: number
+          detected_at?: string
+          drift_percentage?: number
+          drift_type?: string
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          recovery_action_suggested?: string | null
+          recovery_status?: string | null
+          resolved_at?: string | null
+          threshold_exceeded?: boolean
+        }
+        Relationships: []
+      }
       upload_session_log: {
         Row: {
           completed_at: string | null
@@ -2406,6 +2710,131 @@ export type Database = {
           success_count?: number | null
           total_size_bytes?: number | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      watchdog_alerts: {
+        Row: {
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          actionable_guidance: string | null
+          alert_type: string
+          auto_generated: boolean
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          notification_channels: Json | null
+          notification_sent: boolean
+          organization_id: string
+          related_incident_id: string | null
+          resolved: boolean
+          resolved_at: string | null
+          severity_level: string
+          title: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          actionable_guidance?: string | null
+          alert_type: string
+          auto_generated?: boolean
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          notification_channels?: Json | null
+          notification_sent?: boolean
+          organization_id: string
+          related_incident_id?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          severity_level: string
+          title: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          actionable_guidance?: string | null
+          alert_type?: string
+          auto_generated?: boolean
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          notification_channels?: Json | null
+          notification_sent?: boolean
+          organization_id?: string
+          related_incident_id?: string | null
+          resolved?: boolean
+          resolved_at?: string | null
+          severity_level?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "watchdog_alerts_related_incident_id_fkey"
+            columns: ["related_incident_id"]
+            isOneToOne: false
+            referencedRelation: "watchdog_incidents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      watchdog_incidents: {
+        Row: {
+          affected_entities: Json | null
+          assigned_to: string | null
+          audit_trail: Json | null
+          created_at: string
+          description: string
+          detection_method: string
+          escalation_level: number | null
+          id: string
+          incident_type: string
+          organization_id: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          severity_level: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          affected_entities?: Json | null
+          assigned_to?: string | null
+          audit_trail?: Json | null
+          created_at?: string
+          description: string
+          detection_method: string
+          escalation_level?: number | null
+          id?: string
+          incident_type: string
+          organization_id: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          severity_level: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          affected_entities?: Json | null
+          assigned_to?: string | null
+          audit_trail?: Json | null
+          created_at?: string
+          description?: string
+          detection_method?: string
+          escalation_level?: number | null
+          id?: string
+          incident_type?: string
+          organization_id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          severity_level?: string
+          status?: string
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }
