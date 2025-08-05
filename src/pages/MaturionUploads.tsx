@@ -3,6 +3,7 @@ import { UnifiedDocumentUploader } from "@/components/ai";
 import { SecurityDashboard } from "@/components/security/SecurityDashboard";
 import { DocumentManagementTable } from "@/components/ai/DocumentManagementTable";
 import { DocumentEditDialog, DocumentUpdateData } from "@/components/ai/DocumentEditDialog";
+import { DocumentPlaceholderMerger } from "@/components/ai/DocumentPlaceholderMerger";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useMaturionDocuments, MaturionDocument } from "@/hooks/useMaturionDocuments";
@@ -115,6 +116,7 @@ export default function MaturionUploads() {
         <TabsList>
           <TabsTrigger value="upload">Document Upload</TabsTrigger>
           <TabsTrigger value="manage">Manage Documents</TabsTrigger>
+          <TabsTrigger value="merge">Merge Placeholders</TabsTrigger>
           <TabsTrigger value="security">Security Dashboard</TabsTrigger>
         </TabsList>
 
@@ -141,6 +143,10 @@ export default function MaturionUploads() {
             onReplace={handleReplace}
             onViewAuditLog={handleViewAuditLog}
           />
+        </TabsContent>
+
+        <TabsContent value="merge" className="space-y-6">
+          <DocumentPlaceholderMerger />
         </TabsContent>
 
         <TabsContent value="security">
