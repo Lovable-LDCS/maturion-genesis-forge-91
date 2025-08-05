@@ -1966,6 +1966,57 @@ export type Database = {
         }
         Relationships: []
       }
+      qa_alerts: {
+        Row: {
+          alert_data: Json | null
+          alert_type: string
+          created_at: string
+          id: string
+          is_read: boolean
+          is_resolved: boolean
+          message: string
+          organization_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          severity_level: string
+          slack_sent: boolean
+          slack_sent_at: string | null
+          title: string
+        }
+        Insert: {
+          alert_data?: Json | null
+          alert_type: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          is_resolved?: boolean
+          message: string
+          organization_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity_level?: string
+          slack_sent?: boolean
+          slack_sent_at?: string | null
+          title: string
+        }
+        Update: {
+          alert_data?: Json | null
+          alert_type?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          is_resolved?: boolean
+          message?: string
+          organization_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity_level?: string
+          slack_sent?: boolean
+          slack_sent_at?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       qa_metrics: {
         Row: {
           created_at: string
@@ -1993,6 +2044,51 @@ export type Database = {
           metric_value?: number
           organization_id?: string
           recorded_at?: string
+        }
+        Relationships: []
+      }
+      qa_rules: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          organization_id: string
+          rule_config: Json
+          rule_description: string | null
+          rule_name: string
+          rule_type: string
+          severity_level: string
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          organization_id: string
+          rule_config?: Json
+          rule_description?: string | null
+          rule_name: string
+          rule_type: string
+          severity_level?: string
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          organization_id?: string
+          rule_config?: Json
+          rule_description?: string | null
+          rule_name?: string
+          rule_type?: string
+          severity_level?: string
+          updated_at?: string
+          updated_by?: string
         }
         Relationships: []
       }

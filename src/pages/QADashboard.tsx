@@ -7,6 +7,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Shield, Settings, TestTube, FileText, CheckCircle } from 'lucide-react';
 import { QADebugHub, RegressionTestMode, AutomatedQALogs, RefactorQALogs } from '@/components/qa';
 import { ChunkSourceConsistencyTest } from '@/components/qa/ChunkSourceConsistencyTest';
+import { QAMetricsWidget } from '@/components/qa/QAMetricsWidget';
+import { DeduplicationManager } from '@/components/qa/DeduplicationManager';
+import { QARulesManager } from '@/components/qa/QARulesManager';
 import { AILogicDocumentReprocessor } from '@/components/qa/AILogicDocumentReprocessor';
 import { EdgeFunctionLinter } from '@/components/qa/EdgeFunctionLinter';
 import { MPSLinkageRebuilder } from '@/components/qa/MPSLinkageRebuilder';
@@ -118,6 +121,9 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           SUPERUSER ONLY
         </Badge>
       </div>
+
+      {/* Phase 2: Enhanced QA Metrics Dashboard */}
+      <QAMetricsWidget timeRange="hour" />
 
       {/* QA Status Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -276,8 +282,10 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
 
       {/* QA Tools Tabs */}
       <Tabs defaultValue="automated-qa" className="w-full">
-        <TabsList className="grid w-full grid-cols-7">
+        <TabsList className="grid w-full grid-cols-9">
           <TabsTrigger value="automated-qa">Automated QA</TabsTrigger>
+          <TabsTrigger value="deduplication">Deduplication</TabsTrigger>
+          <TabsTrigger value="rules">QA Rules</TabsTrigger>
           <TabsTrigger value="chunk-tester">Chunk Tester</TabsTrigger>
           <TabsTrigger value="refactor-qa">Refactor Analysis</TabsTrigger>
           <TabsTrigger value="system-test">System Test</TabsTrigger>
@@ -288,6 +296,34 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
         
         <TabsContent value="automated-qa" className="space-y-4">
           <AutomatedQALogs />
+        </TabsContent>
+
+        <TabsContent value="deduplication" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>🔍 Phase 2: Advanced Deduplication Engine</CardTitle>
+              <CardDescription>
+                Fingerprint and embedding-based duplicate detection with &lt; 2% false positive rate
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DeduplicationManager />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="rules" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>⚙️ Phase 2: QA Rules Engine</CardTitle>
+              <CardDescription>
+                Define and enforce quality assurance rules across the platform
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <QARulesManager />
+            </CardContent>
+          </Card>
         </TabsContent>
         
         <TabsContent value="chunk-tester" className="space-y-4">
