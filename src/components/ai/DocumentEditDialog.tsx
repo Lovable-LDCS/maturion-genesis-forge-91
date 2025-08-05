@@ -75,7 +75,7 @@ export const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     if (document) {
       setFormData({
         title: document.title || '',
-        domain: document.domain || '',
+        domain: document.domain || 'none', // Default to "none" if empty
         tags: document.tags || '',
         upload_notes: document.upload_notes || '',
         document_type: document.document_type,
@@ -113,7 +113,13 @@ export const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   const handleSave = async () => {
     if (!validateForm()) return;
 
-    const success = await onSave(formData);
+    // Convert "none" domain value back to empty string
+    const saveData = {
+      ...formData,
+      domain: formData.domain === "none" ? "" : formData.domain
+    };
+
+    const success = await onSave(saveData);
     if (success) {
       onClose();
     }
@@ -240,7 +246,7 @@ export const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                   <SelectValue placeholder="Select a domain (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">No Domain</SelectItem>
+                  <SelectItem value="none">No Domain</SelectItem>
                   {PREDEFINED_DOMAINS.map(domain => (
                     <SelectItem key={domain} value={domain}>
                       {domain}
