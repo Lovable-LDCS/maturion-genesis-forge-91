@@ -571,6 +571,84 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_feedback_submissions: {
+        Row: {
+          ai_generated_content: string
+          confidence_rating: number | null
+          created_at: string
+          criteria_id: string | null
+          document_id: string | null
+          feedback_category: string | null
+          feedback_type: string
+          human_override_content: string | null
+          id: string
+          justification: string | null
+          metadata: Json | null
+          organization_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          revision_instructions: string | null
+          updated_at: string
+          user_comments: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_generated_content: string
+          confidence_rating?: number | null
+          created_at?: string
+          criteria_id?: string | null
+          document_id?: string | null
+          feedback_category?: string | null
+          feedback_type: string
+          human_override_content?: string | null
+          id?: string
+          justification?: string | null
+          metadata?: Json | null
+          organization_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revision_instructions?: string | null
+          updated_at?: string
+          user_comments?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_generated_content?: string
+          confidence_rating?: number | null
+          created_at?: string
+          criteria_id?: string | null
+          document_id?: string | null
+          feedback_category?: string | null
+          feedback_type?: string
+          human_override_content?: string | null
+          id?: string
+          justification?: string | null
+          metadata?: Json | null
+          organization_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revision_instructions?: string | null
+          updated_at?: string
+          user_comments?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_feedback_submissions_criteria_id_fkey"
+            columns: ["criteria_id"]
+            isOneToOne: false
+            referencedRelation: "criteria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_feedback_submissions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_upload_audit: {
         Row: {
           action: string
@@ -1564,6 +1642,132 @@ export type Database = {
           updated_at?: string
           updated_by?: string | null
           visibility_scope?: Database["public"]["Enums"]["visibility_scope"]
+        }
+        Relationships: []
+      }
+      feedback_retraining_weights: {
+        Row: {
+          applies_to_content_types: string[] | null
+          created_at: string
+          created_by: string
+          feedback_category: string
+          feedback_type: string
+          id: string
+          is_critical: boolean
+          organization_id: string
+          updated_at: string
+          updated_by: string
+          weight_multiplier: number
+        }
+        Insert: {
+          applies_to_content_types?: string[] | null
+          created_at?: string
+          created_by: string
+          feedback_category: string
+          feedback_type: string
+          id?: string
+          is_critical?: boolean
+          organization_id: string
+          updated_at?: string
+          updated_by: string
+          weight_multiplier?: number
+        }
+        Update: {
+          applies_to_content_types?: string[] | null
+          created_at?: string
+          created_by?: string
+          feedback_category?: string
+          feedback_type?: string
+          id?: string
+          is_critical?: boolean
+          organization_id?: string
+          updated_at?: string
+          updated_by?: string
+          weight_multiplier?: number
+        }
+        Relationships: []
+      }
+      human_approval_workflows: {
+        Row: {
+          created_at: string
+          created_by: string
+          entity_id: string
+          entity_type: string
+          escalation_reason: string | null
+          final_approved_content: string | null
+          final_decision_at: string | null
+          id: string
+          metadata: Json | null
+          organization_id: string
+          primary_review_comments: string | null
+          primary_review_decision: string | null
+          primary_reviewed_at: string | null
+          primary_reviewer_id: string | null
+          rejected_reason: string | null
+          requires_dual_signoff: boolean
+          secondary_review_comments: string | null
+          secondary_review_decision: string | null
+          secondary_reviewed_at: string | null
+          secondary_reviewer_id: string | null
+          superuser_override_by: string | null
+          superuser_override_reason: string | null
+          updated_at: string
+          updated_by: string
+          workflow_status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          entity_id: string
+          entity_type: string
+          escalation_reason?: string | null
+          final_approved_content?: string | null
+          final_decision_at?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id: string
+          primary_review_comments?: string | null
+          primary_review_decision?: string | null
+          primary_reviewed_at?: string | null
+          primary_reviewer_id?: string | null
+          rejected_reason?: string | null
+          requires_dual_signoff?: boolean
+          secondary_review_comments?: string | null
+          secondary_review_decision?: string | null
+          secondary_reviewed_at?: string | null
+          secondary_reviewer_id?: string | null
+          superuser_override_by?: string | null
+          superuser_override_reason?: string | null
+          updated_at?: string
+          updated_by: string
+          workflow_status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          entity_id?: string
+          entity_type?: string
+          escalation_reason?: string | null
+          final_approved_content?: string | null
+          final_decision_at?: string | null
+          id?: string
+          metadata?: Json | null
+          organization_id?: string
+          primary_review_comments?: string | null
+          primary_review_decision?: string | null
+          primary_reviewed_at?: string | null
+          primary_reviewer_id?: string | null
+          rejected_reason?: string | null
+          requires_dual_signoff?: boolean
+          secondary_review_comments?: string | null
+          secondary_review_decision?: string | null
+          secondary_reviewed_at?: string | null
+          secondary_reviewer_id?: string | null
+          superuser_override_by?: string | null
+          superuser_override_reason?: string | null
+          updated_at?: string
+          updated_by?: string
+          workflow_status?: string
         }
         Relationships: []
       }

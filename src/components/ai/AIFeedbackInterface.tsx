@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThumbsDown, Edit3, AlertTriangle } from 'lucide-react';
-import { useAILearningFeedback } from '@/hooks/useAILearningFeedback';
+import { useAIFeedbackSubmissions } from '@/hooks/useAIFeedbackSubmissions';
 import { useToast } from '@/hooks/use-toast';
 
 interface AIFeedbackInterfaceProps {
@@ -26,39 +26,58 @@ export const AIFeedbackInterface = ({
   standardSource
 }: AIFeedbackInterfaceProps) => {
   const [showFeedback, setShowFeedback] = useState(false);
-  const [feedbackType, setFeedbackType] = useState<'rejection' | 'modification' | 'sector_misalignment'>('rejection');
-  const [rejectionReason, setRejectionReason] = useState('');
+  const [feedbackType, setFeedbackType] = useState<'approved' | 'needs_correction' | 'rejected'>('rejected');
+  const [feedbackCategory, setFeedbackCategory] = useState('');
+  const [userComments, setUserComments] = useState('');
+  const [revisionInstructions, setRevisionInstructions] = useState('');
   const [modifiedContent, setModifiedContent] = useState(aiGeneratedContent);
-  const { captureFeedback, isLoading } = useAILearningFeedback();
+  const [justification, setJustification] = useState('');
+  const [confidenceRating, setConfidenceRating] = useState<number>(3);
+  const { submitFeedback, isLoading } = useAIFeedbackSubmissions();
   const { toast } = useToast();
 
-  const handleReject = async () => {
-    if (!rejectionReason.trim()) {
+  const handleSubmitFeedback = async () => {
+    if (!feedbackCategory.trim() && feedbackType !== 'approved') {
       toast({
-        title: "Feedback Required",
-        description: "Please provide a reason for rejection",
+        title: "Category Required",
+        description: "Please select a feedback category",
         variant: "destructive",
       });
       return;
     }
 
-    const success = await captureFeedback(
+    const success = await submitFeedback({
       aiGeneratedContent,
-      feedbackType === 'modification' ? modifiedContent : null,
-      rejectionReason,
-      domainId,
-      feedbackType
-    );
+      feedbackType,
+      feedbackCategory: feedbackCategory || undefined,
+      userComments: userComments || undefined,
+      revisionInstructions: feedbackType === 'needs_correction' ? revisionInstructions : undefined,
+      humanOverrideContent: feedbackType === 'needs_correction' ? modifiedContent : undefined,
+      justification: justification || undefined,
+      confidenceRating,
+    });
 
     if (success) {
       setShowFeedback(false);
-      if (feedbackType === 'modification' && onContentUpdate) {
+      if (feedbackType === 'needs_correction' && onContentUpdate) {
         onContentUpdate(modifiedContent);
       }
     }
   };
 
-  const getRejectionReasons = () => {
+  const getFeedbackCategories = () => {
+    return [
+      { value: 'accuracy', label: 'Accuracy Issues' },
+      { value: 'grammar', label: 'Grammar/Language' },
+      { value: 'hallucination', label: 'Hallucination/False Info' },
+      { value: 'relevance', label: 'Relevance/Context' },
+      { value: 'completeness', label: 'Completeness' },
+      { value: 'clarity', label: 'Clarity/Understanding' },
+      { value: 'other', label: 'Other' },
+    ];
+  };
+
+  const getReasonSuggestions = () => {
     switch (contentType) {
       case 'criteria':
         return [
@@ -116,20 +135,32 @@ export const AIFeedbackInterface = ({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setFeedbackType('modification');
+                  setFeedbackType('approved');
                   setShowFeedback(true);
                 }}
+                className="text-green-600 border-green-200 hover:bg-green-50"
               >
-                <Edit3 className="w-4 h-4 mr-1" />
-                Modify
+                ✅ Approve
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setFeedbackType('rejection');
+                  setFeedbackType('needs_correction');
                   setShowFeedback(true);
                 }}
+              >
+                <Edit3 className="w-4 h-4 mr-1" />
+                Needs Correction
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setFeedbackType('rejected');
+                  setShowFeedback(true);
+                }}
+                className="text-red-600 border-red-200 hover:bg-red-50"
               >
                 <ThumbsDown className="w-4 h-4 mr-1" />
                 Reject
@@ -148,54 +179,140 @@ export const AIFeedbackInterface = ({
         </CardContent>
       </Card>
 
-      {/* Feedback Interface */}
+      {/* Enhanced Feedback Interface */}
       {showFeedback && (
         <Card>
           <CardHeader>
             <CardTitle className="text-sm">
-              {feedbackType === 'modification' ? 'Modify Content' : 'Provide Feedback'}
+              {feedbackType === 'approved' 
+                ? 'Approve AI Content' 
+                : feedbackType === 'needs_correction' 
+                ? 'Request Content Correction' 
+                : 'Reject AI Content'}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {feedbackType === 'modification' && (
+            {/* Feedback Category */}
+            {feedbackType !== 'approved' && (
               <div>
-                <label className="text-sm font-medium">Modified Content:</label>
+                <label className="text-sm font-medium">Feedback Category:</label>
+                <Select onValueChange={setFeedbackCategory}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select a category..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getFeedbackCategories().map((category) => (
+                      <SelectItem key={category.value} value={category.value}>
+                        {category.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {/* Modified Content for Corrections */}
+            {feedbackType === 'needs_correction' && (
+              <div>
+                <label className="text-sm font-medium">Corrected Content:</label>
                 <Textarea
                   value={modifiedContent}
                   onChange={(e) => setModifiedContent(e.target.value)}
-                  placeholder="Enter your modified version..."
+                  placeholder="Enter your corrected version..."
                   className="mt-1"
+                  rows={4}
                 />
               </div>
             )}
 
-            <div>
-              <label className="text-sm font-medium">Reason for {feedbackType}:</label>
-              <Select onValueChange={setRejectionReason}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select a reason..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {getRejectionReasons().map((reason) => (
-                    <SelectItem key={reason} value={reason}>
-                      {reason}
-                    </SelectItem>
-                  ))}
-                  <SelectItem value="other">Other (specify below)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {rejectionReason === 'other' && (
-              <Textarea
-                placeholder="Please specify your reason..."
-                onChange={(e) => setRejectionReason(e.target.value)}
-              />
+            {/* Revision Instructions */}
+            {feedbackType === 'needs_correction' && (
+              <div>
+                <label className="text-sm font-medium">Revision Instructions:</label>
+                <Textarea
+                  value={revisionInstructions}
+                  onChange={(e) => setRevisionInstructions(e.target.value)}
+                  placeholder="Specific instructions for improvement..."
+                  className="mt-1"
+                  rows={3}
+                />
+              </div>
             )}
 
+            {/* Comments */}
+            <div>
+              <label className="text-sm font-medium">
+                {feedbackType === 'approved' ? 'Approval Comments (Optional):' : 'Comments:'}
+              </label>
+              <Textarea
+                value={userComments}
+                onChange={(e) => setUserComments(e.target.value)}
+                placeholder={
+                  feedbackType === 'approved' 
+                    ? 'Why this content is good...' 
+                    : 'Explain the issue or provide context...'
+                }
+                className="mt-1"
+                rows={3}
+              />
+            </div>
+
+            {/* Quick Reason Suggestions */}
+            {feedbackType !== 'approved' && (
+              <div>
+                <label className="text-sm font-medium">Quick Suggestions:</label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {getReasonSuggestions().map((reason) => (
+                    <Button
+                      key={reason}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setUserComments(reason)}
+                      className="text-xs"
+                    >
+                      {reason}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Justification for high-impact changes */}
+            {feedbackType === 'rejected' && (
+              <div>
+                <label className="text-sm font-medium">Justification for Rejection:</label>
+                <Textarea
+                  value={justification}
+                  onChange={(e) => setJustification(e.target.value)}
+                  placeholder="Why this content should be rejected and not used for training..."
+                  className="mt-1"
+                  rows={2}
+                />
+              </div>
+            )}
+
+            {/* Confidence Rating */}
+            <div>
+              <label className="text-sm font-medium">
+                Confidence Level (1-5): {confidenceRating}
+              </label>
+              <input
+                type="range"
+                min="1"
+                max="5"
+                value={confidenceRating}
+                onChange={(e) => setConfidenceRating(parseInt(e.target.value))}
+                className="w-full mt-1"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Not Confident</span>
+                <span>Very Confident</span>
+              </div>
+            </div>
+
             <div className="flex gap-2">
-              <Button onClick={handleReject} disabled={isLoading}>
-                Submit Feedback
+              <Button onClick={handleSubmitFeedback} disabled={isLoading}>
+                {isLoading ? 'Submitting...' : 'Submit Feedback'}
               </Button>
               <Button variant="outline" onClick={() => setShowFeedback(false)}>
                 Cancel
