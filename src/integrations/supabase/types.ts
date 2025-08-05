@@ -14,6 +14,74 @@ export type Database = {
   }
   public: {
     Tables: {
+      adaptive_learning_metrics: {
+        Row: {
+          baseline_value: number | null
+          confidence_interval: Json | null
+          created_at: string
+          current_value: number
+          data_points_count: number
+          id: string
+          improvement_percentage: number | null
+          measured_by: string | null
+          measurement_context: Json | null
+          measurement_notes: string | null
+          measurement_period_end: string
+          measurement_period_start: string
+          metric_category: string
+          metric_type: string
+          organization_id: string
+          significance_level: number | null
+          trend_direction: string | null
+        }
+        Insert: {
+          baseline_value?: number | null
+          confidence_interval?: Json | null
+          created_at?: string
+          current_value: number
+          data_points_count?: number
+          id?: string
+          improvement_percentage?: number | null
+          measured_by?: string | null
+          measurement_context?: Json | null
+          measurement_notes?: string | null
+          measurement_period_end: string
+          measurement_period_start: string
+          metric_category: string
+          metric_type: string
+          organization_id: string
+          significance_level?: number | null
+          trend_direction?: string | null
+        }
+        Update: {
+          baseline_value?: number | null
+          confidence_interval?: Json | null
+          created_at?: string
+          current_value?: number
+          data_points_count?: number
+          id?: string
+          improvement_percentage?: number | null
+          measured_by?: string | null
+          measurement_context?: Json | null
+          measurement_notes?: string | null
+          measurement_period_end?: string
+          measurement_period_start?: string
+          metric_category?: string
+          metric_type?: string
+          organization_id?: string
+          significance_level?: number | null
+          trend_direction?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_learning_metrics_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_activity_log: {
         Row: {
           action_type: string
@@ -645,6 +713,101 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "ai_documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_learning_patterns: {
+        Row: {
+          affected_domains: string[] | null
+          affected_sectors: string[] | null
+          confidence_score: number
+          created_at: string
+          created_by: string
+          cross_org_applicable: boolean
+          first_detected_at: string
+          frequency_count: number
+          id: string
+          is_active: boolean
+          last_detected_at: string
+          learning_weight: number
+          metadata: Json | null
+          organization_id: string
+          pattern_category: string
+          pattern_strength: string
+          pattern_text: string
+          pattern_type: string
+          replacement_suggestion: string | null
+          source_feedback_ids: string[] | null
+          suppression_rule: string | null
+          updated_at: string
+          updated_by: string
+          validated_at: string | null
+          validated_by: string | null
+          validation_status: string
+        }
+        Insert: {
+          affected_domains?: string[] | null
+          affected_sectors?: string[] | null
+          confidence_score?: number
+          created_at?: string
+          created_by: string
+          cross_org_applicable?: boolean
+          first_detected_at?: string
+          frequency_count?: number
+          id?: string
+          is_active?: boolean
+          last_detected_at?: string
+          learning_weight?: number
+          metadata?: Json | null
+          organization_id: string
+          pattern_category: string
+          pattern_strength?: string
+          pattern_text: string
+          pattern_type: string
+          replacement_suggestion?: string | null
+          source_feedback_ids?: string[] | null
+          suppression_rule?: string | null
+          updated_at?: string
+          updated_by: string
+          validated_at?: string | null
+          validated_by?: string | null
+          validation_status?: string
+        }
+        Update: {
+          affected_domains?: string[] | null
+          affected_sectors?: string[] | null
+          confidence_score?: number
+          created_at?: string
+          created_by?: string
+          cross_org_applicable?: boolean
+          first_detected_at?: string
+          frequency_count?: number
+          id?: string
+          is_active?: boolean
+          last_detected_at?: string
+          learning_weight?: number
+          metadata?: Json | null
+          organization_id?: string
+          pattern_category?: string
+          pattern_strength?: string
+          pattern_text?: string
+          pattern_type?: string
+          replacement_suggestion?: string | null
+          source_feedback_ids?: string[] | null
+          suppression_rule?: string | null
+          updated_at?: string
+          updated_by?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          validation_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_learning_patterns_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -1771,6 +1934,136 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_model_snapshots: {
+        Row: {
+          active_rules_count: number
+          created_at: string
+          created_by: string
+          id: string
+          is_baseline: boolean
+          model_state: Json
+          organization_id: string
+          pattern_count: number
+          performance_metrics: Json | null
+          rollback_available: boolean
+          snapshot_name: string
+          snapshot_reason: string | null
+          snapshot_type: string
+        }
+        Insert: {
+          active_rules_count?: number
+          created_at?: string
+          created_by: string
+          id?: string
+          is_baseline?: boolean
+          model_state?: Json
+          organization_id: string
+          pattern_count?: number
+          performance_metrics?: Json | null
+          rollback_available?: boolean
+          snapshot_name: string
+          snapshot_reason?: string | null
+          snapshot_type?: string
+        }
+        Update: {
+          active_rules_count?: number
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_baseline?: boolean
+          model_state?: Json
+          organization_id?: string
+          pattern_count?: number
+          performance_metrics?: Json | null
+          rollback_available?: boolean
+          snapshot_name?: string
+          snapshot_reason?: string | null
+          snapshot_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_model_snapshots_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_rule_configurations: {
+        Row: {
+          applies_to_content_types: string[] | null
+          applies_to_domains: string[] | null
+          auto_activation_enabled: boolean
+          created_at: string
+          created_by: string
+          effectiveness_score: number | null
+          id: string
+          is_enabled: boolean
+          last_triggered_at: string | null
+          organization_id: string
+          priority_level: number
+          rule_category: string
+          rule_name: string
+          rule_parameters: Json
+          rule_type: string
+          threshold_values: Json
+          trigger_count: number
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          applies_to_content_types?: string[] | null
+          applies_to_domains?: string[] | null
+          auto_activation_enabled?: boolean
+          created_at?: string
+          created_by: string
+          effectiveness_score?: number | null
+          id?: string
+          is_enabled?: boolean
+          last_triggered_at?: string | null
+          organization_id: string
+          priority_level?: number
+          rule_category: string
+          rule_name: string
+          rule_parameters?: Json
+          rule_type: string
+          threshold_values?: Json
+          trigger_count?: number
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          applies_to_content_types?: string[] | null
+          applies_to_domains?: string[] | null
+          auto_activation_enabled?: boolean
+          created_at?: string
+          created_by?: string
+          effectiveness_score?: number | null
+          id?: string
+          is_enabled?: boolean
+          last_triggered_at?: string | null
+          organization_id?: string
+          priority_level?: number
+          rule_category?: string
+          rule_name?: string
+          rule_parameters?: Json
+          rule_type?: string
+          threshold_values?: Json
+          trigger_count?: number
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_learning_rules_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       maturity_levels: {
         Row: {
           ai_suggested_descriptor: string | null
@@ -2298,6 +2591,72 @@ export type Database = {
           override_reason?: string
         }
         Relationships: []
+      }
+      pattern_recognition_history: {
+        Row: {
+          analysis_metadata: Json | null
+          analysis_type: string
+          change_details: Json | null
+          change_trigger: string
+          confidence_change: number | null
+          created_at: string
+          created_by: string | null
+          frequency_change: number | null
+          id: string
+          new_state: Json | null
+          organization_id: string
+          pattern_id: string
+          previous_state: Json | null
+          triggered_by_feedback_id: string | null
+        }
+        Insert: {
+          analysis_metadata?: Json | null
+          analysis_type: string
+          change_details?: Json | null
+          change_trigger: string
+          confidence_change?: number | null
+          created_at?: string
+          created_by?: string | null
+          frequency_change?: number | null
+          id?: string
+          new_state?: Json | null
+          organization_id: string
+          pattern_id: string
+          previous_state?: Json | null
+          triggered_by_feedback_id?: string | null
+        }
+        Update: {
+          analysis_metadata?: Json | null
+          analysis_type?: string
+          change_details?: Json | null
+          change_trigger?: string
+          confidence_change?: number | null
+          created_at?: string
+          created_by?: string | null
+          frequency_change?: number | null
+          id?: string
+          new_state?: Json | null
+          organization_id?: string
+          pattern_id?: string
+          previous_state?: Json | null
+          triggered_by_feedback_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_pattern_history_organization"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_pattern_history_pattern"
+            columns: ["pattern_id"]
+            isOneToOne: false
+            referencedRelation: "ai_learning_patterns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       policy_change_log: {
         Row: {
