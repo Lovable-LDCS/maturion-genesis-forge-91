@@ -3446,6 +3446,14 @@ export type Database = {
           completion_percentage: number
         }[]
       }
+      check_rate_limit: {
+        Args: {
+          operation_type_param: string
+          max_attempts?: number
+          window_minutes?: number
+        }
+        Returns: boolean
+      }
       expire_approval_requests: {
         Args: Record<PropertyKey, never>
         Returns: undefined
@@ -3570,6 +3578,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      request_admin_access: {
+        Args: { target_user_email: string; justification: string }
+        Returns: Json
+      }
       reset_failed_document: {
         Args: { doc_id: string }
         Returns: boolean
@@ -3613,6 +3625,10 @@ export type Database = {
       validate_admin_operation: {
         Args: { operation_type: string }
         Returns: boolean
+      }
+      validate_file_upload: {
+        Args: { file_name: string; file_size: number; mime_type: string }
+        Returns: Json
       }
       validate_input_security: {
         Args: { input_text: string }

@@ -14,9 +14,26 @@ export const useFileUpload = () => {
     setUploading(true);
     
     try {
+      // Validate file before upload using secure database function
+      const { data: validation, error: validationError } = await supabase
+        .rpc('validate_file_upload', {
+          file_name: file.name,
+          file_size: file.size,
+          mime_type: file.type
+        });
+
+      const validationResult = validation as { valid: boolean; error?: string; sanitized_name?: string };
+
+      if (validationError || !validationResult?.valid) {
+        throw new Error(validationResult?.error || 'File validation failed');
+      }
+
+      // Use sanitized filename from validation
+      const sanitizedPath = path.replace(/[^/]*$/, validationResult.sanitized_name || file.name);
+
       const { data, error } = await supabase.storage
         .from(bucket)
-        .upload(path, file, {
+        .upload(sanitizedPath, file, {
           cacheControl: '3600',
           upsert: true
         });
