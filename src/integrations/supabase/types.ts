@@ -469,6 +469,7 @@ export type Database = {
           file_path: string
           file_size: number
           id: string
+          is_ai_ingested: boolean | null
           metadata: Json | null
           mime_type: string
           organization_id: string
@@ -496,6 +497,7 @@ export type Database = {
           file_path: string
           file_size: number
           id?: string
+          is_ai_ingested?: boolean | null
           metadata?: Json | null
           mime_type: string
           organization_id: string
@@ -523,6 +525,7 @@ export type Database = {
           file_path?: string
           file_size?: number
           id?: string
+          is_ai_ingested?: boolean | null
           metadata?: Json | null
           mime_type?: string
           organization_id?: string
