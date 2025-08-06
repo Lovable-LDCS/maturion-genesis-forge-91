@@ -20,11 +20,15 @@ export const AIConfidenceHeatmap: React.FC = () => {
   const [domainData, setDomainData] = useState<DomainConfidence[]>([]);
   const [loading, setLoading] = useState(true);
   const [overallScore, setOverallScore] = useState(0);
+  const [recentInteractions, setRecentInteractions] = useState(0);
   const { currentOrganization } = useOrganization();
 
   useEffect(() => {
     if (currentOrganization?.id) {
       fetchConfidenceData();
+      // Refresh data every 30 seconds to show real-time confidence changes
+      const interval = setInterval(fetchConfidenceData, 30000);
+      return () => clearInterval(interval);
     }
   }, [currentOrganization?.id]);
 
@@ -33,12 +37,19 @@ export const AIConfidenceHeatmap: React.FC = () => {
       setLoading(true);
       
       // Fetch documents by domain for confidence analysis
-      const { data: documents, error } = await supabase
+      const { data: documents, error: docError } = await supabase
         .from('ai_documents')
         .select('domain, processing_status, is_ai_ingested, total_chunks, created_at')
         .eq('organization_id', currentOrganization!.id);
 
-      if (error) throw error;
+      // Also fetch AI confidence scoring data for response-based confidence
+      const { data: confidenceScores, error: confError } = await supabase
+        .from('ai_confidence_scoring')
+        .select('confidence_category, adjusted_confidence, confidence_factors, created_at')
+        .eq('organization_id', currentOrganization!.id)
+        .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()); // Last 7 days
+
+      if (docError) throw docError;
 
       // Group by domain and calculate confidence metrics
       const domainMap = new Map<string, DomainConfidence>();
@@ -99,10 +110,22 @@ export const AIConfidenceHeatmap: React.FC = () => {
         return domain;
       });
 
+      // Factor in response confidence data
+      if (confidenceScores && confidenceScores.length > 0) {
+        const responseBonus = confidenceScores.reduce((sum, score) => sum + (score.adjusted_confidence || 0), 0) / confidenceScores.length;
+        domainList.forEach(domain => {
+          domain.confidenceScore = Math.min(domain.confidenceScore + (responseBonus * 10), 100);
+        });
+        setRecentInteractions(confidenceScores.length);
+      } else {
+        setRecentInteractions(0);
+      }
+
       // Calculate overall confidence
       const totalDocs = domainList.reduce((sum, d) => sum + d.totalDocuments, 0);
       const totalAiReady = domainList.reduce((sum, d) => sum + d.aiReadyDocuments, 0);
-      const overall = totalDocs > 0 ? Math.round((totalAiReady / totalDocs) * 100) : 0;
+      const responseConfidenceBonus = (confidenceScores?.length || 0) > 0 ? 15 : 0; // Bonus for active usage
+      const overall = totalDocs > 0 ? Math.min(Math.round((totalAiReady / totalDocs) * 100) + responseConfidenceBonus, 100) : 0;
 
       setDomainData(domainList.sort((a, b) => b.confidenceScore - a.confidenceScore));
       setOverallScore(overall);
@@ -237,7 +260,7 @@ export const AIConfidenceHeatmap: React.FC = () => {
         {/* Summary Recommendations */}
         {domainData.length > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h5 className="font-medium text-blue-900 mb-2">Recommendations</h5>
+            <h5 className="font-medium text-blue-900 mb-2">💡 AI Performance Insights</h5>
             <ul className="text-sm text-blue-800 space-y-1">
               {overallScore < 50 && (
                 <li>• Upload more documents across different domains to improve overall confidence</li>
@@ -249,7 +272,13 @@ export const AIConfidenceHeatmap: React.FC = () => {
                 <li>• Update documents in declining domains to maintain AI effectiveness</li>
               )}
               {overallScore >= 80 && (
-                <li>• Excellent AI confidence! Your knowledge base is well-established</li>
+                <li>• 🎉 Excellent AI confidence! Your knowledge base is well-established</li>
+              )}
+              {recentInteractions > 0 && (
+                <li>• 📈 Recent AI interactions are boosting your confidence scores</li>
+              )}
+              {recentInteractions === 0 && overallScore > 60 && (
+                <li>• 💬 Try chatting with Maturion to test your knowledge base effectiveness</li>
               )}
             </ul>
           </div>

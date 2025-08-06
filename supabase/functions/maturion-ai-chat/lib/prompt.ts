@@ -78,7 +78,14 @@ export async function buildPromptContext(request: PromptRequest) {
     sanitizedContext.toLowerCase().includes(keyword.toLowerCase())
   );
 
-  console.log(`🎯 Knowledge tier: ${knowledgeTier}, Requires internal secure: ${requiresInternalSecure}`);
+  // 🔧 FIX: Always try to retrieve document context for meaningful queries
+  const shouldRetrieveDocuments = finalOrgId && (
+    requiresInternalSecure || 
+    sanitizedPrompt.length > 10 || // Any substantial query
+    knowledgeTier === 'ORGANIZATIONAL_CONTEXT'
+  );
+
+  console.log(`🎯 Knowledge tier: ${knowledgeTier}, Requires internal secure: ${requiresInternalSecure}, Will retrieve docs: ${shouldRetrieveDocuments}`);
 
   let documentContext = '';
   let behaviorPolicy = '';
@@ -100,28 +107,35 @@ export async function buildPromptContext(request: PromptRequest) {
     maturionReasoningArchitecture = await getMaturionReasoningArchitecture(finalOrgId);
   }
 
-  // For Tier 1 (Internal Secure) contexts, enforce strict policy
-  if (requiresInternalSecure && finalOrgId) {
-    console.log('🔒 INTERNAL MODE: Enforcing AI Behavior & Knowledge Source Policy');
-    
-    // Get the policy documents first
-    behaviorPolicy = await getAIBehaviorPolicy(finalOrgId);
-    intentPromptLogic = await getIntentPromptLogic(finalOrgId);
+  // 🔧 ENHANCED: Always load document context for meaningful queries
+  if (shouldRetrieveDocuments) {
+    console.log('📄 DOCUMENT RETRIEVAL: Loading uploaded knowledge base content');
     
     // Extract MPS number from prompt for targeted search (use passed parameter first)
     const extractedMpsNumber = validatedMpsNumber || (sanitizedPrompt.match(/MPS\s*(\d+)/i)?.[1] ? parseInt(sanitizedPrompt.match(/MPS\s*(\d+)/i)?.[1]) : undefined);
     
-    console.log(`🎯 MPS targeting: ${extractedMpsNumber ? `MPS ${extractedMpsNumber}` : 'No specific MPS'}`);
+    console.log(`🎯 Document search targeting: ${extractedMpsNumber ? `MPS ${extractedMpsNumber}` : 'All relevant content'}`);
     
     // Get document context for the specific request with MPS targeting
     documentContext = await getDocumentContext(finalOrgId, sanitizedPrompt, currentDomain, extractedMpsNumber);
-    sourceType = 'internal';
+    sourceType = documentContext.length > 0 ? 'knowledge_base' : 'general';
     
-    console.log(`Knowledge base context length: ${documentContext.length} characters`);
-    console.log(`AI Behavior Policy found: ${behaviorPolicy.length > 0 ? 'Yes' : 'No'}`);
-    console.log(`Intent Prompt Logic found: ${intentPromptLogic.length > 0 ? 'Yes' : 'No'}`);
+    console.log(`📊 Knowledge base context: ${documentContext.length} characters retrieved`);
     
-    // Add organizational context for internal secure operations
+    // For Tier 1 (Internal Secure) contexts, also enforce strict policy
+    if (requiresInternalSecure) {
+      console.log('🔒 INTERNAL MODE: Loading AI Behavior & Knowledge Source Policy');
+      
+      // Get the policy documents
+      behaviorPolicy = await getAIBehaviorPolicy(finalOrgId);
+      intentPromptLogic = await getIntentPromptLogic(finalOrgId);
+      
+      console.log(`AI Behavior Policy found: ${behaviorPolicy.length > 0 ? 'Yes' : 'No'}`);
+      console.log(`Intent Prompt Logic found: ${intentPromptLogic.length > 0 ? 'Yes' : 'No'}`);
+      sourceType = 'internal';
+    }
+
+    // Add organizational context for comprehensive responses
     if (!organizationContext) {
       organizationContext = await buildOrganizationalContext(finalOrgId);
     }
@@ -144,7 +158,9 @@ export async function buildPromptContext(request: PromptRequest) {
     externalContext,
     sourceType,
     knowledgeTier,
-    requiresInternalSecure
+    requiresInternalSecure,
+    shouldRetrieveDocuments,
+    hasKnowledgeBase: documentContext.length > 0
   };
 }
 
@@ -167,7 +183,7 @@ export async function callOpenAI(fullPrompt: string) {
       messages: [
         { 
           role: 'system', 
-          content: 'You are Maturion, an expert AI assistant specializing in enterprise security maturity assessment and compliance frameworks. You provide precise, actionable guidance based on uploaded knowledge base documents and organizational context.'
+          content: 'You are Maturion, an expert AI assistant specializing in enterprise security maturity assessment and compliance frameworks. You provide precise, actionable guidance based on uploaded knowledge base documents and organizational context. When responding to questions about documents, policies, or standards, always prioritize information from the uploaded knowledge base over general knowledge.'
         },
         { role: 'user', content: fullPrompt }
       ],
@@ -283,7 +299,14 @@ ${truncatedReasoning}
     const docTokens = estimateTokens(truncatedDocContext);
     
     if (currentTokens + docTokens <= MAX_TOTAL_TOKENS) {
-      fullPrompt += `=== ACTUAL MPS DOCUMENT CONTENT ===\n${truncatedDocContext}\n\n`;
+      fullPrompt += `=== UPLOADED KNOWLEDGE BASE CONTENT ===
+Based on your organization's uploaded documents, here is the relevant content:
+
+${truncatedDocContext}
+
+=== END KNOWLEDGE BASE CONTENT ===
+
+`;
       currentTokens += docTokens;
       console.log(`📄 Added document context: ${docTokens} tokens`);
     } else {
@@ -291,7 +314,14 @@ ${truncatedReasoning}
       const remainingTokens = MAX_TOTAL_TOKENS - currentTokens - 500; // Reserve 500 for user prompt
       if (remainingTokens > 1000) {
         const emergencyTruncated = truncateToTokens(documentContext, remainingTokens);
-        fullPrompt += `=== ACTUAL MPS DOCUMENT CONTENT ===\n${emergencyTruncated}\n\n`;
+        fullPrompt += `=== UPLOADED KNOWLEDGE BASE CONTENT ===
+Based on your organization's uploaded documents, here is the relevant content:
+
+${emergencyTruncated}
+
+=== END KNOWLEDGE BASE CONTENT ===
+
+`;
         currentTokens += estimateTokens(emergencyTruncated);
         console.log(`🚨 Emergency truncated document context: ${estimateTokens(emergencyTruncated)} tokens`);
       } else {
@@ -319,18 +349,22 @@ ${truncatedReasoning}
   console.log(`👤 Added user prompt: ${userPromptTokens} tokens`);
   
   // Add guidance for responses (keep minimal)
-  if (requiresInternalSecure) {
-    const guidance = `=== RESPONSE GUIDELINES ===
-- Base response ONLY on provided knowledge base content
-- If insufficient information, state this clearly
-- Provide specific, actionable guidance`;
-    
-    const guidanceTokens = estimateTokens(guidance);
-    if (currentTokens + guidanceTokens <= MAX_TOTAL_TOKENS) {
-      fullPrompt += guidance;
-      currentTokens += guidanceTokens;
-      console.log(`📋 Added response guidelines: ${guidanceTokens} tokens`);
-    }
+  const guidance = documentContext 
+    ? `=== RESPONSE GUIDELINES ===
+- Base your response primarily on the uploaded knowledge base content above
+- If the knowledge base contains relevant information, use it as your primary source
+- If insufficient information in knowledge base, clearly state this and provide general guidance
+- Always provide specific, actionable guidance based on available information`
+    : `=== RESPONSE GUIDELINES ===
+- No specific organizational documents found for this query
+- Provide general guidance based on industry best practices
+- Suggest uploading relevant documents for more specific guidance`;
+  
+  const guidanceTokens = estimateTokens(guidance);
+  if (currentTokens + guidanceTokens <= MAX_TOTAL_TOKENS) {
+    fullPrompt += guidance;
+    currentTokens += guidanceTokens;
+    console.log(`📋 Added response guidelines: ${guidanceTokens} tokens`);
   }
 
   console.log(`🔢 Pre-cleanup prompt: ${currentTokens} tokens (${fullPrompt.length} chars)`);

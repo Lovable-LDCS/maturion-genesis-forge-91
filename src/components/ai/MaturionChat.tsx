@@ -135,13 +135,43 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
       if (error) throw error;
 
       // The edge function returns content directly, not wrapped in success
+      const hasKnowledgeBase = data.hasDocumentContext || data.hasKnowledgeBase || false;
+      const sourceType = data.sourceType || 'general';
+      
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: data.content || data.response || 'I apologize, but I encountered an issue processing your request. Please try again.',
         sender: 'maturion',
         timestamp: new Date()
       };
+      
+      // Add source information to the message if knowledge base was used
+      if (hasKnowledgeBase) {
+        aiMessage.content += `\n\n*📚 Response based on your uploaded knowledge base documents*`;
+      }
+      
       setMessages(prev => [...prev, aiMessage]);
+      
+      // Log confidence data for heatmap tracking
+      if (currentOrganization?.id) {
+        try {
+          const hasKnowledgeBase = data.hasDocumentContext || data.hasKnowledgeBase || false;
+          await supabase.from('ai_confidence_scoring').insert({
+            organization_id: currentOrganization.id,
+            confidence_category: 'document_based_response',
+            base_confidence: hasKnowledgeBase ? 0.9 : 0.6, // High confidence for document-based responses
+            adjusted_confidence: hasKnowledgeBase ? 0.9 : 0.6,
+            confidence_factors: {
+              source_type: data.sourceType || 'general',
+              has_knowledge_base: hasKnowledgeBase,
+              query_length: sanitizedInput.length,
+              response_timestamp: new Date().toISOString()
+            }
+          });
+        } catch (confidenceError) {
+          console.log('Note: Could not log confidence data:', confidenceError);
+        }
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -183,12 +213,12 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
         const docCount = docData?.length || 0;
         const chunkCount = chunkData?.length || 0;
 
-        response = `📊 **Maturion Status Report**\n\n✅ System: Online\n📄 Documents: ${docCount} processed\n🧩 Knowledge Chunks: ${chunkCount.toLocaleString()}\n🏢 Organization: ${currentOrganization?.name || 'Unknown'}\n\n${docCount > 0 ? 'I have access to your uploaded documents and can provide context-aware guidance.' : 'No documents uploaded yet. Consider uploading your policies and procedures for personalized guidance.'}`;
+        response = `📊 **Maturion Status Report**\n\n✅ System: Online\n📄 Documents: ${docCount} processed\n🧩 Knowledge Chunks: ${chunkCount.toLocaleString()}\n🏢 Organization: ${currentOrganization?.name || 'Unknown'}\n\n${docCount > 0 ? '✅ I have access to your uploaded documents and can provide context-aware guidance based on your specific organizational content.' : '⚠️ No documents uploaded yet. Consider uploading your policies, procedures, and standards for personalized guidance.'}`;
       } catch (error) {
         response = `⚠️ **Diagnostic Error**\n\nUnable to retrieve status information. Please check your connection and permissions.`;
       }
     } else {
-      response = `🤖 **Available Commands:**\n\n• \`!status\` - Show system status and available knowledge\n• \`!memory\` - Display memory and document access info\n\nTry asking: "Are you able to read the uploaded documents?"`;
+      response = `🤖 **Available Commands:**\n\n• \`!status\` - Show system status and available knowledge\n• \`!memory\` - Display memory and document access info\n\nTry asking: "Can you summarize our Diamond Security and Control Principles?" or "Are you able to read the uploaded documents?"`;
     }
 
     const aiMessage: Message = {
