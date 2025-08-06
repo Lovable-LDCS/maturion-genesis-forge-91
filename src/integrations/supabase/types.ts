@@ -3581,6 +3581,12 @@ export type Database = {
         }
         Returns: undefined
       }
+      regenerate_missing_embeddings: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          chunks_updated: number
+        }[]
+      }
       request_admin_access: {
         Args: { target_user_email: string; justification: string }
         Returns: Json
