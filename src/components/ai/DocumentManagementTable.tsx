@@ -379,6 +379,18 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                 <SelectItem value="month">This Month</SelectItem>
               </SelectContent>
             </Select>
+            <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="AI Processed" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Documents</SelectItem>
+                <SelectItem value="completed">AI Ready</SelectItem>
+                <SelectItem value="processing">Processing</SelectItem>
+                <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Selection Controls */}

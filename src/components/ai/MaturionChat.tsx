@@ -174,11 +174,11 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
       <div className={`fixed bottom-6 right-6 z-[100] ${className}`} style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
         <Button
           onClick={toggleChat}
-          className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 shadow-lg hover:shadow-xl transition-all duration-300"
+          className="w-16 h-16 rounded-full bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all duration-300 animate-pulse"
         >
           <div className="flex flex-col items-center">
-            <Bot className="h-6 w-6 text-white" />
-            <span className="text-xs text-white mt-1">Maturion</span>
+            <Bot className="h-6 w-6 text-primary-foreground" />
+            <span className="text-xs text-primary-foreground mt-1">Maturion</span>
           </div>
         </Button>
       </div>
