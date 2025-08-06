@@ -208,16 +208,18 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
 
         const { data: chunkData } = await supabase
           .from('ai_document_chunks')
-          .select('id')
+          .select('id, embedding')
           .eq('organization_id', currentOrganization?.id);
 
         const docCount = docData?.length || 0;
         const chunkCount = chunkData?.length || 0;
+        const chunksWithEmbeddings = chunkData?.filter(chunk => chunk.embedding !== null).length || 0;
+        const embeddingPercentage = chunkCount > 0 ? Math.round((chunksWithEmbeddings / chunkCount) * 100) : 0;
 
         if (command === '!status') {
-          response = `📊 **Maturion Status Report**\n\n✅ System: Online\n📄 Documents: ${docCount} processed\n🧩 Knowledge Chunks: ${chunkCount.toLocaleString()}\n🏢 Organization: ${currentOrganization?.name || 'Unknown'}\n\n${docCount > 0 ? '✅ I have access to your uploaded documents and can provide context-aware guidance based on your specific organizational content.' : '⚠️ No documents uploaded yet. Consider uploading your policies, procedures, and standards for personalized guidance.'}`;
+          response = `📊 **Maturion Status Report**\n\n✅ System: Online\n📄 Documents: ${docCount} processed\n🧩 Knowledge Chunks: ${chunkCount.toLocaleString()}\n🎯 Vector Search Ready: ${chunksWithEmbeddings.toLocaleString()} chunks (${embeddingPercentage}%)\n🏢 Organization: ${currentOrganization?.name || 'Unknown'}\n\n${chunksWithEmbeddings > 0 ? '✅ I have access to your uploaded documents and can provide context-aware guidance based on your specific organizational content.' : '⚠️ Embeddings need regeneration - click "Fix Embeddings" in Document Management.'}`;
         } else {
-          response = `🧠 **Maturion Memory Analysis**\n\n📚 Available Knowledge Base: ${docCount} documents across ${chunkCount.toLocaleString()} knowledge chunks\n📊 Content Types: MPS Documents, Standards, Audit Criteria, Governance Frameworks\n🏢 Organization Context: ${currentOrganization?.name || 'Unknown'}\n🎯 Domain Coverage: Leadership, Process Integrity, People & Culture, Protection, Proof it Works\n🔄 Processing Status: All completed documents fully indexed and searchable\n\n💡 I can reference this knowledge base to provide specific, context-aware guidance tailored to your organization's uploaded content.`;
+          response = `🧠 **Maturion Memory Analysis**\n\n📚 Available Knowledge Base: ${docCount} documents across ${chunkCount.toLocaleString()} knowledge chunks\n🎯 Vector Search Ready: ${chunksWithEmbeddings.toLocaleString()} chunks (${embeddingPercentage}%)\n📊 Content Types: MPS Documents, Standards, Audit Criteria, Governance Frameworks\n🏢 Organization Context: ${currentOrganization?.name || 'Unknown'}\n🎯 Domain Coverage: Leadership, Process Integrity, People & Culture, Protection, Proof it Works\n🔄 Processing Status: ${chunksWithEmbeddings === chunkCount ? 'All completed documents fully indexed and searchable' : 'Embeddings need regeneration for full search capability'}\n\n💡 ${chunksWithEmbeddings > 0 ? 'I can reference this knowledge base to provide specific, context-aware guidance tailored to your organization\'s uploaded content.' : 'Click "Fix Embeddings" to enable document-based responses.'}`;
         }
       } catch (error) {
         response = `⚠️ **Diagnostic Error**\n\nUnable to retrieve status information. Please check your connection and permissions.`;
