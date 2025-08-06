@@ -131,18 +131,16 @@ serve(async (req) => {
     
     // If no chunks with embeddings, fall back to text search
     if (!chunks || chunks.length === 0) {
-      console.log('No chunks with embeddings found, falling back to text search...');
+      console.log('No chunks with embeddings found, falling back to enhanced text search...');
       
-      // Escape special characters and use a simpler search approach
-      const sanitizedQuery = query.replace(/[&%']/g, '').trim();
-      const searchTerms = sanitizedQuery.split(' ').filter(term => term.length > 2).slice(0, 5); // Use first 5 meaningful terms
-      
+      // Enhanced text search with better organization targeting
+      const searchTerms = query.toLowerCase().split(/\s+/).filter(term => term.length > 2);
       console.log('Using search terms:', searchTerms);
       
-      // Fallback to simple text search with safer approach
       if (searchTerms.length > 0) {
-        console.log('Attempting text search on ai_document_chunks...');
+        console.log('Attempting comprehensive text search on ai_document_chunks...');
         
+        // Build comprehensive text search query
         let textQuery = supabase
           .from('ai_document_chunks')
           .select(`
@@ -155,19 +153,120 @@ serve(async (req) => {
               organization_id,
               document_type
             )
-            `)
-            .eq('ai_documents.organization_id', orgId);
+          `)
+          .eq('ai_documents.organization_id', orgId);
 
-        // Use safer text search - apply each term individually
-        searchTerms.forEach(term => {
-          textQuery = textQuery.ilike('content', `%${term}%`);
-        });
-
+        // Apply document type filters if specified
         if (documentTypes.length > 0) {
-          textQuery = textQuery.in('ai_documents.document_type', documentTypes);
+          const typeMapping: Record<string, string> = {
+            'mps': 'mps_document',
+            'standard': 'mps_document'
+          };
+          const mappedTypes = documentTypes.map(type => typeMapping[type] || type);
+          console.log('Filtering by document types:', mappedTypes);
+          textQuery = textQuery.in('ai_documents.document_type', mappedTypes);
         }
 
-        const { data: textChunks, error: textError } = await textQuery.limit(limit);
+        // Enhanced search strategy - try multiple approaches
+        const searchStrategies = [
+          // 1. Direct title/filename match
+          query.toLowerCase(),
+          // 2. Key terms from query
+          searchTerms.join(' '),
+          // 3. Individual significant terms
+          ...searchTerms.filter(term => term.length > 3)
+        ];
+
+        let allTextResults: any[] = [];
+
+        for (const searchTerm of searchStrategies.slice(0, 3)) {
+          try {
+            console.log(`🔍 Text search strategy: "${searchTerm}"`);
+            
+            const { data: textChunks, error: textError } = await textQuery
+              .or(`content.ilike.%${searchTerm}%,ai_documents.title.ilike.%${searchTerm}%`)
+              .limit(20);
+            
+            if (!textError && textChunks && textChunks.length > 0) {
+              console.log(`✅ Found ${textChunks.length} results for "${searchTerm}"`);
+              allTextResults.push(...textChunks);
+            } else {
+              console.log(`⚠️ No results for query: "${searchTerm}"`);
+            }
+          } catch (error) {
+            console.error(`Error in text search for "${searchTerm}":`, error);
+          }
+        }
+
+        // Deduplicate and score results
+        const uniqueTextResults = Array.from(
+          new Map(allTextResults.map(chunk => [chunk.id, chunk])).values()
+        );
+
+        if (uniqueTextResults.length > 0) {
+          console.log(`📊 Total unique text search results: ${uniqueTextResults.length}`);
+          
+          const textResults = uniqueTextResults.map(chunk => {
+            // Calculate relevance score based on content matching
+            let relevanceScore = 0.5; // Base score for text search
+            
+            const content = chunk.content.toLowerCase();
+            const title = chunk.ai_documents?.title?.toLowerCase() || '';
+            
+            // Boost score for title matches
+            if (title.includes(query.toLowerCase())) {
+              relevanceScore += 0.3;
+            }
+            
+            // Boost score for multiple term matches
+            const termMatches = searchTerms.filter(term => content.includes(term)).length;
+            relevanceScore += (termMatches / searchTerms.length) * 0.2;
+            
+            // MPS-specific boost
+            if (mpsNumber) {
+              const mpsMatch = content.includes(`mps ${mpsNumber}`) || 
+                             content.includes(`mps${mpsNumber}`) ||
+                             title.includes(`mps ${mpsNumber}`);
+              if (mpsMatch) relevanceScore += 0.3;
+            }
+
+            return {
+              chunk_id: chunk.id,
+              document_id: chunk.ai_documents?.id || '',
+              document_name: chunk.ai_documents?.title || 'Unknown',
+              document_type: chunk.ai_documents?.document_type || 'mps',
+              content: chunk.content,
+              similarity: Math.min(1.0, relevanceScore),
+              metadata: { 
+                chunk_index: chunk.chunk_index,
+                search_method: 'text_search',
+                term_matches: termMatches
+              }
+            };
+          });
+
+          // Sort by relevance
+          textResults.sort((a, b) => b.similarity - a.similarity);
+          
+          console.log(`📈 Text search results sorted by relevance, top score: ${textResults[0]?.similarity}`);
+
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              results: textResults.slice(0, limit),
+              query: query,
+              total_results: textResults.length,
+              search_type: 'enhanced_text_search',
+              debug: { 
+                organizationId: orgId, 
+                searchTerms,
+                strategies: searchStrategies.slice(0, 3),
+                uniqueResults: uniqueTextResults.length
+              }
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
         
         if (textError) {
           console.error('Text search error:', textError);

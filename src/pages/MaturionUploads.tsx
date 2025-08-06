@@ -130,6 +130,52 @@ export default function MaturionUploads() {
     }, 2000);
   };
 
+  const handleRegenerateEmbeddings = async () => {
+    if (!currentOrganization?.id) return;
+    
+    setIsRefreshing(true);
+    try {
+      console.log('Regenerating embeddings for all chunks...');
+      
+      const { data, error } = await supabase.functions.invoke('regenerate-embeddings', {
+        body: {
+          organizationId: currentOrganization.id,
+          forceAll: true,
+          batchSize: 200
+        }
+      });
+      
+      if (error) {
+        console.error('Failed to regenerate embeddings:', error);
+        toast({
+          title: "Embedding Generation Failed",
+          description: error.message || "Failed to regenerate embeddings",
+          variant: "destructive",
+        });
+      } else {
+        console.log('Successfully regenerated embeddings:', data);
+        toast({
+          title: "Embeddings Regenerated",
+          description: `Successfully processed ${data.processed || 0} chunks`,
+        });
+        
+        // Refresh documents after embedding generation
+        setTimeout(async () => {
+          await refreshDocuments();
+        }, 2000);
+      }
+    } catch (error) {
+      console.error('Error regenerating embeddings:', error);
+      toast({
+        title: "Error",
+        description: "Failed to regenerate embeddings",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
   const handleReplace = (document: MaturionDocument) => {
     // Open edit dialog with replace mode
     setEditDialog({ open: true, document, saving: false });
@@ -187,6 +233,7 @@ export default function MaturionUploads() {
             onRefresh={handleRefresh}
             onReplace={handleReplace}
             onViewAuditLog={handleViewAuditLog}
+            onRegenerateEmbeddings={handleRegenerateEmbeddings}
           />
         </TabsContent>
 

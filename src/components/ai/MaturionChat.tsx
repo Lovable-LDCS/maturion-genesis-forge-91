@@ -137,18 +137,19 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
       // The edge function returns content directly, not wrapped in success
       const hasKnowledgeBase = data.hasDocumentContext || data.hasKnowledgeBase || false;
       const sourceType = data.sourceType || 'general';
+      let responseContent = data.content || data.response || 'I apologize, but I encountered an issue processing your request. Please try again.';
+      
+      // Check if response already contains the 📚 marker or add it if knowledge base was used
+      if (hasKnowledgeBase && !responseContent.includes('📚')) {
+        responseContent += `\n\n📚 *Response based on your uploaded knowledge base documents*`;
+      }
       
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: data.content || data.response || 'I apologize, but I encountered an issue processing your request. Please try again.',
+        content: responseContent,
         sender: 'maturion',
         timestamp: new Date()
       };
-      
-      // Add source information to the message if knowledge base was used
-      if (hasKnowledgeBase) {
-        aiMessage.content += `\n\n*📚 Response based on your uploaded knowledge base documents*`;
-      }
       
       setMessages(prev => [...prev, aiMessage]);
       

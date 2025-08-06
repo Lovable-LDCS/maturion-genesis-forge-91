@@ -23,6 +23,7 @@ interface DocumentManagementTableProps {
   onRefresh: () => void;
   onReplace?: (document: MaturionDocument) => void;
   onViewAuditLog?: (documentId: string) => void;
+  onRegenerateEmbeddings?: () => void;
 }
 
 interface DocumentFilters {
@@ -82,7 +83,8 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
   onBulkDelete,
   onRefresh,
   onReplace,
-  onViewAuditLog
+  onViewAuditLog,
+  onRegenerateEmbeddings
 }) => {
   
   // Count pending documents
@@ -303,6 +305,16 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                 >
                   <AlertTriangle className="h-4 w-4 mr-1" />
                   Retry Pending ({pendingDocsCount})
+                </Button>
+              )}
+              {onRegenerateEmbeddings && (
+                <Button 
+                  onClick={onRegenerateEmbeddings} 
+                  variant="outline" 
+                  size="sm"
+                >
+                  <Database className="h-4 w-4 mr-1" />
+                  Fix Embeddings
                 </Button>
               )}
               {selectedDocuments.size > 0 && (

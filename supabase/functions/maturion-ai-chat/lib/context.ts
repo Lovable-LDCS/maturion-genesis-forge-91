@@ -68,7 +68,7 @@ export async function getDocumentContext(organizationId: string, query: string, 
             organizationId: organizationId,
             documentTypes: ['mps_document', 'mps', 'standard', 'audit', 'criteria', 'governance_reasoning_manifest', 'ai_logic_rule_global', 'system_instruction'],
             limit: mpsNumber ? 50 : 30, // Significantly more results for comprehensive context
-            threshold: mpsNumber ? 0.5 : 0.6, // Lower threshold for MPS-specific searches
+            threshold: 0.3, // LOWERED threshold since we're doing text search
             mpsNumber: mpsNumber // Pass MPS number for specialized filtering
           }
         });

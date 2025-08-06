@@ -354,6 +354,7 @@ ${emergencyTruncated}
     ? `=== RESPONSE GUIDELINES ===
 - Base your response primarily on the uploaded knowledge base content above
 - If the knowledge base contains relevant information, use it as your primary source
+- Always end responses with: "📚 *Response based on your uploaded knowledge base documents*"
 - If insufficient information in knowledge base, clearly state this and provide general guidance
 - Always provide specific, actionable guidance based on available information`
     : `=== RESPONSE GUIDELINES ===
