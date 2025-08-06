@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useOrganization } from '@/hooks/useOrganization';
-import { MessageCircle, Send, Bot, User, Minimize2, Maximize2 } from 'lucide-react';
+import { MessageCircle, Send, Bot, User, Minimize2, Maximize2, Monitor, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { sanitizeInput, detectPromptInjection } from '@/lib/security';
 
@@ -61,6 +61,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isMinimized, setIsMinimized] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [isOpen, setIsOpen] = useState(() => {
     // Load chat state from localStorage
     try {
@@ -93,6 +94,12 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
   const sendMessage = async () => {
     if (!inputValue.trim() || isLoading) return;
 
+    // Check for diagnostic commands
+    if (inputValue.trim().startsWith('!')) {
+      handleDiagnosticCommand(inputValue.trim());
+      return;
+    }
+
     // Security validation
     const sanitizedInput = sanitizeInput(inputValue);
     if (detectPromptInjection(sanitizedInput)) {
@@ -119,25 +126,22 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
           prompt: sanitizedInput,
-          context: context || 'maturity assessment guidance',
-          currentDomain: currentDomain || 'general',
+          context: context || 'General operational maturity guidance and platform navigation assistance',
+          currentDomain: currentDomain || 'General',
           organizationId: currentOrganization?.id
         }
       });
 
       if (error) throw error;
 
-      if (data.success) {
-        const aiMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          content: data.content || data.response,
-          sender: 'maturion',
-          timestamp: new Date()
-        };
-        setMessages(prev => [...prev, aiMessage]);
-      } else {
-        throw new Error(data.error || 'Failed to get AI response');
-      }
+      // The edge function returns content directly, not wrapped in success
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: data.content || data.response || 'I apologize, but I encountered an issue processing your request. Please try again.',
+        sender: 'maturion',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       console.error('Error sending message:', error);
       toast({
@@ -148,6 +152,52 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleDiagnosticCommand = async (command: string) => {
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: command,
+      sender: 'user',
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+
+    let response = '';
+    if (command === '!status' || command === '!memory') {
+      try {
+        // Get document count for the organization
+        const { data: docData } = await supabase
+          .from('ai_documents')
+          .select('id')
+          .eq('organization_id', currentOrganization?.id)
+          .eq('processing_status', 'completed');
+
+        const { data: chunkData } = await supabase
+          .from('ai_document_chunks')
+          .select('id')
+          .eq('organization_id', currentOrganization?.id);
+
+        const docCount = docData?.length || 0;
+        const chunkCount = chunkData?.length || 0;
+
+        response = `📊 **Maturion Status Report**\n\n✅ System: Online\n📄 Documents: ${docCount} processed\n🧩 Knowledge Chunks: ${chunkCount.toLocaleString()}\n🏢 Organization: ${currentOrganization?.name || 'Unknown'}\n\n${docCount > 0 ? 'I have access to your uploaded documents and can provide context-aware guidance.' : 'No documents uploaded yet. Consider uploading your policies and procedures for personalized guidance.'}`;
+      } catch (error) {
+        response = `⚠️ **Diagnostic Error**\n\nUnable to retrieve status information. Please check your connection and permissions.`;
+      }
+    } else {
+      response = `🤖 **Available Commands:**\n\n• \`!status\` - Show system status and available knowledge\n• \`!memory\` - Display memory and document access info\n\nTry asking: "Are you able to read the uploaded documents?"`;
+    }
+
+    const aiMessage: Message = {
+      id: (Date.now() + 1).toString(),
+      content: response,
+      sender: 'maturion',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, aiMessage]);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -166,6 +216,12 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
 
   const toggleMinimize = () => {
     setIsMinimized(!isMinimized);
+    setIsFullscreen(false);
+  };
+
+  const toggleFullscreen = () => {
+    setIsFullscreen(!isFullscreen);
+    setIsMinimized(false);
   };
 
   if (!isOpen) {
@@ -187,9 +243,12 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
 
   // MaturionChat: Rendering open state
   return (
-    <div className={`fixed bottom-6 right-6 z-[100] ${className}`} style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
-      <Card className={`w-96 shadow-2xl border-0 bg-white/95 backdrop-blur transition-all duration-300 ${
-        isMinimized ? 'h-16' : 'h-96'
+    <div className={`${isFullscreen ? 'fixed inset-0 z-[200]' : 'fixed bottom-6 right-6 z-[100]'} ${className}`} 
+         style={isFullscreen ? { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 200 } 
+                            : { position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
+      <Card className={`shadow-2xl border-0 bg-white/95 backdrop-blur transition-all duration-300 ${
+        isFullscreen ? 'w-full h-full rounded-none' : 
+        isMinimized ? 'w-96 h-16' : 'w-96 h-96'
       }`}>
         <CardHeader className="p-4 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-t-lg">
           <div className="flex items-center justify-between">
@@ -203,28 +262,41 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
               </div>
             </div>
             <div className="flex space-x-2">
+              {!isFullscreen && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleMinimize}
+                  className="text-white hover:bg-white/20 p-1"
+                  title="Minimize"
+                >
+                  {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={toggleMinimize}
+                onClick={toggleFullscreen}
                 className="text-white hover:bg-white/20 p-1"
+                title="Fullscreen"
               >
-                {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                <Monitor className="h-4 w-4" />
               </Button>
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={toggleChat}
                 className="text-white hover:bg-white/20 p-1"
+                title="Close"
               >
-                ×
+                <X className="h-4 w-4" />
               </Button>
             </div>
           </div>
         </CardHeader>
 
         {!isMinimized && (
-          <CardContent className="p-0 flex flex-col h-80">
+          <CardContent className={`p-0 flex flex-col ${isFullscreen ? 'h-[calc(100vh-80px)]' : 'h-80'}`}>
             <ScrollArea className="flex-1 p-4">
               <div className="space-y-4">
                 {messages.map((message) => (
