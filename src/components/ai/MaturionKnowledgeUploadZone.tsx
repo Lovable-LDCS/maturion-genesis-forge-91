@@ -21,6 +21,7 @@ import { DocumentProcessingVerificationBlock } from './DocumentProcessingVerific
 import { DocumentContentViewer } from './DocumentContentViewer';
 import { DocumentPreviewPane } from './DocumentPreviewPane';
 import { UnifiedDocumentMetadataDialog, type DocumentMetadata } from './UnifiedDocumentMetadataDialog';
+import { DOCUMENT_TYPE_OPTIONS, DOMAIN_OPTIONS, getDocumentTypeLabel } from '@/lib/documentConstants';
 
 const documentTypeLabels: Record<string, string> = {
   guidance_document: 'Guidance Document',
@@ -50,29 +51,6 @@ const documentTypeLabels: Record<string, string> = {
   general: 'General Knowledge',
   maturity_model: 'Maturity Model'
 };
-
-// Domain options for all documents
-const domainOptions = [
-  'Leadership & Governance',
-  'People & Culture',
-  'Process Integrity',
-  'Protection',
-  'Proof it Works',
-  'Global Platform Logic',
-  'Global Instruction',
-  'Control Environment',
-  'Surveillance & Monitoring',
-  'System Integrity & Infrastructure',
-  'Incident Management',
-  'Training & Awareness',
-  'Third-Party Risk',
-  'Legal & Compliance',
-  'Threat Environment',
-  'Assessment & Evidence Logic',
-  'Analytics & Reporting',
-  'AI Governance',
-  'Maturion Engine Logic'
-];
 
 // Special domain scope for governance documents
 const getDocumentTypeScope = (documentType: string) => {
@@ -506,7 +484,7 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
                       <SelectValue placeholder="Select a domain..." />
                     </SelectTrigger>
                     <SelectContent>
-                      {domainOptions.map((domain) => (
+                      {DOMAIN_OPTIONS.map((domain) => (
                         <SelectItem key={domain} value={domain}>
                           {domain}
                         </SelectItem>

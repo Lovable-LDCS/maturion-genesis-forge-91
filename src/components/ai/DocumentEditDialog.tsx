@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Calendar, FileText, Tag, User, Database, Clock } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { MaturionDocument } from '@/hooks/useMaturionDocuments';
+import { DOCUMENT_TYPE_OPTIONS, DOMAIN_OPTIONS } from '@/lib/documentConstants';
 
 interface DocumentEditDialogProps {
   open: boolean;
@@ -28,29 +29,6 @@ export interface DocumentUpdateData {
   document_type?: MaturionDocument['document_type'];
   change_reason?: string;
 }
-
-const DOCUMENT_TYPES = [
-  { value: 'maturity_model', label: 'Maturity Model' },
-  { value: 'sector_context', label: 'Sector Context' },
-  { value: 'scoring_logic', label: 'Scoring Logic' },
-  { value: 'sop_template', label: 'SOP Template' },
-  { value: 'general', label: 'General Document' },
-  { value: 'mps_document', label: 'MPS Document' },
-  { value: 'iso_alignment', label: 'ISO Alignment' },
-  { value: 'assessment_framework_component', label: 'Assessment Framework' },
-  { value: 'ai_logic_rule_global', label: 'AI Logic Rule' },
-  { value: 'system_instruction', label: 'System Instruction' },
-  { value: 'threat_intelligence_profile', label: 'Threat Intelligence' },
-  { value: 'governance_reasoning_manifest', label: 'Governance Reasoning' }
-];
-
-const PREDEFINED_DOMAINS = [
-  'Leadership & Governance',
-  'Process Integrity',
-  'People & Culture',
-  'Protection',
-  'Proof it Works'
-];
 
 export const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   open,
@@ -223,7 +201,7 @@ export const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {DOCUMENT_TYPES.map(type => (
+                  {DOCUMENT_TYPE_OPTIONS.map(type => (
                     <SelectItem key={type.value} value={type.value}>
                       {type.label}
                     </SelectItem>
@@ -247,7 +225,7 @@ export const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">No Domain</SelectItem>
-                  {PREDEFINED_DOMAINS.map(domain => (
+                  {DOMAIN_OPTIONS.map(domain => (
                     <SelectItem key={domain} value={domain}>
                       {domain}
                     </SelectItem>
