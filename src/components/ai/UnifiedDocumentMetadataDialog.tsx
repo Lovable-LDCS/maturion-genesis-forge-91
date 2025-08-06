@@ -88,7 +88,8 @@ const domainOptions = [
 
 const visibilityOptions = [
   { value: 'all_users', label: 'All Users' },
-  { value: 'superusers_only', label: 'Superusers Only' }
+  { value: 'superusers_only', label: 'Superusers Only' },
+  { value: 'ai_only', label: 'Maturion AI only' }
 ];
 
 const UnifiedDocumentMetadataDialog: React.FC<UnifiedDocumentMetadataDialogProps> = ({
