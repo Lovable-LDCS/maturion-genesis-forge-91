@@ -110,8 +110,8 @@ serve(async (req) => {
       baseQuery = baseQuery.in('ai_documents.document_type', mappedTypes);
     }
 
-    // Get all relevant chunks for semantic comparison
-    const { data: chunks, error: fetchError } = await baseQuery.limit(100); // Get more chunks for better semantic search
+    // Get all relevant chunks for semantic comparison - REMOVED ARBITRARY LIMIT
+    const { data: chunks, error: fetchError } = await baseQuery.limit(10000); // Allow access to all processed chunks
 
     if (fetchError) {
       console.error('Error fetching chunks:', fetchError);

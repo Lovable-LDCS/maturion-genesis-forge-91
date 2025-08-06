@@ -67,7 +67,7 @@ export async function getDocumentContext(organizationId: string, query: string, 
             query: searchQuery,
             organizationId: organizationId,
             documentTypes: ['mps_document', 'mps', 'standard', 'audit', 'criteria', 'governance_reasoning_manifest', 'ai_logic_rule_global', 'system_instruction'],
-            limit: mpsNumber ? 20 : 15, // More results for MPS-specific searches
+            limit: mpsNumber ? 50 : 30, // Significantly more results for comprehensive context
             threshold: mpsNumber ? 0.5 : 0.6, // Lower threshold for MPS-specific searches
             mpsNumber: mpsNumber // Pass MPS number for specialized filtering
           }

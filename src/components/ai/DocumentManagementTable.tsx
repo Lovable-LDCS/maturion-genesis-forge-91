@@ -84,6 +84,9 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
   onReplace,
   onViewAuditLog
 }) => {
+  
+  // Count pending documents
+  const pendingDocsCount = documents.filter(doc => doc.processing_status === 'pending').length;
   const [filters, setFilters] = useState<DocumentFilters>({
     search: '',
     type: 'all',
@@ -288,6 +291,20 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                 <RefreshCw className="h-4 w-4 mr-1" />
                 Refresh
               </Button>
+              {pendingDocsCount > 0 && (
+                <Button 
+                  onClick={() => {
+                    // Trigger reprocessing of all pending documents
+                    documents.filter(doc => doc.processing_status === 'pending')
+                      .forEach(doc => onReprocess(doc.id));
+                  }} 
+                  variant="secondary" 
+                  size="sm"
+                >
+                  <AlertTriangle className="h-4 w-4 mr-1" />
+                  Retry Pending ({pendingDocsCount})
+                </Button>
+              )}
               {selectedDocuments.size > 0 && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>

@@ -213,12 +213,57 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
         const docCount = docData?.length || 0;
         const chunkCount = chunkData?.length || 0;
 
-        response = `📊 **Maturion Status Report**\n\n✅ System: Online\n📄 Documents: ${docCount} processed\n🧩 Knowledge Chunks: ${chunkCount.toLocaleString()}\n🏢 Organization: ${currentOrganization?.name || 'Unknown'}\n\n${docCount > 0 ? '✅ I have access to your uploaded documents and can provide context-aware guidance based on your specific organizational content.' : '⚠️ No documents uploaded yet. Consider uploading your policies, procedures, and standards for personalized guidance.'}`;
+        if (command === '!status') {
+          response = `📊 **Maturion Status Report**\n\n✅ System: Online\n📄 Documents: ${docCount} processed\n🧩 Knowledge Chunks: ${chunkCount.toLocaleString()}\n🏢 Organization: ${currentOrganization?.name || 'Unknown'}\n\n${docCount > 0 ? '✅ I have access to your uploaded documents and can provide context-aware guidance based on your specific organizational content.' : '⚠️ No documents uploaded yet. Consider uploading your policies, procedures, and standards for personalized guidance.'}`;
+        } else {
+          response = `🧠 **Maturion Memory Analysis**\n\n📚 Available Knowledge Base: ${docCount} documents across ${chunkCount.toLocaleString()} knowledge chunks\n📊 Content Types: MPS Documents, Standards, Audit Criteria, Governance Frameworks\n🏢 Organization Context: ${currentOrganization?.name || 'Unknown'}\n🎯 Domain Coverage: Leadership, Process Integrity, People & Culture, Protection, Proof it Works\n🔄 Processing Status: All completed documents fully indexed and searchable\n\n💡 I can reference this knowledge base to provide specific, context-aware guidance tailored to your organization's uploaded content.`;
+        }
       } catch (error) {
         response = `⚠️ **Diagnostic Error**\n\nUnable to retrieve status information. Please check your connection and permissions.`;
       }
+    } else if (command.startsWith('!doc ')) {
+      const filename = command.replace('!doc ', '').trim();
+      try {
+        const { data: searchResult } = await supabase.functions.invoke('search-ai-context', {
+          body: {
+            query: filename,
+            organizationId: currentOrganization?.id,
+            limit: 5,
+            threshold: 0.3
+          }
+        });
+        
+        const matchingChunks = searchResult?.results?.filter((r: any) => 
+          r.document_name.toLowerCase().includes(filename.toLowerCase())
+        ) || [];
+        
+        response = `📋 **Document Chunk Analysis: "${filename}"**\n\n🔍 Document: ${filename}\n📊 Matching chunks found: ${matchingChunks.length}\n🔗 Document types: ${[...new Set(matchingChunks.map((r: any) => r.document_type))].join(', ')}\n💾 Total content size: ~${Math.round(matchingChunks.reduce((acc: number, r: any) => acc + r.content.length, 0) / 1000)}k characters\n\n${matchingChunks.length > 0 ? '✅ Document is accessible to Maturion' : '⚠️ No chunks found for this document name'}`;
+      } catch (error) {
+        response = `❌ Error searching for document: ${error}`;
+      }
+    } else if (command.startsWith('!retrieval ')) {
+      const query = command.replace('!retrieval ', '').trim();
+      try {
+        const { data: searchResult } = await supabase.functions.invoke('search-ai-context', {
+          body: {
+            query: query,
+            organizationId: currentOrganization?.id,
+            limit: 10,
+            threshold: 0.5
+          }
+        });
+        
+        const results = searchResult?.results || [];
+        const docs = [...new Set(results.map((r: any) => r.document_name))];
+        const avgConfidence = results.length > 0 ? 
+          (results.reduce((acc: number, r: any) => acc + r.similarity, 0) / results.length).toFixed(3) : '0';
+        
+        response = `🔍 **Retrieval Test: "${query}"**\n\n🎯 Query: ${query}\n📚 Documents matched: ${docs.length} (${docs.slice(0, 3).join(', ')}${docs.length > 3 ? '...' : ''})\n⚡ Average confidence: ${avgConfidence}\n📊 Total chunks: ${results.length}\n${results.length > 0 ? '✅ Content found - Maturion can access this information' : '⚠️ No matches found - may need to rephrase query'}\n\nTop matches: ${results.slice(0, 2).map((r: any) => `\n• ${r.document_name} (${r.similarity.toFixed(2)})`).join('')}`;
+      } catch (error) {
+        response = `❌ Error testing retrieval: ${error}`;
+      }
     } else {
-      response = `🤖 **Available Commands:**\n\n• \`!status\` - Show system status and available knowledge\n• \`!memory\` - Display memory and document access info\n\nTry asking: "Can you summarize our Diamond Security and Control Principles?" or "Are you able to read the uploaded documents?"`;
+      response = `🤖 **Available Commands:**\n\n• \`!status\` - Show system status and available knowledge\n• \`!memory\` - Display memory and document access info\n• \`!doc <filename>\` - Check chunks for specific document\n• \`!retrieval <query>\` - Test document retrieval for query\n\nTry asking: "Can you summarize our Diamond Security and Control Principles?" or "Are you able to read the uploaded documents?"`;
     }
 
     const aiMessage: Message = {

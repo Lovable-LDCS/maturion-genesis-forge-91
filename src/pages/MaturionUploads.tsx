@@ -7,10 +7,12 @@ import { DocumentPlaceholderMerger } from "@/components/ai/DocumentPlaceholderMe
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useMaturionDocuments, MaturionDocument } from "@/hooks/useMaturionDocuments";
+import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function MaturionUploads() {
   const { toast } = useToast();
+  const { currentOrganization } = useOrganization();
   const { 
     documents, 
     loading, 
@@ -20,6 +22,8 @@ export default function MaturionUploads() {
     bulkDeleteDocuments, 
     refreshDocuments 
   } = useMaturionDocuments();
+  
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
@@ -85,6 +89,47 @@ export default function MaturionUploads() {
     await bulkDeleteDocuments(documentIds);
   };
 
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await refreshDocuments();
+    setIsRefreshing(false);
+  };
+
+  const handleReprocessPending = async () => {
+    if (!currentOrganization?.id) return;
+    
+    setIsRefreshing(true);
+    const pendingDocs = documents?.filter(doc => doc.processing_status === 'pending') || [];
+    
+    for (const doc of pendingDocs) {
+      try {
+        console.log(`Reprocessing pending document: ${doc.title}`);
+        
+        const { error } = await supabase.functions.invoke('reprocess-document', {
+          body: {
+            documentId: doc.id,
+            organizationId: currentOrganization.id,
+            forceReprocess: true
+          }
+        });
+        
+        if (error) {
+          console.error(`Failed to reprocess ${doc.title}:`, error);
+        } else {
+          console.log(`Successfully triggered reprocessing for ${doc.title}`);
+        }
+      } catch (error) {
+        console.error(`Error reprocessing ${doc.title}:`, error);
+      }
+    }
+    
+    // Wait a moment then refresh
+    setTimeout(async () => {
+      await refreshDocuments();
+      setIsRefreshing(false);
+    }, 2000);
+  };
+
   const handleReplace = (document: MaturionDocument) => {
     // Open edit dialog with replace mode
     setEditDialog({ open: true, document, saving: false });
@@ -139,7 +184,7 @@ export default function MaturionUploads() {
             onDelete={handleDelete}
             onReprocess={handleReprocess}
             onBulkDelete={handleBulkDelete}
-            onRefresh={refreshDocuments}
+            onRefresh={handleRefresh}
             onReplace={handleReplace}
             onViewAuditLog={handleViewAuditLog}
           />

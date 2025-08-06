@@ -78,11 +78,12 @@ export async function buildPromptContext(request: PromptRequest) {
     sanitizedContext.toLowerCase().includes(keyword.toLowerCase())
   );
 
-  // 🔧 FIX: Always try to retrieve document context for meaningful queries
+  // 🔧 ENHANCED FIX: Always retrieve documents for ALL meaningful queries
   const shouldRetrieveDocuments = finalOrgId && (
+    sanitizedPrompt.length > 5 || // Any query longer than greeting
     requiresInternalSecure || 
-    sanitizedPrompt.length > 10 || // Any substantial query
-    knowledgeTier === 'ORGANIZATIONAL_CONTEXT'
+    knowledgeTier === 'ORGANIZATIONAL_CONTEXT' ||
+    knowledgeTier === 'INTERNAL_SECURE'
   );
 
   console.log(`🎯 Knowledge tier: ${knowledgeTier}, Requires internal secure: ${requiresInternalSecure}, Will retrieve docs: ${shouldRetrieveDocuments}`);
