@@ -9,7 +9,7 @@ export interface MaturionDocument {
   file_path: string;
   file_size: number;
   mime_type: string;
-  document_type: 'maturity_model' | 'sector_context' | 'scoring_logic' | 'sop_template' | 'general' | 'mps_document' | 'iso_alignment' | 'assessment_framework_component' | 'ai_logic_rule_global' | 'system_instruction' | 'threat_intelligence_profile' | 'governance_reasoning_manifest';
+  document_type: 'maturity_model' | 'sector_context' | 'scoring_logic' | 'sop_template' | 'general' | 'mps_document' | 'iso_alignment' | 'assessment_framework_component' | 'ai_logic_rule_global' | 'system_instruction' | 'threat_intelligence_profile' | 'governance_reasoning_manifest' | 'best_practice';
   processing_status: 'pending' | 'processing' | 'completed' | 'failed';
   total_chunks: number;
   metadata: any;
@@ -22,6 +22,7 @@ export interface MaturionDocument {
   domain?: string;
   tags?: string;
   upload_notes?: string;
+  is_ai_ingested?: boolean;
 }
 
 export const useMaturionDocuments = () => {
