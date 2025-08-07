@@ -42,51 +42,52 @@ export const useDocumentEmbeddingStatus = () => {
         return;
       }
 
-      // Get individual document chunk counts without embedding data to avoid JSON issues
+      // Process documents in smaller batches to avoid URL length issues
+      const batchSize = 10;
       const documentIds = documents.map(doc => doc.id);
       
-      // Get total chunk counts per document
-      const { data: allChunks, error: countsError } = await supabase
-        .from('ai_document_chunks')
-        .select('document_id')
-        .in('document_id', documentIds);
+      let totalChunksByDoc: Record<string, number> = {};
+      let embeddedChunksByDoc: Record<string, number> = {};
+      
+      // Process documents in batches
+      for (let i = 0; i < documentIds.length; i += batchSize) {
+        const batch = documentIds.slice(i, i + batchSize);
+        
+        // Get total chunk counts for this batch
+        const { data: allChunks, error: countsError } = await supabase
+          .from('ai_document_chunks')
+          .select('document_id')
+          .in('document_id', batch);
 
-      // Get embedding counts per document (chunks that have embeddings)
-      const { data: embeddedChunks, error: embeddingError } = await supabase
-        .from('ai_document_chunks')
-        .select('document_id')
-        .in('document_id', documentIds)
-        .not('embedding', 'is', null);
+        // Get embedding counts for this batch  
+        const { data: embeddedChunks, error: embeddingError } = await supabase
+          .from('ai_document_chunks')
+          .select('document_id')
+          .in('document_id', batch)
+          .not('embedding', 'is', null);
 
-      if (countsError) {
-        console.error('Error fetching chunk counts:', countsError);
-        setLoading(false);
-        return;
+        if (countsError || embeddingError) {
+          console.error('Error fetching chunk counts for batch:', { countsError, embeddingError });
+          continue;
+        }
+
+        // Aggregate batch results
+        allChunks?.forEach(chunk => {
+          if (!totalChunksByDoc[chunk.document_id]) {
+            totalChunksByDoc[chunk.document_id] = 0;
+          }
+          totalChunksByDoc[chunk.document_id]++;
+        });
+
+        embeddedChunks?.forEach(chunk => {
+          if (!embeddedChunksByDoc[chunk.document_id]) {
+            embeddedChunksByDoc[chunk.document_id] = 0;
+          }
+          embeddedChunksByDoc[chunk.document_id]++;
+        });
       }
 
-      if (embeddingError) {
-        console.error('Error fetching embedding counts:', embeddingError);
-        setLoading(false);
-        return;
-      }
-
-      // Group total chunks by document
-      const totalChunksByDoc = allChunks?.reduce((acc, chunk) => {
-        if (!acc[chunk.document_id]) {
-          acc[chunk.document_id] = 0;
-        }
-        acc[chunk.document_id]++;
-        return acc;
-      }, {} as Record<string, number>) || {};
-
-      // Group embedded chunks by document
-      const embeddedChunksByDoc = embeddedChunks?.reduce((acc, chunk) => {
-        if (!acc[chunk.document_id]) {
-          acc[chunk.document_id] = 0;
-        }
-        acc[chunk.document_id]++;
-        return acc;
-      }, {} as Record<string, number>) || {};
+      // totalChunksByDoc and embeddedChunksByDoc are already built above
 
       const statuses: DocumentEmbeddingStatus[] = documents.map(doc => {
         const totalChunks = totalChunksByDoc[doc.id] || 0;
