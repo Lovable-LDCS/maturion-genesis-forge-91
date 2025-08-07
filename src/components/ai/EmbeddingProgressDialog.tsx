@@ -30,6 +30,8 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
   const [batchSize, setBatchSize] = useState(500);
   const [currentBatch, setCurrentBatch] = useState(0);
   const [lastProcessed, setLastProcessed] = useState(0);
+  const [retryCount, setRetryCount] = useState(0);
+  const [lastError, setLastError] = useState<string | null>(null);
 
   // Auto-refresh status while dialog is open
   useEffect(() => {
@@ -42,8 +44,13 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
     return () => clearInterval(interval);
   }, [open, refreshStatus, refreshDocumentStatuses]);
 
-  const runEmbeddingBatch = async () => {
+  const runEmbeddingBatch = async (isRetry = false) => {
     if (!currentOrganization?.id || isRunning) return;
+
+    if (!isRetry) {
+      setRetryCount(0);
+      setLastError(null);
+    }
 
     setIsRunning(true);
     try {
@@ -56,19 +63,21 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
       });
 
       if (error) {
-        throw error;
+        throw new Error(error.message || 'Edge function returned an error');
       }
 
       const processed = data?.processed || 0;
       setLastProcessed(processed);
       setCurrentBatch(prev => prev + 1);
+      setRetryCount(0); // Reset retry count on success
+      setLastError(null);
 
       if (processed === 0) {
         // No more chunks to process
         setAutoLoop(false);
         toast({
           title: "🎉 Embedding Generation Complete",
-          description: "All chunks now have embeddings! AI retrieval is fully operational.",
+          description: `All ${totalChunks.toLocaleString()} chunks now have embeddings! AI retrieval is fully operational.`,
         });
         return;
       }
@@ -80,10 +89,11 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
 
       // Refresh status immediately after batch completion
       await refreshStatus();
+      await refreshDocumentStatuses();
 
       // Auto-loop if enabled and there are more chunks to process
       if (autoLoop && processed > 0) {
-        // Add a longer delay and ensure we're still in auto-loop mode
+        // Add a delay and ensure we're still in auto-loop mode
         setTimeout(async () => {
           if (autoLoop && !isRunning) {
             // Double-check there are still chunks to process
@@ -95,20 +105,40 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
               setAutoLoop(false);
               toast({
                 title: "🎉 Auto-Loop Complete",
-                description: "All embeddings have been generated successfully!",
+                description: `All ${totalChunks.toLocaleString()} embeddings have been generated successfully!`,
               });
             }
           }
-        }, 3000); // Increased delay to 3 seconds
+        }, 2000); // 2 second delay between batches
       }
     } catch (error: any) {
       console.error('Embedding regeneration error:', error);
-      toast({
-        title: "Embedding Generation Failed",
-        description: error.message || "Failed to generate embeddings. Check console for details.",
-        variant: "destructive",
-      });
-      setAutoLoop(false);
+      const errorMessage = error.message || "Failed to generate embeddings";
+      setLastError(errorMessage);
+
+      // Retry logic for auto-loop
+      if (autoLoop && retryCount < 3) {
+        setRetryCount(prev => prev + 1);
+        toast({
+          title: "Retrying Batch",
+          description: `Attempt ${retryCount + 2}/4: ${errorMessage}`,
+          variant: "destructive",
+        });
+        
+        // Retry with exponential backoff
+        setTimeout(() => {
+          if (autoLoop) {
+            runEmbeddingBatch(true);
+          }
+        }, 5000 * Math.pow(2, retryCount)); // 5s, 10s, 20s
+      } else {
+        toast({
+          title: "Embedding Generation Failed",
+          description: `${errorMessage}. Auto-loop stopped after ${retryCount + 1} attempts.`,
+          variant: "destructive",
+        });
+        setAutoLoop(false);
+      }
     } finally {
       setIsRunning(false);
     }
@@ -216,8 +246,20 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
               </div>
 
               {currentBatch > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  Batch {currentBatch}: Processed {lastProcessed} chunks
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground">
+                    Batch {currentBatch}: Processed {lastProcessed} chunks
+                  </div>
+                  {retryCount > 0 && (
+                    <div className="text-sm text-orange-600">
+                      Retry attempt: {retryCount}/3
+                    </div>
+                  )}
+                  {lastError && (
+                    <div className="text-sm text-red-600">
+                      Last error: {lastError}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -280,8 +322,8 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3 max-h-60 overflow-y-auto">
-                {documentStatuses.slice(0, 10).map((doc) => (
+              <div className="space-y-3 max-h-80 overflow-y-auto">
+                {documentStatuses.map((doc) => (
                   <div key={doc.documentId} className="flex items-center justify-between p-3 bg-background rounded-lg border">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{doc.documentTitle}</p>
@@ -299,9 +341,9 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
                     </Badge>
                   </div>
                 ))}
-                {documentStatuses.length > 10 && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    Showing first 10 documents. Total: {documentStatuses.length}
+                {documentStatuses.length === 0 && (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    No documents found or still loading...
                   </p>
                 )}
               </div>

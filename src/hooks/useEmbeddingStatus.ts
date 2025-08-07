@@ -24,26 +24,60 @@ export const useEmbeddingStatus = () => {
     try {
       setStatus(prev => ({ ...prev, loading: true }));
 
-      // Get all chunks for this organization and count them
-      const { data: allChunks, error: totalError } = await supabase
-        .from('ai_document_chunks')
-        .select('id, embedding, ai_documents!inner(organization_id)')
-        .eq('ai_documents.organization_id', currentOrganization.id);
+      // Use more efficient aggregation query
+      const { data: totalChunksResult, error: totalError } = await supabase
+        .rpc('count_chunks_by_organization', { 
+          org_id: currentOrganization.id 
+        });
 
       if (totalError) {
-        console.error('Error fetching chunks:', totalError);
+        console.error('Error fetching chunk counts:', totalError);
+        // Fallback to simpler query if RPC fails
+        const { count: totalCount, error: countError } = await supabase
+          .from('ai_document_chunks')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', currentOrganization.id);
+
+        if (countError) {
+          console.error('Error fetching total chunks:', countError);
+          setStatus(prev => ({ ...prev, loading: false }));
+          return;
+        }
+
+        const { count: embeddedCount, error: embeddedError } = await supabase
+          .from('ai_document_chunks')
+          .select('*', { count: 'exact', head: true })
+          .eq('organization_id', currentOrganization.id)
+          .not('embedding', 'is', null);
+
+        if (embeddedError) {
+          console.error('Error fetching embedded chunks:', embeddedError);
+          setStatus(prev => ({ ...prev, loading: false }));
+          return;
+        }
+
+        const totalChunks = totalCount || 0;
+        const chunksWithEmbeddings = embeddedCount || 0;
+        const embeddingPercentage = totalChunks > 0 ? (chunksWithEmbeddings / totalChunks) * 100 : 0;
+
+        setStatus({
+          totalChunks,
+          chunksWithEmbeddings,
+          embeddingPercentage: Math.round(embeddingPercentage * 10) / 10,
+          loading: false
+        });
         return;
       }
 
-      const totalChunks = allChunks?.length || 0;
-      const chunksWithEmbeddings = allChunks?.filter(chunk => chunk.embedding !== null).length || 0;
-
+      const result = totalChunksResult?.[0];
+      const totalChunks = result?.total_chunks || 0;
+      const chunksWithEmbeddings = result?.chunks_with_embeddings || 0;
       const embeddingPercentage = totalChunks > 0 ? (chunksWithEmbeddings / totalChunks) * 100 : 0;
 
       setStatus({
         totalChunks,
         chunksWithEmbeddings,
-        embeddingPercentage: Math.round(embeddingPercentage * 10) / 10, // Round to 1 decimal
+        embeddingPercentage: Math.round(embeddingPercentage * 10) / 10,
         loading: false
       });
     } catch (error) {

@@ -22,30 +22,55 @@ export const useDocumentEmbeddingStatus = () => {
     try {
       setLoading(true);
 
-      // Get document embedding status
-      const { data: documents, error } = await supabase
+      // Get all documents first with simpler query
+      const { data: documents, error: docsError } = await supabase
         .from('ai_documents')
-        .select(`
-          id,
-          title,
-          total_chunks,
-          ai_document_chunks(
-            id,
-            embedding
-          )
-        `)
+        .select('id, title, total_chunks')
         .eq('organization_id', currentOrganization.id)
-        .eq('processing_status', 'completed');
+        .eq('processing_status', 'completed')
+        .order('title');
 
-      if (error) {
-        console.error('Error fetching document statuses:', error);
+      if (docsError) {
+        console.error('Error fetching documents:', docsError);
+        setLoading(false);
         return;
       }
 
-      const statuses: DocumentEmbeddingStatus[] = (documents || []).map(doc => {
-        const chunks = doc.ai_document_chunks || [];
-        const totalChunks = chunks.length;
-        const chunksWithEmbeddings = chunks.filter(chunk => chunk.embedding !== null).length;
+      if (!documents || documents.length === 0) {
+        setDocumentStatuses([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get embedding counts for all documents in one query
+      const documentIds = documents.map(doc => doc.id);
+      const { data: chunkCounts, error: countsError } = await supabase
+        .from('ai_document_chunks')
+        .select('document_id, embedding')
+        .in('document_id', documentIds);
+
+      if (countsError) {
+        console.error('Error fetching chunk counts:', countsError);
+        setLoading(false);
+        return;
+      }
+
+      // Group chunks by document and calculate stats
+      const chunksByDoc = chunkCounts?.reduce((acc, chunk) => {
+        if (!acc[chunk.document_id]) {
+          acc[chunk.document_id] = { total: 0, embedded: 0 };
+        }
+        acc[chunk.document_id].total++;
+        if (chunk.embedding !== null) {
+          acc[chunk.document_id].embedded++;
+        }
+        return acc;
+      }, {} as Record<string, { total: number; embedded: number }>) || {};
+
+      const statuses: DocumentEmbeddingStatus[] = documents.map(doc => {
+        const chunks = chunksByDoc[doc.id] || { total: 0, embedded: 0 };
+        const totalChunks = chunks.total;
+        const chunksWithEmbeddings = chunks.embedded;
         const embeddingPercentage = totalChunks > 0 ? (chunksWithEmbeddings / totalChunks) * 100 : 0;
         
         let status: 'completed' | 'partial' | 'not_started' = 'not_started';
