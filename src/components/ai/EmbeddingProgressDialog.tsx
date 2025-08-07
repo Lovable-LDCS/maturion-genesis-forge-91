@@ -174,16 +174,20 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
   };
 
   const handleStart = () => {
+    setAutoLoop(false); // Ensure single batch mode
     setCurrentBatch(0);
     setBatchHistory([]);
     runEmbeddingBatch();
   };
 
   const handleAutoLoop = () => {
-    setAutoLoop(true);
-    setCurrentBatch(0);
-    setBatchHistory([]);
-    runEmbeddingBatch();
+    if (!autoLoop) {
+      setAutoLoop(true);
+      setCurrentBatch(0);
+      setBatchHistory([]);
+      // Use setTimeout to ensure state is set before running
+      setTimeout(() => runEmbeddingBatch(), 100);
+    }
   };
 
   const handleStop = () => {
@@ -196,8 +200,8 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader className="pb-3">
           <DialogTitle className="flex items-center gap-2">
             <Database className="h-5 w-5" />
             Embedding Generation Progress
@@ -207,12 +211,12 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Progress Overview */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center justify-between">
-                Overall Progress
+        <div className="space-y-4">
+          {/* Compact Progress Overview */}
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold">Overall Progress</h3>
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -221,79 +225,62 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
                 >
                   <RefreshCw className="h-4 w-4" />
                 </Button>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="text-3xl font-bold text-center">
+              </div>
+              <div className="text-2xl font-bold mb-2">
                 {chunksWithEmbeddings.toLocaleString()} / {totalChunks.toLocaleString()}
-                <span className="text-lg font-normal text-muted-foreground ml-2">
+                <span className="text-sm font-normal text-muted-foreground ml-2">
                   ({embeddingPercentage.toFixed(1)}%)
                 </span>
               </div>
-              <Progress value={embeddingPercentage} className="h-3" />
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Remaining: </span>
-                  <span className="font-medium">{remainingChunks.toLocaleString()}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Status: </span>
-                  {isComplete ? (
-                    <Badge variant="default" className="bg-green-100 text-green-800">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Complete
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary">
-                      {Math.ceil(remainingChunks / batchSize)} batches remaining
-                    </Badge>
-                  )}
-                </div>
+              <Progress value={embeddingPercentage} className="h-2 mb-2" />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>Remaining: {remainingChunks.toLocaleString()}</span>
+                {isComplete ? (
+                  <Badge variant="default" className="bg-green-100 text-green-800 text-xs">
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Complete
+                  </Badge>
+                ) : (
+                  <span>{Math.ceil(remainingChunks / batchSize)} batches remaining</span>
+                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Batch Controls */}
+          {/* Compact Batch Controls */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Batch Processing</CardTitle>
-              <CardDescription>
-                Control how embeddings are generated
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                <label className="text-sm font-medium">Batch Size:</label>
-                <select 
-                  value={batchSize} 
-                  onChange={(e) => setBatchSize(Number(e.target.value))}
-                  disabled={isRunning}
-                  className="border rounded px-2 py-1"
-                >
-                  <option value={200}>200 (Safe)</option>
-                  <option value={500}>500 (Fast)</option>
-                  <option value={1000}>1000 (Fastest)</option>
-                </select>
+            <CardContent className="pt-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium">Batch Processing</h4>
+                <div className="flex items-center gap-2 text-sm">
+                  <label>Size:</label>
+                  <select 
+                    value={batchSize} 
+                    onChange={(e) => setBatchSize(Number(e.target.value))}
+                    disabled={isRunning}
+                    className="border rounded px-2 py-1 text-xs"
+                  >
+                    <option value={200}>200</option>
+                    <option value={500}>500</option>
+                    <option value={1000}>1000</option>
+                  </select>
+                </div>
               </div>
 
               {currentBatch > 0 && (
-                <div className="space-y-2">
-                  <div className="text-sm text-muted-foreground">
-                    Current: Batch {currentBatch} completed ({lastProcessed} chunks)
+                <div className="bg-muted/30 rounded p-2 text-xs space-y-1">
+                  <div className="font-medium">
+                    Batch {currentBatch} completed ({lastProcessed} chunks)
                   </div>
                   {retryCount > 0 && (
-                    <div className="text-sm text-orange-600">
-                      Retry attempt: {retryCount}/3
-                    </div>
+                    <div className="text-orange-600">Retry attempt: {retryCount}/3</div>
                   )}
                   {lastError && (
-                    <div className="text-sm text-red-600">
-                      Last error: {lastError}
-                    </div>
+                    <div className="text-red-600">Error: {lastError}</div>
                   )}
                   {batchHistory.length > 0 && (
-                    <div className="text-xs text-muted-foreground">
-                      Progress: {batchHistory.length} batches completed
+                    <div className="text-muted-foreground">
+                      Total batches completed: {batchHistory.length}
                     </div>
                   )}
                 </div>
@@ -333,26 +320,26 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
               </div>
 
               {autoLoop && (
-                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <div className="flex items-center gap-2 text-blue-800">
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                <div className="p-2 bg-blue-50 rounded border border-blue-200">
+                  <div className="flex items-center gap-2 text-blue-800 text-sm">
+                    <Loader2 className="h-3 w-3 animate-spin" />
                     <span className="font-medium">Auto-loop active</span>
                   </div>
-                  <p className="text-sm text-blue-600 mt-1">
-                    Processing batches automatically until all embeddings are generated
+                  <p className="text-xs text-blue-600 mt-1">
+                    Processing batches automatically until complete
                   </p>
                 </div>
               )}
             </CardContent>
           </Card>
 
-          {/* Per-Document Status */}
+          {/* Collapsible Document Status */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center justify-between">
+            <CardContent className="pt-4">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
-                  Document Embedding Status
+                  <FileText className="h-4 w-4" />
+                  <h4 className="font-medium">Document Status ({documentStatuses.length})</h4>
                 </div>
                 <Button 
                   variant="ghost" 
@@ -361,35 +348,30 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
                   disabled={isRunning}
                   title="Refresh document chunk counts"
                 >
-                  <RefreshCw className="h-4 w-4" />
+                  <RefreshCw className="h-3 w-3" />
                 </Button>
-              </CardTitle>
-              <CardDescription>
-                Embedding progress for each uploaded document
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3 max-h-80 overflow-y-auto">
+              </div>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
                 {documentStatuses.map((doc) => (
-                  <div key={doc.documentId} className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                  <div key={doc.documentId} className="flex items-center justify-between p-2 bg-background rounded border text-xs">
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate">{doc.documentTitle}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="font-medium truncate">{doc.documentTitle}</p>
+                      <p className="text-muted-foreground">
                         {doc.chunksWithEmbeddings} / {doc.totalChunks} chunks ({doc.embeddingPercentage.toFixed(1)}%)
                       </p>
                     </div>
                     <Badge 
                       variant={doc.status === 'completed' ? 'default' : doc.status === 'partial' ? 'secondary' : 'outline'}
-                      className={doc.status === 'completed' ? 'bg-green-100 text-green-800' : ''}
+                      className={`text-xs ${doc.status === 'completed' ? 'bg-green-100 text-green-800' : ''}`}
                     >
-                      {doc.status === 'completed' && <CheckCircle className="h-3 w-3 mr-1" />}
+                      {doc.status === 'completed' && <CheckCircle className="h-2 w-2 mr-1" />}
                       {doc.status === 'completed' ? 'Complete' : 
                        doc.status === 'partial' ? 'Partial' : 'Pending'}
                     </Badge>
                   </div>
                 ))}
                 {documentStatuses.length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-4">
+                  <p className="text-xs text-muted-foreground text-center py-2">
                     No documents found or still loading...
                   </p>
                 )}
