@@ -24,54 +24,33 @@ export const useEmbeddingStatus = () => {
     try {
       setStatus(prev => ({ ...prev, loading: true }));
 
-      // Use more efficient aggregation query
-      const { data: totalChunksResult, error: totalError } = await supabase
-        .rpc('count_chunks_by_organization', { 
-          org_id: currentOrganization.id 
-        });
+      // Get total chunks count
+      const { count: totalCount, error: countError } = await supabase
+        .from('ai_document_chunks')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', currentOrganization.id);
 
-      if (totalError) {
-        console.error('Error fetching chunk counts:', totalError);
-        // Fallback to simpler query if RPC fails
-        const { count: totalCount, error: countError } = await supabase
-          .from('ai_document_chunks')
-          .select('*', { count: 'exact', head: true })
-          .eq('organization_id', currentOrganization.id);
-
-        if (countError) {
-          console.error('Error fetching total chunks:', countError);
-          setStatus(prev => ({ ...prev, loading: false }));
-          return;
-        }
-
-        const { count: embeddedCount, error: embeddedError } = await supabase
-          .from('ai_document_chunks')
-          .select('*', { count: 'exact', head: true })
-          .eq('organization_id', currentOrganization.id)
-          .not('embedding', 'is', null);
-
-        if (embeddedError) {
-          console.error('Error fetching embedded chunks:', embeddedError);
-          setStatus(prev => ({ ...prev, loading: false }));
-          return;
-        }
-
-        const totalChunks = totalCount || 0;
-        const chunksWithEmbeddings = embeddedCount || 0;
-        const embeddingPercentage = totalChunks > 0 ? (chunksWithEmbeddings / totalChunks) * 100 : 0;
-
-        setStatus({
-          totalChunks,
-          chunksWithEmbeddings,
-          embeddingPercentage: Math.round(embeddingPercentage * 10) / 10,
-          loading: false
-        });
+      if (countError) {
+        console.error('Error fetching total chunks:', countError);
+        setStatus(prev => ({ ...prev, loading: false }));
         return;
       }
 
-      const result = totalChunksResult?.[0];
-      const totalChunks = result?.total_chunks || 0;
-      const chunksWithEmbeddings = result?.chunks_with_embeddings || 0;
+      // Get embedded chunks count
+      const { count: embeddedCount, error: embeddedError } = await supabase
+        .from('ai_document_chunks')
+        .select('*', { count: 'exact', head: true })
+        .eq('organization_id', currentOrganization.id)
+        .not('embedding', 'is', null);
+
+      if (embeddedError) {
+        console.error('Error fetching embedded chunks:', embeddedError);
+        setStatus(prev => ({ ...prev, loading: false }));
+        return;
+      }
+
+      const totalChunks = totalCount || 0;
+      const chunksWithEmbeddings = embeddedCount || 0;
       const embeddingPercentage = totalChunks > 0 ? (chunksWithEmbeddings / totalChunks) * 100 : 0;
 
       setStatus({
