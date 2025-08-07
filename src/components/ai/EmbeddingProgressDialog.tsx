@@ -32,6 +32,7 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
   const [lastProcessed, setLastProcessed] = useState(0);
   const [retryCount, setRetryCount] = useState(0);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [batchHistory, setBatchHistory] = useState<Array<{batch: number, processed: number, timestamp: Date}>>([]);
 
   // Auto-refresh status while dialog is open
   useEffect(() => {
@@ -61,7 +62,8 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
     setIsRunning(true);
     
     try {
-      console.log(`Starting batch ${currentBatch + 1}, auto-loop: ${autoLoop}`);
+      const batchNumber = currentBatch + 1;
+      console.log(`Starting batch ${batchNumber}, auto-loop: ${autoLoop}`);
       
       const { data, error } = await supabase.functions.invoke('regenerate-embeddings', {
         body: {
@@ -81,7 +83,14 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
       setRetryCount(0);
       setLastError(null);
 
-      console.log(`Batch completed: ${processed} chunks processed`);
+      // Add to batch history
+      setBatchHistory(prev => [...prev, {
+        batch: batchNumber,
+        processed,
+        timestamp: new Date()
+      }]);
+
+      console.log(`Batch ${batchNumber} completed: ${processed} chunks processed`);
 
       if (processed === 0) {
         // No more chunks to process
@@ -95,61 +104,31 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
       }
 
       toast({
-        title: "Batch Complete",
-        description: `Processed ${processed} chunks in batch ${currentBatch + 1}`,
+        title: `✅ Batch ${batchNumber} Complete`,
+        description: `Processed ${processed} chunks. ${autoLoop ? 'Auto-loop continuing...' : ''}`,
       });
 
       // Refresh status immediately after batch completion
       await refreshStatus();
       await refreshDocumentStatuses();
 
-      // Set isRunning to false before potential auto-loop continuation
+      // Auto-loop continuation - use current autoLoop state at time of completion
+      const shouldContinueLoop = autoLoop;
       setIsRunning(false);
 
-      // Auto-loop continuation
-      if (autoLoop && processed > 0) {
+      if (shouldContinueLoop && processed > 0) {
         console.log('Auto-loop enabled, scheduling next batch...');
         
-        setTimeout(async () => {
-          // Double-check auto-loop is still enabled
-          if (!autoLoop) {
-            console.log('Auto-loop was disabled, stopping');
-            return;
+        // Use a shorter delay and more direct continuation
+        setTimeout(() => {
+          // Re-check autoLoop state at execution time
+          if (autoLoop) {
+            console.log(`Continuing auto-loop with batch ${batchNumber + 1}`);
+            runEmbeddingBatch(false);
+          } else {
+            console.log('Auto-loop was disabled during delay, stopping');
           }
-
-          try {
-            // Get fresh counts to determine if more work is needed
-            const { data: freshCounts } = await supabase.rpc('count_chunks_by_organization', {
-              org_id: currentOrganization?.id
-            });
-            
-            const freshTotal = freshCounts?.[0]?.total_chunks || 0;
-            const freshCompleted = freshCounts?.[0]?.chunks_with_embeddings || 0;
-            const remaining = freshTotal - freshCompleted;
-            
-            console.log(`Auto-loop check: ${freshCompleted}/${freshTotal} (${remaining} remaining)`);
-            
-            if (remaining > 0) {
-              console.log('Continuing auto-loop with next batch');
-              runEmbeddingBatch(false);
-            } else {
-              console.log('Auto-loop complete - all embeddings generated');
-              setAutoLoop(false);
-              toast({
-                title: "🎉 Auto-Loop Complete",
-                description: `All ${freshTotal.toLocaleString()} embeddings have been generated successfully!`,
-              });
-            }
-          } catch (error) {
-            console.error('Error during auto-loop continuation:', error);
-            setAutoLoop(false);
-            toast({
-              title: "Auto-Loop Stopped", 
-              description: "Error occurred while checking remaining chunks",
-              variant: "destructive",
-            });
-          }
-        }, 3000); // 3 second delay between batches
+        }, 2000); // Reduced to 2 seconds
       }
     } catch (error: any) {
       console.error('Embedding regeneration error:', error);
@@ -169,10 +148,10 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
         setTimeout(() => {
           if (autoLoop) {
             console.log(`Retrying batch after error: ${errorMessage}`);
-            setIsRunning(false); // Reset running state before retry
+            setIsRunning(false);
             runEmbeddingBatch(true);
           }
-        }, 5000 * Math.pow(2, retryCount)); // 5s, 10s, 20s
+        }, 5000 * Math.pow(2, retryCount));
       } else {
         // Stop processing
         if (autoLoop) {
@@ -196,12 +175,14 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
 
   const handleStart = () => {
     setCurrentBatch(0);
+    setBatchHistory([]);
     runEmbeddingBatch();
   };
 
   const handleAutoLoop = () => {
     setAutoLoop(true);
     setCurrentBatch(0);
+    setBatchHistory([]);
     runEmbeddingBatch();
   };
 
@@ -296,9 +277,9 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
               </div>
 
               {currentBatch > 0 && (
-                <div className="space-y-1">
+                <div className="space-y-2">
                   <div className="text-sm text-muted-foreground">
-                    Batch {currentBatch}: Processed {lastProcessed} chunks
+                    Current: Batch {currentBatch} completed ({lastProcessed} chunks)
                   </div>
                   {retryCount > 0 && (
                     <div className="text-sm text-orange-600">
@@ -308,6 +289,11 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
                   {lastError && (
                     <div className="text-sm text-red-600">
                       Last error: {lastError}
+                    </div>
+                  )}
+                  {batchHistory.length > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      Progress: {batchHistory.length} batches completed
                     </div>
                   )}
                 </div>
@@ -410,6 +396,33 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
               </div>
             </CardContent>
           </Card>
+
+          {/* Batch History */}
+          {batchHistory.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Batch History</CardTitle>
+                <CardDescription>
+                  Recent batch completion record
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-32 overflow-y-auto">
+                  {batchHistory.slice(-5).map((batch) => (
+                    <div key={batch.batch} className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2">
+                        <CheckCircle className="h-3 w-3 text-green-600" />
+                        Batch {batch.batch}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {batch.processed} chunks ({batch.timestamp.toLocaleTimeString()})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {isComplete && (
             <Card className="border-green-200 bg-green-50">
