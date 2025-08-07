@@ -90,7 +90,7 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
         timestamp: new Date()
       }]);
 
-      console.log(`Batch ${batchNumber} completed: ${processed} chunks processed`);
+      console.log(`Batch ${batchNumber} completed: ${processed} chunks processed, auto-loop: ${autoLoop}`);
 
       if (processed === 0) {
         // No more chunks to process
@@ -105,30 +105,27 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
 
       toast({
         title: `✅ Batch ${batchNumber} Complete`,
-        description: `Processed ${processed} chunks. ${autoLoop ? 'Auto-loop continuing...' : ''}`,
+        description: `Processed ${processed} chunks. ${autoLoop ? 'Starting next batch...' : ''}`,
       });
 
       // Refresh status immediately after batch completion
       await refreshStatus();
       await refreshDocumentStatuses();
 
-      // Auto-loop continuation - use current autoLoop state at time of completion
-      const shouldContinueLoop = autoLoop;
+      // Set running to false before checking auto-loop continuation
       setIsRunning(false);
 
-      if (shouldContinueLoop && processed > 0) {
-        console.log('Auto-loop enabled, scheduling next batch...');
+      // Check auto-loop continuation immediately after setting isRunning to false
+      if (autoLoop && processed > 0) {
+        console.log(`Auto-loop continuing: scheduling batch ${batchNumber + 1}`);
         
-        // Use a shorter delay and more direct continuation
+        // Use a very short delay to allow state updates, then continue
         setTimeout(() => {
-          // Re-check autoLoop state at execution time
-          if (autoLoop) {
-            console.log(`Continuing auto-loop with batch ${batchNumber + 1}`);
-            runEmbeddingBatch(false);
-          } else {
-            console.log('Auto-loop was disabled during delay, stopping');
-          }
-        }, 2000); // Reduced to 2 seconds
+          console.log(`Auto-loop check: autoLoop=${autoLoop}, starting next batch`);
+          runEmbeddingBatch(false);
+        }, 500); // Reduced to 500ms for faster continuation
+      } else {
+        console.log(`Auto-loop stopping: autoLoop=${autoLoop}, processed=${processed}`);
       }
     } catch (error: any) {
       console.error('Embedding regeneration error:', error);
