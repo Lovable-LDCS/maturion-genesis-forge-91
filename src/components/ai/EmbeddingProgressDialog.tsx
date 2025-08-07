@@ -96,16 +96,31 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
         // Add a delay and ensure we're still in auto-loop mode
         setTimeout(async () => {
           if (autoLoop && !isRunning) {
-            // Double-check there are still chunks to process
+            console.log('Auto-loop continuing, refreshing status...');
+            // Double-check there are still chunks to process with fresh data
             await refreshStatus();
-            const remaining = totalChunks - chunksWithEmbeddings;
+            await refreshDocumentStatuses();
+            
+            // Get the most up-to-date counts using RPC
+            const { data: freshCounts } = await supabase.rpc('count_chunks_by_organization', {
+              org_id: currentOrganization?.id
+            });
+            
+            const freshTotal = freshCounts?.[0]?.total_chunks || 0;
+            const freshCompleted = freshCounts?.[0]?.chunks_with_embeddings || 0;
+            const remaining = freshTotal - freshCompleted;
+            
+            console.log(`Auto-loop status check: ${freshCompleted}/${freshTotal} (${remaining} remaining)`);
+            
             if (remaining > 0) {
+              console.log('Continuing auto-loop with next batch');
               runEmbeddingBatch();
             } else {
+              console.log('Auto-loop complete - all embeddings generated');
               setAutoLoop(false);
               toast({
                 title: "🎉 Auto-Loop Complete",
-                description: `All ${totalChunks.toLocaleString()} embeddings have been generated successfully!`,
+                description: `All ${freshTotal.toLocaleString()} embeddings have been generated successfully!`,
               });
             }
           }
