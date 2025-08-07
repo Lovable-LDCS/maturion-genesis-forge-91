@@ -25,7 +25,7 @@ serve(async (req) => {
     const openaiApiKey = Deno.env.get('OPENAI_API_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
-    const { organizationId, forceAll = false, batchSize = 100 }: RegenerateRequest = await req.json();
+    const { organizationId, forceAll = false, batchSize = 500 }: RegenerateRequest = await req.json();
 
     if (!organizationId) {
       return new Response(

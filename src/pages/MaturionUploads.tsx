@@ -4,6 +4,7 @@ import { SecurityDashboard } from "@/components/security/SecurityDashboard";
 import { DocumentManagementTable } from "@/components/ai/DocumentManagementTable";
 import { DocumentEditDialog, DocumentUpdateData } from "@/components/ai/DocumentEditDialog";
 import { DocumentPlaceholderMerger } from "@/components/ai/DocumentPlaceholderMerger";
+import { EmbeddingProgressDialog } from "@/components/ai/EmbeddingProgressDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useMaturionDocuments, MaturionDocument } from "@/hooks/useMaturionDocuments";
@@ -24,6 +25,7 @@ export default function MaturionUploads() {
   } = useMaturionDocuments();
   
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [embeddingDialogOpen, setEmbeddingDialogOpen] = useState(false);
 
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
@@ -130,50 +132,8 @@ export default function MaturionUploads() {
     }, 2000);
   };
 
-  const handleRegenerateEmbeddings = async () => {
-    if (!currentOrganization?.id) return;
-    
-    setIsRefreshing(true);
-    try {
-      console.log('Regenerating embeddings for all chunks...');
-      
-      const { data, error } = await supabase.functions.invoke('regenerate-embeddings', {
-        body: {
-          organizationId: currentOrganization.id,
-          forceAll: true,
-          batchSize: 200
-        }
-      });
-      
-      if (error) {
-        console.error('Failed to regenerate embeddings:', error);
-        toast({
-          title: "Embedding Generation Failed",
-          description: error.message || "Failed to regenerate embeddings",
-          variant: "destructive",
-        });
-      } else {
-        console.log('Successfully regenerated embeddings:', data);
-        toast({
-          title: "Embeddings Regenerated",
-          description: `Successfully processed ${data.processed || 0} chunks`,
-        });
-        
-        // Refresh documents after embedding generation
-        setTimeout(async () => {
-          await refreshDocuments();
-        }, 2000);
-      }
-    } catch (error) {
-      console.error('Error regenerating embeddings:', error);
-      toast({
-        title: "Error",
-        description: "Failed to regenerate embeddings",
-        variant: "destructive",
-      });
-    } finally {
-      setIsRefreshing(false);
-    }
+  const handleRegenerateEmbeddings = () => {
+    setEmbeddingDialogOpen(true);
   };
 
   const handleReplace = (document: MaturionDocument) => {
@@ -252,6 +212,11 @@ export default function MaturionUploads() {
         onSave={handleSaveEdit}
         document={editDialog.document}
         saving={editDialog.saving}
+      />
+
+      <EmbeddingProgressDialog
+        open={embeddingDialogOpen}
+        onClose={() => setEmbeddingDialogOpen(false)}
       />
     </div>
   );
