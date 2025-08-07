@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Play, Pause, RefreshCw, CheckCircle, Database } from 'lucide-react';
+import { Loader2, Play, Pause, RefreshCw, CheckCircle, Database, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useEmbeddingStatus } from '@/hooks/useEmbeddingStatus';
+import { useDocumentEmbeddingStatus } from '@/hooks/useDocumentEmbeddingStatus';
 import { supabase } from '@/integrations/supabase/client';
 
 interface EmbeddingProgressDialogProps {
@@ -22,6 +23,7 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
   const { totalChunks, chunksWithEmbeddings, embeddingPercentage, refreshStatus } = useEmbeddingStatus();
+  const { documentStatuses, refreshDocumentStatuses } = useDocumentEmbeddingStatus();
   
   const [isRunning, setIsRunning] = useState(false);
   const [autoLoop, setAutoLoop] = useState(false);
@@ -33,9 +35,12 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
   useEffect(() => {
     if (!open) return;
     
-    const interval = setInterval(refreshStatus, 3000); // Refresh every 3 seconds
+    const interval = setInterval(() => {
+      refreshStatus();
+      refreshDocumentStatuses();
+    }, 3000); // Refresh every 3 seconds
     return () => clearInterval(interval);
-  }, [open, refreshStatus]);
+  }, [open, refreshStatus, refreshDocumentStatuses]);
 
   const runEmbeddingBatch = async () => {
     if (!currentOrganization?.id || isRunning) return;
@@ -62,8 +67,8 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
         // No more chunks to process
         setAutoLoop(false);
         toast({
-          title: "Embedding Generation Complete",
-          description: "All chunks now have embeddings",
+          title: "🎉 Embedding Generation Complete",
+          description: "All chunks now have embeddings! AI retrieval is fully operational.",
         });
         return;
       }
@@ -73,19 +78,34 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
         description: `Processed ${processed} chunks in batch ${currentBatch + 1}`,
       });
 
+      // Refresh status immediately after batch completion
+      await refreshStatus();
+
       // Auto-loop if enabled and there are more chunks to process
       if (autoLoop && processed > 0) {
-        setTimeout(() => {
-          if (autoLoop) {
-            runEmbeddingBatch();
+        // Add a longer delay and ensure we're still in auto-loop mode
+        setTimeout(async () => {
+          if (autoLoop && !isRunning) {
+            // Double-check there are still chunks to process
+            await refreshStatus();
+            const remaining = totalChunks - chunksWithEmbeddings;
+            if (remaining > 0) {
+              runEmbeddingBatch();
+            } else {
+              setAutoLoop(false);
+              toast({
+                title: "🎉 Auto-Loop Complete",
+                description: "All embeddings have been generated successfully!",
+              });
+            }
           }
-        }, 2000); // 2 second delay between batches
+        }, 3000); // Increased delay to 3 seconds
       }
     } catch (error: any) {
       console.error('Embedding regeneration error:', error);
       toast({
         title: "Embedding Generation Failed",
-        description: error.message || "Failed to generate embeddings",
+        description: error.message || "Failed to generate embeddings. Check console for details.",
         variant: "destructive",
       });
       setAutoLoop(false);
@@ -248,16 +268,56 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
             </CardContent>
           </Card>
 
+          {/* Per-Document Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Document Embedding Status
+              </CardTitle>
+              <CardDescription>
+                Embedding progress for each uploaded document
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {documentStatuses.slice(0, 10).map((doc) => (
+                  <div key={doc.documentId} className="flex items-center justify-between p-3 bg-background rounded-lg border">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{doc.documentTitle}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {doc.chunksWithEmbeddings} / {doc.totalChunks} chunks ({doc.embeddingPercentage.toFixed(1)}%)
+                      </p>
+                    </div>
+                    <Badge 
+                      variant={doc.status === 'completed' ? 'default' : doc.status === 'partial' ? 'secondary' : 'outline'}
+                      className={doc.status === 'completed' ? 'bg-green-100 text-green-800' : ''}
+                    >
+                      {doc.status === 'completed' && <CheckCircle className="h-3 w-3 mr-1" />}
+                      {doc.status === 'completed' ? 'Complete' : 
+                       doc.status === 'partial' ? 'Partial' : 'Pending'}
+                    </Badge>
+                  </div>
+                ))}
+                {documentStatuses.length > 10 && (
+                  <p className="text-xs text-muted-foreground text-center">
+                    Showing first 10 documents. Total: {documentStatuses.length}
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {isComplete && (
             <Card className="border-green-200 bg-green-50">
               <CardContent className="pt-6">
                 <div className="flex items-center gap-2 text-green-800">
                   <CheckCircle className="h-5 w-5" />
-                  <span className="font-medium">Embedding Generation Complete!</span>
+                  <span className="font-medium">🎉 Embedding Generation Complete!</span>
                 </div>
                 <p className="text-sm text-green-600 mt-1">
                   All {totalChunks.toLocaleString()} chunks now have embeddings. 
-                  AI context retrieval is fully operational.
+                  AI context retrieval is fully operational across all {documentStatuses.length} documents.
                 </p>
               </CardContent>
             </Card>
