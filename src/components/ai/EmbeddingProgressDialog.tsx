@@ -93,34 +93,50 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
 
       // Auto-loop if enabled and there are more chunks to process
       if (autoLoop && processed > 0) {
+        // Reset retry count after successful batch
+        setRetryCount(0);
+        
         // Add a delay and ensure we're still in auto-loop mode
         setTimeout(async () => {
           if (autoLoop && !isRunning) {
             console.log('Auto-loop continuing, refreshing status...');
-            // Double-check there are still chunks to process with fresh data
-            await refreshStatus();
-            await refreshDocumentStatuses();
             
-            // Get the most up-to-date counts using RPC
-            const { data: freshCounts } = await supabase.rpc('count_chunks_by_organization', {
-              org_id: currentOrganization?.id
-            });
-            
-            const freshTotal = freshCounts?.[0]?.total_chunks || 0;
-            const freshCompleted = freshCounts?.[0]?.chunks_with_embeddings || 0;
-            const remaining = freshTotal - freshCompleted;
-            
-            console.log(`Auto-loop status check: ${freshCompleted}/${freshTotal} (${remaining} remaining)`);
-            
-            if (remaining > 0) {
-              console.log('Continuing auto-loop with next batch');
-              runEmbeddingBatch();
-            } else {
-              console.log('Auto-loop complete - all embeddings generated');
+            try {
+              // Double-check there are still chunks to process with fresh data
+              await refreshStatus();
+              await refreshDocumentStatuses();
+              
+              // Get the most up-to-date counts using RPC
+              const { data: freshCounts } = await supabase.rpc('count_chunks_by_organization', {
+                org_id: currentOrganization?.id
+              });
+              
+              const freshTotal = freshCounts?.[0]?.total_chunks || 0;
+              const freshCompleted = freshCounts?.[0]?.chunks_with_embeddings || 0;
+              const remaining = freshTotal - freshCompleted;
+              
+              console.log(`Auto-loop status check: ${freshCompleted}/${freshTotal} (${remaining} remaining)`);
+              
+              if (remaining > 0) {
+                console.log('Continuing auto-loop with next batch');
+                runEmbeddingBatch();
+              } else {
+                console.log('Auto-loop complete - all embeddings generated');
+                setAutoLoop(false);
+                setIsRunning(false);
+                toast({
+                  title: "🎉 Auto-Loop Complete",
+                  description: `All ${freshTotal.toLocaleString()} embeddings have been generated successfully!`,
+                });
+              }
+            } catch (error) {
+              console.error('Error during auto-loop continuation:', error);
               setAutoLoop(false);
+              setIsRunning(false);
               toast({
-                title: "🎉 Auto-Loop Complete",
-                description: `All ${freshTotal.toLocaleString()} embeddings have been generated successfully!`,
+                title: "Auto-Loop Stopped",
+                description: "Error occurred while checking remaining chunks",
+                variant: "destructive",
               });
             }
           }
@@ -131,7 +147,7 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
       const errorMessage = error.message || "Failed to generate embeddings";
       setLastError(errorMessage);
 
-      // Retry logic for auto-loop
+      // Only stop auto-loop if it's a critical error or max retries reached
       if (autoLoop && retryCount < 3) {
         setRetryCount(prev => prev + 1);
         toast({
@@ -140,22 +156,37 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
           variant: "destructive",
         });
         
+        // Don't set isRunning to false here - let the retry continue
         // Retry with exponential backoff
         setTimeout(() => {
           if (autoLoop) {
+            console.log(`Retrying batch after error: ${errorMessage}`);
             runEmbeddingBatch(true);
           }
         }, 5000 * Math.pow(2, retryCount)); // 5s, 10s, 20s
       } else {
-        toast({
-          title: "Embedding Generation Failed",
-          description: `${errorMessage}. Auto-loop stopped after ${retryCount + 1} attempts.`,
-          variant: "destructive",
-        });
-        setAutoLoop(false);
+        // Only stop auto-loop after max retries or if not in auto-loop mode
+        if (autoLoop) {
+          toast({
+            title: "Auto-Loop Stopped",
+            description: `${errorMessage}. Stopped after ${retryCount + 1} failed attempts.`,
+            variant: "destructive",
+          });
+          setAutoLoop(false);
+        } else {
+          toast({
+            title: "Embedding Generation Failed",
+            description: errorMessage,
+            variant: "destructive",
+          });
+        }
+        setIsRunning(false);
       }
     } finally {
-      setIsRunning(false);
+      // Only set isRunning to false if we're not in auto-loop mode or if auto-loop was cancelled
+      if (!autoLoop) {
+        setIsRunning(false);
+      }
     }
   };
 
@@ -328,9 +359,20 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
           {/* Per-Document Status */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                Document Embedding Status
+              <CardTitle className="text-lg flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Document Embedding Status
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={refreshDocumentStatuses}
+                  disabled={isRunning}
+                  title="Refresh document chunk counts"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                </Button>
               </CardTitle>
               <CardDescription>
                 Embedding progress for each uploaded document

@@ -42,21 +42,17 @@ export const useDocumentEmbeddingStatus = () => {
         return;
       }
 
-      // Get embedding counts for all documents using a more efficient approach
-      // Use the RPC function to avoid large JSON parsing issues
-      const { data: orgCounts } = await supabase.rpc('count_chunks_by_organization', {
-        org_id: currentOrganization.id
-      });
-
       // Get individual document chunk counts without embedding data to avoid JSON issues
       const documentIds = documents.map(doc => doc.id);
-      const { data: chunkCounts, error: countsError } = await supabase
+      
+      // Get total chunk counts per document
+      const { data: allChunks, error: countsError } = await supabase
         .from('ai_document_chunks')
-        .select('document_id, id')
+        .select('document_id')
         .in('document_id', documentIds);
 
-      // Get embedding status separately to avoid JSON parsing large vectors
-      const { data: embeddingCounts, error: embeddingError } = await supabase
+      // Get embedding counts per document (chunks that have embeddings)
+      const { data: embeddedChunks, error: embeddingError } = await supabase
         .from('ai_document_chunks')
         .select('document_id')
         .in('document_id', documentIds)
@@ -75,7 +71,7 @@ export const useDocumentEmbeddingStatus = () => {
       }
 
       // Group total chunks by document
-      const totalChunksByDoc = chunkCounts?.reduce((acc, chunk) => {
+      const totalChunksByDoc = allChunks?.reduce((acc, chunk) => {
         if (!acc[chunk.document_id]) {
           acc[chunk.document_id] = 0;
         }
@@ -84,7 +80,7 @@ export const useDocumentEmbeddingStatus = () => {
       }, {} as Record<string, number>) || {};
 
       // Group embedded chunks by document
-      const embeddedChunksByDoc = embeddingCounts?.reduce((acc, chunk) => {
+      const embeddedChunksByDoc = embeddedChunks?.reduce((acc, chunk) => {
         if (!acc[chunk.document_id]) {
           acc[chunk.document_id] = 0;
         }
