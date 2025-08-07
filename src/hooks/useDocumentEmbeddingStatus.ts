@@ -92,6 +92,8 @@ export const useDocumentEmbeddingStatus = () => {
       const statuses: DocumentEmbeddingStatus[] = documents.map(doc => {
         const totalChunks = totalChunksByDoc[doc.id] || 0;
         const chunksWithEmbeddings = embeddedChunksByDoc[doc.id] || 0;
+        
+        // Ensure we show correct format: embedded/total (not total/embedded)
         const embeddingPercentage = totalChunks > 0 ? (chunksWithEmbeddings / totalChunks) * 100 : 0;
         
         let status: 'completed' | 'partial' | 'not_started' = 'not_started';

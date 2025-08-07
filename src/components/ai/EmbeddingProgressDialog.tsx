@@ -45,7 +45,13 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
   }, [open, refreshStatus, refreshDocumentStatuses]);
 
   const runEmbeddingBatch = async (isRetry = false) => {
-    if (!currentOrganization?.id || isRunning) return;
+    if (!currentOrganization?.id) return;
+
+    // Prevent multiple concurrent batches
+    if (isRunning && !isRetry) {
+      console.log('Batch already running, skipping...');
+      return;
+    }
 
     if (!isRetry) {
       setRetryCount(0);
@@ -53,7 +59,10 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
     }
 
     setIsRunning(true);
+    
     try {
+      console.log(`Starting batch ${currentBatch + 1}, auto-loop: ${autoLoop}`);
+      
       const { data, error } = await supabase.functions.invoke('regenerate-embeddings', {
         body: {
           organizationId: currentOrganization.id,
@@ -69,12 +78,15 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
       const processed = data?.processed || 0;
       setLastProcessed(processed);
       setCurrentBatch(prev => prev + 1);
-      setRetryCount(0); // Reset retry count on success
+      setRetryCount(0);
       setLastError(null);
+
+      console.log(`Batch completed: ${processed} chunks processed`);
 
       if (processed === 0) {
         // No more chunks to process
         setAutoLoop(false);
+        setIsRunning(false);
         toast({
           title: "🎉 Embedding Generation Complete",
           description: `All ${totalChunks.toLocaleString()} chunks now have embeddings! AI retrieval is fully operational.`,
@@ -91,22 +103,22 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
       await refreshStatus();
       await refreshDocumentStatuses();
 
-      // Auto-loop if enabled and there are more chunks to process
+      // Set isRunning to false before potential auto-loop continuation
+      setIsRunning(false);
+
+      // Auto-loop continuation
       if (autoLoop && processed > 0) {
-        // Reset retry count after successful batch
-        setRetryCount(0);
+        console.log('Auto-loop enabled, scheduling next batch...');
         
-        // Add a delay and ensure we're still in auto-loop mode
         setTimeout(async () => {
-          if (!autoLoop || isRunning) {
-            console.log('Auto-loop cancelled or already running, stopping continuation');
+          // Double-check auto-loop is still enabled
+          if (!autoLoop) {
+            console.log('Auto-loop was disabled, stopping');
             return;
           }
-          
-          console.log('Auto-loop continuing, refreshing status...');
-          
+
           try {
-            // Get the most up-to-date counts using RPC
+            // Get fresh counts to determine if more work is needed
             const { data: freshCounts } = await supabase.rpc('count_chunks_by_organization', {
               org_id: currentOrganization?.id
             });
@@ -115,43 +127,36 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
             const freshCompleted = freshCounts?.[0]?.chunks_with_embeddings || 0;
             const remaining = freshTotal - freshCompleted;
             
-            console.log(`Auto-loop status check: ${freshCompleted}/${freshTotal} (${remaining} remaining)`);
+            console.log(`Auto-loop check: ${freshCompleted}/${freshTotal} (${remaining} remaining)`);
             
             if (remaining > 0) {
               console.log('Continuing auto-loop with next batch');
-              // Don't reset isRunning to false until after we start the next batch
-              runEmbeddingBatch();
+              runEmbeddingBatch(false);
             } else {
               console.log('Auto-loop complete - all embeddings generated');
               setAutoLoop(false);
-              setIsRunning(false);
               toast({
                 title: "🎉 Auto-Loop Complete",
                 description: `All ${freshTotal.toLocaleString()} embeddings have been generated successfully!`,
               });
             }
-            
-            // Refresh status display
-            await refreshStatus();
-            await refreshDocumentStatuses();
           } catch (error) {
             console.error('Error during auto-loop continuation:', error);
             setAutoLoop(false);
-            setIsRunning(false);
             toast({
               title: "Auto-Loop Stopped", 
               description: "Error occurred while checking remaining chunks",
               variant: "destructive",
             });
           }
-        }, 2000); // 2 second delay between batches
+        }, 3000); // 3 second delay between batches
       }
     } catch (error: any) {
       console.error('Embedding regeneration error:', error);
       const errorMessage = error.message || "Failed to generate embeddings";
       setLastError(errorMessage);
 
-      // Only stop auto-loop if it's a critical error or max retries reached
+      // Retry logic for auto-loop
       if (autoLoop && retryCount < 3) {
         setRetryCount(prev => prev + 1);
         toast({
@@ -160,16 +165,16 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
           variant: "destructive",
         });
         
-        // Don't set isRunning to false here - let the retry continue
         // Retry with exponential backoff
         setTimeout(() => {
           if (autoLoop) {
             console.log(`Retrying batch after error: ${errorMessage}`);
+            setIsRunning(false); // Reset running state before retry
             runEmbeddingBatch(true);
           }
         }, 5000 * Math.pow(2, retryCount)); // 5s, 10s, 20s
       } else {
-        // Only stop auto-loop after max retries or if not in auto-loop mode
+        // Stop processing
         if (autoLoop) {
           toast({
             title: "Auto-Loop Stopped",
@@ -184,11 +189,6 @@ export const EmbeddingProgressDialog: React.FC<EmbeddingProgressDialogProps> = (
             variant: "destructive",
           });
         }
-        setIsRunning(false);
-      }
-    } finally {
-      // Only set isRunning to false if we're not in auto-loop mode or if auto-loop was cancelled
-      if (!autoLoop || !isRunning) {
         setIsRunning(false);
       }
     }
