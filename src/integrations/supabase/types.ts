@@ -3457,6 +3457,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      count_chunks_by_organization: {
+        Args: { org_id: string }
+        Returns: {
+          total_chunks: number
+          chunks_with_embeddings: number
+        }[]
+      }
       expire_approval_requests: {
         Args: Record<PropertyKey, never>
         Returns: undefined
