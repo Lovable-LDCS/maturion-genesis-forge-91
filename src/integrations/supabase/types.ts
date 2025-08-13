@@ -3571,6 +3571,11 @@ export type Database = {
               event_details: string
               severity_level?: string
             }
+          | {
+              event_type: string
+              event_details?: Json
+              severity_level?: string
+            }
         Returns: undefined
       }
       log_security_metric: {
@@ -3657,6 +3662,10 @@ export type Database = {
       validate_organization_access: {
         Args: { target_org_id: string }
         Returns: boolean
+      }
+      validate_password_strength: {
+        Args: { password_text: string }
+        Returns: Json
       }
       validate_secure_input: {
         Args: { input_text: string }
