@@ -3406,27 +3406,7 @@ export type Database = {
       }
     }
     Views: {
-      user_organization_access: {
-        Row: {
-          can_upload: boolean | null
-          can_view_documents: boolean | null
-          linked_domains: string[] | null
-          organization_id: string | null
-          organization_name: string | null
-          organization_type: string | null
-          role: string | null
-          user_id: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "organization_members_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       accept_invitation: {
@@ -3471,6 +3451,19 @@ export type Database = {
       get_security_setting: {
         Args: { setting_name_param: string }
         Returns: Json
+      }
+      get_user_organization_access: {
+        Args: { target_user_id?: string }
+        Returns: {
+          user_id: string
+          organization_id: string
+          role: string
+          organization_name: string
+          organization_type: string
+          can_upload: boolean
+          can_view_documents: boolean
+          linked_domains: string[]
+        }[]
       }
       get_user_organization_context: {
         Args: { target_user_id?: string }
