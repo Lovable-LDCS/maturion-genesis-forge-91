@@ -3430,11 +3430,18 @@ export type Database = {
         }[]
       }
       check_rate_limit: {
-        Args: {
-          operation_type_param: string
-          max_attempts?: number
-          window_minutes?: number
-        }
+        Args:
+          | {
+              operation_type_param: string
+              max_attempts?: number
+              window_minutes?: number
+            }
+          | {
+              user_identifier: string
+              operation_type: string
+              max_requests?: number
+              time_window_seconds?: number
+            }
         Returns: boolean
       }
       count_chunks_by_organization: {
@@ -3443,6 +3450,10 @@ export type Database = {
           total_chunks: number
           chunks_with_embeddings: number
         }[]
+      }
+      enhanced_input_validation: {
+        Args: { input_text: string }
+        Returns: Json
       }
       expire_approval_requests: {
         Args: Record<PropertyKey, never>
