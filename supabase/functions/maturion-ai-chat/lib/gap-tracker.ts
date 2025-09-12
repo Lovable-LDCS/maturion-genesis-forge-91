@@ -11,30 +11,31 @@ export interface GapTicket {
   created_at?: Date;
 }
 
-// Detect missing specifics in user prompt and AI response
+// V2.0 §2: Detect missing specifics for gap tracking (owners/thresholds/system names/cadences/local laws)
 export function detectMissingSpecifics(prompt: string, aiResponse: string): string[] {
   const missingItems: string[] = [];
   
+  // V2.0 §2: Enhanced patterns for diamond-specific missing details
   const specificPatterns = [
-    { pattern: /owner|responsible|accountable|supervisor|manager/i, missing: 'role owners and responsible parties' },
-    { pattern: /threshold|limit|variance|tolerance|deviation/i, missing: 'KPC thresholds and variance limits' },
-    { pattern: /system|platform|tool|software|monitor/i, missing: 'system names and configurations' },
-    { pattern: /daily|weekly|monthly|quarterly|cadence|frequency|schedule/i, missing: 'specific operational cadences' },
+    { pattern: /owner|responsible|accountable|supervisor|manager|chief/i, missing: 'site-specific owners and responsible parties' },
+    { pattern: /threshold|limit|variance|tolerance|deviation|kpc/i, missing: 'KPC thresholds and variance limits' },
+    { pattern: /system|platform|tool|software|monitor|scada|dcs|mes/i, missing: 'system names and configurations' },
+    { pattern: /daily|weekly|monthly|quarterly|cadence|frequency|schedule|interval/i, missing: 'specific operational cadences' },
     { pattern: /local|law|regulation|compliance|jurisdiction|kimberley/i, missing: 'local regulatory requirements' },
     { pattern: /site.*specific|location.*specific|facility|plant|operation/i, missing: 'site-specific diamond procedures' },
-    { pattern: /test.*stone|calibrat|verif|validat/i, missing: 'test stone protocols and verification procedures' },
-    { pattern: /dual.*custody|access.*control|compartment/i, missing: 'dual custody and access control specifications' },
-    { pattern: /vault|security|perimeter|transport/i, missing: 'diamond security infrastructure details' }
+    { pattern: /test.*stone|calibrat|verif|validat|black.*screen/i, missing: 'test stone protocols and verification procedures' },
+    { pattern: /dual.*custody|access.*control|compartment|biometric/i, missing: 'dual custody and access control specifications' },
+    { pattern: /vault|security|perimeter|transport|export|seal/i, missing: 'diamond security infrastructure details' }
   ];
   
-  // Check if prompt asks for specifics but response is generic
+  // V2.0 §2: Check if prompt asks for specifics but response is generic
   specificPatterns.forEach(({ pattern, missing }) => {
     if (pattern.test(prompt) && !hasSpecificDetails(aiResponse, missing)) {
       missingItems.push(missing);
     }
   });
   
-  // Check for generic responses that need specifics
+  // V2.0 §2: Enhanced generic response detection
   const genericResponses = [
     'appropriate personnel',
     'relevant systems', 
@@ -42,16 +43,21 @@ export function detectMissingSpecifics(prompt: string, aiResponse: string): stri
     'applicable regulations',
     'site requirements',
     'as needed',
-    'management approval'
+    'management approval',
+    'proper procedures',
+    'authorized personnel',
+    'established protocols',
+    'standard practices'
   ];
   
   genericResponses.forEach(generic => {
     if (aiResponse.toLowerCase().includes(generic.toLowerCase()) && 
-        !missingItems.includes('specific details')) {
-      missingItems.push('specific details');
+        !missingItems.includes('specific details and procedures')) {
+      missingItems.push('specific details and procedures');
     }
   });
   
+  console.log(`🎯 Gap detection: Found ${missingItems.length} missing specifics:`, missingItems);
   return [...new Set(missingItems)]; // Remove duplicates
 }
 
@@ -157,16 +163,19 @@ async function scheduleFollowUpEmail(
   }
 }
 
+// V2.0 §2: Generate commitment text with exact date format
 export function generateCommitmentText(missingSpecifics: string[]): string {
   if (missingSpecifics.length === 0) return '';
   
   const followUpDate = new Date();
-  followUpDate.setHours(followUpDate.getHours() + 48);
+  followUpDate.setHours(followUpDate.getHours() + 48); // V2.0 §2: T+48h commitment
   
   const dateString = followUpDate.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric'
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
   });
   
-  return `\n\nI'll confirm ${missingSpecifics.join(', ')} by ${dateString}.`;
+  // V2.0 §2: Exact commitment line format
+  return `\n\nI'll confirm site-specific owners, thresholds, and system names by ${dateString}.`;
 }
