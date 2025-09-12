@@ -67,9 +67,12 @@ export async function getDocumentContext(organizationId: string, query: string, 
             query: searchQuery,
             organizationId: organizationId,
             documentTypes: ['mps_document', 'mps', 'standard', 'audit', 'criteria', 'governance_reasoning_manifest', 'ai_logic_rule_global', 'system_instruction'],
-            limit: mpsNumber ? 50 : 30, // Significantly more results for comprehensive context
-            threshold: 0.3, // LOWERED threshold since we're doing text search
-            mpsNumber: mpsNumber // Pass MPS number for specialized filtering
+            limit: mpsNumber ? 50 : 30,
+            threshold: 0.3,
+            mpsNumber: mpsNumber,
+            // DIAMOND-FIRST PRIORITY: Boost diamond-specific documents
+            prioritizeTags: ['diamond-specific', 'industry-priority', 'diamond'],
+            boostDocumentTitles: ['Diamond', 'Chain of Custody', 'Reconciliation', 'Sorting', 'Valuation', 'Recovery', 'Insider Threat', 'Access Control', 'Technology', 'Scanning', 'Perimeter', 'Vault', 'Transport', 'Export', 'Resilience', 'Records']
           }
         });
         
