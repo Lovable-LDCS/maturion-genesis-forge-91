@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { ROUTES } from '@/lib/routes';
 import { useAuth } from '@/contexts/AuthContext';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -925,10 +926,10 @@ export const MaturitySetup = () => {
       
       toast({
         title: "✅ Setup Complete",
-        description: "All data saved successfully! Starting maturity model builder...",
+        description: "All data saved successfully! Opening maturity model builder...",
       });
       
-      navigate('/maturity/setup'); // Stay on canonical setup page after completion
+      navigate(ROUTES.ASSESSMENT_FRAMEWORK); // Navigate to the assessment framework
       
     } catch (error: any) {
       console.error('Start building failed:', error);
@@ -1028,7 +1029,7 @@ export const MaturitySetup = () => {
       });
       
       // Navigate to the assessment framework
-      navigate('/assessment/framework');
+      navigate(ROUTES.ASSESSMENT_FRAMEWORK);
       
     } catch (error: any) {
       console.error('Setup error:', error);

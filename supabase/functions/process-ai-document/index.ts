@@ -393,7 +393,8 @@ serve(async (req: Request): Promise<Response> => {
         extractedText = await fileData.text();
         extractionMethod = 'plain_text';
         
-      } else if (document.mime_type === 'text/markdown' || document.file_name.endsWith('.md')) {
+      } else if (document.mime_type === 'text/markdown' || document.file_name.endsWith('.md') || 
+                 document.mime_type === '' || !document.mime_type) {
         console.log('📄 Processing Markdown file...');
         console.log(`🔍 MARKDOWN DEBUG: File size: ${fileData.size} bytes`);
         
@@ -549,13 +550,18 @@ serve(async (req: Request): Promise<Response> => {
           throw new Error('BLOCKED: Contains corruption markers - AI Policy violation');
         }
         
-        const emergencyMinLength = isForcedEmergency ? 50 : 500;
+        // Relaxed validation for small organization profile files
+        const isOrgProfile = document.file_name.toLowerCase().includes('organization') || 
+                            document.file_name.toLowerCase().includes('profile') ||
+                            document.document_type === 'organization-profile';
+        
+        const emergencyMinLength = isForcedEmergency ? 50 : (isOrgProfile ? 100 : 500);
         if (extractedText.length < emergencyMinLength) {
           throw new Error(`BLOCKED: Content too short (${extractedText.length} chars, minimum ${emergencyMinLength}) - AI Policy violation`);
         }
         
         const strictWordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
-        const emergencyMinWords = isForcedEmergency ? 5 : 50;
+        const emergencyMinWords = isForcedEmergency ? 5 : (isOrgProfile ? 10 : 50);
         
         if (strictWordCount < emergencyMinWords) {
           throw new Error(`BLOCKED: Insufficient word count (${strictWordCount} words, minimum ${emergencyMinWords}) - AI Policy violation`);
