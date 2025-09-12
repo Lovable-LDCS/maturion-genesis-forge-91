@@ -718,19 +718,21 @@ export const MaturitySetup = () => {
   };
 
   const handleFileUpload = async (field: 'companyLogo', file: File) => {
-    setFormData(prev => ({ ...prev, [field]: file }));
-    
-    // Upload logo to persistent storage
+    // Upload logo immediately for preview
     if (field === 'companyLogo') {
       try {
         const fileName = `${user?.id}-logo-${Date.now()}.${file.name.split('.').pop()}`;
         const logoUrl = await uploadFile(file, 'organization-logos', fileName);
         
         if (logoUrl) {
-          setFormData(prev => ({ ...prev, logoUrl }));
+          setFormData(prev => ({ 
+            ...prev, 
+            companyLogo: file,
+            logoUrl 
+          }));
           toast({
             title: "Logo Uploaded",
-            description: "Company logo uploaded successfully and will be saved to your organization.",
+            description: "Company logo uploaded and ready for preview.",
           });
         }
       } catch (error) {
@@ -1235,30 +1237,41 @@ export const MaturitySetup = () => {
                   </div>
                 </div>
                 
-                <div>
-                  <Label>Company Logo</Label>
-                   {formData.companyLogo ? (
-                     <div className="space-y-3">
-                       <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                         <div className="flex items-center gap-3">
-                           <div className="bg-green-100 p-2 rounded-full">
-                             <Upload className="h-4 w-4 text-green-600" />
-                           </div>
-                           <div className="flex-1">
-                             <p className="text-sm font-medium text-green-800">✅ Logo Uploaded</p>
-                             <p className="text-xs text-green-600">{formData.companyLogo.name}</p>
-                           </div>
-                         </div>
-                       </div>
-                       <Button 
-                         variant="outline" 
-                         size="sm"
-                         onClick={() => triggerFileUpload('companyLogo')}
-                         className="w-full"
-                       >
-                         Replace Logo
-                       </Button>
-                     </div>
+                 <div>
+                   <Label>Company Logo</Label>
+                    {(formData.companyLogo || formData.logoUrl) ? (
+                      <div className="space-y-3">
+                        {/* Logo Preview */}
+                        {formData.logoUrl && (
+                          <div className="flex items-center justify-center p-4 border-2 border-dashed border-green-200 rounded-lg bg-green-50">
+                            <img 
+                              src={formData.logoUrl} 
+                              alt="Company Logo Preview" 
+                              className="max-h-24 max-w-48 object-contain"
+                            />
+                          </div>
+                        )}
+                        
+                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="bg-green-100 p-2 rounded-full">
+                              <Upload className="h-4 w-4 text-green-600" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-green-800">✅ Logo Uploaded</p>
+                              <p className="text-xs text-green-600">{formData.companyLogo?.name || 'Logo ready'}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => triggerFileUpload('companyLogo')}
+                          className="w-full"
+                        >
+                          Replace Logo
+                        </Button>
+                      </div>
                    ) : (
                      <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
                        <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
