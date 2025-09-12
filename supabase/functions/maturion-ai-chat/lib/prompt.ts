@@ -18,7 +18,105 @@ export interface PromptRequest {
 }
 
 // Function to build comprehensive prompt based on knowledge tier and context
+// Enhanced buildPromptContext with organization awareness
 export async function buildPromptContext(request: PromptRequest) {
+  try {
+    const { prompt, organizationId, currentDomain, mpsNumber } = request;
+    
+    console.log('📄 DOCUMENT RETRIEVAL: Loading uploaded knowledge base content');
+    
+    // Detect intent for context routing
+    const intentContext = {
+      organizationId,
+      organizationName: request.organizationName || '',
+      domain: currentDomain,
+      query: prompt
+    };
+    
+    // Simple intent detection - more sophisticated than importing external lib
+    const isOrgQuery = /\b(company|organization|footprint|brands|business|tell me about|what is|who is|describe|overview|background|sales channels|subsidiaries|joint ventures|locations|countries|presence|markets|industry|sector)\b/i.test(prompt);
+    const isCriteriaQuery = /\b(criteria|controls|maturity|requirements|compliance|give me|list|provide|~?10|protection|access|scanning|governance|leadership)\b/i.test(prompt);
+    
+    console.log('🎯 Query analysis:', { isOrgQuery, isCriteriaQuery, domain: currentDomain });
+    
+    let searchStrategy = 'balanced';
+    if (isOrgQuery && !isCriteriaQuery) {
+      searchStrategy = 'organization_first';
+      console.log('🏢 Organization-focused query detected');
+    } else if (isCriteriaQuery && !isOrgQuery) {
+      searchStrategy = 'diamond_first';  
+      console.log('💎 Criteria-focused query detected');
+    }
+    
+    // Build organizational context for enhanced responses
+    let organizationContext = '';
+    if (organizationId) {
+      try {
+        const { data: org, error: orgError } = await supabase
+          .from('organizations')
+          .select(`
+            name, description, primary_website_url, linked_domains,
+            industry_tags, region_operating, risk_concerns, 
+            compliance_commitments, threat_sensitivity_level
+          `)
+          .eq('id', organizationId)
+          .single();
+        
+        if (!orgError && org) {
+          organizationContext = `
+=== ORGANIZATIONAL PROFILE ===
+Organization: ${org.name || 'Not specified'}
+Description: ${org.description || 'Not specified'}
+Primary Website: ${org.primary_website_url || 'Not specified'}
+Industry Tags: ${org.industry_tags?.join(', ') || 'Not specified'}
+Operating Region: ${org.region_operating || 'Not specified'}
+Risk Concerns: ${org.risk_concerns?.join(', ') || 'Not specified'}
+Compliance Commitments: ${org.compliance_commitments?.join(', ') || 'Not specified'}
+Threat Sensitivity Level: ${org.threat_sensitivity_level || 'Basic'}
+Linked Domains: ${org.linked_domains?.join(', ') || 'None specified'}`;
+          
+          console.log('✅ Organizational profile available:', {
+            name: org.name,
+            hasWebsite: !!org.primary_website_url,
+            industryTags: org.industry_tags?.length || 0,
+            customIndustry: org.industry_tags?.find(tag => !['Technology', 'Healthcare', 'Finance', 'Manufacturing', 'Retail'].includes(tag))
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching organizational profile:', error);
+      }
+    }
+
+    // Load document context with enhanced search strategy
+    const documentContext = await getDocumentContext({
+      query: prompt,
+      organizationId,
+      mpsNumber,
+      searchStrategy
+    });
+
+    console.log('📊 Context composition:', documentContext.length, 'characters retrieved');
+
+    return {
+      userPrompt: prompt,
+      organizationContext,
+      documentContext,
+      sourceType: 'knowledge_base' as const,
+      knowledgeTier: 'INTERNAL_SECURE' as const,
+      externalContext: ''
+    };
+  } catch (error) {
+    console.error('Error building prompt context:', error);
+    return {
+      userPrompt: request.prompt,
+      organizationContext: '',
+      documentContext: '',
+      sourceType: 'knowledge_base' as const,
+      knowledgeTier: 'INTERNAL_SECURE' as const,
+      externalContext: ''
+    };
+  }
+}
   const {
     prompt,
     context,
