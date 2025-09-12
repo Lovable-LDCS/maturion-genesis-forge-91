@@ -1,9 +1,13 @@
 import { supabase } from './utils.ts';
 
-// Enhanced function to get DIAMOND-FIRST document context
+// Enhanced function to get DIAMOND-FIRST + ORG-WEB document context
 export async function getDocumentContext(organizationId: string, query: string, domain?: string, mpsNumber?: number): Promise<string> {
   try {
     console.log('Fetching document context for organization:', organizationId, 'Query:', query, 'MPS Number:', mpsNumber);
+    
+    // Check for organization-overview intent
+    const isOrgQuery = /company|organization|who is|JVs?|joint ventures?|brands?|footprint|sales channels?|about .+/i.test(query);
+    console.log('🏢 Organization query detected:', isOrgQuery);
     
     // First check if there are any completed documents
     const { data: completedDocs, error: docsError } = await supabase
@@ -17,12 +21,62 @@ export async function getDocumentContext(organizationId: string, query: string, 
       return '';
     }
     
+    // Get organization web content for org-specific queries
+    let orgWebContext = '';
+    if (isOrgQuery) {
+      console.log('🌐 Fetching organization web content...');
+      
+      try {
+        const { data: orgChunks, error: webError } = await supabase
+          .from('org_page_chunks')
+          .select(`
+            text,
+            tokens,
+            org_pages!inner(url, title, domain)
+          `)
+          .eq('org_id', organizationId)
+          .order('created_at', { ascending: false })
+          .limit(10);
+        
+        if (!webError && orgChunks && orgChunks.length > 0) {
+          console.log(`🌐 Found ${orgChunks.length} organization web chunks`);
+          
+          orgWebContext = orgChunks
+            .map(chunk => `[${chunk.org_pages.domain}] ${chunk.text}`)
+            .join('\n\n')
+            .substring(0, 4000); // Limit size
+          
+          console.log('✅ Organization web context built');
+        }
+      } catch (webError) {
+        console.log('⚠️ Could not fetch web content:', webError);
+      }
+    }
+    
     if (!completedDocs || completedDocs.length === 0) {
+      // Return org web content if available, even without documents
+      if (orgWebContext) {
+        console.log('📄 Returning organization web content only');
+        return `=== ORGANIZATION WEB CONTENT ===\n${orgWebContext}`;
+      }
+      
       console.log('No completed documents found for organization');
       return '';
     }
     
     console.log(`Found ${completedDocs.length} completed documents`);
+    
+    // ORGANIZATION-FIRST RANKING for org queries:
+    // 1) organization-profile (current docs)
+    // 2) organization-web (web content) 
+    // 3) diamond docs (minimal)
+    // 4) generic MPS (gap-fill only)
+    
+    // Build context with proper ranking
+    let finalContext = '';
+    
+    // 1) Organization profile content (existing documents)
+    if (completedDocs.length > 0) {
     
     // DIAMOND-FIRST: Build search queries prioritizing diamond content
     const diamondQueries = [
