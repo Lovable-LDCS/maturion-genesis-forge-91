@@ -1,6 +1,6 @@
 import { supabase } from './utils.ts';
 
-// Enhanced function to get MPS-specific document context
+// Enhanced function to get DIAMOND-FIRST document context
 export async function getDocumentContext(organizationId: string, query: string, domain?: string, mpsNumber?: number): Promise<string> {
   try {
     console.log('Fetching document context for organization:', organizationId, 'Query:', query, 'MPS Number:', mpsNumber);
@@ -24,18 +24,26 @@ export async function getDocumentContext(organizationId: string, query: string, 
     
     console.log(`Found ${completedDocs.length} completed documents`);
     
-    // Build search queries with MPS-specific targeting
-    const searchQueries = [
-      query,
-      query.toLowerCase(),
-      `${query} requirements`,
-      `${query} criteria`,
-      `${query} audit`
+    // DIAMOND-FIRST: Build search queries prioritizing diamond content
+    const diamondQueries = [
+      `Diamond ${query}`,
+      `diamond ${query.toLowerCase()}`,
+      `${query} diamond-specific`,
+      `${query} industry-priority`
     ];
     
-    // If MPS number is specified, prioritize MPS-specific content
+    const generalQueries = [
+      query,
+      query.toLowerCase(),
+      `${query} requirements`
+    ];
+    
+    // DIAMOND-FIRST RETRIEVAL: Combine all queries for comprehensive search
+    const allQueries = [...diamondQueries, ...generalQueries];
+    
+    // If MPS number is specified, add MPS-specific variants
     if (mpsNumber) {
-      searchQueries.push(
+      allQueries.push(
         `MPS ${mpsNumber}`,
         `MPS${mpsNumber}`,
         `${mpsNumber}.`,
@@ -45,20 +53,19 @@ export async function getDocumentContext(organizationId: string, query: string, 
     }
     
     if (domain) {
-      searchQueries.push(
+      allQueries.push(
         `${domain} ${query}`,
-        `${domain} requirements`,
-        `${domain} criteria`,
-        `${domain} audit`
+        `${domain} requirements`
       );
     }
     
-    console.log(`🔍 Executing search queries:`, searchQueries.slice(0, 3));
+    console.log(`🎯 Document search targeting: ${mpsNumber ? `MPS ${mpsNumber}-specific content` : 'Diamond-priority content'}`);
+    console.log(`🔍 Executing search queries:`, allQueries.slice(0, 3));
     
     const allResults = [];
     
-    // Enhanced search using vector similarity
-    for (const searchQuery of searchQueries.slice(0, 8)) {
+    // Enhanced search using vector similarity with DIAMOND-FIRST ranking
+    for (const searchQuery of allQueries.slice(0, 10)) {
       try {
         console.log(`🔍 Executing search query: "${searchQuery}"`);
         
@@ -67,12 +74,14 @@ export async function getDocumentContext(organizationId: string, query: string, 
             query: searchQuery,
             organizationId: organizationId,
             documentTypes: ['mps_document', 'mps', 'standard', 'audit', 'criteria', 'governance_reasoning_manifest', 'ai_logic_rule_global', 'system_instruction'],
-            limit: mpsNumber ? 50 : 30,
-            threshold: 0.3,
+            limit: 50,
+            threshold: 0.2,
             mpsNumber: mpsNumber,
-            // DIAMOND-FIRST PRIORITY: Boost diamond-specific documents
-            prioritizeTags: ['diamond-specific', 'industry-priority', 'diamond'],
-            boostDocumentTitles: ['Diamond', 'Chain of Custody', 'Reconciliation', 'Sorting', 'Valuation', 'Recovery', 'Insider Threat', 'Access Control', 'Technology', 'Scanning', 'Perimeter', 'Vault', 'Transport', 'Export', 'Resilience', 'Records']
+            // DIAMOND-FIRST PRIORITY: Boost diamond-specific documents 
+            prioritizeTags: ['diamond-specific', 'industry-priority'],
+            boostDocumentTitles: ['Diamond', 'Chain of Custody', 'Reconciliation', 'Sorting', 'Valuation', 'Recovery', 'Insider Threat', 'Access Control', 'Technology', 'Scanning', 'Perimeter', 'Vault', 'Transport', 'Export', 'Resilience', 'Records'],
+            // DE-PRIORITIZE generic MPS unless it's the only source
+            deprioritizeGeneric: true
           }
         });
         
@@ -92,12 +101,21 @@ export async function getDocumentContext(organizationId: string, query: string, 
       }
     }
     
-    // Deduplicate results and sort by relevance
+    // DIAMOND-FIRST DEDUPLICATION: Prioritize diamond over generic content
     const uniqueResults = Array.from(
       new Map(allResults.map(result => [result.id, result])).values()
     )
       .sort((a, b) => {
-        // Prioritize MPS-specific content first
+        // PRIORITY 1: Diamond-specific content (tagged or titled with "Diamond")
+        const aDiamondSpecific = (a.tags && (a.tags.includes('diamond-specific') || a.tags.includes('industry-priority'))) ||
+                                (a.document_title && a.document_title.toLowerCase().includes('diamond'));
+        const bDiamondSpecific = (b.tags && (b.tags.includes('diamond-specific') || b.tags.includes('industry-priority'))) ||
+                                (b.document_title && b.document_title.toLowerCase().includes('diamond'));
+        
+        if (aDiamondSpecific && !bDiamondSpecific) return -1;
+        if (!aDiamondSpecific && bDiamondSpecific) return 1;
+        
+        // PRIORITY 2: MPS-specific content if requested
         if (mpsNumber) {
           const aMpsMatch = a.content.toLowerCase().includes(`mps ${mpsNumber}`) || 
                            a.content.toLowerCase().includes(`mps${mpsNumber}`) ||
@@ -110,174 +128,103 @@ export async function getDocumentContext(organizationId: string, query: string, 
           if (!aMpsMatch && bMpsMatch) return 1;
         }
         
-        // Then sort by similarity score
+        // PRIORITY 3: Similarity score
         return (b.similarity_score || 0) - (a.similarity_score || 0);
       });
     
-    console.log(`🔄 After deduplication: ${uniqueResults.length} unique knowledge base results${mpsNumber ? ` for MPS ${mpsNumber}` : ''}`);
+    console.log(`🔄 After DIAMOND-FIRST deduplication: ${uniqueResults.length} unique results`);
     
-    // If no results from vector search, try fallback direct query
-    if (uniqueResults.length === 0) {
-      console.log('🔄 No vector search results, trying fallback query...');
-      
-      let fallbackQuery = supabase
-        .from('ai_document_chunks')
-        .select('content, document_name, ai_documents!inner(title, document_type)')
-        .eq('organization_id', organizationId);
-      
-      if (mpsNumber) {
-        fallbackQuery = fallbackQuery.or(
-          `content.ilike.%MPS ${mpsNumber}%,content.ilike.%MPS${mpsNumber}%,content.ilike.%${mpsNumber}.%`
-        );
-      } else {
-        fallbackQuery = fallbackQuery.or(
-          `content.ilike.%${query}%,content.ilike.%${domain}%`
-        );
-      }
-      
-      const { data: fallbackResults, error: fallbackError } = await fallbackQuery.limit(10);
-      
-      if (!fallbackError && fallbackResults?.length > 0) {
-        console.log(`✅ Fallback query found ${fallbackResults.length} results`);
-        uniqueResults.push(...fallbackResults.map(result => ({
-          ...result,
-          similarity_score: 0.5 // Default score for fallback results
-        })));
+    // SEPARATE: Diamond content vs Generic MPS content for gap-fill
+    const diamondContent = uniqueResults.filter(result => 
+      (result.tags && (result.tags.includes('diamond-specific') || result.tags.includes('industry-priority'))) ||
+      (result.document_title && result.document_title.toLowerCase().includes('diamond'))
+    );
+    
+    const genericContent = uniqueResults.filter(result => 
+      !(result.tags && (result.tags.includes('diamond-specific') || result.tags.includes('industry-priority'))) &&
+      !(result.document_title && result.document_title.toLowerCase().includes('diamond'))
+    );
+    
+    console.log(`💎 Diamond-specific content: ${diamondContent.length} chunks`);
+    console.log(`📋 Generic MPS content: ${genericContent.length} chunks`);
+    
+    // BUILD CONTEXT: Diamond-first, then generic as gap-fill only
+    let context = '';
+    let totalTokens = 0;
+    const maxTokens = 8000; // Reserve space for response
+    let diamondTokensUsed = 0;
+    let genericTokensUsed = 0;
+    
+    // PHASE 1: Add diamond-specific content (up to 6000 tokens)
+    const diamondTokenLimit = 6000;
+    for (const result of diamondContent) {
+      const tokens = Math.ceil(result.content.length / 4);
+      if (diamondTokensUsed + tokens <= diamondTokenLimit) {
+        context += `\n\n## ${result.document_title || 'Diamond Control Document'}\n${result.content}`;
+        diamondTokensUsed += tokens;
       }
     }
     
-    if (uniqueResults.length === 0) {
-      console.log('⚠️ No relevant knowledge base content found');
+    // PHASE 2: Add generic MPS content as gap-fill (remaining token budget)
+    const remainingTokens = maxTokens - diamondTokensUsed;
+    for (const result of genericContent) {
+      const tokens = Math.ceil(result.content.length / 4);
+      if (genericTokensUsed + tokens <= remainingTokens) {
+        // Only add if it provides new information not covered by diamond content
+        const hasUniqueContent = !diamondContent.some(d => 
+          d.content.toLowerCase().includes(result.content.toLowerCase().substring(0, 100))
+        );
+        
+        if (hasUniqueContent) {
+          context += `\n\n## ${result.document_title || 'Generic MPS Reference'}\n${result.content}`;
+          genericTokensUsed += tokens;
+        }
+      }
+    }
+    
+    totalTokens = diamondTokensUsed + genericTokensUsed;
+    
+    console.log(`📊 Context composition: ${diamondTokensUsed} diamond tokens + ${genericTokensUsed} generic tokens = ${totalTokens} total`);
+    console.log(`💎 Diamond-priority approach: ${diamondContent.length > 0 ? 'SUCCESS' : 'FALLBACK_TO_GENERIC'}`);
+    
+    if (context.trim()) {
+      console.log(`Built context from ${diamondContent.length + (genericContent.length > 0 ? 1 : 0)} source documents (${totalTokens} tokens): ${uniqueResults.slice(0, 3).map(r => r.document_title).join(', ')}`);
+      return context;
+    }
+
+    // Fallback: Direct query on document chunks if no results
+    console.log('⚠️ No vector search results, attempting direct chunk query...');
+    
+    const { data: fallbackChunks, error: chunkError } = await supabase
+      .from('ai_document_chunks')
+      .select(`
+        content,
+        chunk_index,
+        ai_documents!inner(title, organization_id, document_type)
+      `)
+      .eq('ai_documents.organization_id', organizationId)
+      .ilike('content', `%${query}%`)
+      .limit(5);
+
+    if (chunkError) {
+      console.error('Error in fallback chunk query:', chunkError);
       return '';
     }
-    
-    // Build context sections with prioritization and token limits
-    const contextSections = [];
-    const sourceDocuments = new Set();
-    
-    // Token estimation: roughly 4 characters per token
-    const MAX_CONTEXT_TOKENS = 8000; // Reserve tokens for prompt instructions
-    let currentTokens = 0;
-    
-    const truncateContent = (content: string, maxTokens: number = 2000): string => {
-      const maxChars = maxTokens * 4;
-      if (content.length <= maxChars) return content;
-      return content.substring(0, maxChars) + '...[truncated]';
-    };
-    
-    // Prioritize MPS-specific content if MPS number is provided
-    if (mpsNumber) {
-      const mpsSpecificResults = uniqueResults.filter(result => 
-        result.content.toLowerCase().includes(`mps ${mpsNumber}`) ||
-        result.content.toLowerCase().includes(`mps${mpsNumber}`) ||
-        result.content.includes(`${mpsNumber}.`) ||
-        result.document_name.toLowerCase().includes(`mps ${mpsNumber}`) ||
-        result.document_name.toLowerCase().includes(`mps${mpsNumber}`)
-      ).slice(0, 3); // Limit to top 3 most relevant
-      
-      if (mpsSpecificResults.length > 0 && currentTokens < MAX_CONTEXT_TOKENS) {
-        contextSections.push(`=== MPS ${mpsNumber} SPECIFIC CONTENT ===`);
-        mpsSpecificResults.forEach(result => {
-          const truncatedContent = truncateContent(result.content, 800);
-          const tokenEstimate = Math.ceil(truncatedContent.length / 4);
-          
-          if (currentTokens + tokenEstimate < MAX_CONTEXT_TOKENS) {
-            contextSections.push(`[Document: ${result.document_name}] ${truncatedContent}`);
-            sourceDocuments.add(result.document_name);
-            currentTokens += tokenEstimate;
-          }
-        });
-        contextSections.push('');
+
+    if (fallbackChunks && fallbackChunks.length > 0) {
+      console.log(`Found ${fallbackChunks.length} chunks via fallback query`);
+      let fallbackContext = '';
+      for (const chunk of fallbackChunks) {
+        fallbackContext += `\n\n## ${chunk.ai_documents.title}\n${chunk.content}`;
       }
+      return fallbackContext;
     }
-    
-    // Add Annex 1 content if available and relevant
-    const annex1Results = uniqueResults.filter(result => 
-      (result.content.toLowerCase().includes('annex 1') ||
-       result.content.toLowerCase().includes('annex i')) &&
-      (!mpsNumber || !result.content.toLowerCase().includes(`mps ${mpsNumber}`))
-    ).slice(0, 2); // Limit to top 2 Annex 1 results
-    
-    if (annex1Results.length > 0 && (!mpsNumber || mpsNumber === 1) && currentTokens < MAX_CONTEXT_TOKENS) {
-      contextSections.push('=== AUTHORITATIVE MPS SOURCE (Annex 1) ===');
-      annex1Results.forEach(result => {
-        const truncatedContent = truncateContent(result.content, 1000);
-        const tokenEstimate = Math.ceil(truncatedContent.length / 4);
-        
-        if (currentTokens + tokenEstimate < MAX_CONTEXT_TOKENS) {
-          contextSections.push(`[Document: ${result.document_name}] ${truncatedContent}`);
-          sourceDocuments.add(result.document_name);
-          currentTokens += tokenEstimate;
-        }
-      });
-      contextSections.push('');
-    }
-    
-    // Add Annex 2 content if available and relevant (only if space permits)
-    const annex2Results = uniqueResults.filter(result => 
-      result.content.toLowerCase().includes('annex 2') ||
-      result.content.toLowerCase().includes('annex ii')
-    ).slice(0, 1); // Limit to 1 Annex 2 result
-    
-    if (annex2Results.length > 0 && currentTokens < MAX_CONTEXT_TOKENS * 0.8) {
-      contextSections.push('=== MATURITY LEVEL FRAMEWORK (Annex 2) ===');
-      annex2Results.forEach(result => {
-        const truncatedContent = truncateContent(result.content, 600);
-        const tokenEstimate = Math.ceil(truncatedContent.length / 4);
-        
-        if (currentTokens + tokenEstimate < MAX_CONTEXT_TOKENS) {
-          contextSections.push(`[Document: ${result.document_name}] ${truncatedContent}`);
-          sourceDocuments.add(result.document_name);
-          currentTokens += tokenEstimate;
-        }
-      });
-      contextSections.push('');
-    }
-    
-    // Add remaining high-relevance content (only if space permits)
-    const usedResults = [...(mpsNumber ? uniqueResults.filter(r => 
-      r.content.toLowerCase().includes(`mps ${mpsNumber}`) ||
-      r.content.toLowerCase().includes(`mps${mpsNumber}`) ||
-      r.content.includes(`${mpsNumber}.`)
-    ) : []), ...annex1Results];
-    
-    const remainingResults = uniqueResults
-      .filter(result => !usedResults.includes(result))
-      .filter(result => !result.content.toLowerCase().includes('annex'))
-      .slice(0, 3); // Reduce from 8 to 3
-    
-    if (remainingResults.length > 0 && currentTokens < MAX_CONTEXT_TOKENS * 0.9) {
-      contextSections.push('=== RELEVANT KNOWLEDGE BASE CONTENT ===');
-      remainingResults.forEach(result => {
-        const truncatedContent = truncateContent(result.content, 400);
-        const tokenEstimate = Math.ceil(truncatedContent.length / 4);
-        
-        if (currentTokens + tokenEstimate < MAX_CONTEXT_TOKENS) {
-          contextSections.push(`[Document: ${result.document_name}] ${truncatedContent}`);
-          sourceDocuments.add(result.document_name);
-          currentTokens += tokenEstimate;
-        }
-      });
-    }
-    
-    const finalContext = contextSections.join('\n');
-    const finalTokens = Math.ceil(finalContext.length / 4);
-    
-    console.log(`Built context from ${sourceDocuments.size} source documents (${finalTokens} tokens): ${Array.from(sourceDocuments).join(', ')}`);
-    
-    if (mpsNumber && sourceDocuments.size === 0) {
-      console.warn(`No MPS ${mpsNumber} specific content found despite having ${completedDocs.length} completed documents`);
-    }
-    
-    if (finalTokens > MAX_CONTEXT_TOKENS) {
-      console.warn(`Context still exceeds token limit (${finalTokens} > ${MAX_CONTEXT_TOKENS}), truncating...`);
-      return finalContext.substring(0, MAX_CONTEXT_TOKENS * 4) + '\n...[CONTEXT TRUNCATED DUE TO TOKEN LIMIT]';
-    }
-    
-    return finalContext;
-    
+
+    console.log('No relevant context found');
+    return '';
+
   } catch (error) {
-    console.error('Error getting enhanced document context:', error);
+    console.error('Error in getDocumentContext:', error);
     return '';
   }
 }

@@ -16,12 +16,15 @@ export function detectMissingSpecifics(prompt: string, aiResponse: string): stri
   const missingItems: string[] = [];
   
   const specificPatterns = [
-    { pattern: /owner|responsible|accountable/i, missing: 'role owners' },
-    { pattern: /threshold|limit|variance|tolerance/i, missing: 'thresholds and limits' },
-    { pattern: /system|platform|tool|software/i, missing: 'system names' },
-    { pattern: /daily|weekly|monthly|quarterly|cadence|frequency/i, missing: 'specific cadences' },
-    { pattern: /local|law|regulation|compliance|jurisdiction/i, missing: 'local regulatory requirements' },
-    { pattern: /site.*specific|location.*specific|facility/i, missing: 'site-specific details' }
+    { pattern: /owner|responsible|accountable|supervisor|manager/i, missing: 'role owners and responsible parties' },
+    { pattern: /threshold|limit|variance|tolerance|deviation/i, missing: 'KPC thresholds and variance limits' },
+    { pattern: /system|platform|tool|software|monitor/i, missing: 'system names and configurations' },
+    { pattern: /daily|weekly|monthly|quarterly|cadence|frequency|schedule/i, missing: 'specific operational cadences' },
+    { pattern: /local|law|regulation|compliance|jurisdiction|kimberley/i, missing: 'local regulatory requirements' },
+    { pattern: /site.*specific|location.*specific|facility|plant|operation/i, missing: 'site-specific diamond procedures' },
+    { pattern: /test.*stone|calibrat|verif|validat/i, missing: 'test stone protocols and verification procedures' },
+    { pattern: /dual.*custody|access.*control|compartment/i, missing: 'dual custody and access control specifications' },
+    { pattern: /vault|security|perimeter|transport/i, missing: 'diamond security infrastructure details' }
   ];
   
   // Check if prompt asks for specifics but response is generic
