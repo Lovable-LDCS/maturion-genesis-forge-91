@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator'
 import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { OrganizationDomainsPanel } from './OrganizationDomainsPanel'
 import { 
   AlertDialog,
   AlertDialogAction,
@@ -370,7 +371,7 @@ export const OrganizationManagement: React.FC = () => {
 
       {/* Settings Tabs */}
       <Tabs defaultValue="general" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="general" className="flex items-center space-x-2">
             <Building className="h-4 w-4" />
             <span>General</span>
@@ -383,8 +384,12 @@ export const OrganizationManagement: React.FC = () => {
             <Bell className="h-4 w-4" />
             <span>Notifications</span>
           </TabsTrigger>
-          <TabsTrigger value="integrations" className="flex items-center space-x-2">
+          <TabsTrigger value="web-content" className="flex items-center space-x-2">
             <Globe className="h-4 w-4" />
+            <span>Web Content</span>
+          </TabsTrigger>
+          <TabsTrigger value="integrations" className="flex items-center space-x-2">
+            <Zap className="h-4 w-4" />
             <span>Integrations</span>
           </TabsTrigger>
         </TabsList>
@@ -698,6 +703,11 @@ export const OrganizationManagement: React.FC = () => {
               </form>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Web Content Settings */}
+        <TabsContent value="web-content">
+          <OrganizationDomainsPanel />
         </TabsContent>
 
         {/* Integration Settings */}

@@ -2681,6 +2681,44 @@ export type Database = {
           },
         ]
       }
+      org_profiles: {
+        Row: {
+          accent_color: string | null
+          created_at: string | null
+          id: string
+          logo_url: string | null
+          org_id: string
+          primary_color: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          accent_color?: string | null
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          org_id: string
+          primary_color?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          accent_color?: string | null
+          created_at?: string | null
+          id?: string
+          logo_url?: string | null
+          org_id?: string
+          primary_color?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_profiles_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_invitations: {
         Row: {
           created_at: string
