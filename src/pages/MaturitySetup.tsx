@@ -573,7 +573,7 @@ export const MaturitySetup = () => {
                   file_path: actualFilePath,
                   file_size: doc.file.size,
                   mime_type: doc.file.type,
-                  document_type: 'general',
+                  document_type: 'general', // Use 'general' for organization profile docs
                   title: doc.file.name,
                   uploaded_by: user.id,
                   updated_by: user.id,
@@ -598,10 +598,14 @@ export const MaturitySetup = () => {
                 }));
                 
                 try {
+                  // Trigger upload fix if needed
+                  await supabase.functions.invoke('fix-pending-uploads', {});
+                  
                   const { error: processingError } = await supabase.functions.invoke('process-ai-document', {
                     body: { 
                       documentId: documentRecord.id,
-                      organizationId: orgId
+                      organizationId: orgId,
+                      forceReprocess: true
                     }
                   });
                   
@@ -926,10 +930,13 @@ export const MaturitySetup = () => {
       
       toast({
         title: "✅ Setup Complete",
-        description: "All data saved successfully! Opening maturity model builder...",
+        description: "Organization profile saved! Opening maturity model builder...",
       });
       
-      navigate(ROUTES.ASSESSMENT_FRAMEWORK); // Navigate to the assessment framework
+      // Small delay to show the toast before navigation
+      setTimeout(() => {
+        navigate(ROUTES.ASSESSMENT_FRAMEWORK);
+      }, 1500);
       
     } catch (error: any) {
       console.error('Start building failed:', error);
