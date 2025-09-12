@@ -381,10 +381,12 @@ ${emergencyTruncated}
   const guidance = documentContext 
     ? `=== RESPONSE GUIDELINES ===
 - Base your response primarily on the uploaded knowledge base content above
-- If the knowledge base contains relevant information, use it as your primary source
-- Always end responses with: "📚 *Response based on your uploaded knowledge base documents*"
-- If insufficient information in knowledge base, clearly state this and provide general guidance
-- Always provide specific, actionable guidance based on available information`
+- Prioritize diamond-specific documents tagged "diamond-specific" or "industry-priority" 
+- Use "Diamond..." control library documents over generic MPS content
+- Always format as 8-12 bullets: "Requirement — Evidence" or "Recommendation — Action"
+- Include diamond terminology: KPC, test stones, dual custody, variance thresholds, black-screen monitoring
+- Specify cadences (daily/weekly/monthly/quarterly) and role owners where known
+- Always end responses with: "📚 *Response based on your uploaded knowledge base documents*"`
     : `=== RESPONSE GUIDELINES ===
 - No specific organizational documents found for this query
 - Provide general guidance based on industry best practices

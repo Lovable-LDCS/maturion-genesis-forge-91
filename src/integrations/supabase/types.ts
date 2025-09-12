@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.3 (519615d)"
@@ -1853,6 +1853,59 @@ export type Database = {
         }
         Relationships: []
       }
+      gap_tickets: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          email_sent: boolean
+          follow_up_date: string
+          id: string
+          missing_specifics: string[]
+          organization_id: string
+          prompt: string
+          response_received: boolean
+          status: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          email_sent?: boolean
+          follow_up_date: string
+          id?: string
+          missing_specifics?: string[]
+          organization_id: string
+          prompt: string
+          response_received?: boolean
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          email_sent?: boolean
+          follow_up_date?: string
+          id?: string
+          missing_specifics?: string[]
+          organization_id?: string
+          prompt?: string
+          response_received?: boolean
+          status?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gap_tickets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       human_approval_workflows: {
         Row: {
           created_at: string
@@ -3424,31 +3477,31 @@ export type Database = {
       calculate_assessment_progress: {
         Args: { assessment_uuid: string }
         Returns: {
-          total_criteria: number
           completed_criteria: number
           completion_percentage: number
+          total_criteria: number
         }[]
       }
       check_rate_limit: {
         Args:
           | {
-              operation_type_param: string
               max_attempts?: number
+              operation_type_param: string
               window_minutes?: number
             }
           | {
-              user_identifier: string
-              operation_type: string
               max_requests?: number
+              operation_type: string
               time_window_seconds?: number
+              user_identifier: string
             }
         Returns: boolean
       }
       count_chunks_by_organization: {
         Args: { org_id: string }
         Returns: {
-          total_chunks: number
           chunks_with_embeddings: number
+          total_chunks: number
         }[]
       }
       enhanced_input_validation: {
@@ -3466,23 +3519,23 @@ export type Database = {
       get_user_organization_access: {
         Args: { target_user_id?: string }
         Returns: {
-          user_id: string
-          organization_id: string
-          role: string
-          organization_name: string
-          organization_type: string
           can_upload: boolean
           can_view_documents: boolean
           linked_domains: string[]
+          organization_id: string
+          organization_name: string
+          organization_type: string
+          role: string
+          user_id: string
         }[]
       }
       get_user_organization_context: {
         Args: { target_user_id?: string }
         Returns: {
-          organization_id: string
-          user_role: string
-          organization_type: string
           can_upload: boolean
+          organization_id: string
+          organization_type: string
+          user_role: string
         }[]
       }
       get_user_primary_organization: {
@@ -3551,49 +3604,49 @@ export type Database = {
       }
       log_policy_change: {
         Args: {
+          domain_scope_param: string
+          linked_document_id_param?: string
+          logged_by_param?: string
+          metadata_param?: Json
+          organization_id_param?: string
+          summary_param: string
+          tags_param?: string[]
           title_param: string
           type_param: string
-          domain_scope_param: string
-          summary_param: string
-          linked_document_id_param?: string
-          tags_param?: string[]
-          logged_by_param?: string
-          organization_id_param?: string
-          metadata_param?: Json
         }
         Returns: string
       }
       log_security_event: {
         Args:
-          | { event_type: string; details?: Json }
+          | { details?: Json; event_type: string }
           | {
-              event_type: string
               event_details: string
+              event_type: string
               severity_level?: string
             }
           | {
-              event_type: string
               event_details?: Json
+              event_type: string
               severity_level?: string
             }
         Returns: undefined
       }
       log_security_metric: {
         Args: {
+          metadata_param?: Json
           metric_type_param: string
           metric_value_param: number
-          metadata_param?: Json
           organization_id_param?: string
         }
         Returns: undefined
       }
       log_upload_context_validation: {
         Args: {
-          session_id_param: string
+          error_details_param?: string
           organization_id_param: string
+          session_id_param: string
           user_id_param: string
           validation_result_param: boolean
-          error_details_param?: string
         }
         Returns: undefined
       }
@@ -3604,7 +3657,7 @@ export type Database = {
         }[]
       }
       request_admin_access: {
-        Args: { target_user_email: string; justification: string }
+        Args: { justification: string; target_user_email: string }
         Returns: Json
       }
       reset_failed_document: {
@@ -3644,7 +3697,7 @@ export type Database = {
         Returns: boolean
       }
       user_has_role: {
-        Args: { user_uuid: string; required_role?: string }
+        Args: { required_role?: string; user_uuid: string }
         Returns: boolean
       }
       validate_admin_operation: {

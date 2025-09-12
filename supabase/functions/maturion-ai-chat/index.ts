@@ -2,6 +2,7 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from './lib/constants.ts';
 import { buildPromptContext, callOpenAI, constructFinalPrompt, type PromptRequest } from './lib/prompt.ts';
+import { detectMissingSpecifics, createGapTicket, generateCommitmentText } from './lib/gap-tracker.ts';
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -64,15 +65,39 @@ serve(async (req) => {
     
     console.log('✅ AI response generated successfully');
     
+    // DIAMOND-FIRST: Detect missing specifics and create gap tickets
+    const missingSpecifics = detectMissingSpecifics(request.prompt, aiResponse);
+    let gapTicketId: string | null = null;
+    let commitmentText = '';
+    
+    if (missingSpecifics.length > 0 && promptContext.organizationContext) {
+      console.log(`🎯 Detected ${missingSpecifics.length} missing specifics:`, missingSpecifics);
+      
+      // Extract organization ID from context
+      const orgId = request.organizationId;
+      
+      if (orgId) {
+        gapTicketId = await createGapTicket(orgId, request.prompt, missingSpecifics);
+        commitmentText = generateCommitmentText(missingSpecifics);
+        
+        console.log(`📝 Gap ticket created: ${gapTicketId}`);
+      }
+    }
+    
+    // Append commitment text to response if gaps were detected
+    const finalResponse = aiResponse + commitmentText;
+    
     // Return the response with metadata
     return new Response(JSON.stringify({
-      content: aiResponse, // Use 'content' to match expected response format
-      response: aiResponse,
+      content: finalResponse, // Use final response with commitment text
+      response: finalResponse,
       sourceType: promptContext.sourceType,
       knowledgeTier: promptContext.knowledgeTier,
       hasDocumentContext: promptContext.documentContext.length > 0,
       hasOrganizationContext: promptContext.organizationContext.length > 0,
       hasExternalContext: promptContext.externalContext.length > 0,
+      gapTicketId: gapTicketId, // Include gap ticket ID for tracking
+      missingSpecifics: missingSpecifics,
       promptMetrics: {
         totalLength: finalPrompt.length,
         estimatedTokens: finalTokens,

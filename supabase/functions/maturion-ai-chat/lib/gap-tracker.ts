@@ -154,7 +154,6 @@ async function scheduleFollowUpEmail(
   }
 }
 
-// Generate commitment text for missing specifics
 export function generateCommitmentText(missingSpecifics: string[]): string {
   if (missingSpecifics.length === 0) return '';
   
@@ -163,8 +162,7 @@ export function generateCommitmentText(missingSpecifics: string[]): string {
   
   const dateString = followUpDate.toLocaleDateString('en-US', {
     month: 'short',
-    day: 'numeric',
-    year: 'numeric'
+    day: 'numeric'
   });
   
   return `\n\nI'll confirm ${missingSpecifics.join(', ')} by ${dateString}.`;

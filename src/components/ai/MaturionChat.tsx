@@ -14,6 +14,9 @@ interface Message {
   content: string;
   sender: 'user' | 'maturion';
   timestamp: Date;
+  hasKnowledgeBase?: boolean;
+  gapTicketId?: string;
+  missingSpecifics?: string[];
 }
 
 interface MaturionChatProps {
@@ -39,7 +42,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
         return parsed.length > 0 ? parsed : [
           {
             id: '1',
-            content: "Hello! I'm Maturion, your operational maturity specialist. I help organizations navigate their journey from reactive to resilient. How can I assist with your maturity assessment today?",
+            content: "I'm Maturion, your diamond industry security specialist. I provide specific, actionable guidance for diamond operations, controls, and compliance. What diamond security topic can I help you with today?",
             sender: 'maturion',
             timestamp: new Date()
           }
@@ -126,7 +129,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
         body: {
           prompt: sanitizedInput,
-          context: context || 'General operational maturity guidance and platform navigation assistance',
+          context: context || 'Diamond industry security and operational controls',
           currentDomain: currentDomain || 'General',
           organizationId: currentOrganization?.id
         }
@@ -134,37 +137,46 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
 
       if (error) throw error;
 
-      // The edge function returns content directly, not wrapped in success
-      const hasKnowledgeBase = data.hasDocumentContext || data.hasKnowledgeBase || false;
-      const sourceType = data.sourceType || 'general';
+      // DIAMOND-FIRST: Clean response of meta-language about sources
       let responseContent = data.content || data.response || 'I apologize, but I encountered an issue processing your request. Please try again.';
       
-      // Check if response already contains the 📚 marker or add it if knowledge base was used
-      if (hasKnowledgeBase && !responseContent.includes('📚')) {
-        responseContent += `\n\n📚 *Response based on your uploaded knowledge base documents*`;
-      }
+      // Remove knowledge base indicators and meta-language
+      responseContent = responseContent.replace(/📚.*$/gm, '');
+      responseContent = responseContent.replace(/\*Response based on.*\*/gi, '');
+      responseContent = responseContent.replace(/Based on your uploaded.*knowledge base/gi, '');
+      responseContent = responseContent.trim();
       
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
         content: responseContent,
         sender: 'maturion',
-        timestamp: new Date()
+        timestamp: new Date(),
+        hasKnowledgeBase: data.hasDocumentContext || false,
+        gapTicketId: data.gapTicketId,
+        missingSpecifics: data.missingSpecifics || []
       };
       
       setMessages(prev => [...prev, aiMessage]);
       
-      // Log confidence data for heatmap tracking
+      // Log diamond-specific confidence data
       if (currentOrganization?.id) {
         try {
-          const hasKnowledgeBase = data.hasDocumentContext || data.hasKnowledgeBase || false;
+          const hasKnowledgeBase = data.hasDocumentContext || false;
+          const isDiamondSpecific = responseContent.toLowerCase().includes('diamond') || 
+                                   responseContent.toLowerCase().includes('kpc') ||
+                                   responseContent.toLowerCase().includes('dual custody');
+                                   
           await supabase.from('ai_confidence_scoring').insert({
             organization_id: currentOrganization.id,
-            confidence_category: 'document_based_response',
-            base_confidence: hasKnowledgeBase ? 0.9 : 0.6, // High confidence for document-based responses
-            adjusted_confidence: hasKnowledgeBase ? 0.9 : 0.6,
+            confidence_category: isDiamondSpecific ? 'diamond_specific_response' : 'general_response',
+            base_confidence: hasKnowledgeBase ? 0.95 : 0.7, // Higher confidence for diamond-specific with knowledge base
+            adjusted_confidence: hasKnowledgeBase ? 0.95 : 0.7,
             confidence_factors: {
               source_type: data.sourceType || 'general',
               has_knowledge_base: hasKnowledgeBase,
+              is_diamond_specific: isDiamondSpecific,
+              gap_ticket_created: !!data.gapTicketId,
+              missing_specifics_count: data.missingSpecifics?.length || 0,
               query_length: sanitizedInput.length,
               response_timestamp: new Date().toISOString()
             }
