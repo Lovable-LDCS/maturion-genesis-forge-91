@@ -2448,6 +2448,239 @@ export type Database = {
         }
         Relationships: []
       }
+      org_crawl_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          org_id: string
+          priority: number
+          status: Database["public"]["Enums"]["crawl_status"]
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          org_id: string
+          priority?: number
+          status?: Database["public"]["Enums"]["crawl_status"]
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          org_id?: string
+          priority?: number
+          status?: Database["public"]["Enums"]["crawl_status"]
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_crawl_queue_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_domains: {
+        Row: {
+          crawl_depth: number
+          created_at: string
+          created_by: string
+          domain: string
+          id: string
+          is_enabled: boolean
+          org_id: string
+          recrawl_hours: number
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          crawl_depth?: number
+          created_at?: string
+          created_by?: string
+          domain: string
+          id?: string
+          is_enabled?: boolean
+          org_id: string
+          recrawl_hours?: number
+          updated_at?: string
+          updated_by?: string
+        }
+        Update: {
+          crawl_depth?: number
+          created_at?: string
+          created_by?: string
+          domain?: string
+          id?: string
+          is_enabled?: boolean
+          org_id?: string
+          recrawl_hours?: number
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_domains_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_ingest_jobs: {
+        Row: {
+          created_at: string
+          finished_at: string | null
+          id: string
+          org_id: string
+          started_at: string
+          stats: Json | null
+          status: Database["public"]["Enums"]["ingest_job_status"]
+        }
+        Insert: {
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          org_id: string
+          started_at?: string
+          stats?: Json | null
+          status?: Database["public"]["Enums"]["ingest_job_status"]
+        }
+        Update: {
+          created_at?: string
+          finished_at?: string | null
+          id?: string
+          org_id?: string
+          started_at?: string
+          stats?: Json | null
+          status?: Database["public"]["Enums"]["ingest_job_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_ingest_jobs_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_page_chunks: {
+        Row: {
+          chunk_idx: number
+          created_at: string
+          embedding: string | null
+          id: string
+          org_id: string
+          page_id: string
+          text: string
+          tokens: number | null
+        }
+        Insert: {
+          chunk_idx: number
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          org_id: string
+          page_id: string
+          text: string
+          tokens?: number | null
+        }
+        Update: {
+          chunk_idx?: number
+          created_at?: string
+          embedding?: string | null
+          id?: string
+          org_id?: string
+          page_id?: string
+          text?: string
+          tokens?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_page_chunks_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_page_chunks_page_id_fkey"
+            columns: ["page_id"]
+            isOneToOne: false
+            referencedRelation: "org_pages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_pages: {
+        Row: {
+          content_type: string | null
+          created_at: string
+          domain: string
+          etag: string | null
+          fetched_at: string
+          html_hash: string | null
+          id: string
+          org_id: string
+          robots_index: boolean
+          text: string | null
+          title: string | null
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string
+          domain: string
+          etag?: string | null
+          fetched_at?: string
+          html_hash?: string | null
+          id?: string
+          org_id: string
+          robots_index?: boolean
+          text?: string | null
+          title?: string | null
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string
+          domain?: string
+          etag?: string | null
+          fetched_at?: string
+          html_hash?: string | null
+          id?: string
+          org_id?: string
+          robots_index?: boolean
+          text?: string | null
+          title?: string | null
+          updated_at?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_pages_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_invitations: {
         Row: {
           created_at: string
@@ -3760,7 +3993,9 @@ export type Database = {
         | "rejected"
         | "escalated"
         | "alternative_proposal"
+      crawl_status: "queued" | "fetching" | "done" | "failed"
       evidence_type: "document" | "photo" | "log" | "comment"
+      ingest_job_status: "running" | "completed" | "failed" | "cancelled"
       invitation_status: "pending" | "accepted" | "expired" | "cancelled"
       maturity_level:
         | "basic"
@@ -3920,7 +4155,9 @@ export const Constants = {
         "escalated",
         "alternative_proposal",
       ],
+      crawl_status: ["queued", "fetching", "done", "failed"],
       evidence_type: ["document", "photo", "log", "comment"],
+      ingest_job_status: ["running", "completed", "failed", "cancelled"],
       invitation_status: ["pending", "accepted", "expired", "cancelled"],
       maturity_level: [
         "basic",
