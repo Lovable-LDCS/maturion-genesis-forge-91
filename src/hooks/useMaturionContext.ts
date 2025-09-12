@@ -32,19 +32,11 @@ export const useMaturionContext = (): MaturionContext => {
       };
     }
     
-    // Maturity Setup
-    if (path === '/maturity/setup') {
+    // Maturity Setup (canonical route - covers both setup and build functionality)
+    if (path === '/maturity/setup' || path === '/maturity/build') {
       return {
-        context: "Maturity model setup and foundation building. Help with organization profile configuration, risk assessment completion, model customization, and initial setup guidance for your operational maturity journey.",
+        context: "Maturity model setup and foundation building. Help with organization profile configuration, risk assessment completion, model customization, initial setup guidance, audit configuration, model approval processes, and preparing for organizational deployment.",
         currentDomain: "Foundation Setup"
-      };
-    }
-    
-    // Maturity Build
-    if (path === '/maturity/build') {
-      return {
-        context: "Comprehensive maturity model building and SCS development. Assistance with audit configuration, model approval processes, advanced framework setup, and preparing for organizational deployment.",
-        currentDomain: "Model Building"
       };
     }
     

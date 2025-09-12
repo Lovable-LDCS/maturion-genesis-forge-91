@@ -77,7 +77,7 @@ const OrganizationSettings = () => {
                     </div>
                   </div>
                   
-                  <Button onClick={() => navigate('/maturity/build')}>
+                  <Button onClick={() => navigate('/maturity/setup')}>
                     Complete Maturity Model Setup
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>

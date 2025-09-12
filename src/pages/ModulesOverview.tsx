@@ -24,7 +24,7 @@ const ismsModules = [
     description: 'Build and assess your organizational security maturity framework',
     icon: TrendingUp,
     isSubscribed: true, // This would be determined by actual subscription status
-    route: '/maturity/setup'
+    route: '/maturity/setup' // Canonical maturity route
   },
   {
     id: 'risk-management',

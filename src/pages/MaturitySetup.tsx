@@ -928,7 +928,7 @@ export const MaturitySetup = () => {
         description: "All data saved successfully! Starting maturity model builder...",
       });
       
-      navigate('/maturity/build');
+      navigate('/maturity/setup'); // Stay on canonical setup page after completion
       
     } catch (error: any) {
       console.error('Start building failed:', error);

@@ -2,16 +2,16 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { MaturionChat } from "@/components/ai/MaturionChat";
 import { useMaturionContext } from "@/hooks/useMaturionContext";
+import { ROUTES } from "@/lib/routes";
 import Index from "./pages/Index";
 import ModulesOverview from "./pages/ModulesOverview";
 import MaturitySetup from "./pages/MaturitySetup";
-import MaturityBuild from "./pages/MaturityBuild";
 import Dashboard from "./pages/Dashboard";
 import Assessment from "./pages/Assessment";
 import AssessmentFramework from "./pages/AssessmentFramework";
@@ -55,30 +55,31 @@ const App = () => (
         <AuthGuard>
           <BrowserRouter>
             <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/modules" element={<ModulesOverview />} />
-              <Route path="/maturity/setup" element={<MaturitySetup />} />
-              <Route path="/maturity/build" element={<MaturityBuild />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/assessment" element={<Assessment />} />
-              <Route path="/qa-signoff" element={<QASignOff />} />
-              <Route path="/assessment/framework" element={<AuditStructureConfig />} />
+              <Route path={ROUTES.HOME} element={<Index />} />
+              <Route path={ROUTES.MODULES} element={<ModulesOverview />} />
+              <Route path={ROUTES.MATURITY_SETUP} element={<MaturitySetup />} />
+              {/* Legacy redirect: /maturity/build -> /maturity/setup */}
+              <Route path={ROUTES.MATURITY_BUILD_LEGACY} element={<Navigate to={ROUTES.MATURITY_SETUP} replace />} />
+              <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
+              <Route path={ROUTES.ASSESSMENT} element={<Assessment />} />
+              <Route path={ROUTES.QA_SIGNOFF} element={<QASignOff />} />
+              <Route path={ROUTES.ASSESSMENT_FRAMEWORK} element={<AuditStructureConfig />} />
               <Route path="/audit/domain/:domainId" element={<DomainAuditBuilder />} />
               <Route path="/assessment-framework" element={<AssessmentFramework />} />
               <Route path="/domain-management" element={<AssessmentFramework />} />
-              <Route path="/team" element={<TeamPage />} />
-              <Route path="/organization/settings" element={<OrganizationSettings />} />
-              <Route path="/maturion/knowledge-base" element={<MaturionKnowledgeBase />} />
-              <Route path="/maturion/uploads" element={<MaturionUploads />} />
-              <Route path="/accept-invitation" element={<InvitationAcceptance />} />
-              <Route path="/journey" element={<Journey />} />
-              <Route path="/subscribe" element={<Subscribe />} />
-              <Route path="/subscribe/checkout" element={<SubscribeCheckout />} />
-              <Route path="/admin/config" element={<AdminConfig />} />
-              <Route path="/qa-dashboard" element={<QADashboard />} />
-              <Route path="/watchdog" element={<WatchdogDashboard />} />
+              <Route path={ROUTES.TEAM} element={<TeamPage />} />
+              <Route path={ROUTES.ORGANIZATION_SETTINGS} element={<OrganizationSettings />} />
+              <Route path={ROUTES.MATURION_KNOWLEDGE_BASE} element={<MaturionKnowledgeBase />} />
+              <Route path={ROUTES.MATURION_UPLOADS} element={<MaturionUploads />} />
+              <Route path={ROUTES.INVITATION_ACCEPTANCE} element={<InvitationAcceptance />} />
+              <Route path={ROUTES.JOURNEY} element={<Journey />} />
+              <Route path={ROUTES.SUBSCRIBE} element={<Subscribe />} />
+              <Route path={ROUTES.SUBSCRIBE_CHECKOUT} element={<SubscribeCheckout />} />
+              <Route path={ROUTES.ADMIN_CONFIG} element={<AdminConfig />} />
+              <Route path={ROUTES.QA_DASHBOARD} element={<QADashboard />} />
+              <Route path={ROUTES.WATCHDOG} element={<WatchdogDashboard />} />
               <Route path="/milestones/:id" element={<MilestoneDetail />} />
-              <Route path="/auth" element={<LoginForm />} />
+              <Route path={ROUTES.AUTH} element={<LoginForm />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
