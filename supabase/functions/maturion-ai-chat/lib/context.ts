@@ -276,6 +276,8 @@ export async function getDocumentContext(organizationId: string, query: string, 
 
     console.log('No relevant context found');
     return '';
+    
+    } // Close the if (completedDocs.length > 0) block
 
   } catch (error) {
     console.error('Error in getDocumentContext:', error);
