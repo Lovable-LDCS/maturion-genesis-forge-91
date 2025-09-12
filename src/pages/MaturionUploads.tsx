@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { UnifiedDocumentUploader } from "@/components/ai";
 import { SecurityDashboard } from "@/components/security/SecurityDashboard";
 import { DocumentManagementTable } from "@/components/ai/DocumentManagementTable";
@@ -6,11 +7,12 @@ import { DocumentEditDialog, DocumentUpdateData } from "@/components/ai/Document
 import { DocumentPlaceholderMerger } from "@/components/ai/DocumentPlaceholderMerger";
 import { EmbeddingProgressDialog } from "@/components/ai/EmbeddingProgressDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useMaturionDocuments, MaturionDocument } from "@/hooks/useMaturionDocuments";
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
-
+import { SecurityGuard } from "@/components/security/SecurityGuard";
 export default function MaturionUploads() {
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
@@ -155,69 +157,87 @@ export default function MaturionUploads() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Document Intelligence System</h1>
-        <p className="text-muted-foreground">
-          Unified document ingestion with enhanced security monitoring and quality assurance
-        </p>
+    <SecurityGuard
+      requiredRole="admin"
+      fallback={
+        <div className="container mx-auto px-4 py-8">
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold mb-2">Document Intelligence System</h1>
+            <p className="text-muted-foreground">Access denied. Admin privileges required.</p>
+          </div>
+          <div className="rounded-2xl border p-6">
+            <p className="mb-4">You don't have permission to view this content.</p>
+            <Button asChild variant="outline">
+              <Link to="/organization/settings">Request Access</Link>
+            </Button>
+          </div>
+        </div>
+      }
+    >
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">Document Intelligence System</h1>
+          <p className="text-muted-foreground">
+            Unified document ingestion with enhanced security monitoring and quality assurance
+          </p>
+        </div>
+        
+        <Tabs defaultValue="upload" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="upload">Document Upload</TabsTrigger>
+            <TabsTrigger value="manage">Manage Documents</TabsTrigger>
+            <TabsTrigger value="merge">Merge Placeholders</TabsTrigger>
+            <TabsTrigger value="security">Security Dashboard</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="upload" className="space-y-6">
+            <UnifiedDocumentUploader 
+              onUploadComplete={(sessionId, results) => {
+                console.log('Upload completed:', { sessionId, results });
+                refreshDocuments();
+              }}
+              maxFiles={10}
+              allowedFileTypes={['pdf', 'docx', 'txt', 'md']}
+            />
+          </TabsContent>
+
+          <TabsContent value="manage" className="space-y-6">
+            <DocumentManagementTable
+              documents={documents}
+              loading={loading}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onReprocess={handleReprocess}
+              onBulkDelete={handleBulkDelete}
+              onRefresh={handleRefresh}
+              onReplace={handleReplace}
+              onViewAuditLog={handleViewAuditLog}
+              onRegenerateEmbeddings={handleRegenerateEmbeddings}
+            />
+          </TabsContent>
+
+          <TabsContent value="merge" className="space-y-6">
+            <DocumentPlaceholderMerger />
+          </TabsContent>
+
+          <TabsContent value="security">
+            <SecurityDashboard />
+          </TabsContent>
+        </Tabs>
+
+        <DocumentEditDialog
+          open={editDialog.open}
+          onClose={() => setEditDialog({ open: false, document: null, saving: false })}
+          onSave={handleSaveEdit}
+          document={editDialog.document}
+          saving={editDialog.saving}
+        />
+
+        <EmbeddingProgressDialog
+          open={embeddingDialogOpen}
+          onClose={() => setEmbeddingDialogOpen(false)}
+        />
       </div>
-      
-      <Tabs defaultValue="upload" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="upload">Document Upload</TabsTrigger>
-          <TabsTrigger value="manage">Manage Documents</TabsTrigger>
-          <TabsTrigger value="merge">Merge Placeholders</TabsTrigger>
-          <TabsTrigger value="security">Security Dashboard</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="upload" className="space-y-6">
-          <UnifiedDocumentUploader 
-            onUploadComplete={(sessionId, results) => {
-              console.log('Upload completed:', { sessionId, results });
-              refreshDocuments();
-            }}
-            maxFiles={10}
-            allowedFileTypes={['pdf', 'docx', 'txt', 'md']}
-          />
-        </TabsContent>
-
-        <TabsContent value="manage" className="space-y-6">
-          <DocumentManagementTable
-            documents={documents}
-            loading={loading}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onReprocess={handleReprocess}
-            onBulkDelete={handleBulkDelete}
-            onRefresh={handleRefresh}
-            onReplace={handleReplace}
-            onViewAuditLog={handleViewAuditLog}
-            onRegenerateEmbeddings={handleRegenerateEmbeddings}
-          />
-        </TabsContent>
-
-        <TabsContent value="merge" className="space-y-6">
-          <DocumentPlaceholderMerger />
-        </TabsContent>
-
-        <TabsContent value="security">
-          <SecurityDashboard />
-        </TabsContent>
-      </Tabs>
-
-      <DocumentEditDialog
-        open={editDialog.open}
-        onClose={() => setEditDialog({ open: false, document: null, saving: false })}
-        onSave={handleSaveEdit}
-        document={editDialog.document}
-        saving={editDialog.saving}
-      />
-
-      <EmbeddingProgressDialog
-        open={embeddingDialogOpen}
-        onClose={() => setEmbeddingDialogOpen(false)}
-      />
-    </div>
+    </SecurityGuard>
   );
 }

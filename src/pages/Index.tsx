@@ -210,6 +210,14 @@ const Index = () => {
                   Welcome, {user.email}
                 </span>
                 <Button 
+                  onClick={() => navigate('/maturion/uploads')} 
+                  variant="outline"
+                  className="flex items-center space-x-2"
+                >
+                  <FileText className="h-4 w-4" />
+                  <span>Documents</span>
+                </Button>
+                <Button 
                   onClick={() => navigate('/dashboard')} 
                   className="flex items-center space-x-2"
                 >

@@ -69,8 +69,10 @@ const App = () => (
               <Route path="/domain-management" element={<AssessmentFramework />} />
               <Route path={ROUTES.TEAM} element={<TeamPage />} />
               <Route path={ROUTES.ORGANIZATION_SETTINGS} element={<OrganizationSettings />} />
-              <Route path={ROUTES.MATURION_KNOWLEDGE_BASE} element={<MaturionKnowledgeBase />} />
+              <Route path={ROUTES.MATURION_KNOWLEDGE_BASE} element={<Navigate to={ROUTES.MATURION_UPLOADS} replace />} />
               <Route path={ROUTES.MATURION_UPLOADS} element={<MaturionUploads />} />
+              <Route path="/knowledge-base" element={<Navigate to={ROUTES.MATURION_UPLOADS} replace />} />
+              <Route path="/uploads" element={<Navigate to={ROUTES.MATURION_UPLOADS} replace />} />
               <Route path={ROUTES.INVITATION_ACCEPTANCE} element={<InvitationAcceptance />} />
               <Route path={ROUTES.JOURNEY} element={<Journey />} />
               <Route path={ROUTES.SUBSCRIBE} element={<Subscribe />} />
