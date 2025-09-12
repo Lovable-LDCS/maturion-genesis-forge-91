@@ -31,6 +31,18 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Health check endpoint
+  if (req.method === 'GET' && new URL(req.url).pathname.endsWith('/health')) {
+    return new Response(JSON.stringify({ 
+      status: 'ok', 
+      version: '1.0.0',
+      function: 'crawl-org-domain',
+      timestamp: new Date().toISOString()
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
   try {
     const { orgId, domainId, url, priority = 100 }: CrawlRequest = await req.json();
     console.log(`🕷️ Starting crawl for org: ${orgId}, domain: ${domainId || url}`);

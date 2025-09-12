@@ -25,6 +25,18 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Health check endpoint
+  if (req.method === 'GET' && new URL(req.url).pathname.endsWith('/health')) {
+    return new Response(JSON.stringify({ 
+      status: 'ok', 
+      version: '1.0.0',
+      function: 'extract-and-index',
+      timestamp: new Date().toISOString()
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
+  }
+
   try {
     const { orgId, pageId, forceReindex = false }: IndexRequest = await req.json();
     console.log(`🔍 Starting extraction and indexing for org: ${orgId}, page: ${pageId || 'all'}`);
