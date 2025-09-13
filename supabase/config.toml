@@ -26,3 +26,9 @@ verify_jwt = true
 
 [functions.send-watchdog-notifications]
 verify_jwt = true
+
+[functions.schedule-nightly-crawl]
+verify_jwt = false
+
+[functions.seed-org-domains]
+verify_jwt = false
