@@ -18,6 +18,7 @@ import AssessmentFramework from "./pages/AssessmentFramework";
 import AuditStructureConfig from "./pages/AuditStructureConfig";
 import DomainAuditBuilder from "./pages/DomainAuditBuilder";
 import QASignOff from "./pages/QASignOffDynamic";
+import TestSuite from "./pages/TestSuite";
 import TeamPage from "./pages/TeamPage";
 import InvitationAcceptance from "./pages/InvitationAcceptance";
 import OrganizationSettings from "./pages/OrganizationSettings";
@@ -80,6 +81,7 @@ const App = () => (
               <Route path={ROUTES.ADMIN_CONFIG} element={<AdminConfig />} />
               <Route path={ROUTES.QA_DASHBOARD} element={<QADashboard />} />
               <Route path={ROUTES.WATCHDOG} element={<WatchdogDashboard />} />
+              <Route path="/test-suite" element={<TestSuite />} />
               <Route path="/milestones/:id" element={<MilestoneDetail />} />
               <Route path={ROUTES.AUTH} element={<LoginForm />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

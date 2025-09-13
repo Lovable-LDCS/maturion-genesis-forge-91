@@ -160,7 +160,14 @@ export async function getDocumentContext(organizationId: string, query: string, 
       new Map(allResults.map(result => [result.id, result])).values()
     )
       .sort((a, b) => {
-        // PRIORITY 1: Diamond-specific content (tagged or titled with "Diamond")
+        // PRIORITY 1: Diamond Knowledge Pack documents (highest priority for security/process questions)
+        const aDKP = a.document_type === 'diamond_knowledge_pack';
+        const bDKP = b.document_type === 'diamond_knowledge_pack';
+        
+        if (aDKP && !bDKP) return -1;
+        if (!aDKP && bDKP) return 1;
+        
+        // PRIORITY 2: Diamond-specific content (tagged or titled with "Diamond")
         const aDiamondSpecific = (a.tags && (a.tags.includes('diamond-specific') || a.tags.includes('industry-priority'))) ||
                                 (a.document_title && a.document_title.toLowerCase().includes('diamond'));
         const bDiamondSpecific = (b.tags && (b.tags.includes('diamond-specific') || b.tags.includes('industry-priority'))) ||
@@ -182,19 +189,21 @@ export async function getDocumentContext(organizationId: string, query: string, 
           if (!aMpsMatch && bMpsMatch) return 1;
         }
         
-        // PRIORITY 3: Similarity score
+        // PRIORITY 4: Similarity score
         return (b.similarity_score || 0) - (a.similarity_score || 0);
       });
     
     console.log(`🔄 After DIAMOND-FIRST deduplication: ${uniqueResults.length} unique results`);
     
-    // SEPARATE: Diamond content vs Generic MPS content for gap-fill
+    // SEPARATE: Diamond Knowledge Pack + Diamond content vs Generic MPS content for gap-fill
     const diamondContent = uniqueResults.filter(result => 
+      result.document_type === 'diamond_knowledge_pack' ||
       (result.tags && (result.tags.includes('diamond-specific') || result.tags.includes('industry-priority'))) ||
       (result.document_title && result.document_title.toLowerCase().includes('diamond'))
     );
     
     const genericContent = uniqueResults.filter(result => 
+      result.document_type !== 'diamond_knowledge_pack' &&
       !(result.tags && (result.tags.includes('diamond-specific') || result.tags.includes('industry-priority'))) &&
       !(result.document_title && result.document_title.toLowerCase().includes('diamond'))
     );

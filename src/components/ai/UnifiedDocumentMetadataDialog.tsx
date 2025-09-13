@@ -161,7 +161,17 @@ const UnifiedDocumentMetadataDialog: React.FC<UnifiedDocumentMetadataDialogProps
                 </div>
                 <Select
                   value={metadata.documentType}
-                  onValueChange={(value) => setMetadata(prev => ({ ...prev, documentType: value }))}
+                  onValueChange={(value) => {
+                    const newMetadata = { ...metadata, documentType: value };
+                    // Auto-suggest tags for Diamond Knowledge Pack
+                    if (value === 'diamond_knowledge_pack') {
+                      const existingTags = metadata.tags.split(',').map(t => t.trim()).filter(t => t);
+                      const suggestedTags = ['dkp:v1', 'industry:diamond'];
+                      const newTags = Array.from(new Set([...existingTags, ...suggestedTags])).join(', ');
+                      newMetadata.tags = newTags;
+                    }
+                    setMetadata(prev => newMetadata);
+                  }}
                   disabled={isPreApproved && mode === 'edit'}
                 >
                   <SelectTrigger>

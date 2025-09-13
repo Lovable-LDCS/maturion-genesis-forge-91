@@ -11,6 +11,7 @@ export const DOCUMENT_TYPE_OPTIONS = [
   { value: 'checklist', label: 'Checklist' },
   { value: 'data_model', label: 'Data Model' },
   { value: 'decision_tree_logic', label: 'Decision Tree / Logic Map' },
+  { value: 'diamond_knowledge_pack', label: 'Diamond Knowledge Pack' },
   { value: 'evaluation_rubric', label: 'Evaluation Rubric' },
   { value: 'evidence_sample', label: 'Evidence Sample' },
   { value: 'general', label: 'General' },
