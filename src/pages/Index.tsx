@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Target, Clock, Bot, Eye, ChevronRight, LogIn, GraduationCap, Shield, Settings, Users, Lock, BarChart, Rocket } from 'lucide-react';
+import { Target, Clock, Bot, Eye, ChevronRight, LogIn, GraduationCap, Shield, Settings, Users, Lock, BarChart, Rocket, FileText } from 'lucide-react';
 
 // Six Domains of Operational Excellence with new gradient icon design
 const OPERATIONAL_DOMAINS = [
