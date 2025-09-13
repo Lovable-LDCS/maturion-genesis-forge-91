@@ -1,5 +1,6 @@
 import React from 'react';
 import { DKPUploadTest } from '@/components/test/DKPUploadTest';
+import { DKPOrgCrawlTest } from '@/components/test/DKPOrgCrawlTest';
 import { SecurityGuard } from '@/components/security/SecurityGuard';
 
 const TestSuite: React.FC = () => {
@@ -13,7 +14,10 @@ const TestSuite: React.FC = () => {
           </p>
         </div>
         
-        <DKPUploadTest />
+        <div className="space-y-6">
+          <DKPOrgCrawlTest />
+          <DKPUploadTest />
+        </div>
       </div>
     </SecurityGuard>
   );
