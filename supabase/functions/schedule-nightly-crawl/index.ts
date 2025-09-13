@@ -24,6 +24,21 @@ serve(async (req) => {
     });
   }
 
+  // Validate cron key for security
+  const cronKey = req.headers.get('x-cron-key');
+  const expectedCronKey = Deno.env.get('CRON_KEY');
+  
+  if (!cronKey || !expectedCronKey || cronKey !== expectedCronKey) {
+    console.error('Unauthorized cron request - missing or invalid x-cron-key header');
+    return new Response(JSON.stringify({
+      success: false,
+      error: 'Unauthorized: Invalid or missing cron key'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 401,
+    });
+  }
+
   try {
     // Initialize Supabase client with service role key
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
