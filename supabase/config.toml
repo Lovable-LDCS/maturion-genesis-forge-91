@@ -30,5 +30,8 @@ verify_jwt = true
 [functions.schedule-nightly-crawl]
 verify_jwt = false
 
+[functions.crawl-org-domain]
+verify_jwt = false
+
 [functions.seed-org-domains]
 verify_jwt = false

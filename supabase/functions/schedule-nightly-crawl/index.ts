@@ -12,19 +12,20 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Health check endpoint
+  // Health check endpoint (public, no auth required)
   if (req.method === 'GET' && new URL(req.url).pathname === '/health') {
     return new Response(JSON.stringify({ 
-      status: 'healthy', 
-      timestamp: new Date().toISOString(),
-      function: 'schedule-nightly-crawl'
+      status: 'ok', 
+      version: '1.0.0',
+      function: 'schedule-nightly-crawl',
+      timestamp: new Date().toISOString()
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   }
 
-  // Validate cron key for security
+  // Validate cron key for security (only for POST requests)
   const cronKey = req.headers.get('x-cron-key');
   const expectedCronKey = Deno.env.get('CRON_KEY');
   
