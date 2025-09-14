@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Integration Test</title>
+</head>
+<body>
+    <h1>Cron Integration Test</h1>
+    
+    <script>
+        async function seedDomains() {
+            console.log('🌱 Seeding domains...');
+            const response = await fetch('https://dmhlxhatogrrrvuruayv.supabase.co/functions/v1/seed-org-domains', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    org_id: 'e443d914-8756-4b29-9599-6a59230b87f3'
+                })
+            });
+            
+            const result = await response.json();
+            console.log('Seed result:', result);
+            return result;
+        }
+
+        async function triggerCron() {
+            console.log('⏰ Triggering cron...');
+            const response = await fetch('https://dmhlxhatogrrrvuruayv.supabase.co/functions/v1/schedule-nightly-crawl', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Cron-Key': 'CRON_KEY_PLACEHOLDER' // Replace with actual key
+                },
+                body: JSON.stringify({})
+            });
+            
+            const result = await response.json();
+            console.log('Cron result:', result);
+            return result;
+        }
+
+        async function runTest() {
+            try {
+                // Step 1: Seed domains
+                await seedDomains();
+                
+                // Step 2: Trigger cron (user needs to add CRON_KEY)
+                console.log('⚠️ Please replace CRON_KEY_PLACEHOLDER with actual CRON_KEY and run triggerCron() manually');
+                console.log('Or call: await triggerCron()');
+                
+            } catch (error) {
+                console.error('Test failed:', error);
+            }
+        }
+
+        // Auto-run seed on page load
+        runTest();
+    </script>
+</body>
+</html>
