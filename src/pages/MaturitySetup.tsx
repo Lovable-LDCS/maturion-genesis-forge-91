@@ -38,6 +38,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useFileUpload } from '@/hooks/useFileUpload';
 import { generateBrandingColors, checkContrast } from '@/lib/colorUtils';
 import { BrandingPreview } from '@/components/ui/branding-preview';
+import { LogoUploader } from '@/components/ui/logo-uploader';
+import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 
 
 // Standardized options for Risk & Awareness Profile
@@ -77,8 +79,6 @@ interface FormData {
   primaryColor: string;
   secondaryColor: string;
   textColor: string;
-  companyLogo?: File;
-  logoUrl?: string; // For persistent logo storage
   optionalDocuments: UploadedFile[];
   
   // AI-Assisted Model Naming
@@ -100,6 +100,7 @@ export const MaturitySetup = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const { uploadFile, uploading } = useFileUpload();
+  const { currentContext } = useOrganizationContext();
   
   // Local organization state (independent of useOrganization hook)
   
@@ -186,7 +187,6 @@ export const MaturitySetup = () => {
           ...prev,
           ...parsedData,
           // Don't restore files from localStorage as they can't be serialized properly
-          companyLogo: undefined,
           optionalDocuments: []
         }));
       } catch (error) {
@@ -460,7 +460,6 @@ export const MaturitySetup = () => {
     console.log('- Org Fetch Failed:', orgFetchFailed);
     console.log('- Form Data Summary:', {
       companyName: formData.companyName,
-      hasLogo: !!formData.companyLogo,
       documentsCount: formData.optionalDocuments.length,
       industryTags: formData.industryTags,
       regionOperating: formData.regionOperating,
@@ -549,46 +548,8 @@ export const MaturitySetup = () => {
         }
       }
 
-      // Step 3: Handle company logo upload
-      if (formData.companyLogo && user?.id) {
-        console.log('Uploading company logo...');
-        try {
-          const fileExt = formData.companyLogo.name.split('.').pop();
-          const fileName = `${user.id}/logo.${fileExt}`;
-          
-          const { error: uploadError } = await supabase.storage
-            .from('organization-logos')
-            .upload(fileName, formData.companyLogo, {
-              upsert: true
-            });
-            
-          if (uploadError) {
-            console.error('Logo upload error:', uploadError);
-            throw new Error(`Logo upload failed: ${uploadError.message}`);
-          }
-          
-          // Update organization with logo URL
-          const { data: { publicUrl } } = supabase.storage
-            .from('organization-logos')
-            .getPublicUrl(fileName);
-            
-          const { error: logoUrlError } = await supabase
-            .from('organizations')
-            .update({ logo_url: publicUrl })
-            .eq('id', orgId);
-            
-          if (logoUrlError) {
-            console.warn('Logo URL update error:', logoUrlError);
-          } else {
-            console.log('✅ Company logo uploaded and linked');
-          }
-        } catch (logoError) {
-          console.error('Logo upload process failed:', logoError);
-          throw new Error(`Logo upload process failed: ${logoError.message}`);
-        }
-      }
-
-      // Step 4: Handle document uploads - CHECK FOR DUPLICATES FIRST
+      // Handle document uploads (after organization is confirmed)
+      console.log(`📁 Processing ${formData.optionalDocuments.length} document uploads...`);
       if (formData.optionalDocuments.length > 0 && user?.id) {
         console.log(`Processing ${formData.optionalDocuments.length} documents for upload...`);
         
@@ -774,7 +735,7 @@ export const MaturitySetup = () => {
       formData.primaryWebsiteUrl, formData.linkedDomains, formData.industryTags, 
       formData.customIndustry, formData.regionOperating, formData.riskConcerns, 
       formData.complianceCommitments, formData.threatSensitivityLevel, 
-      formData.companyLogo, formData.optionalDocuments, user?.id]);
+      formData.optionalDocuments, user?.id]);
 
   // Generate AI-suggested model name based on company name
   const generateModelName = () => {
@@ -796,35 +757,6 @@ export const MaturitySetup = () => {
         description: "Please enter your company name first to generate a model name.",
         variant: "destructive"
       });
-    }
-  };
-
-  const handleFileUpload = async (field: 'companyLogo', file: File) => {
-    // Upload logo immediately for preview
-    if (field === 'companyLogo') {
-      try {
-        const fileName = `${user?.id}-logo-${Date.now()}.${file.name.split('.').pop()}`;
-        const logoUrl = await uploadFile(file, 'organization-logos', fileName);
-        
-        if (logoUrl) {
-          setFormData(prev => ({ 
-            ...prev, 
-            companyLogo: file,
-            logoUrl 
-          }));
-          toast({
-            title: "Logo Uploaded",
-            description: "Company logo uploaded and ready for preview.",
-          });
-        }
-      } catch (error) {
-        console.error('Logo upload error:', error);
-        toast({
-          title: "Upload Failed",
-          description: "Failed to upload logo. Please try again.",
-          variant: "destructive"
-        });
-      }
     }
   };
 
@@ -856,19 +788,6 @@ export const MaturitySetup = () => {
       title: "Document Removed",
       description: "Document removed from your uploads.",
     });
-  };
-
-  const triggerFileUpload = (field: 'companyLogo') => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.onchange = (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (file) {
-        handleFileUpload(field, file);
-      }
-    };
-    input.click();
   };
 
   const triggerOptionalDocumentUpload = () => {
@@ -963,7 +882,7 @@ export const MaturitySetup = () => {
       await autoSave();
       
       // Show detailed success feedback
-      const hasLogo = formData.companyLogo ? "✅" : "⚠️";
+      const hasLogo = localOrgData?.logo_object_path ? "✅" : "⚠️";
       const hasDocs = formData.optionalDocuments.length > 0 ? "✅" : "⚠️";
       
       toast({
@@ -1319,57 +1238,22 @@ export const MaturitySetup = () => {
                   </div>
                 </div>
                 
-                 <div>
-                   <Label>Company Logo</Label>
-                    {(formData.companyLogo || formData.logoUrl) ? (
-                      <div className="space-y-3">
-                        {/* Logo Preview */}
-                        {formData.logoUrl && (
-                          <div className="flex items-center justify-center p-4 border-2 border-dashed border-green-200 rounded-lg bg-green-50">
-                            <img 
-                              src={formData.logoUrl} 
-                              alt="Company Logo Preview" 
-                              className="max-h-24 max-w-48 object-contain"
-                            />
-                          </div>
-                        )}
-                        
-                        <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="bg-green-100 p-2 rounded-full">
-                              <Upload className="h-4 w-4 text-green-600" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-green-800">✅ Logo Uploaded</p>
-                              <p className="text-xs text-green-600">{formData.companyLogo?.name || 'Logo ready'}</p>
-                            </div>
-                          </div>
-                        </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => triggerFileUpload('companyLogo')}
-                          className="w-full"
-                        >
-                          Replace Logo
-                        </Button>
-                      </div>
-                   ) : (
-                     <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
-                       <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                       <p className="text-sm text-muted-foreground mb-2">
-                         Upload your company logo
-                       </p>
-                       <Button 
-                         variant="outline" 
-                         size="sm"
-                         onClick={() => triggerFileUpload('companyLogo')}
-                       >
-                         Choose File
-                       </Button>
-                     </div>
-                   )}
-                 </div>
+                <div>
+                  <LogoUploader
+                    organizationId={localOrgData?.id || currentContext?.organization_id || ''}
+                    organizationName={formData.companyName}
+                    currentLogoPath={localOrgData?.logo_object_path}
+                    onLogoUpdate={(logoPath) => {
+                      // Update local org data
+                      if (localOrgData) {
+                        setLocalOrgData(prev => ({
+                          ...prev,
+                          logo_object_path: logoPath
+                        }));
+                      }
+                    }}
+                  />
+                </div>
                </CardContent>
              </Card>
 

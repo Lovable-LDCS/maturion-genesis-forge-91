@@ -2547,28 +2547,37 @@ export type Database = {
           created_at: string
           finished_at: string | null
           id: string
+          job_type: Database["public"]["Enums"]["ingest_job_type"]
           org_id: string
           started_at: string
+          started_by: string | null
           stats: Json | null
           status: Database["public"]["Enums"]["ingest_job_status"]
+          updated_at: string | null
         }
         Insert: {
           created_at?: string
           finished_at?: string | null
           id?: string
+          job_type?: Database["public"]["Enums"]["ingest_job_type"]
           org_id: string
           started_at?: string
+          started_by?: string | null
           stats?: Json | null
           status?: Database["public"]["Enums"]["ingest_job_status"]
+          updated_at?: string | null
         }
         Update: {
           created_at?: string
           finished_at?: string | null
           id?: string
+          job_type?: Database["public"]["Enums"]["ingest_job_type"]
           org_id?: string
           started_at?: string
+          started_by?: string | null
           stats?: Json | null
           status?: Database["public"]["Enums"]["ingest_job_status"]
+          updated_at?: string | null
         }
         Relationships: [
           {
@@ -2807,6 +2816,7 @@ export type Database = {
           id: string
           industry_tags: string[] | null
           linked_domains: string[] | null
+          logo_object_path: string | null
           logo_url: string | null
           name: string
           organization_type: string | null
@@ -2835,6 +2845,7 @@ export type Database = {
           id?: string
           industry_tags?: string[] | null
           linked_domains?: string[] | null
+          logo_object_path?: string | null
           logo_url?: string | null
           name: string
           organization_type?: string | null
@@ -2863,6 +2874,7 @@ export type Database = {
           id?: string
           industry_tags?: string[] | null
           linked_domains?: string[] | null
+          logo_object_path?: string | null
           logo_url?: string | null
           name?: string
           organization_type?: string | null
@@ -3848,6 +3860,10 @@ export type Database = {
         Args: { "": unknown }
         Returns: unknown
       }
+      is_org_member: {
+        Args: { p_org_id: string }
+        Returns: boolean
+      }
       is_primary_organization: {
         Args: { org_uuid: string }
         Returns: boolean
@@ -4036,7 +4052,14 @@ export type Database = {
         | "alternative_proposal"
       crawl_status: "queued" | "fetching" | "done" | "failed"
       evidence_type: "document" | "photo" | "log" | "comment"
-      ingest_job_status: "running" | "completed" | "failed" | "cancelled"
+      ingest_job_status:
+        | "running"
+        | "completed"
+        | "failed"
+        | "cancelled"
+        | "queued"
+        | "done"
+      ingest_job_type: "nightly_crawl" | "manual" | "backfill"
       invitation_status: "pending" | "accepted" | "expired" | "cancelled"
       maturity_level:
         | "basic"
@@ -4198,7 +4221,15 @@ export const Constants = {
       ],
       crawl_status: ["queued", "fetching", "done", "failed"],
       evidence_type: ["document", "photo", "log", "comment"],
-      ingest_job_status: ["running", "completed", "failed", "cancelled"],
+      ingest_job_status: [
+        "running",
+        "completed",
+        "failed",
+        "cancelled",
+        "queued",
+        "done",
+      ],
+      ingest_job_type: ["nightly_crawl", "manual", "backfill"],
       invitation_status: ["pending", "accepted", "expired", "cancelled"],
       maturity_level: [
         "basic",
