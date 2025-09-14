@@ -2501,7 +2501,7 @@ export type Database = {
           id: string
           is_enabled: boolean
           org_id: string
-          organization_id: string | null
+          organization_id: string
           recrawl_hours: number
           updated_at: string
           updated_by: string
@@ -2514,7 +2514,7 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           org_id: string
-          organization_id?: string | null
+          organization_id: string
           recrawl_hours?: number
           updated_at?: string
           updated_by?: string
@@ -2527,7 +2527,7 @@ export type Database = {
           id?: string
           is_enabled?: boolean
           org_id?: string
-          organization_id?: string | null
+          organization_id?: string
           recrawl_hours?: number
           updated_at?: string
           updated_by?: string
