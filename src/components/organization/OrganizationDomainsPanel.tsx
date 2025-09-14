@@ -159,6 +159,7 @@ export const OrganizationDomainsPanel = () => {
         .from('org_domains')
         .insert({
           org_id: currentContext?.organization_id,
+          organization_id: currentContext?.organization_id,
           domain: newDomain.domain.toLowerCase().replace(/^https?:\/\//, ''),
           crawl_depth: newDomain.crawl_depth,
           recrawl_hours: newDomain.recrawl_hours,

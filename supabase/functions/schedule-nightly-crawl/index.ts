@@ -26,18 +26,26 @@ serve(async (req) => {
   }
 
   // Validate cron key for security (only for POST requests)
-  const cronKey = req.headers.get('x-cron-key');
-  const expectedCronKey = Deno.env.get('CRON_KEY');
-  
-  if (!cronKey || !expectedCronKey || cronKey !== expectedCronKey) {
-    console.error('Unauthorized cron request - missing or invalid x-cron-key header');
-    return new Response(JSON.stringify({
-      success: false,
-      error: 'Unauthorized: Invalid or missing cron key'
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 401,
+  if (req.method === 'POST') {
+    const cronKey = (req.headers.get('x-cron-key') ?? '').trim();
+    const expectedCronKey = (Deno.env.get('CRON_KEY') ?? '').trim();
+
+    // TEMP DEBUG (remove after fix)
+    console.log('[cron debug]', {
+      receivedLen: cronKey.length,
+      expectedLen: expectedCronKey.length,
+      equal: cronKey === expectedCronKey,
     });
+
+    if (!cronKey || !expectedCronKey || cronKey !== expectedCronKey) {
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Unauthorized: Invalid or missing cron key' 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      });
+    }
   }
 
   try {

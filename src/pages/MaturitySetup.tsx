@@ -317,6 +317,7 @@ export const MaturitySetup = () => {
           .from('org_domains')
           .upsert({
             org_id: localOrgData.id,
+            organization_id: localOrgData.id,
             domain: domain,
             crawl_depth: 2,
             recrawl_hours: 24,
