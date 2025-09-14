@@ -278,6 +278,87 @@ export const MaturitySetup = () => {
   const [isLoadingDocuments, setIsLoadingDocuments] = useState(false);
   const [processingStatuses, setProcessingStatuses] = useState<Record<string, 'pending' | 'processing' | 'completed' | 'failed'>>({});
   const [reprocessingDocs, setReprocessingDocs] = useState<Set<string>>(new Set());
+  const [crawling, setCrawling] = useState(false);
+
+  // Web crawl function for parent organization
+  const handleRunWebCrawl = async () => {
+    if (!localOrgData?.id) {
+      toast({
+        title: "Error",
+        description: "Organization data not available",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setCrawling(true);
+      
+      // First ensure domains are seeded in org_domains table
+      const domainsToSeed = [
+        formData.primaryWebsiteUrl,
+        ...formData.linkedDomains
+      ].filter(d => d && d.trim());
+
+      if (domainsToSeed.length === 0) {
+        toast({
+          title: "No Domains",
+          description: "Please add at least one domain to crawl",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Seed domains first if needed
+      for (const domainUrl of domainsToSeed) {
+        const domain = domainUrl.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
+        
+        const { error: seedError } = await supabase
+          .from('org_domains')
+          .upsert({
+            org_id: localOrgData.id,
+            domain: domain,
+            crawl_depth: 2,
+            recrawl_hours: 24,
+            is_enabled: true,
+            created_by: user?.id || '',
+            updated_by: user?.id || ''
+          }, { 
+            onConflict: 'org_id,domain',
+            ignoreDuplicates: false 
+          });
+          
+        if (seedError) {
+          console.warn(`Failed to seed domain ${domain}:`, seedError);
+        }
+      }
+
+      // Start the crawl
+      const { data, error } = await supabase.functions.invoke('crawl-org-domain', {
+        body: {
+          orgId: localOrgData.id,
+          priority: 200
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Web Crawl Started',
+        description: `Crawling ${domainsToSeed.length} domain(s)...`
+      });
+      
+    } catch (error: any) {
+      console.error('Web crawl error:', error);
+      toast({
+        title: 'Crawl Failed', 
+        description: error.message || 'Failed to start web crawl',
+        variant: 'destructive'
+      });
+    } finally {
+      setCrawling(false);
+    }
+  };
 
   // Function to reprocess a failed document
   const reprocessDocument = async (documentId: string) => {
@@ -1357,6 +1438,32 @@ export const MaturitySetup = () => {
                         <Plus className="h-4 w-4 mr-2" />
                         Add Domain
                       </Button>
+                      
+                      {/* Web Crawl Management Section */}
+                      {(formData.primaryWebsiteUrl || formData.linkedDomains.length > 0) && (
+                        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-medium text-blue-800">Web Content Ingestion</h4>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleRunWebCrawl}
+                              disabled={crawling}
+                              className="bg-white hover:bg-blue-50"
+                            >
+                              {crawling ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : (
+                                <Globe className="h-4 w-4 mr-2" />
+                              )}
+                              {crawling ? 'Crawling...' : 'Run Now'}
+                            </Button>
+                          </div>
+                          <p className="text-xs text-blue-600">
+                            Crawl your websites to extract content for AI analysis. This helps personalize your maturity model with your organization's specific context.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
