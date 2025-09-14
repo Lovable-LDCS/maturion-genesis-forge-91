@@ -1440,30 +1440,24 @@ export const MaturitySetup = () => {
                       </Button>
                       
                       {/* Web Crawl Management Section */}
-                      {(formData.primaryWebsiteUrl || formData.linkedDomains.length > 0) && (
-                        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                          <div className="flex items-center justify-between mb-2">
-                            <h4 className="font-medium text-blue-800">Web Content Ingestion</h4>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleRunWebCrawl}
-                              disabled={crawling}
-                              className="bg-white hover:bg-blue-50"
-                            >
-                              {crawling ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              ) : (
-                                <Globe className="h-4 w-4 mr-2" />
-                              )}
-                              {crawling ? 'Crawling...' : 'Run Now'}
-                            </Button>
-                          </div>
-                          <p className="text-xs text-blue-600">
-                            Crawl your websites to extract content for AI analysis. This helps personalize your maturity model with your organization's specific context.
-                          </p>
-                        </div>
-                      )}
+                      <div className="mt-3">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={handleRunWebCrawl}
+                          disabled={crawling}
+                        >
+                          {crawling ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          ) : (
+                            <Globe className="h-4 w-4 mr-2" />
+                          )}
+                          {crawling ? 'Crawling...' : 'Run Now'}
+                        </Button>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Crawl your websites to extract content for AI analysis. This personalizes your maturity model with your organization context.
+                        </p>
+                      </div>
                     </div>
                   </div>
 
