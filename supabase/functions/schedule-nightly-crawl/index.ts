@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
+import { timingSafeEqual } from "https://deno.land/std@0.168.0/crypto/timing_safe_equal.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -27,17 +28,34 @@ serve(async (req) => {
 
   // Validate cron key for security (only for POST requests)
   if (req.method === 'POST') {
-    const cronKey = (req.headers.get('x-cron-key') ?? '').trim();
-    const expectedCronKey = (Deno.env.get('CRON_KEY') ?? '').trim();
+    const cronKeyHeader = (req.headers.get('x-cron-key') ?? '').trim();
+    const cronKeyEnv = (Deno.env.get('CRON_KEY') ?? '').trim();
 
-    // TEMP DEBUG (remove after fix)
-    console.log('[cron debug]', {
-      receivedLen: cronKey.length,
-      expectedLen: expectedCronKey.length,
-      equal: cronKey === expectedCronKey,
-    });
+    // Debug logging as requested
+    console.log('[cron debug] expectedLen =', cronKeyEnv.length);
+    console.log('[cron debug] receivedLen =', cronKeyHeader.length);
+    
+    // Check for missing values first
+    if (!cronKeyHeader || !cronKeyEnv) {
+      console.log('[cron debug] missing env or header');
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: 'Unauthorized: Invalid or missing cron key' 
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401,
+      });
+    }
 
-    if (!cronKey || !expectedCronKey || cronKey !== expectedCronKey) {
+    // Timing-safe comparison
+    const receivedBytes = new TextEncoder().encode(cronKeyHeader);
+    const expectedBytes = new TextEncoder().encode(cronKeyEnv);
+    const isValid = receivedBytes.length === expectedBytes.length && 
+                    timingSafeEqual(receivedBytes, expectedBytes);
+    
+    console.log('[cron debug] equal =', isValid);
+
+    if (!isValid) {
       return new Response(JSON.stringify({ 
         success: false, 
         error: 'Unauthorized: Invalid or missing cron key' 
