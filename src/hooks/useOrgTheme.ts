@@ -47,10 +47,21 @@ export function useOrgTheme(orgId: string | null) {
 
         const createSignedUrl = async (path?: string | null) => {
           if (!path) return null;
-          const { data: urlData } = await supabase.storage
-            .from("org_branding")
-            .createSignedUrl(path, 3600);
-          return urlData?.signedUrl ?? null;
+          try {
+            const { data: urlData, error } = await supabase.storage
+              .from("org_branding")
+              .createSignedUrl(path, 3600);
+            
+            if (error) {
+              console.warn(`Failed to create signed URL for ${path}:`, error);
+              return null;
+            }
+            
+            return urlData?.signedUrl ?? null;
+          } catch (error) {
+            console.warn(`Error creating signed URL for ${path}:`, error);
+            return null;
+          }
         };
 
         const [lightLogo, darkLogo, blackWordmark, whiteWordmark, favicon] = await Promise.all([

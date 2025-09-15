@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { AlertTriangle, CheckCircle } from "lucide-react";
+import { getContrastAnalysis } from "@/lib/colorUtils";
 
 type FileSpec = {
   key: keyof FormDataMap; 
@@ -60,13 +63,41 @@ const SPECS: FileSpec[] = [
   },
 ];
 
-async function uploadToBranding(orgId: string, filename: string, file: File) {
+async function uploadToBranding(orgId: string, filename: string, file: File, retryCount: number = 0): Promise<string> {
   const path = `org/${orgId}/branding/${filename}`;
-  const { error } = await supabase.storage
-    .from("org_branding")
-    .upload(path, file, { upsert: true });
-  if (error) throw error;
-  return path;
+  
+  try {
+    const { error } = await supabase.storage
+      .from("org_branding")
+      .upload(path, file, { 
+        upsert: true,
+        cacheControl: '3600' // 1 hour cache
+      });
+    
+    if (error) throw error;
+    
+    // Log successful upload to audit trail
+    await supabase.from('audit_trail').insert({
+      organization_id: orgId,
+      table_name: 'org_branding_storage',
+      record_id: orgId,
+      action: 'BRANDING_ASSET_UPLOADED',
+      changed_by: '00000000-0000-0000-0000-000000000000', // System upload
+      change_reason: `Uploaded ${filename} (${(file.size / 1024).toFixed(1)}KB)`,
+      new_value: path,
+      field_name: 'file_path'
+    });
+    
+    return path;
+  } catch (error: any) {
+    // Retry on 429 or 5xx errors
+    if ((error.status === 429 || error.status >= 500) && retryCount < 2) {
+      const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return uploadToBranding(orgId, filename, file, retryCount + 1);
+    }
+    throw error;
+  }
 }
 
 interface BrandingUploaderProps {
@@ -82,26 +113,54 @@ export function BrandingUploader({ orgId }: BrandingUploaderProps) {
     text: "#ffffff",
     headerMode: "dark"
   });
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
+
+  // Calculate contrast analysis
+  const contrastAnalysis = getContrastAnalysis(colors.text, colors.primary);
+  const isValidContrast = contrastAnalysis.passAA;
 
   const onFile = (key: keyof FormDataMap, f?: File) => 
     setForm(prev => ({ ...prev, [key]: f }));
 
   const save = async () => {
+    // Check contrast before saving
+    if (!isValidContrast) {
+      toast({
+        title: "Contrast Warning",
+        description: `Text color fails WCAG contrast requirements (${contrastAnalysis.ratio}:1). Consider adjusting colors for better accessibility.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setBusy(true);
+      setRetryCount(0);
       const updates: Record<string, string | null> = {};
 
       // Upload any provided files and map to org columns
       for (const spec of SPECS) {
         const f = form[spec.key];
         if (f) {
-          const storagePath = await uploadToBranding(orgId, spec.filename, f);
-          if (spec.key === "logoLight") updates.brand_logo_light_path = storagePath;
-          if (spec.key === "logoDark") updates.brand_logo_dark_path = storagePath;
-          if (spec.key === "wordmarkBlack") updates.brand_wordmark_black_path = storagePath;
-          if (spec.key === "wordmarkWhite") updates.brand_wordmark_white_path = storagePath;
-          if (spec.key === "favicon") updates.brand_favicon_path = storagePath;
+          try {
+            const storagePath = await uploadToBranding(orgId, spec.filename, f, retryCount);
+            if (spec.key === "logoLight") updates.brand_logo_light_path = storagePath;
+            if (spec.key === "logoDark") updates.brand_logo_dark_path = storagePath;
+            if (spec.key === "wordmarkBlack") updates.brand_wordmark_black_path = storagePath;
+            if (spec.key === "wordmarkWhite") updates.brand_wordmark_white_path = storagePath;
+            if (spec.key === "favicon") updates.brand_favicon_path = storagePath;
+          } catch (uploadError: any) {
+            if (uploadError.status === 429 || uploadError.status >= 500) {
+              setRetryCount(prev => prev + 1);
+              toast({
+                title: "Upload Retry",
+                description: `Retrying upload for ${spec.label}... (${retryCount + 1}/3)`,
+              });
+              throw uploadError;
+            }
+            throw uploadError;
+          }
         }
       }
 
@@ -117,6 +176,18 @@ export function BrandingUploader({ orgId }: BrandingUploaderProps) {
         .eq("id", orgId);
       
       if (dbErr) throw dbErr;
+
+      // Log theme update to audit trail
+      await supabase.from('audit_trail').insert({
+        organization_id: orgId,
+        table_name: 'organizations',
+        record_id: orgId,
+        action: 'BRANDING_THEME_SAVED',
+        changed_by: '00000000-0000-0000-0000-000000000000', // System update
+        change_reason: `Updated theme colors and assets (contrast: ${contrastAnalysis.ratio}:1)`,
+        new_value: JSON.stringify(colors),
+        field_name: 'branding_theme'
+      });
       
       toast({
         title: "Success",
@@ -126,9 +197,12 @@ export function BrandingUploader({ orgId }: BrandingUploaderProps) {
       // Clear form
       setForm({});
     } catch (e: any) {
+      const isRetryable = e.status === 429 || e.status >= 500;
       toast({
         title: "Error",
-        description: e.message ?? "Upload failed",
+        description: isRetryable 
+          ? `Upload failed. ${retryCount < 2 ? 'Retrying...' : 'Please try again later.'}`
+          : e.message ?? "Upload failed",
         variant: "destructive",
       });
     } finally {
@@ -165,6 +239,21 @@ export function BrandingUploader({ orgId }: BrandingUploaderProps) {
         {/* Theme colors */}
         <div className="space-y-4">
           <h3 className="text-lg font-medium">Theme Colors</h3>
+          
+          {/* Contrast validation alert */}
+          <Alert variant={isValidContrast ? "default" : "destructive"}>
+            <div className="flex items-center gap-2">
+              {isValidContrast ? (
+                <CheckCircle className="h-4 w-4 text-green-600" />
+              ) : (
+                <AlertTriangle className="h-4 w-4" />
+              )}
+              <AlertDescription>
+                Contrast ratio: {contrastAnalysis.ratio}:1 ({contrastAnalysis.level})
+                {isValidContrast ? ' - Meets WCAG AA standards' : ' - Fails WCAG standards (needs 4.5:1)'}
+              </AlertDescription>
+            </div>
+          </Alert>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="primary">Primary Color</Label>
@@ -245,8 +334,13 @@ export function BrandingUploader({ orgId }: BrandingUploaderProps) {
           onClick={save} 
           disabled={busy}
           className="w-full"
+          variant={isValidContrast ? "default" : "secondary"}
         >
-          {busy ? "Saving..." : "Save Branding"}
+          {busy ? (
+            retryCount > 0 ? `Retrying... (${retryCount}/3)` : "Saving..."
+          ) : (
+            isValidContrast ? "Save Branding" : "Save Anyway (Contrast Warning)"
+          )}
         </Button>
       </CardContent>
     </Card>
