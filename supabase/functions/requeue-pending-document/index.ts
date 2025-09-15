@@ -14,10 +14,13 @@ serve(async (req) => {
 
   try {
     const { documentId } = await req.json();
+    const requestId = crypto.randomUUID();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    console.log(`[requeue] requestId=${requestId} documentId=${documentId}`);
 
     // Reset document status to pending and clear any existing chunks
     const { error: deleteError } = await supabase
@@ -44,6 +47,21 @@ serve(async (req) => {
 
     if (updateError) throw updateError;
 
+    // Stamp requestId into document metadata for traceability
+    const { error: metaError } = await supabase
+      .from('ai_documents')
+      .update({
+        metadata: {
+          ...(updatedDoc?.metadata || {}),
+          last_requeue_request_id: requestId,
+          last_requeue_time: new Date().toISOString()
+        }
+      })
+      .eq('id', documentId);
+    if (metaError) {
+      console.warn('Could not update document metadata with requestId:', metaError);
+    }
+
     // Trigger reprocessing
     const { error: processError } = await supabase.functions.invoke('process-ai-document', {
       body: { 
@@ -59,7 +77,10 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({ 
       success: true, 
+      requestId,
       document: updatedDoc,
+      storagePath: updatedDoc?.file_path || null,
+      bucketsTried: ['documents','ai_documents'],
       message: 'Document requeued for processing'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

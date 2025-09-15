@@ -131,7 +131,9 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
           prompt: sanitizedInput,
           context: context || 'Diamond industry security and operational controls',
           currentDomain: currentDomain || 'General',
-          organizationId: currentOrganization?.id
+          organizationId: currentOrganization?.id,
+          orgId: currentOrganization?.id,
+          domainFilters: ["Organization Profile", "Diamond Knowledge Pack"]
         }
       });
 

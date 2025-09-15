@@ -439,6 +439,9 @@ export const MaturitySetup = () => {
       
       if (error) throw error;
       
+      const requestId = data?.requestId;
+      console.log('Requeue requestId:', requestId);
+      
       // Update local status
       setProcessingStatuses(prev => ({
         ...prev,
@@ -447,7 +450,7 @@ export const MaturitySetup = () => {
       
       toast({
         title: "Document Requeued",
-        description: "Document has been requeued for processing. Check back in a few moments.",
+        description: requestId ? `Request ID: ${requestId}` : "Document has been requeued for processing. Check back in a few moments.",
       });
       
     } catch (error: any) {
