@@ -53,6 +53,9 @@ export const DKPOrgCrawlTest = () => {
         body: { orgId: DE_BEERS_ORG_ID }
       });
       if (statusErr) throw statusErr;
+      
+      // Gate C console logging for QA evidence
+      console.log('[Gate C] get-crawl-status response:', statusData);
 
       // Step 5: Verify results with direct queries
       toast({ title: "Step 5: Verifying results..." });

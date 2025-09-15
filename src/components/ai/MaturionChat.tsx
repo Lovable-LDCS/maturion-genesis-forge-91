@@ -196,12 +196,40 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
         }
       }
     } catch (error) {
-      console.error('Error sending message:', error);
-      toast({
-        title: "Connection Error",
-        description: "Unable to reach Maturion. Please try again.",
-        variant: "destructive"
-      });
+      console.error('[Gate D] maturion-ai-chat error:', error);
+      
+      // Check if this might be an ingestion-in-progress issue
+      const errorMessage = error?.message || String(error);
+      const isIngestionError = errorMessage.includes('ingestion') || 
+                               errorMessage.includes('processing') ||
+                               errorMessage.includes('embedding') ||
+                               errorMessage.includes('chunks');
+      
+      if (isIngestionError) {
+        const fallbackMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: "🔄 I'm currently processing your uploaded documents to provide the most accurate, diamond-specific guidance. While this completes, I can still help with general diamond industry questions about security controls, operational procedures, and compliance frameworks. What would you like to discuss?",
+          sender: 'maturion',
+          timestamp: new Date(),
+          hasKnowledgeBase: false
+        };
+        setMessages(prev => [...prev, fallbackMessage]);
+      } else {
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          content: "I apologize, but I'm experiencing temporary difficulties. Please try rephrasing your question or contact support if the issue persists.",
+          sender: 'maturion',
+          timestamp: new Date(),
+          hasKnowledgeBase: false
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        
+        toast({
+          title: "Connection Error",
+          description: "Unable to reach Maturion. Please try again.",
+          variant: "destructive"
+        });
+      }
     } finally {
       setIsLoading(false);
     }

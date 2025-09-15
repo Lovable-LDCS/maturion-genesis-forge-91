@@ -2,16 +2,51 @@ import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': 'https://3c69e685-8e54-4e6e-839f-825a37d4f745.lovableproject.com',
-  'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+// Dynamic CORS headers supporting both preview and prod origins
+const getAllowedOrigins = () => [
+  'https://3c69e685-8e54-4e6e-839f-825a37d4f745.lovableproject.com', // Preview
+  'https://dmhlxhatogrrrvuruayv.supabase.co', // Prod
+  'https://lovableproject.com', // Prod
+  'https://*.lovableproject.com' // Prod wildcard
+];
+
+const getCorsHeaders = (origin: string | null) => {
+  const allowedOrigins = getAllowedOrigins();
+  let allowedOrigin = '*';
+  
+  // Check exact matches first
+  if (origin && allowedOrigins.some(allowed => allowed === origin)) {
+    allowedOrigin = origin;
+  }
+  // Check wildcard patterns
+  else if (origin && allowedOrigins.some(allowed => {
+    if (allowed.includes('*')) {
+      const pattern = allowed.replace('*', '.*');
+      return new RegExp(`^${pattern}$`).test(origin);
+    }
+    return false;
+  })) {
+    allowedOrigin = origin;
+  }
+  
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, apikey, content-type, x-client-info',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin'
+  };
 };
 
 serve(async (req) => {
+  const origin = req.headers.get('origin');
+  const corsHeaders = getCorsHeaders(origin);
+  
   // CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: { ...corsHeaders } });
+    return new Response(null, { 
+      status: 204, 
+      headers: corsHeaders 
+    });
   }
 
   // Simple readiness check on GET

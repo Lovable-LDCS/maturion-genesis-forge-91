@@ -329,33 +329,29 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
               )}
             </div>
 
-            {/* Action Buttons */}
+            {/* Action Buttons - Always show Reprocess for Gate B testing */}
             <div className="flex gap-2 pt-2">
-              {(document.processing_status === 'failed' || 
-                document.processing_status === 'pending' || 
-                (document.processing_status === 'completed' && document.total_chunks === 0)) && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleReprocess}
-                  disabled={isReprocessing}
-                  className="text-xs"
-                >
-                  {isReprocessing ? (
-                    <>
-                      <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                      Reprocessing...
-                    </>
-                  ) : (
-                    <>
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                      {document.processing_status === 'completed' && document.total_chunks === 0 
-                        ? 'Fix Missing Chunks' 
-                        : 'Reprocess Document'}
-                    </>
-                  )}
-                </Button>
-              )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleReprocess}
+                disabled={isReprocessing}
+                className="text-xs"
+              >
+                {isReprocessing ? (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                    Reprocessing...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    {document.processing_status === 'completed' && document.total_chunks === 0 
+                      ? 'Fix Missing Chunks' 
+                      : 'Reprocess Document'}
+                  </>
+                )}
+              </Button>
 
               {document.processing_status === 'completed' && document.total_chunks > 0 && (
                 <Button
