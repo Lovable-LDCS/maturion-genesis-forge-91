@@ -2741,7 +2741,7 @@ export type Database = {
           pages: number | null
           processed_at: string | null
           source_object_path: string
-          status: string
+          status: Database["public"]["Enums"]["doc_status"]
         }
         Insert: {
           created_at?: string
@@ -2752,7 +2752,7 @@ export type Database = {
           pages?: number | null
           processed_at?: string | null
           source_object_path: string
-          status?: string
+          status?: Database["public"]["Enums"]["doc_status"]
         }
         Update: {
           created_at?: string
@@ -2763,7 +2763,7 @@ export type Database = {
           pages?: number | null
           processed_at?: string | null
           source_object_path?: string
-          status?: string
+          status?: Database["public"]["Enums"]["doc_status"]
         }
         Relationships: [
           {
@@ -4022,6 +4022,15 @@ export type Database = {
         Args: { "": unknown[] }
         Returns: number
       }
+      update_org_doc_status: {
+        Args: {
+          p_doc_id: string
+          p_error?: string
+          p_pages?: number
+          p_status: Database["public"]["Enums"]["doc_status"]
+        }
+        Returns: undefined
+      }
       user_can_manage_org_invitations: {
         Args: { org_id: string }
         Returns: boolean
@@ -4099,6 +4108,7 @@ export type Database = {
         | "escalated"
         | "alternative_proposal"
       crawl_status: "queued" | "fetching" | "done" | "failed"
+      doc_status: "pending" | "ready" | "failed"
       evidence_type: "document" | "photo" | "log" | "comment"
       ingest_job_status:
         | "running"
@@ -4268,6 +4278,7 @@ export const Constants = {
         "alternative_proposal",
       ],
       crawl_status: ["queued", "fetching", "done", "failed"],
+      doc_status: ["pending", "ready", "failed"],
       evidence_type: ["document", "photo", "log", "comment"],
       ingest_job_status: [
         "running",
