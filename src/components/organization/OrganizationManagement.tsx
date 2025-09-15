@@ -126,6 +126,43 @@ export const OrganizationManagement: React.FC = () => {
     },
   })
 
+  // Load existing settings from localStorage
+  React.useEffect(() => {
+    const loadSettings = () => {
+      if (!currentOrganization) return
+
+      try {
+        // Load branding settings
+        const savedBranding = localStorage.getItem(`branding_${currentOrganization.id}`)
+        if (savedBranding) {
+          const brandingData = JSON.parse(savedBranding)
+          brandingForm.reset({
+            logoUrl: brandingData.logoUrl || '',
+            primaryColor: brandingData.primaryColor || '#3b82f6',
+            accentColor: brandingData.accentColor || '#8b5cf6',
+          })
+        }
+
+        // Load notification preferences
+        const savedNotifications = localStorage.getItem(`notifications_${currentOrganization.id}`)
+        if (savedNotifications) {
+          const notificationData = JSON.parse(savedNotifications)
+          notificationForm.reset({
+            emailAlerts: notificationData.emailAlerts !== undefined ? notificationData.emailAlerts : true,
+            digestFrequency: notificationData.digestFrequency || 'weekly',
+            milestoneUpdates: notificationData.milestoneUpdates !== undefined ? notificationData.milestoneUpdates : true,
+            teamInvitations: notificationData.teamInvitations !== undefined ? notificationData.teamInvitations : true,
+            systemMaintenance: notificationData.systemMaintenance !== undefined ? notificationData.systemMaintenance : true,
+          })
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error)
+      }
+    }
+
+    loadSettings()
+  }, [currentOrganization, brandingForm, notificationForm])
+
   const integrationForm = useForm<IntegrationData>({
     resolver: zodResolver(integrationSchema),
     defaultValues: {
@@ -222,9 +259,8 @@ export const OrganizationManagement: React.FC = () => {
 
     setBrandingLoading(true)
     try {
-      // In a real app, you would save this to a settings table
-      // For now, we'll just show a success message
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
+      // Save to localStorage for persistence
+      localStorage.setItem(`branding_${currentOrganization.id}`, JSON.stringify(data))
       
       toast({
         title: 'Branding Updated',
@@ -246,8 +282,8 @@ export const OrganizationManagement: React.FC = () => {
 
     setNotificationLoading(true)
     try {
-      // In a real app, you would save this to a settings table
-      await new Promise(resolve => setTimeout(resolve, 1000)) // Simulate API call
+      // Save to localStorage for persistence
+      localStorage.setItem(`notifications_${currentOrganization.id}`, JSON.stringify(data))
       
       toast({
         title: 'Notifications Updated',
