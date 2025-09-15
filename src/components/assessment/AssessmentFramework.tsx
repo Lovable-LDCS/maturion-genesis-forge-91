@@ -243,6 +243,18 @@ export const AssessmentFramework: React.FC = () => {
         
         <TabsContent value="branding" className="mt-6 space-y-6">
           <div className="max-w-2xl mx-auto space-y-6">
+            {/* Telemetry tracking for branding tab opened */}
+            {(() => {
+              // Log branding tab access
+              console.log('[TELEMETRY] branding_tab_opened', {
+                orgId: currentOrganization?.id,
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                sessionId: crypto.randomUUID()
+              });
+              return null;
+            })()}
+            
             {currentOrganization?.id && (
               <DeBeersBrandingDemo orgId={currentOrganization.id} />
             )}

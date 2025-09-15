@@ -145,11 +145,43 @@ export function BrandingUploader({ orgId }: BrandingUploaderProps) {
         if (f) {
           try {
             const storagePath = await uploadToBranding(orgId, spec.filename, f, retryCount);
+            
+            // Calculate file checksum for audit trail
+            const fileBuffer = await f.arrayBuffer();
+            const hashBuffer = await crypto.subtle.digest('SHA-256', fileBuffer);
+            const checksum = Array.from(new Uint8Array(hashBuffer))
+              .map(b => b.toString(16).padStart(2, '0')).join('');
+            
+            // Map storage path to database column
             if (spec.key === "logoLight") updates.brand_logo_light_path = storagePath;
             if (spec.key === "logoDark") updates.brand_logo_dark_path = storagePath;
             if (spec.key === "wordmarkBlack") updates.brand_wordmark_black_path = storagePath;
             if (spec.key === "wordmarkWhite") updates.brand_wordmark_white_path = storagePath;
             if (spec.key === "favicon") updates.brand_favicon_path = storagePath;
+            
+            // Enhanced audit trail for each file upload
+            const { data: currentUser } = await supabase.auth.getUser();
+            await supabase.from('audit_trail').insert({
+              organization_id: orgId,
+              table_name: 'org_branding_storage',
+              record_id: orgId,
+              action: 'BRANDING_ASSET_UPLOADED',
+              changed_by: currentUser?.user?.id || '00000000-0000-0000-0000-000000000000',
+              change_reason: `Uploaded ${spec.label}: ${f.name} (${(f.size / 1024).toFixed(1)}KB, SHA256: ${checksum.slice(0, 16)}...)`,
+              new_value: storagePath,
+              field_name: spec.key,
+              session_id: crypto.randomUUID()
+            });
+
+            // Telemetry event for asset upload
+            console.log(`[TELEMETRY] branding_asset_uploaded: ${spec.key}`, {
+              orgId,
+              fileName: f.name,
+              fileSize: f.size,
+              fileType: spec.key,
+              timestamp: new Date().toISOString()
+            });
+            
           } catch (uploadError: any) {
             if (uploadError.status === 429 || uploadError.status >= 500) {
               setRetryCount(prev => prev + 1);
@@ -177,16 +209,39 @@ export function BrandingUploader({ orgId }: BrandingUploaderProps) {
       
       if (dbErr) throw dbErr;
 
-      // Log theme update to audit trail
-      await supabase.from('audit_trail').insert({
-        organization_id: orgId,
-        table_name: 'organizations',
-        record_id: orgId,
-        action: 'BRANDING_THEME_SAVED',
-        changed_by: '00000000-0000-0000-0000-000000000000', // System update
-        change_reason: `Updated theme colors and assets (contrast: ${contrastAnalysis.ratio}:1)`,
-        new_value: JSON.stringify(colors),
-        field_name: 'branding_theme'
+      // Enhanced audit trail for theme changes
+      const { data: currentUser } = await supabase.auth.getUser();
+      const sessionId = crypto.randomUUID();
+      
+      // Log each theme property change individually
+      const themeChanges = [
+        { field: 'brand_primary_hex', value: colors.primary },
+        { field: 'brand_secondary_hex', value: colors.secondary },
+        { field: 'brand_text_hex', value: colors.text },
+        { field: 'brand_header_mode', value: colors.headerMode }
+      ];
+
+      for (const change of themeChanges) {
+        await supabase.from('audit_trail').insert({
+          organization_id: orgId,
+          table_name: 'organizations',
+          record_id: orgId,
+          action: 'BRANDING_THEME_UPDATED',
+          changed_by: currentUser?.user?.id || '00000000-0000-0000-0000-000000000000',
+          change_reason: `Theme color updated: ${change.field} (WCAG contrast: ${contrastAnalysis.ratio}:1)`,
+          new_value: change.value,
+          field_name: change.field,
+          session_id: sessionId
+        });
+      }
+
+      // Telemetry event for theme save
+      console.log('[TELEMETRY] branding_theme_saved', {
+        orgId,
+        contrastRatio: contrastAnalysis.ratio,
+        headerMode: colors.headerMode,
+        timestamp: new Date().toISOString(),
+        sessionId
       });
       
       toast({
