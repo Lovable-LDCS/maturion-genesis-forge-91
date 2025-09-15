@@ -109,6 +109,7 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
     try {
       // Use requeue function which also repairs storage path if needed
       const { data, error } = await supabase.functions.invoke('requeue-pending-document', {
+        headers: { 'x-client-info': 'maturion-ui' },
         body: { documentId: document.id }
       });
 

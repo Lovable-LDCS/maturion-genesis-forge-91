@@ -434,6 +434,7 @@ export const MaturitySetup = () => {
       console.log(`Requeuing document: ${documentId}`);
       
       const { data, error } = await supabase.functions.invoke('requeue-pending-document', {
+        headers: { 'x-client-info': 'maturion-ui' },
         body: { documentId }
       });
       
@@ -484,39 +485,17 @@ export const MaturitySetup = () => {
     setReprocessingDocs(prev => new Set([...prev, documentId]));
     
     try {
-      console.log(`Reprocessing document: ${documentId}`);
-      
-      // First reset the document status to pending
-      const { error: resetError } = await supabase.functions.invoke('reset-failed-document', {
+      console.log(`Requeuing document: ${documentId}`);
+      const { data, error } = await supabase.functions.invoke('requeue-pending-document', {
+        headers: { 'x-client-info': 'maturion-ui' },
         body: { documentId }
       });
-      
-      if (resetError) {
-        console.warn('Reset function failed, trying direct update:', resetError);
-        // Fallback: try direct status update
-        await supabase
-          .from('ai_documents')
-          .update({ processing_status: 'pending' })
-          .eq('id', documentId);
+      if (error) {
+        throw new Error(`Requeue failed: ${error.message}`);
       }
-      
-      // Update local status
-      setProcessingStatuses(prev => ({
-        ...prev,
-        [documentId]: 'pending'
-      }));
-      
-      // Trigger processing
-      const { error: processingError } = await supabase.functions.invoke('process-ai-document', {
-        body: { 
-          documentId,
-          organizationId: localOrgData.id
-        }
-      });
-      
-      if (processingError) {
-        throw new Error(`Processing failed: ${processingError.message}`);
-      }
+      const requestId = data?.requestId;
+      console.log('Requeue requestId:', requestId);
+      console.log('Requeue storagePath (canonical):', data?.storagePath, 'expectedPath:', data?.expectedPath, 'repaired:', data?.repaired);
       
       setProcessingStatuses(prev => ({
         ...prev,
@@ -524,8 +503,8 @@ export const MaturitySetup = () => {
       }));
       
       toast({
-        title: "Reprocessing Started",
-        description: "Document reprocessing has been initiated. Check back in a few moments.",
+        title: "Document Requeued",
+        description: requestId ? `Request ID: ${requestId}` : "Document requeued; processing will start shortly.",
       });
       
     } catch (error: any) {
