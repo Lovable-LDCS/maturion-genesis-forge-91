@@ -107,32 +107,35 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
   const handleReprocess = async () => {
     setIsReprocessing(true);
     try {
-      // Call the process-ai-document function
-      const { data, error } = await supabase.functions.invoke('process-ai-document', {
+      // Use requeue function which also repairs storage path if needed
+      const { data, error } = await supabase.functions.invoke('requeue-pending-document', {
         body: { documentId: document.id }
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Reprocessing Started",
-        description: `Document "${document.title || document.file_name}" has been queued for reprocessing.`,
+      // Log artifacts for QA Gate B
+      console.info('[Gate B] Requeue response:', {
+        requestId: data?.requestId,
+        storagePath: data?.storagePath,
+        bucketsTried: data?.bucketsTried,
       });
 
-      if (onReprocess) {
-        onReprocess(document.id);
-      }
-
-      // Keep the reprocessing state for a few seconds to show feedback
-      setTimeout(() => {
-        setIsReprocessing(false);
-      }, 3000);
-    } catch (error) {
-      console.error('Reprocessing error:', error);
       toast({
-        title: "Reprocessing Failed",
-        description: "Failed to start document reprocessing. Please try again.",
-        variant: "destructive"
+        title: 'Requeue requested',
+        description: `requestId=${data?.requestId ?? 'n/a'} — ${document.title || document.file_name}`,
+      });
+
+      onReprocess?.(document.id);
+
+      // Keep the reprocessing state briefly for visual feedback
+      setTimeout(() => setIsReprocessing(false), 3000);
+    } catch (error: any) {
+      console.error('[Gate B] Reprocessing error:', error);
+      toast({
+        title: 'Reprocessing Failed',
+        description: error?.message || 'Failed to start document reprocessing. Please try again.',
+        variant: 'destructive',
       });
       setIsReprocessing(false);
     }

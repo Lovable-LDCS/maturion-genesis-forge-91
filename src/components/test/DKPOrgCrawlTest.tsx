@@ -46,17 +46,23 @@ export const DKPOrgCrawlTest = () => {
       setResults(prev => ({ ...prev, extract: extractResult }));
       toast({ title: "✅ Extraction completed" });
 
-      // Step 4: Verify results with direct queries
-      toast({ title: "Step 4: Verifying results..." });
+      // Step 4: get-crawl-status (Gate C evidence)
+      const { data: statusData, error: statusErr } = await supabase.functions.invoke('get-crawl-status', {
+        body: { orgId: DE_BEERS_ORG_ID }
+      });
+      if (statusErr) throw statusErr;
+
+      // Step 5: Verify results with direct queries
+      toast({ title: "Step 5: Verifying results..." });
       
       const { data: pagesData } = await supabase
         .from('org_pages')
-        .select('*')
+        .select('id')
         .eq('org_id', DE_BEERS_ORG_ID);
         
       const { data: chunksData } = await supabase
         .from('org_page_chunks') 
-        .select('*')
+        .select('id')
         .eq('org_id', DE_BEERS_ORG_ID);
         
       const { data: jobsData } = await supabase
@@ -65,19 +71,29 @@ export const DKPOrgCrawlTest = () => {
         .eq('org_id', DE_BEERS_ORG_ID)
         .order('started_at', { ascending: false })
         .limit(3);
+
+      // Step 6: List AI documents created by crawl with chunks > 0
+      const { data: crawlDocs } = await supabase
+        .from('ai_documents')
+        .select('id, title, document_type, tags, total_chunks')
+        .eq('organization_id', DE_BEERS_ORG_ID)
+        .or('document_type.eq.web_crawl,tags.ilike.%crawl:web%')
+        .gt('total_chunks', 0);
       
       setResults(prev => ({ 
         ...prev, 
+        status: statusData,
         verification: {
           pages: pagesData?.length || 0,
           chunks: chunksData?.length || 0,
           jobs: jobsData
-        }
+        },
+        crawlDocuments: crawlDocs || []
       }));
       
       toast({ title: "✅ Full crawl sequence completed!", variant: "default" });
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Crawl sequence error:', error);
       toast({ 
         title: "❌ Crawl sequence failed", 

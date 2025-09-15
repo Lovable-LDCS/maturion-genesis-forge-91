@@ -105,7 +105,12 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
 
     // Security validation
     const sanitizedInput = sanitizeInput(inputValue);
+    const wasSanitized = sanitizedInput !== inputValue;
+    if (wasSanitized) {
+      console.info('[Gate D] InputSanitization', { before: inputValue, after: sanitizedInput });
+    }
     if (detectPromptInjection(sanitizedInput)) {
+      console.warn('[Gate D] PromptInjectionDetected');
       toast({
         title: "Invalid Input",
         description: "Please rephrase your question.",
@@ -126,15 +131,18 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
     setIsLoading(true);
 
     try {
+      const payload = {
+        prompt: sanitizedInput,
+        context: context || 'Diamond industry security and operational controls',
+        currentDomain: currentDomain || 'General',
+        organizationId: currentOrganization?.id,
+        orgId: currentOrganization?.id,
+        domainFilters: ["Organization Profile", "Diamond Knowledge Pack"]
+      };
+      console.info('[Gate D] maturion-ai-chat payload', payload);
+
       const { data, error } = await supabase.functions.invoke('maturion-ai-chat', {
-        body: {
-          prompt: sanitizedInput,
-          context: context || 'Diamond industry security and operational controls',
-          currentDomain: currentDomain || 'General',
-          organizationId: currentOrganization?.id,
-          orgId: currentOrganization?.id,
-          domainFilters: ["Organization Profile", "Diamond Knowledge Pack"]
-        }
+        body: payload
       });
 
       if (error) throw error;
