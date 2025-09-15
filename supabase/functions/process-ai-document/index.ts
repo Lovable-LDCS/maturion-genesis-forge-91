@@ -3,6 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 // Add mammoth.js for clean .docx text extraction
 import * as mammoth from "https://esm.sh/mammoth@1.6.0";
+// Add PowerPoint text extraction support
+import JSZip from "https://esm.sh/jszip@3.10.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -342,6 +344,10 @@ serve(async (req: Request): Promise<Response> => {
       let extractedText = '';
       let extractionMethod = 'unknown';
 
+      // Enhanced MIME type and file name detection for better support
+      console.log(`🔍 DEBUG: Processing file with MIME type: ${document.mime_type}, File name: ${document.file_name}`);
+      console.log(`🔍 DEBUG: File extension detection - DOCX: ${document.file_name.endsWith('.docx')}, PPTM: ${document.file_name.endsWith('.pptm')}, PPTX: ${document.file_name.endsWith('.pptx')}`);
+      
       // Enhanced text extraction with mammoth.js for .docx files
       if (document.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
           document.file_name.endsWith('.docx')) {
@@ -401,6 +407,156 @@ serve(async (req: Request): Promise<Response> => {
           const arrayBuffer = await fileData.arrayBuffer();
           extractedText = new TextDecoder().decode(arrayBuffer);
           extractionMethod = 'docx_emergency_fallback';
+        }
+        
+        } else if (document.mime_type === 'application/vnd.ms-powerpoint.presentation.macroEnabled.12' || 
+                   document.mime_type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' ||
+                   document.file_name.endsWith('.pptm') || document.file_name.endsWith('.pptx')) {
+        
+        console.log('🎯 Processing PowerPoint presentation (.pptm/.pptx) with text extraction...');
+        console.log('🔧 LAYER-3 EXTRACTION: Training slide document detected');
+        
+        try {
+          const arrayBuffer = await fileData.arrayBuffer();
+          
+          // Check if it's a valid ZIP file (PowerPoint format)
+          const uint8Array = new Uint8Array(arrayBuffer);
+          const signature = Array.from(uint8Array.slice(0, 4))
+            .map(byte => byte.toString(16).padStart(2, '0'))
+            .join('');
+          
+          if (!signature.startsWith('504b')) { // ZIP file signature
+            console.warn('⚠️ File does not have PowerPoint signature, falling back to text extraction');
+            extractedText = new TextDecoder().decode(arrayBuffer);
+            extractionMethod = 'pptm_text_fallback';
+          } else {
+            console.log('✅ Valid PowerPoint signature detected, proceeding with ZIP extraction...');
+            
+            // Extract text from PowerPoint slides
+            const zip = await JSZip.loadAsync(arrayBuffer);
+            let slideTexts: string[] = [];
+            
+            // Find all slide files in the presentation
+            const slideFiles = Object.keys(zip.files).filter(name => 
+              name.startsWith('ppt/slides/slide') && name.endsWith('.xml')
+            );
+            
+            console.log(`🎯 Found ${slideFiles.length} slides to process`);
+            
+            for (const slideFile of slideFiles) {
+              try {
+                const slideXml = await zip.files[slideFile].async('text');
+                
+                // Extract text content from slide XML
+                // Look for text in <a:t> tags which contain slide text content
+                const textMatches = slideXml.match(/<a:t[^>]*>([^<]*)<\/a:t>/g) || [];
+                const slideText = textMatches
+                  .map(match => match.replace(/<[^>]*>/g, ''))
+                  .join(' ')
+                  .trim();
+                
+                if (slideText) {
+                  slideTexts.push(slideText);
+                  console.log(`📄 Slide ${slideFiles.indexOf(slideFile) + 1}: ${slideText.substring(0, 100)}...`);
+                }
+              } catch (slideError: any) {
+                console.warn(`⚠️ Error processing slide ${slideFile}:`, slideError.message);
+              }
+            }
+            
+            // Also try to extract from slide notes if present
+            const notesFiles = Object.keys(zip.files).filter(name => 
+              name.startsWith('ppt/notesSlides/notesSlide') && name.endsWith('.xml')
+            );
+            
+            for (const notesFile of notesFiles) {
+              try {
+                const notesXml = await zip.files[notesFile].async('text');
+                const textMatches = notesXml.match(/<a:t[^>]*>([^<]*)<\/a:t>/g) || [];
+                const notesText = textMatches
+                  .map(match => match.replace(/<[^>]*>/g, ''))
+                  .join(' ')
+                  .trim();
+                
+                if (notesText && notesText.length > 10) {
+                  slideTexts.push(`[Slide Notes] ${notesText}`);
+                }
+              } catch (notesError: any) {
+                console.warn(`⚠️ Error processing notes ${notesFile}:`, notesError.message);
+              }
+            }
+            
+            extractedText = slideTexts.join('\n\n');
+            extractionMethod = 'pptm_layer3_extraction';
+            
+            console.log(`🎯 LAYER-3 EXTRACTION: PowerPoint extraction result - ${slideTexts.length} slides, ${extractedText.length} characters`);
+            console.log(`🔍 POWERPOINT DEBUG: Content preview: "${extractedText.substring(0, 200)}"`);
+            
+            // Tag document as training_slide type
+            await supabase
+              .from('ai_documents')
+              .update({
+                document_type: 'training_slide',
+                metadata: {
+                  ...document.metadata,
+                  layer3_extraction: true,
+                  slides_processed: slideTexts.length,
+                  extraction_method: 'layer3_powerpoint',
+                  training_material: true,
+                  processing_timestamp: new Date().toISOString()
+                }
+              })
+              .eq('id', documentId);
+            
+            console.log('✅ Document tagged as training_slide with Layer-3 extraction metadata');
+            
+            if (!extractedText || extractedText.trim().length === 0) {
+              console.error('❌ POWERPOINT CRITICAL: No text extracted from slides!');
+              
+              // Fallback: create a descriptive chunk for training slides
+              extractedText = `Training Slide Document: ${document.title}\n\nSlides processed: ${slideTexts.length}\nExtraction method: Layer-3 PowerPoint processing\nNote: Manual review may be required for complex slide content.\n\nDocument type: Training Material (.pptm/.pptx)`;
+              extractionMethod = 'pptm_fallback_description';
+            }
+            
+            // Quality assessment for training slides
+            const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
+            const hasTrainingContent = /(?:training|lesson|slide|presentation|course|module)/i.test(extractedText);
+            
+            console.log(`🎯 TRAINING SLIDE DEBUG: Word count: ${wordCount}, Has training content: ${hasTrainingContent}`);
+            
+            if (wordCount < 50) {
+              extractionMethod = 'pptm_layer3_minimal';
+            } else if (hasTrainingContent && wordCount > 200) {
+              extractionMethod = 'pptm_layer3_rich';
+            } else if (wordCount > 100) {
+              extractionMethod = 'pptm_layer3_standard';
+            } else {
+              extractionMethod = 'pptm_layer3_basic';
+            }
+          }
+        } catch (pptmError: any) {
+          console.error('❌ PowerPoint processing error:', pptmError.message);
+          console.log('🚨 Using PowerPoint fallback extraction...');
+          
+          const arrayBuffer = await fileData.arrayBuffer();
+          extractedText = `Training Slide Processing Error: ${document.title}\n\nError: ${pptmError.message}\nFile type: ${document.mime_type}\nNote: PowerPoint content extraction failed, manual processing required.\n\nDocument tagged as training material for Layer-3 extraction.`;
+          extractionMethod = 'pptm_error_fallback';
+          
+          // Still tag as training_slide even on error
+          await supabase
+            .from('ai_documents')
+            .update({
+              document_type: 'training_slide',
+              metadata: {
+                ...document.metadata,
+                layer3_extraction_failed: true,
+                extraction_error: pptmError.message,
+                training_material: true,
+                requires_manual_processing: true,
+                processing_timestamp: new Date().toISOString()
+              }
+            })
+            .eq('id', documentId);
         }
         
       } else if (document.mime_type === 'text/plain' || document.file_name.endsWith('.txt')) {
@@ -544,13 +700,19 @@ serve(async (req: Request): Promise<Response> => {
         return { success: true, chunks: 1, emergency_override: true, quality_score: 0 };
       }
 
-      // Standard validation for other file types (relaxed for governance documents)
+      // Standard validation for other file types (relaxed for governance documents and training slides)
       const binaryContentRatio = extractedText.length > 0 ? 
         (extractedText.match(/[\x00-\x08\x0E-\x1F\x7F-\xFF]/g) || []).length / extractedText.length : 0;
       
       console.log(`🔍 DEBUG: Validation checks - Binary ratio: ${(binaryContentRatio * 100).toFixed(2)}%, XML artifacts: ${/(<[^>]+>|&[a-zA-Z]+;)/g.test(extractedText)}, Corruption markers: ${/(\uFFFD|\\x[0-9A-Fa-f]{2}|[\x00-\x08\x0E-\x1F])/g.test(extractedText)}`);
 
-      if (!isGovernanceDocument) {
+      // Check if this is a training slide document
+      const isTrainingSlide = document.document_type === 'training_slide' || 
+                              extractionMethod.includes('pptm') || 
+                              document.file_name.endsWith('.pptm') || 
+                              document.file_name.endsWith('.pptx');
+
+      if (!isGovernanceDocument && !isTrainingSlide) {
         if (binaryContentRatio > 0.1) {
           throw new Error(`BLOCKED: High binary content ratio (${(binaryContentRatio * 100).toFixed(1)}%) - AI Policy violation`);
         }
@@ -581,6 +743,26 @@ serve(async (req: Request): Promise<Response> => {
         if (strictWordCount < emergencyMinWords) {
           throw new Error(`BLOCKED: Insufficient word count (${strictWordCount} words, minimum ${emergencyMinWords}) - AI Policy violation`);
         }
+      } else if (isTrainingSlide) {
+        // Relaxed validation for training slide documents (PowerPoint presentations)
+        console.log('🎯 TRAINING SLIDE DOCUMENT: Applying relaxed validation rules for Layer-3 extraction');
+        
+        if (binaryContentRatio > 0.2) {
+          throw new Error(`BLOCKED: High binary content ratio for training slide (${(binaryContentRatio * 100).toFixed(1)}%) - Layer-3 extraction failed`);
+        }
+        
+        // More lenient text length requirements for slides (often have less text per slide)
+        if (extractedText.length < 50) {
+          throw new Error(`BLOCKED: Training slide content too short (${extractedText.length} chars, minimum 50) - Layer-3 extraction requires readable content`);
+        }
+        
+        const wordCount = extractedText.split(/\s+/).filter(word => word.length > 0).length;
+        if (wordCount < 5) {
+          throw new Error(`BLOCKED: Training slide insufficient word count (${wordCount} words, minimum 5) - Layer-3 extraction requires readable content`);
+        }
+        
+        console.log(`🎯 TRAINING SLIDE VALIDATION PASSED: ${extractedText.length} chars, ${wordCount} words - Layer-3 extraction approved`);
+        
       } else {
         // Relaxed validation for governance documents
         console.log('📄 GOVERNANCE/AI LOGIC DOCUMENT: Applying relaxed validation rules');
@@ -726,7 +908,12 @@ serve(async (req: Request): Promise<Response> => {
           // Create content hash
           const contentHash = `chunk_${documentId}_${index}_${Date.now()}`;
 
-          // Insert chunk
+          // Insert chunk with enhanced metadata for training slides
+          const isTrainingSlide = document.document_type === 'training_slide' || 
+                                  extractionMethod.includes('pptm') || 
+                                  document.file_name.endsWith('.pptm') || 
+                                  document.file_name.endsWith('.pptx');
+          
           const { error: insertError } = await supabase
             .from('ai_document_chunks')
             .insert({
@@ -741,6 +928,10 @@ serve(async (req: Request): Promise<Response> => {
                 chunk_size: chunk.length,
                 has_embedding: !!embedding,
                 is_governance_document: isGovernanceDocument,
+                is_training_slide: isTrainingSlide,
+                layer3_extraction: isTrainingSlide,
+                training_material: isTrainingSlide,
+                document_type: isTrainingSlide ? 'training_slide' : document.document_type,
                 quality_score: isGovernanceDocument ? 1 : (chunk.length >= minChunkSizeForValidation ? 1 : 0.5),
                 processing_timestamp: new Date().toISOString()
               }
@@ -806,6 +997,12 @@ serve(async (req: Request): Promise<Response> => {
         }
       }
 
+      // Enhanced metadata updates for training slides and Layer-3 extraction
+      const isTrainingSlide = document.document_type === 'training_slide' || 
+                              extractionMethod.includes('pptm') || 
+                              document.file_name.endsWith('.pptm') || 
+                              document.file_name.endsWith('.pptx');
+      
       await supabase
         .from('ai_documents')
         .update({
@@ -813,11 +1010,15 @@ serve(async (req: Request): Promise<Response> => {
           total_chunks: successfulChunks,
           processed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          document_type: isTrainingSlide ? 'training_slide' : document.document_type,
           metadata: {
             chunks_created: successfulChunks,
             extraction_method: extractionMethod,
             processing_duration_ms: Date.now(),
             is_governance_document: isGovernanceDocument,
+            is_training_slide: isTrainingSlide,
+            layer3_extraction: isTrainingSlide,
+            training_material: isTrainingSlide,
             chunk_failures: chunks.length - successfulChunks,
             text_length: extractedText.length,
             chunks_generated: chunks.length,
