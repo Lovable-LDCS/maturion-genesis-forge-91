@@ -25,50 +25,33 @@ interface LogoUrlResult {
  */
 export async function uploadOrgLogo(orgId: string, file: File): Promise<LogoUploadResult> {
   try {
-    // Validate file type and size
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
+    // Validate file type and size - restrict to PNG/WebP for canonical naming
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'];
     if (!allowedTypes.includes(file.type)) {
       return {
         success: false,
-        error: 'Invalid file type. Please upload PNG, JPG, SVG, or WebP images only.'
+        error: 'Invalid file type. Please upload PNG, JPG, JPEG, or WebP images only.'
       };
     }
 
-    const maxSize = 2 * 1024 * 1024; // 2MB
+    const maxSize = 5 * 1024 * 1024; // 5MB (increased from 2MB for better UX)
     if (file.size > maxSize) {
       return {
         success: false,
-        error: 'File size too large. Maximum size is 2MB.'
+        error: 'File size too large. Maximum size is 5MB.'
       };
     }
 
-    // Generate file path following tenant-scoped convention
-    const fileExt = file.name.split('.').pop()?.toLowerCase() || 'png';
-    const fileName = `logo.${fileExt}`;
-    const objectPath = `org/${orgId}/logo/${fileName}`;
+    // Canonical filename normalization - always use logo.{ext} 
+    const originalExt = file.name.split('.').pop()?.toLowerCase() || 'png';
+    const normalizedExt = ['png', 'webp'].includes(originalExt) ? originalExt : 'png';
+    const canonicalPath = `org/${orgId}/logo/logo.${normalizedExt}`;
 
-    // Remove existing logo files in the org folder first
-    try {
-      const { data: existingFiles } = await supabase.storage
-        .from('org_branding')
-        .list(`org/${orgId}/logo`);
-
-      if (existingFiles && existingFiles.length > 0) {
-        const filesToRemove = existingFiles.map(f => `org/${orgId}/logo/${f.name}`);
-        await supabase.storage
-          .from('org_branding')
-          .remove(filesToRemove);
-      }
-    } catch (cleanupError) {
-      console.warn('Failed to cleanup existing logos:', cleanupError);
-      // Continue with upload even if cleanup fails
-    }
-
-    // Upload logo to tenant-scoped path
+    // Upload logo with upsert - automatically replaces existing logo
     const { error: uploadError } = await supabase.storage
       .from('org_branding')
-      .upload(objectPath, file, {
-        upsert: true,
+      .upload(canonicalPath, file, {
+        upsert: true, // Automatically replaces existing logo - no orphans
         contentType: file.type
       });
 
@@ -79,11 +62,11 @@ export async function uploadOrgLogo(orgId: string, file: File): Promise<LogoUplo
       };
     }
 
-    // Save object path in organizations table (not drift-prone URL)
+    // Save canonical object path in organizations table
     const { error: updateError } = await supabase
       .from('organizations')
       .update({ 
-        logo_object_path: objectPath,
+        logo_object_path: canonicalPath,
         updated_at: new Date().toISOString()
       })
       .eq('id', orgId);
@@ -97,7 +80,7 @@ export async function uploadOrgLogo(orgId: string, file: File): Promise<LogoUplo
 
     return {
       success: true,
-      objectPath
+      objectPath: canonicalPath
     };
 
   } catch (error: any) {

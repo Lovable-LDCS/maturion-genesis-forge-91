@@ -3844,6 +3844,10 @@ export type Database = {
         Args: { "": unknown[] }
         Returns: number
       }
+      has_org_role: {
+        Args: { allowed_roles_param: string[]; org_id_param: string }
+        Returns: boolean
+      }
       hnsw_bit_support: {
         Args: { "": unknown }
         Returns: unknown
@@ -3861,7 +3865,7 @@ export type Database = {
         Returns: unknown
       }
       is_org_member: {
-        Args: { p_org_id: string }
+        Args: { org_id_param: string }
         Returns: boolean
       }
       is_primary_organization: {
