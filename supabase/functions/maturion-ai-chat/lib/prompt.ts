@@ -268,7 +268,7 @@ ${truncatedReasoning}
   }
   
   // Add organizational context if available
-  if (organizationContext) {
+  if (organizationContext && typeof organizationContext === 'string') {
     const truncatedOrgContext = truncateToTokens(organizationContext, MAX_ORG_TOKENS);
     const orgTokens = estimateTokens(truncatedOrgContext);
     
@@ -279,6 +279,8 @@ ${truncatedReasoning}
     } else {
       console.log('⚠️ Skipping org context due to token limit');
     }
+  } else if (organizationContext) {
+    console.warn('Invalid organizationContext type:', typeof organizationContext);
   }
   
   // Add document context (priority content) with aggressive limiting

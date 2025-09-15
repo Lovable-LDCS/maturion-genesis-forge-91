@@ -279,6 +279,51 @@ export const MaturitySetup = () => {
   const [processingStatuses, setProcessingStatuses] = useState<Record<string, 'pending' | 'processing' | 'completed' | 'failed'>>({});
   const [reprocessingDocs, setReprocessingDocs] = useState<Set<string>>(new Set());
   const [crawling, setCrawling] = useState(false);
+  const [crawlStatus, setCrawlStatus] = useState<{
+    state: 'idle' | 'running' | 'success' | 'failed';
+    domains?: number;
+    pages?: number;
+    chunks?: number;
+    message?: string;
+  }>({ state: 'idle' });
+
+  // Polling function for crawl status
+  const pollCrawlStatus = async (orgId: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('get-crawl-status', {
+        body: { orgId }
+      });
+      
+      if (error) throw error;
+      
+      setCrawlStatus(data);
+      
+      // Continue polling if still running
+      if (data.state === 'running') {
+        setTimeout(() => pollCrawlStatus(orgId), 2500);
+      }
+      
+      // Log telemetry for completion
+      if (data.state === 'success') {
+        console.log('[TELEMETRY] crawl_succeeded', {
+          orgId,
+          domains: data.domains,
+          pages: data.pages,
+          chunks: data.chunks,
+          timestamp: new Date().toISOString()
+        });
+      } else if (data.state === 'failed') {
+        console.log('[TELEMETRY] crawl_failed', {
+          orgId,
+          error: data.message,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      console.error('Failed to poll crawl status:', error);
+      setCrawlStatus({ state: 'failed', message: 'Status check failed' });
+    }
+  };
 
   // Web crawl function for parent organization
   const handleRunWebCrawl = async () => {
@@ -293,12 +338,20 @@ export const MaturitySetup = () => {
 
     try {
       setCrawling(true);
+      setCrawlStatus({ state: 'running' });
       
       // First ensure domains are seeded in org_domains table
       const domainsToSeed = [
         formData.primaryWebsiteUrl,
         ...formData.linkedDomains
       ].filter(d => d && d.trim());
+      
+      // Log telemetry for start
+      console.log('[TELEMETRY] crawl_started', {
+        orgId: localOrgData.id,
+        domainCount: domainsToSeed.length,
+        timestamp: new Date().toISOString()
+      });
 
       if (domainsToSeed.length === 0) {
         toast({
@@ -349,6 +402,9 @@ export const MaturitySetup = () => {
         description: `Crawling ${domainsToSeed.length} domain(s)...`
       });
       
+      // Start polling for status updates
+      pollCrawlStatus(localOrgData.id);
+      
     } catch (error: any) {
       console.error('Web crawl error:', error);
       toast({
@@ -358,6 +414,55 @@ export const MaturitySetup = () => {
       });
     } finally {
       setCrawling(false);
+    }
+  };
+
+  // Function to requeue a pending document
+  const requeueDocument = async (documentId: string) => {
+    if (!user?.id || !localOrgData?.id) {
+      toast({
+        title: "Error",
+        description: "Authentication or organization data not available",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setReprocessingDocs(prev => new Set([...prev, documentId]));
+    
+    try {
+      console.log(`Requeuing document: ${documentId}`);
+      
+      const { data, error } = await supabase.functions.invoke('requeue-pending-document', {
+        body: { documentId }
+      });
+      
+      if (error) throw error;
+      
+      // Update local status
+      setProcessingStatuses(prev => ({
+        ...prev,
+        [documentId]: 'processing'
+      }));
+      
+      toast({
+        title: "Document Requeued",
+        description: "Document has been requeued for processing. Check back in a few moments.",
+      });
+      
+    } catch (error: any) {
+      console.error('Requeue failed:', error);
+      toast({
+        title: "Requeue Failed",
+        description: error.message || "Failed to requeue document",
+        variant: "destructive",
+      });
+    } finally {
+      setReprocessingDocs(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(documentId);
+        return newSet;
+      });
     }
   };
 

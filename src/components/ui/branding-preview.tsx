@@ -2,6 +2,8 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
+import { useOrganizationContext } from '@/hooks/useOrganizationContext';
 
 interface BrandingPreviewProps {
   primaryColor: string;
@@ -16,6 +18,36 @@ export const BrandingPreview: React.FC<BrandingPreviewProps> = ({
   textColor,
   companyName
 }) => {
+  const { toast } = useToast();
+  const { currentContext } = useOrganizationContext();
+  
+  const handlePrimaryClick = () => {
+    toast({
+      title: "Primary Action",
+      description: "This demonstrates your primary button interaction",
+    });
+    
+    // Telemetry
+    console.log('[TELEMETRY] branding_preview_primary_clicked', {
+      orgId: currentContext?.organization_id,
+      sessionId: crypto.randomUUID(),
+      timestamp: new Date().toISOString()
+    });
+  };
+  
+  const handleSecondaryClick = () => {
+    toast({
+      title: "Secondary Action", 
+      description: "This demonstrates your secondary button interaction",
+    });
+    
+    // Telemetry
+    console.log('[TELEMETRY] branding_preview_secondary_clicked', {
+      orgId: currentContext?.organization_id,
+      sessionId: crypto.randomUUID(),
+      timestamp: new Date().toISOString()
+    });
+  };
   return (
     <Card className="border-2">
       <CardHeader>
@@ -34,7 +66,10 @@ export const BrandingPreview: React.FC<BrandingPreviewProps> = ({
         {/* Button preview */}
         <div className="flex gap-3">
           <Button 
+            data-testid="branding-preview-primary"
+            aria-label="Primary Button preview"
             size="sm"
+            onClick={handlePrimaryClick}
             style={{ 
               backgroundColor: primaryColor, 
               color: textColor,
@@ -44,8 +79,11 @@ export const BrandingPreview: React.FC<BrandingPreviewProps> = ({
             Primary Button
           </Button>
           <Button 
+            data-testid="branding-preview-secondary"
+            aria-label="Secondary Button preview"
             variant="outline"
             size="sm"
+            onClick={handleSecondaryClick}
             style={{ 
               borderColor: secondaryColor,
               color: secondaryColor 
