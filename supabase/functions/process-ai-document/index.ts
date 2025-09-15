@@ -909,10 +909,32 @@ serve(async (req: Request): Promise<Response> => {
           const contentHash = `chunk_${documentId}_${index}_${Date.now()}`;
 
           // Insert chunk with enhanced metadata for training slides
-          const isTrainingSlide = document.document_type === 'training_slide' || 
+          const isTrainingSlide = docType === 'training_slide' || 
                                   extractionMethod.includes('pptm') || 
                                   document.file_name.endsWith('.pptm') || 
                                   document.file_name.endsWith('.pptx');
+          
+          // Detect equipment mentioned in this chunk
+          const equipmentDetected = [];
+          const lowerChunk = chunk.toLowerCase();
+          const equipmentMap = {
+            'crusher-jaw': ['jaw crusher', 'primary crusher', 'jaw crushing'],
+            'crusher-cone': ['cone crusher', 'secondary crusher', 'cone crushing'],
+            'dms-cyclone': ['dms', 'dense media separation', 'cyclone', 'density separation'],
+            'xrt-sorter': ['xrt', 'x-ray transmission', 'optical sorting', 'automated sorting'],
+            'banana-screen': ['banana screen', 'vibrating screen', 'screening'],
+            'grease-belt': ['grease belt', 'adhesion belt', 'belt concentration'],
+            'pan-conveyor': ['pan conveyor', 'conveyor belt', 'material transport'],
+            'wash-plant': ['wash plant', 'washing', 'scrubbing'],
+            'jigging-machine': ['jig', 'jigging', 'gravity separation'],
+            'recovery-plant': ['recovery plant', 'diamond recovery', 'final recovery']
+          };
+          
+          Object.entries(equipmentMap).forEach(([slug, keywords]) => {
+            if (keywords.some(keyword => lowerChunk.includes(keyword))) {
+              equipmentDetected.push(slug);
+            }
+          });
           
           const { error: insertError } = await supabase
             .from('ai_document_chunks')
@@ -923,6 +945,14 @@ serve(async (req: Request): Promise<Response> => {
               chunk_index: index,
               content_hash: contentHash,
               embedding: embedding,
+              // New schema fields for training slides
+              tokens: chunk.split(/\s+/).length,
+              page: isTrainingSlide ? Math.floor(index / 2) + 1 : null, // Approximate slide number
+              section: isTrainingSlide ? `Slide ${Math.floor(index / 2) + 1}` : null,
+              equipment_slugs: equipmentDetected.length > 0 ? equipmentDetected : null,
+              stage: stage,
+              layer: layer,
+              tags: isTrainingSlide ? [...tags, ...equipmentDetected.map(e => `equipment:${e}`)] : tags.length > 0 ? tags : null,
               metadata: {
                 extraction_method: extractionMethod,
                 chunk_size: chunk.length,
@@ -933,7 +963,12 @@ serve(async (req: Request): Promise<Response> => {
                 training_material: isTrainingSlide,
                 document_type: isTrainingSlide ? 'training_slide' : document.document_type,
                 quality_score: isGovernanceDocument ? 1 : (chunk.length >= minChunkSizeForValidation ? 1 : 0.5),
-                processing_timestamp: new Date().toISOString()
+                processing_timestamp: new Date().toISOString(),
+                equipment_detected: equipmentDetected.length,
+                slide_processing: isTrainingSlide ? {
+                  slide_number: Math.floor(index / 2) + 1,
+                  chunk_within_slide: (index % 2) + 1
+                } : null
               }
             });
 
@@ -998,7 +1033,7 @@ serve(async (req: Request): Promise<Response> => {
       }
 
       // Enhanced metadata updates for training slides and Layer-3 extraction
-      const isTrainingSlide = document.document_type === 'training_slide' || 
+      const isTrainingSlide = docType === 'training_slide' || 
                               extractionMethod.includes('pptm') || 
                               document.file_name.endsWith('.pptm') || 
                               document.file_name.endsWith('.pptx');
@@ -1010,6 +1045,16 @@ serve(async (req: Request): Promise<Response> => {
           total_chunks: successfulChunks,
           processed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          // New schema fields
+          doc_type: docType,
+          layer: layer,
+          stage: stage,
+          tags: tags.length > 0 ? tags : null,
+          source: 'upload',
+          bucket_id: 'documents',
+          object_path: `org/${document.organization_id}/uploads/${document.file_name}`,
+          size_bytes: fileData?.size || document.file_size,
+          error: finalStatus === 'failed' ? 'Processing failed after chunk creation' : null,
           document_type: isTrainingSlide ? 'training_slide' : document.document_type,
           metadata: {
             chunks_created: successfulChunks,
@@ -1022,7 +1067,21 @@ serve(async (req: Request): Promise<Response> => {
             chunk_failures: chunks.length - successfulChunks,
             text_length: extractedText.length,
             chunks_generated: chunks.length,
-            actual_success: actualSuccess
+            actual_success: actualSuccess,
+            // Enhanced training slide metadata
+            ...(isTrainingSlide && {
+              ingest: {
+                requestId: requestId,
+                textExtraction: extractionMethod.includes('pptm') ? 'pptx-to-text' : 'unknown',
+                slideCount: slideCount,
+                pptmMacrosPresent: document.file_name.toLowerCase().endsWith('.pptm')
+              },
+              curriculum: {
+                layer: layer,
+                stage: stage,
+                module: stage ? `${stage.charAt(0).toUpperCase() + stage.slice(1)} Equipment` : 'General Training'
+              }
+            })
           }
         })
         .eq('id', documentId);

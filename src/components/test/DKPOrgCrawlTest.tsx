@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { CheckCircle, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
@@ -119,14 +121,68 @@ export const DKPOrgCrawlTest = () => {
           {loading ? 'Running Crawl Sequence...' : 'Start De Beers Crawl & Extract'}
         </Button>
         
-        {Object.keys(results).length > 0 && (
-          <div className="mt-6 space-y-4">
-            <h3 className="text-lg font-semibold">Results:</h3>
-            <pre className="bg-muted p-4 rounded-md text-sm overflow-auto max-h-96">
-              {JSON.stringify(results, null, 2)}
-            </pre>
-          </div>
-        )}
+        {/* UI filters & discoverability */}
+        <div className="mt-6 space-y-4">
+          <h3 className="text-lg font-semibold">Results:</h3>
+          <pre className="bg-muted p-4 rounded-md text-sm overflow-auto max-h-96">
+            {JSON.stringify(results, null, 2)}
+          </pre>
+          
+          {/* Gate C Evidence Cards */}
+          {results.status && (
+            <Card className={`border-2 ${results.status.state === 'success' ? 'border-green-500 bg-green-50' : 'border-yellow-500 bg-yellow-50'}`}>
+              <CardHeader>
+                <CardTitle className={`flex items-center gap-2 ${results.status.state === 'success' ? 'text-green-700' : 'text-yellow-700'}`}>
+                  {results.status.state === 'success' ? 
+                    <CheckCircle className="h-5 w-5" /> : 
+                    <Clock className="h-5 w-5" />
+                  }
+                  Crawl Status: {results.status.state?.toUpperCase()}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{results.status.enabled_domains || 0}</div>
+                    <div className="text-sm text-muted-foreground">Domains</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{results.verification?.pages || 0}</div>
+                    <div className="text-sm text-muted-foreground">Pages</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold">{results.verification?.chunks || 0}</div>
+                    <div className="text-sm text-muted-foreground">Chunks</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
+          {/* Crawl Documents with Chunks > 0 */}
+          {results.crawlDocuments?.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Web Crawl Documents (Chunks &gt; 0)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {results.crawlDocuments.map((doc: any) => (
+                    <div key={doc.id} className="flex items-center justify-between p-2 border rounded">
+                      <div>
+                        <div className="font-medium">{doc.title}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Type: {doc.document_type} | Tags: {doc.tags?.join(', ') || 'None'}
+                        </div>
+                      </div>
+                      <Badge variant="default">{doc.total_chunks} chunks</Badge>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

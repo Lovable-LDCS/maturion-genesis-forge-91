@@ -355,9 +355,16 @@ export type Database = {
           created_at: string
           document_id: string
           embedding: string | null
+          equipment_slugs: string[] | null
           id: string
+          layer: number | null
           metadata: Json | null
           organization_id: string
+          page: number | null
+          section: string | null
+          stage: string | null
+          tags: string[] | null
+          tokens: number | null
         }
         Insert: {
           chunk_index: number
@@ -366,9 +373,16 @@ export type Database = {
           created_at?: string
           document_id: string
           embedding?: string | null
+          equipment_slugs?: string[] | null
           id?: string
+          layer?: number | null
           metadata?: Json | null
           organization_id: string
+          page?: number | null
+          section?: string | null
+          stage?: string | null
+          tags?: string[] | null
+          tokens?: number | null
         }
         Update: {
           chunk_index?: number
@@ -377,9 +391,16 @@ export type Database = {
           created_at?: string
           document_id?: string
           embedding?: string | null
+          equipment_slugs?: string[] | null
           id?: string
+          layer?: number | null
           metadata?: Json | null
           organization_id?: string
+          page?: number | null
+          section?: string | null
+          stage?: string | null
+          tags?: string[] | null
+          tokens?: number | null
         }
         Relationships: [
           {
@@ -461,22 +482,30 @@ export type Database = {
       }
       ai_documents: {
         Row: {
+          bucket_id: string | null
           chunked_from_tester: boolean | null
           created_at: string
+          doc_type: string | null
           document_type: string
           domain: string | null
+          error: string | null
           file_name: string
           file_path: string
           file_size: number
           id: string
           is_ai_ingested: boolean | null
+          layer: number | null
           metadata: Json | null
           mime_type: string
+          object_path: string | null
           organization_id: string
           processed_at: string | null
           processing_status: string
           processing_version: number | null
           schema_version: number | null
+          size_bytes: number | null
+          source: string | null
+          stage: string | null
           tags: string | null
           tester_approved_at: string | null
           tester_approved_by: string | null
@@ -489,22 +518,30 @@ export type Database = {
           uploaded_by: string
         }
         Insert: {
+          bucket_id?: string | null
           chunked_from_tester?: boolean | null
           created_at?: string
+          doc_type?: string | null
           document_type: string
           domain?: string | null
+          error?: string | null
           file_name: string
           file_path: string
           file_size: number
           id?: string
           is_ai_ingested?: boolean | null
+          layer?: number | null
           metadata?: Json | null
           mime_type: string
+          object_path?: string | null
           organization_id: string
           processed_at?: string | null
           processing_status?: string
           processing_version?: number | null
           schema_version?: number | null
+          size_bytes?: number | null
+          source?: string | null
+          stage?: string | null
           tags?: string | null
           tester_approved_at?: string | null
           tester_approved_by?: string | null
@@ -517,22 +554,30 @@ export type Database = {
           uploaded_by: string
         }
         Update: {
+          bucket_id?: string | null
           chunked_from_tester?: boolean | null
           created_at?: string
+          doc_type?: string | null
           document_type?: string
           domain?: string | null
+          error?: string | null
           file_name?: string
           file_path?: string
           file_size?: number
           id?: string
           is_ai_ingested?: boolean | null
+          layer?: number | null
           metadata?: Json | null
           mime_type?: string
+          object_path?: string | null
           organization_id?: string
           processed_at?: string | null
           processing_status?: string
           processing_version?: number | null
           schema_version?: number | null
+          size_bytes?: number | null
+          source?: string | null
+          stage?: string | null
           tags?: string | null
           tester_approved_at?: string | null
           tester_approved_by?: string | null
