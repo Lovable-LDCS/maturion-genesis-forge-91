@@ -2851,6 +2851,16 @@ export type Database = {
       }
       organizations: {
         Row: {
+          brand_favicon_path: string | null
+          brand_font_css: string | null
+          brand_header_mode: string | null
+          brand_logo_dark_path: string | null
+          brand_logo_light_path: string | null
+          brand_primary_hex: string | null
+          brand_secondary_hex: string | null
+          brand_text_hex: string | null
+          brand_wordmark_black_path: string | null
+          brand_wordmark_white_path: string | null
           compliance_commitments: string[] | null
           created_at: string
           created_by: string
@@ -2880,6 +2890,16 @@ export type Database = {
           zapier_webhook_url: string | null
         }
         Insert: {
+          brand_favicon_path?: string | null
+          brand_font_css?: string | null
+          brand_header_mode?: string | null
+          brand_logo_dark_path?: string | null
+          brand_logo_light_path?: string | null
+          brand_primary_hex?: string | null
+          brand_secondary_hex?: string | null
+          brand_text_hex?: string | null
+          brand_wordmark_black_path?: string | null
+          brand_wordmark_white_path?: string | null
           compliance_commitments?: string[] | null
           created_at?: string
           created_by?: string
@@ -2909,6 +2929,16 @@ export type Database = {
           zapier_webhook_url?: string | null
         }
         Update: {
+          brand_favicon_path?: string | null
+          brand_font_css?: string | null
+          brand_header_mode?: string | null
+          brand_logo_dark_path?: string | null
+          brand_logo_light_path?: string | null
+          brand_primary_hex?: string | null
+          brand_secondary_hex?: string | null
+          brand_text_hex?: string | null
+          brand_wordmark_black_path?: string | null
+          brand_wordmark_white_path?: string | null
           compliance_commitments?: string[] | null
           created_at?: string
           created_by?: string
