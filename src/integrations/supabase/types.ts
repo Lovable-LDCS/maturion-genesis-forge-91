@@ -263,6 +263,13 @@ export type Database = {
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_behavior_monitoring_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_docs_retrievable"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ai_confidence_scoring: {
@@ -345,10 +352,18 @@ export type Database = {
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_confidence_scoring_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_docs_retrievable"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ai_document_chunks: {
         Row: {
+          checksum: string | null
           chunk_index: number
           content: string
           content_hash: string
@@ -363,10 +378,16 @@ export type Database = {
           page: number | null
           section: string | null
           stage: string | null
+          status: string | null
           tags: string[] | null
           tokens: number | null
+          updated_at: string | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+          visibility: string | null
         }
         Insert: {
+          checksum?: string | null
           chunk_index: number
           content: string
           content_hash: string
@@ -381,10 +402,16 @@ export type Database = {
           page?: number | null
           section?: string | null
           stage?: string | null
+          status?: string | null
           tags?: string[] | null
           tokens?: number | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          visibility?: string | null
         }
         Update: {
+          checksum?: string | null
           chunk_index?: number
           content?: string
           content_hash?: string
@@ -399,8 +426,13 @@ export type Database = {
           page?: number | null
           section?: string | null
           stage?: string | null
+          status?: string | null
           tags?: string[] | null
           tokens?: number | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          visibility?: string | null
         }
         Relationships: [
           {
@@ -410,65 +442,99 @@ export type Database = {
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_docs_retrievable"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ai_document_versions: {
         Row: {
           change_reason: string | null
+          checksum: string | null
           created_at: string
           created_by: string
           document_id: string
           document_type: string
           domain: string | null
+          file_ext: string | null
           file_name: string
           file_path: string
           file_size: number
           id: string
+          language: string | null
           metadata: Json | null
           mime_type: string
           organization_id: string
+          source_url: string | null
+          status: string | null
           tags: string | null
           title: string
+          updated_at: string | null
           upload_notes: string | null
+          uploaded_by: string | null
+          version: number | null
           version_number: number
+          visibility: string | null
         }
         Insert: {
           change_reason?: string | null
+          checksum?: string | null
           created_at?: string
           created_by: string
           document_id: string
           document_type: string
           domain?: string | null
+          file_ext?: string | null
           file_name: string
           file_path: string
           file_size: number
           id?: string
+          language?: string | null
           metadata?: Json | null
           mime_type: string
           organization_id: string
+          source_url?: string | null
+          status?: string | null
           tags?: string | null
           title: string
+          updated_at?: string | null
           upload_notes?: string | null
+          uploaded_by?: string | null
+          version?: number | null
           version_number: number
+          visibility?: string | null
         }
         Update: {
           change_reason?: string | null
+          checksum?: string | null
           created_at?: string
           created_by?: string
           document_id?: string
           document_type?: string
           domain?: string | null
+          file_ext?: string | null
           file_name?: string
           file_path?: string
           file_size?: number
           id?: string
+          language?: string | null
           metadata?: Json | null
           mime_type?: string
           organization_id?: string
+          source_url?: string | null
+          status?: string | null
           tags?: string | null
           title?: string
+          updated_at?: string | null
           upload_notes?: string | null
+          uploaded_by?: string | null
+          version?: number | null
           version_number?: number
+          visibility?: string | null
         }
         Relationships: [
           {
@@ -478,22 +544,39 @@ export type Database = {
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_docs_retrievable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_document_versions_document_type_fkey"
+            columns: ["document_type"]
+            isOneToOne: false
+            referencedRelation: "document_types"
+            referencedColumns: ["name"]
+          },
         ]
       }
       ai_documents: {
         Row: {
           bucket_id: string | null
+          checksum: string | null
           chunked_from_tester: boolean | null
           created_at: string
           doc_type: string | null
           document_type: string
           domain: string | null
           error: string | null
+          file_ext: string | null
           file_name: string
           file_path: string
           file_size: number
           id: string
           is_ai_ingested: boolean | null
+          language: string | null
           layer: number | null
           metadata: Json | null
           mime_type: string
@@ -505,8 +588,10 @@ export type Database = {
           schema_version: number | null
           size_bytes: number | null
           source: string | null
+          source_url: string | null
           stage: string | null
-          tags: string | null
+          status: string | null
+          tags: string[] | null
           tester_approved_at: string | null
           tester_approved_by: string | null
           title: string | null
@@ -516,20 +601,25 @@ export type Database = {
           updated_by: string
           upload_notes: string | null
           uploaded_by: string
+          version: number | null
+          visibility: string | null
         }
         Insert: {
           bucket_id?: string | null
+          checksum?: string | null
           chunked_from_tester?: boolean | null
           created_at?: string
           doc_type?: string | null
           document_type: string
           domain?: string | null
           error?: string | null
+          file_ext?: string | null
           file_name: string
           file_path: string
           file_size: number
           id?: string
           is_ai_ingested?: boolean | null
+          language?: string | null
           layer?: number | null
           metadata?: Json | null
           mime_type: string
@@ -541,8 +631,10 @@ export type Database = {
           schema_version?: number | null
           size_bytes?: number | null
           source?: string | null
+          source_url?: string | null
           stage?: string | null
-          tags?: string | null
+          status?: string | null
+          tags?: string[] | null
           tester_approved_at?: string | null
           tester_approved_by?: string | null
           title?: string | null
@@ -552,20 +644,25 @@ export type Database = {
           updated_by: string
           upload_notes?: string | null
           uploaded_by: string
+          version?: number | null
+          visibility?: string | null
         }
         Update: {
           bucket_id?: string | null
+          checksum?: string | null
           chunked_from_tester?: boolean | null
           created_at?: string
           doc_type?: string | null
           document_type?: string
           domain?: string | null
           error?: string | null
+          file_ext?: string | null
           file_name?: string
           file_path?: string
           file_size?: number
           id?: string
           is_ai_ingested?: boolean | null
+          language?: string | null
           layer?: number | null
           metadata?: Json | null
           mime_type?: string
@@ -577,8 +674,10 @@ export type Database = {
           schema_version?: number | null
           size_bytes?: number | null
           source?: string | null
+          source_url?: string | null
           stage?: string | null
-          tags?: string | null
+          status?: string | null
+          tags?: string[] | null
           tester_approved_at?: string | null
           tester_approved_by?: string | null
           title?: string | null
@@ -588,8 +687,18 @@ export type Database = {
           updated_by?: string
           upload_notes?: string | null
           uploaded_by?: string
+          version?: number | null
+          visibility?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ai_documents_document_type_fkey"
+            columns: ["document_type"]
+            isOneToOne: false
+            referencedRelation: "document_types"
+            referencedColumns: ["name"]
+          },
+        ]
       }
       ai_feedback_log: {
         Row: {
@@ -763,6 +872,13 @@ export type Database = {
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_feedback_submissions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_docs_retrievable"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ai_learning_patterns: {
@@ -863,36 +979,57 @@ export type Database = {
       ai_upload_audit: {
         Row: {
           action: string
+          checksum: string | null
           created_at: string
           document_id: string | null
+          document_type: string | null
+          domain: string | null
+          file_ext: string | null
           id: string
           ip_address: unknown | null
+          language: string | null
           metadata: Json | null
+          mime_type: string | null
           organization_id: string
           user_agent: string | null
           user_id: string
+          visibility: string | null
         }
         Insert: {
           action: string
+          checksum?: string | null
           created_at?: string
           document_id?: string | null
+          document_type?: string | null
+          domain?: string | null
+          file_ext?: string | null
           id?: string
           ip_address?: unknown | null
+          language?: string | null
           metadata?: Json | null
+          mime_type?: string | null
           organization_id: string
           user_agent?: string | null
           user_id: string
+          visibility?: string | null
         }
         Update: {
           action?: string
+          checksum?: string | null
           created_at?: string
           document_id?: string | null
+          document_type?: string | null
+          domain?: string | null
+          file_ext?: string | null
           id?: string
           ip_address?: unknown | null
+          language?: string | null
           metadata?: Json | null
+          mime_type?: string | null
           organization_id?: string
           user_agent?: string | null
           user_id?: string
+          visibility?: string | null
         }
         Relationships: [
           {
@@ -900,6 +1037,13 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "ai_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_upload_audit_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_docs_retrievable"
             referencedColumns: ["id"]
           },
         ]
@@ -1001,6 +1145,13 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "ai_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approved_chunks_cache_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_docs_retrievable"
             referencedColumns: ["id"]
           },
         ]
@@ -1643,6 +1794,18 @@ export type Database = {
           updated_by?: string
           usage_limit?: number | null
           value?: number
+        }
+        Relationships: []
+      }
+      document_types: {
+        Row: {
+          name: string
+        }
+        Insert: {
+          name: string
+        }
+        Update: {
+          name?: string
         }
         Relationships: []
       }
@@ -2497,10 +2660,13 @@ export type Database = {
         Row: {
           attempts: number
           created_at: string
+          error_reason: string | null
           id: string
+          last_attempt_at: string | null
           last_error: string | null
           org_id: string
           priority: number
+          retry_count: number | null
           status: Database["public"]["Enums"]["crawl_status"]
           updated_at: string
           url: string
@@ -2508,10 +2674,13 @@ export type Database = {
         Insert: {
           attempts?: number
           created_at?: string
+          error_reason?: string | null
           id?: string
+          last_attempt_at?: string | null
           last_error?: string | null
           org_id: string
           priority?: number
+          retry_count?: number | null
           status?: Database["public"]["Enums"]["crawl_status"]
           updated_at?: string
           url: string
@@ -2519,10 +2688,13 @@ export type Database = {
         Update: {
           attempts?: number
           created_at?: string
+          error_reason?: string | null
           id?: string
+          last_attempt_at?: string | null
           last_error?: string | null
           org_id?: string
           priority?: number
+          retry_count?: number | null
           status?: Database["public"]["Enums"]["crawl_status"]
           updated_at?: string
           url?: string
@@ -3214,6 +3386,13 @@ export type Database = {
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "processing_pipeline_status_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_docs_retrievable"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -3692,6 +3871,24 @@ export type Database = {
         }
         Relationships: []
       }
+      system_reports: {
+        Row: {
+          created_at: string
+          id: number
+          summary: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          summary: Json
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          summary?: Json
+        }
+        Relationships: []
+      }
       upload_session_log: {
         Row: {
           completed_at: string | null
@@ -3864,7 +4061,56 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      system_health_report_v1: {
+        Row: {
+          docs_without_chunks: number | null
+          done: number | null
+          failed: number | null
+          generated_at: string | null
+          processing: number | null
+          queued: number | null
+          total_chars: number | null
+          total_chunks: number | null
+          total_docs: number | null
+        }
+        Relationships: []
+      }
+      v_ai_docs_retrievable: {
+        Row: {
+          doc_type: string | null
+          domain: string | null
+          file_name: string | null
+          id: string | null
+          organization_id: string | null
+          tags: string[] | null
+          title: string | null
+          total_chunks: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          doc_type?: string | null
+          domain?: string | null
+          file_name?: string | null
+          id?: string | null
+          organization_id?: string | null
+          tags?: string[] | null
+          title?: never
+          total_chunks?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          doc_type?: string | null
+          domain?: string | null
+          file_name?: string | null
+          id?: string | null
+          organization_id?: string | null
+          tags?: string[] | null
+          title?: never
+          total_chunks?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       accept_invitation: {
@@ -3885,6 +4131,14 @@ export type Database = {
           completed_criteria: number
           completion_percentage: number
           total_criteria: number
+        }[]
+      }
+      chat_search_contains: {
+        Args: { p_org_id: string; p_phrase: string; p_top_k?: number }
+        Returns: {
+          doc_id: string
+          snippet: string
+          title: string
         }[]
       }
       check_rate_limit: {
@@ -3946,6 +4200,26 @@ export type Database = {
       get_user_primary_organization: {
         Args: { user_uuid?: string }
         Returns: string
+      }
+      gtrgm_compress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_decompress: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_in: {
+        Args: { "": unknown }
+        Returns: unknown
+      }
+      gtrgm_options: {
+        Args: { "": unknown }
+        Returns: undefined
+      }
+      gtrgm_out: {
+        Args: { "": unknown }
+        Returns: unknown
       }
       halfvec_avg: {
         Args: { "": number[] }
@@ -4073,6 +4347,10 @@ export type Database = {
         Args: { justification: string; target_user_email: string }
         Returns: Json
       }
+      requeue_failed_crawls: {
+        Args: { max_retries?: number }
+        Returns: number
+      }
       reset_failed_document: {
         Args: { doc_id: string }
         Returns: boolean
@@ -4085,6 +4363,22 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: Json
       }
+      run_system_report: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      set_limit: {
+        Args: { "": number }
+        Returns: number
+      }
+      show_limit: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      show_trgm: {
+        Args: { "": string }
+        Returns: string[]
+      }
       sparsevec_out: {
         Args: { "": unknown }
         Returns: unknown
@@ -4095,6 +4389,10 @@ export type Database = {
       }
       sparsevec_typmod_in: {
         Args: { "": unknown[] }
+        Returns: number
+      }
+      unstick_fetching_jobs: {
+        Args: { max_age?: unknown }
         Returns: number
       }
       update_org_doc_status: {
