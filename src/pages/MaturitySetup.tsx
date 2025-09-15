@@ -438,16 +438,17 @@ export const MaturitySetup = () => {
       });
       
       if (error) throw error;
-      
+
       const requestId = data?.requestId;
       console.log('Requeue requestId:', requestId);
-      
+      console.log('Requeue storagePath (canonical):', data?.storagePath, 'expectedPath:', data?.expectedPath, 'repaired:', data?.repaired);
+
       // Update local status
       setProcessingStatuses(prev => ({
         ...prev,
         [documentId]: 'processing'
       }));
-      
+
       toast({
         title: "Document Requeued",
         description: requestId ? `Request ID: ${requestId}` : "Document has been requeued for processing. Check back in a few moments.",

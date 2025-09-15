@@ -8,17 +8,89 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  // CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response(null, { headers: { ...corsHeaders, 'Access-Control-Allow-Methods': 'GET,POST,OPTIONS' } });
+  }
+
+  // Simple readiness check on GET
+  if (req.method === 'GET') {
+    return new Response(JSON.stringify({ ok: true, service: 'requeue-pending-document' }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   try {
-    const { documentId } = await req.json();
+    const authHeader = req.headers.get('Authorization') || '';
+    const clientInfo = req.headers.get('x-client-info') || 'maturion-ui';
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    const { documentId: bodyDocId, fileName } = await req.json();
+    let documentId = bodyDocId as string | undefined;
     const requestId = crypto.randomUUID();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Service role client for privileged operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Authed client (propagates caller JWT) for user/context lookups
+    const supabaseAuthed = createClient(supabaseUrl, supabaseServiceKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    // Validate caller
+    const { data: userInfo, error: userError } = await supabaseAuthed.auth.getUser();
+    if (userError || !userInfo?.user) {
+      console.warn('[requeue] Unauthorized user:', userError?.message);
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // If only fileName provided, resolve to documentId within caller org
+    if (!documentId && fileName) {
+      const { data: orgCtx } = await supabaseAuthed.rpc('get_user_organization_context', {});
+      const orgId = Array.isArray(orgCtx) && orgCtx[0]?.organization_id ? orgCtx[0].organization_id : null;
+      if (!orgId) {
+        return new Response(JSON.stringify({ error: 'Could not resolve caller organization' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { data: docLookup, error: docLookupErr } = await supabase
+        .from('ai_documents')
+        .select('*')
+        .eq('file_name', fileName)
+        .eq('organization_id', orgId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (docLookupErr) throw docLookupErr;
+      if (!docLookup) {
+        return new Response(JSON.stringify({ error: 'Document not found for fileName within organization' }), {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      documentId = docLookup.id;
+    }
+
+    if (!documentId) {
+      return new Response(JSON.stringify({ error: 'documentId or fileName is required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     console.log(`[requeue] requestId=${requestId} documentId=${documentId}`);
 
@@ -27,7 +99,6 @@ serve(async (req) => {
       .from('ai_document_chunks')
       .delete()
       .eq('document_id', documentId);
-
     if (deleteError) {
       console.warn('Could not delete existing chunks:', deleteError);
     }
@@ -39,16 +110,21 @@ serve(async (req) => {
         processing_status: 'pending',
         processed_at: null,
         total_chunks: 0,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        metadata: {
+          // Stamp request for traceability
+          last_requeue_request_id: requestId,
+          last_requeue_time: new Date().toISOString(),
+          ...(typeof userInfo?.user?.id === 'string' ? { last_requeue_user_id: userInfo.user.id } : {}),
+        },
       })
       .eq('id', documentId)
       .select()
       .single();
-
     if (updateError) throw updateError;
 
     // Attempt to repair storage path to org/<orgId>/uploads/<file_name>
-    let bucketsTried = ['documents','ai_documents'];
+    let bucketsTried = ['documents', 'ai_documents'];
     let finalPath = updatedDoc?.file_path || null;
     const expectedPath = `org/${updatedDoc.organization_id}/uploads/${updatedDoc.file_name}`;
     let repaired = false;
@@ -79,7 +155,7 @@ serve(async (req) => {
           // Upload to canonical location in 'documents'
           const { error: upErr } = await supabase.storage.from('documents').upload(expectedPath, blob, {
             upsert: true,
-            contentType: updatedDoc.mime_type || 'application/octet-stream'
+            contentType: updatedDoc.mime_type || 'application/octet-stream',
           });
           if (upErr) {
             console.error('[requeue] Upload to expectedPath failed:', upErr.message);
@@ -97,7 +173,6 @@ serve(async (req) => {
               .eq('id', documentId)
               .select()
               .maybeSingle();
-
             if (patchErr) {
               console.warn('[requeue] Could not update file_path to expectedPath:', patchErr.message);
             } else {
@@ -114,55 +189,51 @@ serve(async (req) => {
       console.warn('[requeue] Path repair error (non-fatal):', repairErr);
     }
 
-    // Stamp requestId into document metadata for traceability
-    const { error: metaError } = await supabase
-      .from('ai_documents')
-      .update({
-        metadata: {
-          ...(updatedDoc?.metadata || {}),
-          last_requeue_request_id: requestId,
-          last_requeue_time: new Date().toISOString(),
-          path_repaired: repaired,
-          expected_path: expectedPath,
-        }
-      })
-      .eq('id', documentId);
-    if (metaError) {
-      console.warn('Could not update document metadata with requestId:', metaError);
-    }
+    const contentType = updatedDoc?.mime_type || 'application/octet-stream';
 
-    // Trigger reprocessing
+    // Trigger reprocessing with caller Authorization so verify_jwt passes
     const { error: processError } = await supabase.functions.invoke('process-ai-document', {
-      body: { 
+      headers: { Authorization: authHeader, 'x-client-info': clientInfo },
+      body: {
         documentId: documentId,
-        organizationId: updatedDoc.organization_id
-      }
+        organizationId: updatedDoc.organization_id,
+      },
     });
-
     if (processError) {
       console.warn('Processing trigger failed:', processError);
-      // Don't fail the request, just log the warning
+      // surface specific error
+      return new Response(JSON.stringify({
+        success: false,
+        requestId,
+        repaired,
+        storagePath: finalPath,
+        expectedPath,
+        contentType,
+        error: 'PROCESS_TRIGGER_FAILED',
+        details: processError?.message || String(processError),
+      }), {
+        status: 502,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
     }
 
-    return new Response(JSON.stringify({ 
-      success: true, 
+    return new Response(JSON.stringify({
+      success: true,
       requestId,
-      document: updatedDoc,
+      repaired,
       storagePath: finalPath,
       expectedPath,
-      repaired,
-      bucketsTried,
-      message: 'Document requeued for processing'
+      contentType,
+      message: 'Document requeued for processing',
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error requeuing document:', error);
-    return new Response(JSON.stringify({ 
-      success: false,
-      error: error.message 
-    }), {
-      status: 500,
+    const msg = error?.message || String(error);
+    const isForbidden = msg?.includes('401') || msg?.includes('403');
+    return new Response(JSON.stringify({ success: false, error: msg }), {
+      status: isForbidden ? 403 : 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

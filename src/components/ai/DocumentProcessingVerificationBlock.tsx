@@ -118,7 +118,9 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
       console.info('[Gate B] Requeue response:', {
         requestId: data?.requestId,
         storagePath: data?.storagePath,
-        bucketsTried: data?.bucketsTried,
+        expectedPath: data?.expectedPath,
+        repaired: data?.repaired,
+        contentType: data?.contentType,
       });
 
       toast({
