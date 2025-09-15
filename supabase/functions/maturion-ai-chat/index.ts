@@ -38,7 +38,8 @@ serve(async (req) => {
     const orgId = body.orgId || body.organizationId || null;
     const domainFilters = Array.isArray(body?.domainFilters) && body.domainFilters.length > 0
       ? body.domainFilters
-      : ["Organization Profile", "Diamond Knowledge Pack"];
+      : [];
+
 
     const request: PromptRequest = {
       ...(body as any),
@@ -63,31 +64,39 @@ serve(async (req) => {
       "Web Crawl": "web_crawl"
     };
     let requestedDocTypes: string[] = (domainFilters || []).map((d: string) => docTypeMap[d] || d).filter(Boolean);
-    if (!requestedDocTypes.includes('diamond_knowledge_pack')) requestedDocTypes.push('diamond_knowledge_pack');
 
     let sources: Array<{ file_name: string; doc_type: string; document_id: string; chunk_id: string }> = [];
     let retrievedContexts: string[] = [];
 
     if (orgId) {
       try {
-        const { data: docs, error: docErr } = await supabase
+        let docQuery = supabase
           .from('ai_documents')
-          .select('id, file_name, doc_type')
+          .select('id, file_name, doc_type, total_chunks, updated_at')
           .eq('organization_id', orgId)
           .eq('processing_status', 'completed')
-          .gt('total_chunks', 0)
-          .in('doc_type', requestedDocTypes)
-          .order('updated_at', { ascending: false })
-          .limit(25);
+          .gt('total_chunks', 0);
+
+        if ((requestedDocTypes || []).length > 0) {
+          docQuery = docQuery.in('doc_type', requestedDocTypes);
+        }
+
+        docQuery = docQuery.order('updated_at', { ascending: false }).limit(25);
+
+        const { data: docs, error: docErr } = await docQuery;
 
         if (docErr) {
           console.warn('⚠️ Doc retrieval error:', docErr);
         } else if (docs && docs.length > 0) {
-          const docMap = new Map<string, { file_name: string; doc_type: string }>();
-          const docIds = docs.map((d: any) => {
-            docMap.set(d.id, { file_name: d.file_name, doc_type: d.doc_type });
+          const docMap = new Map<string, { file_name: string; doc_type: string; total_chunks?: number }>();
+          const docIds = (docs as any[]).map((d: any) => {
+            docMap.set(d.id, { file_name: d.file_name, doc_type: d.doc_type, total_chunks: d.total_chunks });
             return d.id;
           });
+
+          // Log retrieved document sources summary for Gate D
+          console.log('[Gate D] sources=', (docs as any[]).slice(0, 10).map((d: any) => ({ file_name: d.file_name, doc_type: d.doc_type, total_chunks: d.total_chunks })));
+
 
           const { data: chunks, error: chunkErr } = await supabase
             .from('ai_document_chunks')
@@ -235,7 +244,7 @@ serve(async (req) => {
       hasExternalContext: promptContext.externalContext.length > 0,
       gapTicketId: gapTicketId, // Include gap ticket ID for tracking
       missingSpecifics: missingSpecifics,
-      activeFilters: { organizationId: orgId, docTypes: requestedDocTypes },
+      activeFilters: { organizationId: orgId, docTypes: requestedDocTypes.length > 0 ? requestedDocTypes : ['ALL_COMPLETED'] },
       sources: sources,
       promptMetrics: {
         totalLength: finalPrompt.length,
