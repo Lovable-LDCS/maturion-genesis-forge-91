@@ -108,8 +108,13 @@ export const DocumentProcessingVerificationBlock: React.FC<DocumentProcessingVer
     setIsReprocessing(true);
     try {
       // Use requeue function which also repairs storage path if needed
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
       const { data, error } = await supabase.functions.invoke('requeue-pending-document', {
-        headers: { 'x-client-info': 'maturion-ui' },
+        headers: { 
+          'x-client-info': 'maturion-ui',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: { documentId: document.id }
       });
 

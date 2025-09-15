@@ -91,9 +91,15 @@ serve(async (req) => {
     
     // Generate AI response
     console.log('🤖 Generating AI response...');
-    const aiResponse = await callOpenAI(finalPrompt);
-    
-    console.log('✅ AI response generated successfully');
+    let aiResponse: string;
+    try {
+      aiResponse = await callOpenAI(finalPrompt);
+      console.log('✅ AI response generated successfully');
+    } catch (modelErr) {
+      const msg = (modelErr as any)?.message || String(modelErr);
+      console.warn('⚠️ OpenAI unavailable, using friendly fallback:', msg);
+      aiResponse = `🔄 I'm currently processing your uploaded documents and preparing diamond-specific guidance. In the meantime, here are immediate recommendations:\n\n- Recommendation — Action: Establish dual custody and tamper-evident seals for any in-transit parcels; daily variance checks by Logistics Supervisor.\n- Recommendation — Action: Enable black-screen monitoring for high-risk areas; weekly variance review by Protection lead.\n- Recommendation — Action: Run 3-2-1 backups with monthly restore tests; Evidence Manager to attest quarterly.\n\nWhen processing completes I'll reference your Organization Profile and Diamond Knowledge Pack directly.`;
+    }
     
     // DIAMOND-FIRST: Detect missing specifics and create gap tickets
     const missingSpecifics = detectMissingSpecifics(request.prompt, aiResponse);

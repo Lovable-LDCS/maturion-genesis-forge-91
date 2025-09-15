@@ -288,8 +288,11 @@ export const MPSTargetedReprocessor: React.FC<MPSTargetedReprocessorProps> = ({
       
       console.log(`📄 Found document: ${document.title} (${document.file_name})`);
       
-      // Reset the document for reprocessing (clears existing chunks)
-      const resetResult = await supabase.functions.invoke('reset-failed-document', {
+      // Reset the document for reprocessing (clears existing chunks) via unified requeue function
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+      const resetResult = await supabase.functions.invoke('requeue-pending-document', {
+        headers: { 'x-client-info': 'mps-targeted-reprocessor', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
         body: { documentId: analysis.documentId }
       });
       

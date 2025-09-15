@@ -290,7 +290,10 @@ export const MaturitySetup = () => {
   // Polling function for crawl status
   const pollCrawlStatus = async (orgId: string) => {
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
       const { data, error } = await supabase.functions.invoke('get-crawl-status', {
+        headers: { ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
         body: { orgId }
       });
       
@@ -362,29 +365,23 @@ export const MaturitySetup = () => {
         return;
       }
 
-      // Seed domains first if needed
-      for (const domainUrl of domainsToSeed) {
-        const domain = domainUrl.toLowerCase().replace(/^https?:\/\//, '').replace(/\/$/, '');
-        
-        const { error: seedError } = await supabase
-          .from('org_domains')
-          .upsert({
-            org_id: localOrgData.id,
-            organization_id: localOrgData.id,
-            domain: domain,
-            crawl_depth: 2,
-            recrawl_hours: 24,
-            is_enabled: true,
-            created_by: user?.id || '',
-            updated_by: user?.id || ''
-          }, { 
-            onConflict: 'org_id,domain',
-            ignoreDuplicates: false 
-          });
-          
-        if (seedError) {
-          console.warn(`Failed to seed domain ${domain}:`, seedError);
+      // Seed domains via SERVICE ROLE edge function (bypasses RLS)
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token;
+        const seedRes = await supabase.functions.invoke('seed-org-domains', {
+          headers: {
+            'x-client-info': 'maturion-ui',
+            ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+          },
+          body: { org_id: localOrgData.id }
+        });
+        if (seedRes.error || seedRes.data?.success === false) {
+          throw new Error(seedRes.error?.message || 'Domain seeding failed');
         }
+      } catch (seedErr: any) {
+        console.warn('Domain seeding failed:', seedErr);
+        throw new Error('Domain seeding failed');
       }
 
       // Start the crawl
@@ -433,8 +430,10 @@ export const MaturitySetup = () => {
     try {
       console.log(`Requeuing document: ${documentId}`);
       
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
       const { data, error } = await supabase.functions.invoke('requeue-pending-document', {
-        headers: { 'x-client-info': 'maturion-ui' },
+        headers: { 'x-client-info': 'maturion-ui', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
         body: { documentId }
       });
       
@@ -486,8 +485,10 @@ export const MaturitySetup = () => {
     
     try {
       console.log(`Requeuing document: ${documentId}`);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
       const { data, error } = await supabase.functions.invoke('requeue-pending-document', {
-        headers: { 'x-client-info': 'maturion-ui' },
+        headers: { 'x-client-info': 'maturion-ui', ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
         body: { documentId }
       });
       if (error) {
