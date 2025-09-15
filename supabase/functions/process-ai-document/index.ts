@@ -231,6 +231,7 @@ serve(async (req: Request): Promise<Response> => {
 
       // Download file from Supabase Storage - handle multiple bucket strategies
       console.log(`🔍 DEBUG: Attempting to download file from bucket 'documents' with path: ${document.file_path}`);
+      console.log(`📦 Storage attempt URL: storage://documents/${document.file_path}`);
       console.log(`🔍 DEBUG: Document details - Title: ${document.title}, File name: ${document.file_name}, MIME: ${document.mime_type}`);
       
       let fileData: Blob | null = null;
@@ -251,6 +252,7 @@ serve(async (req: Request): Promise<Response> => {
         
         // Strategy 2: Try 'ai_documents' bucket (alternative storage)
         console.log(`🔍 DEBUG: Attempting alternative bucket 'ai_documents'...`);
+        console.log(`📦 Storage attempt URL: storage://ai_documents/${document.file_path}`);
         const { data: aiDocsData, error: aiDocsError } = await supabase.storage
           .from('ai_documents')
           .download(document.file_path);

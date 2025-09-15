@@ -28,10 +28,10 @@ serve(async (req) => {
 
     if (domainError) throw domainError;
 
-    // Check for recent crawl activity
+    // Check for recent crawl activity via ai_documents first
     const { data: recentDocs, error: docsError } = await supabase
       .from('ai_documents')
-      .select('id, processing_status, created_at')
+      .select('id, processing_status, created_at, total_chunks')
       .eq('organization_id', orgId)
       .eq('document_type', 'web_crawl')
       .gte('created_at', new Date(Date.now() - 10 * 60 * 1000).toISOString()) // Last 10 minutes
@@ -64,12 +64,34 @@ serve(async (req) => {
       if (hasProcessing) {
         status.state = 'running';
         status.message = 'Processing web content...';
-      } else if (allCompleted && chunks && chunks.length > 0) {
+      } else if (allCompleted && status.chunks > 0) {
         status.state = 'success';
         status.message = `Successfully crawled ${status.domains} domains`;
       } else if (hasFailed) {
         status.state = 'failed';
         status.message = 'Some pages failed to process';
+      }
+    }
+
+    // Fallback: infer from org_pages/org_page_chunks if no ai_documents yet
+    if (status.state === 'idle' || (status.state !== 'success' && status.chunks === 0)) {
+      const tenMinAgo = new Date(Date.now() - 10 * 60 * 1000).toISOString();
+      const { data: pages } = await supabase
+        .from('org_pages')
+        .select('id')
+        .eq('org_id', orgId)
+        .gte('fetched_at', tenMinAgo);
+      const pageIds = (pages || []).map(p => p.id);
+      const { data: pageChunks } = await supabase
+        .from('org_page_chunks')
+        .select('id')
+        .in('page_id', pageIds);
+
+      status.pages = pages?.length || 0;
+      status.chunks = pageChunks?.length || 0;
+      if (status.pages > 0 && status.chunks > 0) {
+        status.state = 'success';
+        status.message = `Successfully crawled ${status.domains} domains`;
       }
     }
 

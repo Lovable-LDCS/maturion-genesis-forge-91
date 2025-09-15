@@ -133,7 +133,9 @@ serve(async (req) => {
           }
         });
 
-        const chunkData = (await Promise.all(chunkPromises)).filter(Boolean);
+        const chunkData = (await Promise.all(chunkPromises)).filter(Boolean) as Array<{
+          org_id: string; page_id: string; chunk_idx: number; text: string; tokens: number; embedding: string;
+        }>;
         
         if (chunkData.length > 0) {
           const { error: insertError } = await supabase
@@ -146,6 +148,93 @@ serve(async (req) => {
           } else {
             console.log(`✅ Indexed ${chunkData.length} chunks for: ${page.url}`);
             totalChunks += chunkData.length;
+
+            // Mirror into ai_documents + ai_document_chunks for Manage Docs and chat retrieval
+            try {
+              const systemUser = '00000000-0000-0000-0000-000000000001';
+              const fileName = `web-crawl-${page.id || (page.url || '').replace(/[^a-z0-9]+/gi, '-').slice(0,64)}.html`;
+              const filePath = `org/${orgId}/web-crawl/${page.id || 'page'}`;
+
+              // Upsert ai_document
+              const { data: existingDoc, error: fetchDocErr } = await supabase
+                .from('ai_documents')
+                .select('id')
+                .eq('organization_id', orgId)
+                .eq('document_type', 'web_crawl')
+                .eq('file_name', fileName)
+                .maybeSingle();
+
+              let aiDocId = existingDoc?.id;
+              if (!aiDocId) {
+                const { data: newDoc, error: insertDocErr } = await supabase
+                  .from('ai_documents')
+                  .insert({
+                    organization_id: orgId,
+                    title: page.title || page.url || 'Web Page',
+                    domain: 'Web Crawl',
+                    document_type: 'web_crawl',
+                    tags: 'crawl:web',
+                    processing_status: 'completed',
+                    processed_at: new Date().toISOString(),
+                    total_chunks: chunkData.length,
+                    file_name: fileName,
+                    file_path: filePath,
+                    mime_type: page.content_type || 'text/html',
+                    file_size: 0,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    uploaded_by: systemUser,
+                    updated_by: systemUser,
+                    metadata: { url: page.url, source: 'web_crawl' }
+                  })
+                  .select()
+                  .single();
+
+                if (insertDocErr) {
+                  console.error('❌ Failed to create ai_document for crawled page:', insertDocErr);
+                } else {
+                  aiDocId = newDoc?.id;
+                }
+              } else {
+                // Update counts on existing doc
+                await supabase
+                  .from('ai_documents')
+                  .update({
+                    processing_status: 'completed',
+                    processed_at: new Date().toISOString(),
+                    total_chunks: chunkData.length,
+                    updated_at: new Date().toISOString(),
+                    tags: 'crawl:web'
+                  })
+                  .eq('id', aiDocId);
+              }
+
+              if (aiDocId) {
+                // Replace ai_document_chunks for this doc
+                await supabase.from('ai_document_chunks').delete().eq('document_id', aiDocId);
+
+                const aiChunks = chunkData.map((c) => ({
+                  document_id: aiDocId as string,
+                  organization_id: orgId,
+                  chunk_index: c.chunk_idx,
+                  content: c.text,
+                  content_hash: `wc_${c.chunk_idx}_${c.text.length}`,
+                  metadata: { source: 'web_crawl', page_id: page.id, url: page.url },
+                  embedding: null
+                }));
+
+                const { error: aiChunkErr } = await supabase
+                  .from('ai_document_chunks')
+                  .insert(aiChunks);
+                if (aiChunkErr) {
+                  console.error('❌ Failed to mirror chunks into ai_document_chunks:', aiChunkErr);
+                } else {
+                  console.log(`🔗 Mirrored ${aiChunks.length} chunks into ai_document_chunks for doc ${aiDocId}`);
+                }
+              }
+            } catch (mirrorErr) {
+              console.error('⚠️ Mirror to ai_documents failed (non-blocking):', mirrorErr);
+            }
           }
         }
 

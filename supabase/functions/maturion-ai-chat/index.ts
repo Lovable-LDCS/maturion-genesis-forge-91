@@ -11,9 +11,39 @@ serve(async (req) => {
   }
 
   try {
-    const request: PromptRequest = await req.json();
+    // Parse and validate input (supports both messages[] and prompt)
+    const body = await req.json().catch(() => ({} as any));
+
+    // Basic validation: require either messages[] or prompt
+    const hasMessages = Array.isArray(body?.messages) && body.messages.length > 0;
+    const rawPrompt: string | undefined = typeof body?.prompt === 'string' ? body.prompt : undefined;
+
+    if (!hasMessages && (!rawPrompt || rawPrompt.trim().length === 0)) {
+      return new Response(JSON.stringify({ error: 'messages or prompt required' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Normalize to PromptRequest
+    const normalizedPrompt = hasMessages
+      ? body.messages.map((m: any) => (typeof m?.content === 'string' ? m.content : '')).join('\n')
+      : rawPrompt!.trim();
+
+    const orgId = body.orgId || body.organizationId || null;
+    const domainFilters = Array.isArray(body?.domainFilters) && body.domainFilters.length > 0
+      ? body.domainFilters
+      : ["Organization Profile", "Diamond Knowledge Pack"];
+
+    const request: PromptRequest = {
+      ...(body as any),
+      prompt: normalizedPrompt,
+      organizationId: orgId,
+      domainFilters,
+    };
     
     console.log('🔍 Starting AI chat request processing...');
+    console.log('🧾 Input summary:', { hasMessages, orgId, domainFiltersCount: domainFilters.length });
     
     // Build comprehensive prompt context based on knowledge tier
     const promptContext = await buildPromptContext(request);
@@ -85,7 +115,12 @@ serve(async (req) => {
     }
     
     // Append commitment text to response if gaps were detected
-    const finalResponse = aiResponse + commitmentText;
+    let finalResponse = aiResponse + commitmentText;
+
+    // Friendly fallback when org docs aren’t ready
+    if (!promptContext || (Array.isArray(promptContext.documentContext) && promptContext.documentContext.length === 0)) {
+      finalResponse = `I’m still processing your organization documents; using general context for now.\n\n` + finalResponse;
+    }
     
     // Return the response with metadata
     return new Response(JSON.stringify({
