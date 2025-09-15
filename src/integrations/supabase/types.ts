@@ -2731,6 +2731,50 @@ export type Database = {
           },
         ]
       }
+      organization_documents: {
+        Row: {
+          created_at: string
+          error_text: string | null
+          id: string
+          mime_type: string | null
+          org_id: string
+          pages: number | null
+          processed_at: string | null
+          source_object_path: string
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          error_text?: string | null
+          id?: string
+          mime_type?: string | null
+          org_id: string
+          pages?: number | null
+          processed_at?: string | null
+          source_object_path: string
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          error_text?: string | null
+          id?: string
+          mime_type?: string | null
+          org_id?: string
+          pages?: number | null
+          processed_at?: string | null
+          source_object_path?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_documents_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_invitations: {
         Row: {
           created_at: string
