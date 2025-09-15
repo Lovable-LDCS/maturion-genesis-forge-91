@@ -5,6 +5,7 @@ import { Upload, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { uploadOrgLogo, removeOrgLogo, getOrgLogoUrl } from '@/lib/orgBrandingService';
 
 interface LogoUploaderProps {
   organizationId: string;
@@ -40,28 +41,28 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
 
   // Load current logo using signed URL
   const loadCurrentLogo = useCallback(async () => {
-    if (!currentLogoPath) {
+    if (!currentLogoPath || !organizationId) {
       setLogoUrl(null);
       setPreview(null);
       return;
     }
 
     try {
-      const { data, error } = await supabase.storage
-        .from('org_branding')
-        .createSignedUrl(currentLogoPath, 3600); // 1 hour expiry
-
-      if (error) {
-        console.warn('Failed to create signed URL for logo:', error);
-        return;
+      const result = await getOrgLogoUrl(organizationId);
+      
+      if (result.success && result.signedUrl) {
+        setLogoUrl(result.signedUrl);
+        setPreview(result.signedUrl);
+      } else {
+        setLogoUrl(null);
+        setPreview(null);
       }
-
-      setLogoUrl(data.signedUrl);
-      setPreview(data.signedUrl);
     } catch (error) {
       console.warn('Error loading current logo:', error);
+      setLogoUrl(null);
+      setPreview(null);
     }
-  }, [currentLogoPath]);
+  }, [currentLogoPath, organizationId]);
 
   useEffect(() => {
     loadCurrentLogo();
@@ -96,66 +97,21 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
 
     setUploading(true);
     try {
-      const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
-      const fileName = `logo.${ext}`;
-      const objectPath = `org/${organizationId}/logo/${fileName}`;
-
-      // Remove existing logo files in the logo folder first
-      try {
-        const { data: existingFiles } = await supabase.storage
-          .from('org_branding')
-          .list(`org/${organizationId}/logo`);
-
-        if (existingFiles && existingFiles.length > 0) {
-          const filesToRemove = existingFiles.map(f => `org/${organizationId}/logo/${f.name}`);
-          await supabase.storage
-            .from('org_branding')
-            .remove(filesToRemove);
-        }
-      } catch (cleanupError) {
-        console.warn('Failed to cleanup existing logos:', cleanupError);
+      const result = await uploadOrgLogo(organizationId, file);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Upload failed');
       }
 
-      // Upload new logo
-      const { error: uploadError } = await supabase.storage
-        .from('org_branding')
-        .upload(objectPath, file, {
-          upsert: true,
-          contentType: file.type
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Update organization record with new logo path
-      const { error: updateError } = await supabase
-        .from('organizations')
-        .update({ 
-          logo_object_path: objectPath,
-          updated_by: user?.id,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', organizationId);
-
-      if (updateError) {
-        throw updateError;
-      }
-
-      // Create signed URL for immediate preview
-      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
-        .from('org_branding')
-        .createSignedUrl(objectPath, 3600);
-
-      if (signedUrlError) {
-        console.warn('Failed to create signed URL:', signedUrlError);
-      } else {
-        setPreview(signedUrlData.signedUrl);
-        setLogoUrl(signedUrlData.signedUrl);
+      // Get signed URL for immediate preview
+      const urlResult = await getOrgLogoUrl(organizationId);
+      if (urlResult.success && urlResult.signedUrl) {
+        setPreview(urlResult.signedUrl);
+        setLogoUrl(urlResult.signedUrl);
       }
 
       // Notify parent component
-      onLogoUpdate?.(objectPath);
+      onLogoUpdate?.(result.objectPath || null);
 
       toast({
         title: "Logo Uploaded",
@@ -180,27 +136,10 @@ export const LogoUploader: React.FC<LogoUploaderProps> = ({
 
     setUploading(true);
     try {
-      // Remove from storage
-      const { error: removeError } = await supabase.storage
-        .from('org_branding')
-        .remove([currentLogoPath]);
-
-      if (removeError) {
-        console.warn('Failed to remove from storage:', removeError);
-      }
-
-      // Update organization record
-      const { error: updateError } = await supabase
-        .from('organizations')
-        .update({ 
-          logo_object_path: null,
-          updated_by: user?.id,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', organizationId);
-
-      if (updateError) {
-        throw updateError;
+      const result = await removeOrgLogo(organizationId);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Remove failed');
       }
 
       setPreview(null);

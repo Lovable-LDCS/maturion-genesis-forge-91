@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { getOrgLogoUrl } from '@/lib/orgBrandingService';
 
 interface OrganizationLogoProps {
   organizationId?: string;
@@ -41,7 +41,7 @@ export const OrganizationLogo: React.FC<OrganizationLogoProps> = ({
 
   // Load logo using signed URL
   const loadLogo = useCallback(async () => {
-    if (!logoObjectPath) {
+    if (!logoObjectPath || !organizationId) {
       setLogoUrl(null);
       return;
     }
@@ -50,24 +50,22 @@ export const OrganizationLogo: React.FC<OrganizationLogoProps> = ({
     setError(false);
 
     try {
-      const { data, error: signedUrlError } = await supabase.storage
-        .from('org_branding')
-        .createSignedUrl(logoObjectPath, 3600); // 1 hour expiry
-
-      if (signedUrlError) {
-        console.warn('Failed to create signed URL for logo:', signedUrlError);
+      const result = await getOrgLogoUrl(organizationId);
+      
+      if (result.success && result.signedUrl) {
+        setLogoUrl(result.signedUrl);
+      } else {
         setError(true);
-        return;
+        setLogoUrl(null);
       }
-
-      setLogoUrl(data.signedUrl);
     } catch (err) {
       console.warn('Error loading organization logo:', err);
       setError(true);
+      setLogoUrl(null);
     } finally {
       setLoading(false);
     }
-  }, [logoObjectPath]);
+  }, [logoObjectPath, organizationId]);
 
   useEffect(() => {
     loadLogo();
