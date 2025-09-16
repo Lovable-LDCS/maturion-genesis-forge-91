@@ -13,7 +13,7 @@ interface ReasoningDocument {
   processing_status: string;
   total_chunks: number;
   created_at: string;
-  tags: string | null;
+  tags: string[] | null;
 }
 
 export function ReasoningScopeTracker() {
@@ -56,7 +56,7 @@ export function ReasoningScopeTracker() {
       const { error } = await supabase
         .from('ai_documents')
         .update({ 
-          tags: '🧠 Platform Anchor Logic',
+          tags: ['🧠 Platform Anchor Logic'],
           metadata: {
             reasoning_scope: 'global_platform_logic',
             inheritance_level: 'primary'

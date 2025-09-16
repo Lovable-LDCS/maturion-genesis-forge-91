@@ -314,7 +314,13 @@ export const MaturionComplianceCheck: React.FC<MaturionComplianceCheckProps> = (
       if (error) throw error;
       
       // Basic validation that documents have tags
-      const documentsWithTags = data?.filter(doc => doc.tags && doc.tags.trim().length > 0) || [];
+      const documentsWithTags = data?.filter(doc => {
+        if (!doc.tags) return false;
+        if (Array.isArray(doc.tags)) {
+          return doc.tags.length > 0;
+        }
+        return (doc.tags as string).trim().length > 0;
+      }) || [];
       
       if (documentsWithTags.length > 0) {
         item.status = 'passed';

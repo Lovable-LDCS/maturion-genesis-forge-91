@@ -20,7 +20,7 @@ export interface MaturionDocument {
   processed_at?: string;
   title?: string;
   domain?: string;
-  tags?: string;
+  tags?: string[] | null;
   upload_notes?: string;
   is_ai_ingested?: boolean;
 }
@@ -39,7 +39,7 @@ export const useMaturionDocuments = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDocuments((data || []) as MaturionDocument[]);
+      setDocuments(data || [] as any);
     } catch (error: any) {
       console.error('Error fetching Maturion documents:', error);
       toast({
@@ -106,7 +106,7 @@ export const useMaturionDocuments = () => {
           document_type: documentType,
           title: title || file.name.replace(/\.[^/.]+$/, ''), // Use provided title or filename without extension
           domain: domain,
-          tags: tags,
+          tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
           upload_notes: uploadNotes,
           uploaded_by: userId,
           updated_by: userId,
@@ -115,7 +115,7 @@ export const useMaturionDocuments = () => {
             upload_timestamp: new Date().toISOString(),
             title: title,
             domain: domain,
-            tags: tags?.split(',').map(tag => tag.trim()),
+            tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
             upload_notes: uploadNotes
           }
         })
@@ -208,7 +208,7 @@ export const useMaturionDocuments = () => {
         .update({
           title: updates.title,
           domain: updates.domain,
-          tags: updates.tags,
+          tags: updates.tags ? updates.tags.split(',').map(tag => tag.trim()) : [],
           upload_notes: updates.upload_notes,
           document_type: updates.document_type,
           updated_at: new Date().toISOString(),
@@ -217,7 +217,7 @@ export const useMaturionDocuments = () => {
             ...(typeof currentDoc.metadata === 'object' && currentDoc.metadata !== null ? currentDoc.metadata : {}),
             title: updates.title,
             domain: updates.domain,
-            tags: updates.tags?.split(',').map(tag => tag.trim()),
+            tags: updates.tags ? updates.tags.split(',').map(tag => tag.trim()) : [],
             upload_notes: updates.upload_notes,
             change_reason: updates.change_reason || 'Document updated',
             last_updated: new Date().toISOString()

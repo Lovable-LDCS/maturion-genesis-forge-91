@@ -32,7 +32,7 @@ interface AILogicDocument {
   processing_status: string;
   total_chunks: number;
   document_type: string;
-  tags: string;
+  tags: string[] | null;
   metadata: any;
   created_at: string;
   updated_at: string;
@@ -80,7 +80,7 @@ export function AILogicIngestionDashboard() {
       if (error) throw error;
 
       const docs = data || [];
-      setDocuments(docs);
+      setDocuments(data || [] as any);
 
       // Calculate diagnostic summary
       const totalDocs = docs.length;
@@ -125,7 +125,7 @@ export function AILogicIngestionDashboard() {
       const { error } = await supabase
         .from('ai_documents')
         .update({
-          tags: 'AI Core Logic, Validation Rules, Emergency Processing, System Reasoning, Governance Anchor',
+          tags: ['AI Core Logic', 'Validation Rules', 'Emergency Processing', 'System Reasoning', 'Governance Anchor'],
           metadata: {
             scope: 'Global Platform Logic',
             type: 'AI Logic Policy',

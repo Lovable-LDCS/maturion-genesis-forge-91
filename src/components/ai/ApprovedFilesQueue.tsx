@@ -10,7 +10,7 @@ import { DocumentReplacementDialog } from './DocumentReplacementDialog';
 interface DocumentMetadata {
   title: string;
   documentType: string;
-  tags: string;
+  tags: string[];
   domain: string;
   visibility: string;
   description: string;
@@ -168,7 +168,7 @@ export const ApprovedFilesQueue: React.FC = () => {
             file_size: document.file_size,
             document_type: document.document_type,
             domain: document.domain,
-            tags: document.tags,
+            tags: Array.isArray(document.tags) ? document.tags.join(', ') : document.tags,
             metadata: document.metadata,
             mime_type: document.mime_type,
             organization_id: document.organization_id,
@@ -302,7 +302,7 @@ export const ApprovedFilesQueue: React.FC = () => {
         record_id: fileId,
         action: replaceDocumentId ? 'REPLACEMENT_UPLOAD' : 'APPROVED_UPLOAD',
         changed_by: user.id,
-        change_reason: `Document "${currentUploadFile.metadata.title}" (${currentUploadFile.metadata.documentType}) uploaded after chunk verification (${currentUploadFile.chunksCount} chunks via ${currentUploadFile.extractionMethod}). Domain: ${currentUploadFile.metadata.domain}, Tags: ${currentUploadFile.metadata.tags}${replaceDocumentId ? `. Replaced document ID: ${replaceDocumentId}` : ''}`
+        change_reason: `Document "${currentUploadFile.metadata.title}" (${currentUploadFile.metadata.documentType}) uploaded after chunk verification (${currentUploadFile.chunksCount} chunks via ${currentUploadFile.extractionMethod}). Domain: ${currentUploadFile.metadata.domain}, Tags: ${Array.isArray(currentUploadFile.metadata.tags) ? currentUploadFile.metadata.tags.join(', ') : currentUploadFile.metadata.tags}${replaceDocumentId ? `. Replaced document ID: ${replaceDocumentId}` : ''}`
       });
 
       toast({

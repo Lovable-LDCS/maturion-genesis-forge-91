@@ -723,7 +723,7 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
           title: editingDocument?.title || editingDocument?.file_name || '',
           documentType: editingDocument?.document_type || 'guidance_document',
           domain: editingDocument?.domain || '',
-          tags: editingDocument?.tags || '',
+          tags: Array.isArray(editingDocument?.tags) ? editingDocument.tags.join(', ') : (editingDocument?.tags || ''),
           visibility: (editingDocument?.metadata as any)?.visibility || 'all_users',
           description: (editingDocument?.metadata as any)?.ai_backoffice_description || editingDocument?.upload_notes || ''
         }}

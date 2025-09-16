@@ -109,7 +109,7 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
         const matchesSearch = 
           doc.title?.toLowerCase().includes(searchLower) ||
           doc.file_name.toLowerCase().includes(searchLower) ||
-          doc.tags?.toLowerCase().includes(searchLower) ||
+          (Array.isArray(doc.tags) ? doc.tags.join(', ') : (doc.tags || '')).toLowerCase().includes(searchLower) ||
           doc.domain?.toLowerCase().includes(searchLower);
         if (!matchesSearch) return false;
       }

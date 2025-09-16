@@ -21,7 +21,7 @@ interface ExistingDocument {
   title: string;
   document_type: string;
   domain: string;
-  tags: string;
+  tags: string[] | null;
   created_at: string;
   file_name: string;
   processing_status: string;
@@ -75,7 +75,7 @@ export const DocumentReplacementDialog: React.FC<DocumentReplacementDialogProps>
         const normalizedTitle = normalizeTitle(doc.title || '');
         const normalizedType = normalizeTitle(doc.document_type || '');
         const normalizedDomain = normalizeTitle(doc.domain || '');
-        const normalizedTags = normalizeTitle(doc.tags || '');
+        const normalizedTags = normalizeTitle(Array.isArray(doc.tags) ? doc.tags.join(' ') : (doc.tags || ''));
         
         // Check if normalized search term is contained in any normalized field
         return normalizedTitle.includes(normalizedSearchTerm) ||

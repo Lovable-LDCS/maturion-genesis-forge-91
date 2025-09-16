@@ -54,7 +54,7 @@ export const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
       setFormData({
         title: document.title || '',
         domain: document.domain || 'none', // Default to "none" if empty
-        tags: document.tags || '',
+        tags: Array.isArray(document.tags) ? document.tags.join(', ') : (document.tags || ''),
         upload_notes: document.upload_notes || '',
         document_type: document.document_type,
         change_reason: ''

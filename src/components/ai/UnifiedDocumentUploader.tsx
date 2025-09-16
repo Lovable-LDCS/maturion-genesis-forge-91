@@ -539,7 +539,7 @@ export const UnifiedDocumentUploader: React.FC<UnifiedDocumentUploaderProps> = (
         mime_type: uploadFile.file.type,
         document_type: uploadFile.metadata!.documentType,
         domain: uploadFile.metadata!.domain || undefined,
-        tags: uploadFile.metadata!.tags || undefined,
+        tags: uploadFile.metadata!.tags ? (typeof uploadFile.metadata!.tags === 'string' ? uploadFile.metadata!.tags.split(',').map(t => t.trim()) : uploadFile.metadata!.tags) : [],
         upload_notes: uploadFile.metadata!.description || undefined,
         processing_status: 'pending' as const,
         processing_version: 2,

@@ -69,7 +69,7 @@ export const useDocumentVersions = (documentId?: string) => {
         .update({
           title: version.title,
           domain: version.domain,
-          tags: version.tags,
+          tags: Array.isArray(version.tags) ? version.tags : (version.tags ? [version.tags] : []),
           upload_notes: version.upload_notes,
           document_type: version.document_type,
           updated_at: new Date().toISOString(),
