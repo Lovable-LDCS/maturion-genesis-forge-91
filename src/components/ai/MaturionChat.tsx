@@ -17,6 +17,11 @@ interface Message {
   hasKnowledgeBase?: boolean;
   gapTicketId?: string;
   missingSpecifics?: string[];
+  sources?: Array<{
+    document_title: string;
+    doc_type: string;
+    score: number;
+  }>;
 }
 
 interface MaturionChatProps {
@@ -163,7 +168,8 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
         timestamp: new Date(),
         hasKnowledgeBase: data.hasDocumentContext || false,
         gapTicketId: data.gapTicketId,
-        missingSpecifics: data.missingSpecifics || []
+        missingSpecifics: data.missingSpecifics || [],
+        sources: data.sources || []
       };
       
       setMessages(prev => [...prev, aiMessage]);
@@ -459,6 +465,28 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
                               minute: '2-digit' 
                             })}
                           </p>
+                          {message.sender === 'maturion' && message.sources && message.sources.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-gray-200">
+                              <p className="text-xs font-semibold text-gray-600 mb-1">Sources:</p>
+                              <div className="space-y-1">
+                                {message.sources.slice(0, 3).map((source, index) => (
+                                  <div key={index} className="text-xs text-gray-500 flex items-center justify-between">
+                                    <span className="truncate">
+                                      {source.document_title} ({source.doc_type})
+                                    </span>
+                                    <span className="ml-2 text-blue-600 font-mono">
+                                      {(source.score * 100).toFixed(0)}%
+                                    </span>
+                                  </div>
+                                ))}
+                                {message.sources.length > 3 && (
+                                  <p className="text-xs text-gray-400">
+                                    +{message.sources.length - 3} more sources
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>

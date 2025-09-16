@@ -5,6 +5,28 @@ import { buildPromptContext, callOpenAI, constructFinalPrompt, type PromptReques
 import { detectMissingSpecifics, createGapTicket, generateCommitmentText } from './lib/gap-tracker.ts';
 import { supabase, sanitizeInput } from './lib/utils.ts';
 
+// OpenAI embeddings function
+async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
+  const response = await fetch('https://api.openai.com/v1/embeddings', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'text-embedding-3-small',
+      input: text,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.data[0].embedding;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -57,85 +79,80 @@ serve(async (req) => {
     // Build comprehensive prompt context based on knowledge tier
     const promptContext = await buildPromptContext(request);
 
-    // Map domain filters to doc_type values and retrieve org-specific sources
-    const docTypeMap: Record<string, string> = {
-      "Organization Profile": "organization_profile",
-      "Diamond Knowledge Pack": "diamond_knowledge_pack",
-      "Web Crawl": "web_crawl"
-    };
-    let requestedDocTypes: string[] = (domainFilters || []).map((d: string) => docTypeMap[d] || d).filter(Boolean);
-
-    let sources: Array<{ file_name: string; doc_type: string; document_id: string; chunk_id: string }> = [];
+    // Retrieval QA Implementation
+    let sources: Array<{ id: string; document_id: string; document_title: string; doc_type: string; score: number }> = [];
     let retrievedContexts: string[] = [];
 
-    if (orgId) {
+    if (orgId && sanitizedPrompt.trim()) {
       try {
-        let docQuery = supabase
-          .from('ai_documents')
-          .select('id, file_name, doc_type, total_chunks, updated_at')
-          .eq('organization_id', orgId)
-          .eq('processing_status', 'completed')
-          .gt('total_chunks', 0);
-
-        if ((requestedDocTypes || []).length > 0) {
-          docQuery = docQuery.in('doc_type', requestedDocTypes);
-        }
-
-        docQuery = docQuery.order('updated_at', { ascending: false }).limit(25);
-
-        const { data: docs, error: docErr } = await docQuery;
-
-        if (docErr) {
-          console.warn('⚠️ Doc retrieval error:', docErr);
-        } else if (docs && docs.length > 0) {
-          const docMap = new Map<string, { file_name: string; doc_type: string; total_chunks?: number }>();
-          const docIds = (docs as any[]).map((d: any) => {
-            docMap.set(d.id, { file_name: d.file_name, doc_type: d.doc_type, total_chunks: d.total_chunks });
-            return d.id;
+        const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+        if (!OPENAI_API_KEY) {
+          console.warn('⚠️ OpenAI API key not configured - using fallback retrieval');
+        } else {
+          // 1) Generate embedding for the question
+          const embedding = await generateEmbedding(sanitizedPrompt, OPENAI_API_KEY);
+          
+          // 2) Call match_ai_chunks via Supabase RPC
+          const { data: hits, error } = await supabase.rpc('match_ai_chunks', {
+            p_org_id: orgId,
+            p_query_embedding: `[${embedding.join(',')}]`,
+            p_match_count: 8,
+            p_min_score: 0.2,
           });
 
-          // Log retrieved document sources summary for Gate D
-          console.log('[Gate D] sources=', (docs as any[]).slice(0, 10).map((d: any) => ({ file_name: d.file_name, doc_type: d.doc_type, total_chunks: d.total_chunks })));
-
-
-          const { data: chunks, error: chunkErr } = await supabase
-            .from('ai_document_chunks')
-            .select('id, document_id, content, chunk_index')
-            .in('document_id', docIds)
-            .order('chunk_index', { ascending: true })
-            .limit(60);
-
-          if (chunkErr) {
-            console.warn('⚠️ Chunk retrieval error:', chunkErr);
-          } else {
-            const topChunks = (chunks || []).slice(0, 24);
-            for (const ch of topChunks) {
-              const meta = docMap.get(ch.document_id);
-              if (!meta) continue;
-              retrievedContexts.push(
-                `Source: ${meta.file_name} (${meta.doc_type}) [doc:${ch.document_id} chunk:${ch.id}]\n${ch.content}`
-              );
-              sources.push({
-                file_name: meta.file_name,
-                doc_type: meta.doc_type,
-                document_id: ch.document_id,
-                chunk_id: ch.id
-              });
+          if (error) {
+            console.warn('⚠️ match_ai_chunks error:', error);
+          } else if (hits && hits.length > 0) {
+            console.log(`🎯 Retrieved ${hits.length} relevant chunks`);
+            
+            // 3) Build context from top chunks (de-dup doc titles, cap ~3-5k chars)
+            const seenTitles = new Set<string>();
+            let totalChars = 0;
+            const maxChars = 4500;
+            
+            for (const hit of hits) {
+              if (totalChars >= maxChars) break;
+              
+              const contextItem = `Source: ${hit.document_title} (${hit.doc_type})\n${hit.content}`;
+              const itemLength = contextItem.length;
+              
+              if (totalChars + itemLength <= maxChars) {
+                retrievedContexts.push(contextItem);
+                totalChars += itemLength;
+                
+                // Collect unique sources for display
+                if (!seenTitles.has(hit.document_title)) {
+                  seenTitles.add(hit.document_title);
+                  sources.push({
+                    id: hit.id,
+                    document_id: hit.document_id,
+                    document_title: hit.document_title,
+                    doc_type: hit.doc_type,
+                    score: hit.score
+                  });
+                }
+              }
             }
+            
+            console.log(`📄 Built context from ${retrievedContexts.length} chunks (${totalChars} chars)`);
           }
         }
       } catch (retrievalErr) {
-        console.warn('⚠️ Retrieval exception:', retrievalErr);
+        console.warn('⚠️ Retrieval QA error:', retrievalErr);
       }
     }
 
+    // Use retrieved context if available, otherwise fall back to existing logic
     if (retrievedContexts.length > 0) {
-      // Prioritize retrieved contexts as the authoritative KB for this org
       promptContext.documentContext = retrievedContexts;
     }
 
     // Log sources for Gate D
-    console.log('[Gate D] sources=', sources.slice(0, 10));
+    console.log('[Gate D] sources=', sources.slice(0, 10).map(s => ({ 
+      title: s.document_title, 
+      type: s.doc_type, 
+      score: s.score?.toFixed(2) 
+    })));
 
     // CRITICAL: Construct final prompt with token limiting and cleanup
     const finalPrompt = constructFinalPrompt(promptContext);
@@ -226,7 +243,7 @@ serve(async (req) => {
 
     // Append sources list when available
     if (sources.length > 0) {
-      const sourcesList = sources.slice(0, 5).map(s => `- ${s.file_name} (${s.doc_type}) [doc:${s.document_id} chunk:${s.chunk_id}]`).join('\n');
+      const sourcesList = sources.slice(0, 5).map(s => `- ${s.document_title} (${s.doc_type}) [score: ${s.score?.toFixed(2)}]`).join('\n');
       finalResponse += `\n\nSources:\n${sourcesList}`;
     } else if (!promptContext || (Array.isArray(promptContext.documentContext) && promptContext.documentContext.length === 0)) {
       // Friendly fallback when org docs aren’t ready
@@ -245,7 +262,11 @@ serve(async (req) => {
       gapTicketId: gapTicketId, // Include gap ticket ID for tracking
       missingSpecifics: missingSpecifics,
       activeFilters: { organizationId: orgId, docTypes: requestedDocTypes.length > 0 ? requestedDocTypes : ['ALL_COMPLETED'] },
-      sources: sources,
+      sources: sources.map(s => ({
+        document_title: s.document_title,
+        doc_type: s.doc_type,
+        score: s.score
+      })),
       promptMetrics: {
         totalLength: finalPrompt.length,
         estimatedTokens: finalTokens,
