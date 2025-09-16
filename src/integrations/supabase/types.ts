@@ -4337,6 +4337,23 @@ export type Database = {
         }
         Returns: undefined
       }
+      match_ai_chunks: {
+        Args: {
+          p_match_count?: number
+          p_min_score?: number
+          p_org_id: string
+          p_query_embedding: string
+        }
+        Returns: {
+          chunk_index: number
+          content: string
+          doc_type: string
+          document_id: string
+          document_title: string
+          id: string
+          score: number
+        }[]
+      }
       regenerate_missing_embeddings: {
         Args: Record<PropertyKey, never>
         Returns: {
