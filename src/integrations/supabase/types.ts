@@ -4843,6 +4843,10 @@ export type Database = {
         Args: { org_uuid: string }
         Returns: boolean
       }
+      is_superuser: {
+        Args: { user_id_param?: string }
+        Returns: boolean
+      }
       is_user_admin: {
         Args: { user_uuid?: string }
         Returns: boolean
