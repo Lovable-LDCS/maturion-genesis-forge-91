@@ -33,25 +33,39 @@ export const useMaturionDocuments = () => {
 
   const fetchDocuments = async () => {
     try {
+      // Try privileged edge function first (returns all docs if caller is superuser)
+      console.log('[Docs] Invoking list-all-documents edge function...')
+      const { data: fnData, error: fnError } = await supabase.functions.invoke('list-all-documents')
+
+      if (!fnError && fnData && Array.isArray((fnData as any).documents)) {
+        const docs = (fnData as any).documents as MaturionDocument[]
+        console.log(`[Docs] Edge function returned ${docs.length} documents (superuser bypass).`)
+        setDocuments(docs)
+        return
+      } else if (fnError) {
+        console.warn('[Docs] Edge function not used (likely not superuser). Falling back to RLS query.', fnError)
+      }
+
+      // Fallback to RLS-protected direct query
       const { data, error } = await supabase
         .from('ai_documents')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
 
-      if (error) throw error;
-      setDocuments(data || [] as any);
+      if (error) throw error
+      console.log(`[Docs] Fallback RLS query returned ${data?.length || 0} documents.`)
+      setDocuments((data || []) as any)
     } catch (error: any) {
-      console.error('Error fetching Maturion documents:', error);
+      console.error('Error fetching Maturion documents:', error)
       toast({
-        title: "Error",
-        description: "Failed to fetch documents",
-        variant: "destructive",
-      });
+        title: 'Error',
+        description: error?.message || 'Failed to fetch documents',
+        variant: 'destructive',
+      })
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   };
-
   const uploadDocument = async (
     file: File,
     documentType: MaturionDocument['document_type'],

@@ -41,3 +41,6 @@ verify_jwt = true
 
 [functions.healthz]
 verify_jwt = false
+
+[functions.list-all-documents]
+verify_jwt = true
