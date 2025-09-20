@@ -1,5 +1,8 @@
 project_id = "dmhlxhatogrrrvuruayv"
 
+[functions.test-data-sources-api]
+verify_jwt = false
+
 [functions.maturion-ai-chat]
 verify_jwt = true
 
