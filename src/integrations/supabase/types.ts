@@ -1117,6 +1117,68 @@ export type Database = {
           },
         ]
       }
+      api_usage_log: {
+        Row: {
+          created_at: string
+          data_source_id: string | null
+          endpoint: string
+          execution_time_ms: number | null
+          id: string
+          ip_address: unknown | null
+          metadata: Json | null
+          method: string
+          organization_id: string
+          request_id: string | null
+          request_payload: Json | null
+          response_data: Json | null
+          response_status: number | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          data_source_id?: string | null
+          endpoint: string
+          execution_time_ms?: number | null
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          method: string
+          organization_id: string
+          request_id?: string | null
+          request_payload?: Json | null
+          response_data?: Json | null
+          response_status?: number | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          data_source_id?: string | null
+          endpoint?: string
+          execution_time_ms?: number | null
+          id?: string
+          ip_address?: unknown | null
+          metadata?: Json | null
+          method?: string
+          organization_id?: string
+          request_id?: string | null
+          request_payload?: Json | null
+          response_data?: Json | null
+          response_status?: number | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_usage_log_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "data_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       approval_requests: {
         Row: {
           approver_id: string | null
@@ -1810,6 +1872,119 @@ export type Database = {
         }
         Relationships: []
       }
+      data_source_sync_logs: {
+        Row: {
+          created_at: string
+          data_source_id: string
+          error_messages: string[] | null
+          id: string
+          items_added: number | null
+          items_failed: number | null
+          items_processed: number | null
+          items_updated: number | null
+          organization_id: string
+          sync_completed_at: string | null
+          sync_started_at: string
+          sync_status: string
+          sync_summary: Json | null
+          triggered_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          data_source_id: string
+          error_messages?: string[] | null
+          id?: string
+          items_added?: number | null
+          items_failed?: number | null
+          items_processed?: number | null
+          items_updated?: number | null
+          organization_id: string
+          sync_completed_at?: string | null
+          sync_started_at?: string
+          sync_status?: string
+          sync_summary?: Json | null
+          triggered_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          data_source_id?: string
+          error_messages?: string[] | null
+          id?: string
+          items_added?: number | null
+          items_failed?: number | null
+          items_processed?: number | null
+          items_updated?: number | null
+          organization_id?: string
+          sync_completed_at?: string | null
+          sync_started_at?: string
+          sync_status?: string
+          sync_summary?: Json | null
+          triggered_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "data_source_sync_logs_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "data_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      data_sources: {
+        Row: {
+          connection_config: Json
+          created_at: string
+          created_by: string
+          credentials_encrypted: string | null
+          id: string
+          is_active: boolean
+          last_sync_at: string | null
+          metadata: Json | null
+          organization_id: string
+          source_name: string
+          source_type: string
+          sync_error_message: string | null
+          sync_status: string | null
+          updated_at: string
+          updated_by: string
+        }
+        Insert: {
+          connection_config?: Json
+          created_at?: string
+          created_by: string
+          credentials_encrypted?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          metadata?: Json | null
+          organization_id: string
+          source_name: string
+          source_type: string
+          sync_error_message?: string | null
+          sync_status?: string | null
+          updated_at?: string
+          updated_by: string
+        }
+        Update: {
+          connection_config?: Json
+          created_at?: string
+          created_by?: string
+          credentials_encrypted?: string | null
+          id?: string
+          is_active?: boolean
+          last_sync_at?: string | null
+          metadata?: Json | null
+          organization_id?: string
+          source_name?: string
+          source_type?: string
+          sync_error_message?: string | null
+          sync_status?: string | null
+          updated_at?: string
+          updated_by?: string
+        }
+        Relationships: []
+      }
       deduplication_reports: {
         Row: {
           created_at: string
@@ -2049,6 +2224,113 @@ export type Database = {
             columns: ["criteria_id"]
             isOneToOne: false
             referencedRelation: "criteria"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence_submissions: {
+        Row: {
+          ai_confidence_score: number | null
+          assessment_id: string | null
+          compliance_score: number | null
+          created_at: string
+          criteria_id: string | null
+          data_source_id: string | null
+          description: string | null
+          evaluation_result: Json | null
+          evaluation_status: string | null
+          evidence_data: Json | null
+          evidence_type: string
+          file_path: string | null
+          file_size: number | null
+          file_url: string | null
+          human_review_required: boolean | null
+          id: string
+          maturity_level_suggestion: string | null
+          metadata: Json | null
+          mime_type: string | null
+          organization_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          reviewer_comments: string | null
+          risk_indicators: Json | null
+          submission_method: string | null
+          submitted_at: string
+          submitted_by: string
+          tags: string[] | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          ai_confidence_score?: number | null
+          assessment_id?: string | null
+          compliance_score?: number | null
+          created_at?: string
+          criteria_id?: string | null
+          data_source_id?: string | null
+          description?: string | null
+          evaluation_result?: Json | null
+          evaluation_status?: string | null
+          evidence_data?: Json | null
+          evidence_type: string
+          file_path?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          human_review_required?: boolean | null
+          id?: string
+          maturity_level_suggestion?: string | null
+          metadata?: Json | null
+          mime_type?: string | null
+          organization_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_comments?: string | null
+          risk_indicators?: Json | null
+          submission_method?: string | null
+          submitted_at?: string
+          submitted_by: string
+          tags?: string[] | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          ai_confidence_score?: number | null
+          assessment_id?: string | null
+          compliance_score?: number | null
+          created_at?: string
+          criteria_id?: string | null
+          data_source_id?: string | null
+          description?: string | null
+          evaluation_result?: Json | null
+          evaluation_status?: string | null
+          evidence_data?: Json | null
+          evidence_type?: string
+          file_path?: string | null
+          file_size?: number | null
+          file_url?: string | null
+          human_review_required?: boolean | null
+          id?: string
+          maturity_level_suggestion?: string | null
+          metadata?: Json | null
+          mime_type?: string | null
+          organization_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          reviewer_comments?: string | null
+          risk_indicators?: Json | null
+          submission_method?: string | null
+          submitted_at?: string
+          submitted_by?: string
+          tags?: string[] | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evidence_submissions_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "data_sources"
             referencedColumns: ["id"]
           },
         ]
@@ -2294,6 +2576,90 @@ export type Database = {
           workflow_status?: string
         }
         Relationships: []
+      }
+      learning_feedback_log: {
+        Row: {
+          applied_at: string | null
+          applied_to_model: boolean | null
+          assessment_id: string | null
+          confidence_after: number | null
+          confidence_before: number | null
+          corrected_content: string | null
+          created_at: string
+          criteria_id: string | null
+          data_source_id: string | null
+          evidence_submission_id: string | null
+          feedback_type: string
+          id: string
+          impact_score: number | null
+          learning_context: Json | null
+          metadata: Json | null
+          organization_id: string
+          original_content: string | null
+          updated_at: string
+          user_id: string
+          validation_status: string | null
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_to_model?: boolean | null
+          assessment_id?: string | null
+          confidence_after?: number | null
+          confidence_before?: number | null
+          corrected_content?: string | null
+          created_at?: string
+          criteria_id?: string | null
+          data_source_id?: string | null
+          evidence_submission_id?: string | null
+          feedback_type: string
+          id?: string
+          impact_score?: number | null
+          learning_context?: Json | null
+          metadata?: Json | null
+          organization_id: string
+          original_content?: string | null
+          updated_at?: string
+          user_id: string
+          validation_status?: string | null
+        }
+        Update: {
+          applied_at?: string | null
+          applied_to_model?: boolean | null
+          assessment_id?: string | null
+          confidence_after?: number | null
+          confidence_before?: number | null
+          corrected_content?: string | null
+          created_at?: string
+          criteria_id?: string | null
+          data_source_id?: string | null
+          evidence_submission_id?: string | null
+          feedback_type?: string
+          id?: string
+          impact_score?: number | null
+          learning_context?: Json | null
+          metadata?: Json | null
+          organization_id?: string
+          original_content?: string | null
+          updated_at?: string
+          user_id?: string
+          validation_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_feedback_log_data_source_id_fkey"
+            columns: ["data_source_id"]
+            isOneToOne: false
+            referencedRelation: "data_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "learning_feedback_log_evidence_submission_id_fkey"
+            columns: ["evidence_submission_id"]
+            isOneToOne: false
+            referencedRelation: "evidence_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       learning_model_snapshots: {
         Row: {
