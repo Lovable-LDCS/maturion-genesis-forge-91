@@ -61,6 +61,11 @@ serve(async (req) => {
     const domainFilters = Array.isArray(body?.domainFilters) && body.domainFilters.length > 0
       ? body.domainFilters
       : [];
+    
+    // Define requested document types for filtering
+    const requestedDocTypes = Array.isArray(body?.requestedDocTypes) && body.requestedDocTypes.length > 0
+      ? body.requestedDocTypes
+      : [];
 
 
     const request: PromptRequest = {
@@ -68,6 +73,7 @@ serve(async (req) => {
       prompt: sanitizedPrompt,
       organizationId: orgId,
       domainFilters,
+      requestedDocTypes,
     };
 
     // Payload log for Gate D

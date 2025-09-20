@@ -212,7 +212,10 @@ export function constructFinalPrompt(promptContext: any) {
   const MAX_ORG_TOKENS = 500;
   const MAX_EXTERNAL_TOKENS = 400;
 
-  const estimateTokens = (text: string): number => Math.ceil(text.length / 4);
+  const estimateTokens = (text: string | undefined): number => {
+    if (!text || typeof text !== 'string') return 0;
+    return Math.ceil(text.length / 4);
+  };
   const truncateToTokens = (text: string, maxTokens: number): string => {
     const maxChars = maxTokens * 4;
     if (text.length <= maxChars) return text;

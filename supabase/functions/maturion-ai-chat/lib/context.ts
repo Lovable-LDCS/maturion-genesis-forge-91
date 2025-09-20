@@ -3,7 +3,9 @@ import { supabase } from './utils.ts';
 // Enhanced function to get DIAMOND-FIRST + ORG-WEB document context
 export async function getDocumentContext(organizationId: string, query: string, domain?: string, mpsNumber?: number): Promise<string> {
   try {
-    console.log('Fetching document context for organization:', organizationId, 'Query:', query, 'MPS Number:', mpsNumber);
+    // Ensure organizationId is a string, not an object
+    const orgId = typeof organizationId === 'string' ? organizationId : String(organizationId);
+    console.log('Fetching document context for organization:', orgId, 'Query:', query, 'MPS Number:', mpsNumber);
     
     // Check for organization-overview intent
     const isOrgQuery = /company|organization|who is|JVs?|joint ventures?|brands?|footprint|sales channels?|about .+/i.test(query);
@@ -13,7 +15,7 @@ export async function getDocumentContext(organizationId: string, query: string, 
     const { data: completedDocs, error: docsError } = await supabase
       .from('ai_documents')
       .select('id, title, processing_status, document_type, metadata')
-      .eq('organization_id', organizationId)
+      .eq('organization_id', orgId)
       .eq('processing_status', 'completed');
     
     if (docsError) {
@@ -34,7 +36,7 @@ export async function getDocumentContext(organizationId: string, query: string, 
             tokens,
             org_pages!inner(url, title, domain)
           `)
-          .eq('org_id', organizationId)
+          .eq('org_id', orgId)
           .order('created_at', { ascending: false })
           .limit(10);
         
@@ -126,7 +128,7 @@ export async function getDocumentContext(organizationId: string, query: string, 
         const { data, error } = await supabase.functions.invoke('search-ai-context', {
           body: {
             query: searchQuery,
-            organizationId: organizationId,
+            organizationId: orgId,
             documentTypes: ['mps_document', 'mps', 'standard', 'audit', 'criteria', 'governance_reasoning_manifest', 'ai_logic_rule_global', 'system_instruction'],
             limit: 50,
             threshold: 0.2,
@@ -265,7 +267,7 @@ export async function getDocumentContext(organizationId: string, query: string, 
         chunk_index,
         ai_documents!inner(title, organization_id, document_type)
       `)
-      .eq('ai_documents.organization_id', organizationId)
+      .eq('ai_documents.organization_id', orgId)
       .ilike('content', `%${query}%`)
       .limit(5);
 
