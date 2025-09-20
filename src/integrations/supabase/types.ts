@@ -270,7 +270,35 @@ export type Database = {
             referencedRelation: "v_ai_docs_retrievable"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_behavior_monitoring_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_documents_demo"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      ai_chunk_hash_stats: {
+        Row: {
+          chunk_count: number
+          doc_count: number
+          hash: string
+          last_computed_at: string
+        }
+        Insert: {
+          chunk_count: number
+          doc_count: number
+          hash: string
+          last_computed_at?: string
+        }
+        Update: {
+          chunk_count?: number
+          doc_count?: number
+          hash?: string
+          last_computed_at?: string
+        }
+        Relationships: []
       }
       ai_confidence_scoring: {
         Row: {
@@ -359,6 +387,13 @@ export type Database = {
             referencedRelation: "v_ai_docs_retrievable"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_confidence_scoring_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_documents_demo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ai_document_chunks: {
@@ -372,10 +407,12 @@ export type Database = {
           embedding: string | null
           equipment_slugs: string[] | null
           id: string
+          is_clean: boolean | null
           layer: number | null
           metadata: Json | null
           organization_id: string
           page: number | null
+          quality_score: number | null
           section: string | null
           stage: string | null
           status: string | null
@@ -396,10 +433,12 @@ export type Database = {
           embedding?: string | null
           equipment_slugs?: string[] | null
           id?: string
+          is_clean?: boolean | null
           layer?: number | null
           metadata?: Json | null
           organization_id: string
           page?: number | null
+          quality_score?: number | null
           section?: string | null
           stage?: string | null
           status?: string | null
@@ -420,10 +459,12 @@ export type Database = {
           embedding?: string | null
           equipment_slugs?: string[] | null
           id?: string
+          is_clean?: boolean | null
           layer?: number | null
           metadata?: Json | null
           organization_id?: string
           page?: number | null
+          quality_score?: number | null
           section?: string | null
           stage?: string | null
           status?: string | null
@@ -447,6 +488,13 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "v_ai_docs_retrievable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_documents_demo"
             referencedColumns: ["id"]
           },
         ]
@@ -549,6 +597,13 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "v_ai_docs_retrievable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_documents_demo"
             referencedColumns: ["id"]
           },
           {
@@ -879,6 +934,13 @@ export type Database = {
             referencedRelation: "v_ai_docs_retrievable"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_feedback_submissions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_documents_demo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       ai_learning_patterns: {
@@ -1046,6 +1108,13 @@ export type Database = {
             referencedRelation: "v_ai_docs_retrievable"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "ai_upload_audit_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_documents_demo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       approval_requests: {
@@ -1152,6 +1221,13 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "v_ai_docs_retrievable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approved_chunks_cache_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_documents_demo"
             referencedColumns: ["id"]
           },
         ]
@@ -1431,6 +1507,27 @@ export type Database = {
           granted_by?: string | null
           id?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      chunks: {
+        Row: {
+          content: string
+          document_id: string
+          embedding: string
+          id: number
+        }
+        Insert: {
+          content: string
+          document_id: string
+          embedding: string
+          id?: number
+        }
+        Update: {
+          content?: string
+          document_id?: string
+          embedding?: string
+          id?: number
         }
         Relationships: []
       }
@@ -3393,6 +3490,13 @@ export type Database = {
             referencedRelation: "v_ai_docs_retrievable"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "processing_pipeline_status_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_documents_demo"
+            referencedColumns: ["id"]
+          },
         ]
       }
       profiles: {
@@ -4061,6 +4165,109 @@ export type Database = {
       }
     }
     Views: {
+      ai_document_chunks_search: {
+        Row: {
+          checksum: string | null
+          chunk_index: number | null
+          content: string | null
+          content_hash: string | null
+          created_at: string | null
+          document_id: string | null
+          embedding: string | null
+          equipment_slugs: string[] | null
+          id: string | null
+          is_clean: boolean | null
+          layer: number | null
+          metadata: Json | null
+          organization_id: string | null
+          page: number | null
+          quality_score: number | null
+          section: string | null
+          stage: string | null
+          status: string | null
+          tags: string[] | null
+          tokens: number | null
+          updated_at: string | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+          visibility: string | null
+        }
+        Insert: {
+          checksum?: string | null
+          chunk_index?: number | null
+          content?: string | null
+          content_hash?: string | null
+          created_at?: string | null
+          document_id?: string | null
+          embedding?: string | null
+          equipment_slugs?: string[] | null
+          id?: string | null
+          is_clean?: boolean | null
+          layer?: number | null
+          metadata?: Json | null
+          organization_id?: string | null
+          page?: number | null
+          quality_score?: number | null
+          section?: string | null
+          stage?: string | null
+          status?: string | null
+          tags?: string[] | null
+          tokens?: number | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          visibility?: string | null
+        }
+        Update: {
+          checksum?: string | null
+          chunk_index?: number | null
+          content?: string | null
+          content_hash?: string | null
+          created_at?: string | null
+          document_id?: string | null
+          embedding?: string | null
+          equipment_slugs?: string[] | null
+          id?: string | null
+          is_clean?: boolean | null
+          layer?: number | null
+          metadata?: Json | null
+          organization_id?: string | null
+          page?: number | null
+          quality_score?: number | null
+          section?: string | null
+          stage?: string | null
+          status?: string | null
+          tags?: string[] | null
+          tokens?: number | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_docs_retrievable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_documents_demo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       system_health_report_v1: {
         Row: {
           docs_without_chunks: number | null
@@ -4111,6 +4318,365 @@ export type Database = {
         }
         Relationships: []
       }
+      v_ai_document_chunks_demo: {
+        Row: {
+          checksum: string | null
+          chunk_index: number | null
+          content: string | null
+          content_hash: string | null
+          created_at: string | null
+          document_id: string | null
+          embedding: string | null
+          equipment_slugs: string[] | null
+          id: string | null
+          is_clean: boolean | null
+          layer: number | null
+          metadata: Json | null
+          organization_id: string | null
+          page: number | null
+          quality_score: number | null
+          section: string | null
+          stage: string | null
+          status: string | null
+          tags: string[] | null
+          tokens: number | null
+          updated_at: string | null
+          uploaded_at: string | null
+          uploaded_by: string | null
+          visibility: string | null
+        }
+        Insert: {
+          checksum?: string | null
+          chunk_index?: number | null
+          content?: string | null
+          content_hash?: string | null
+          created_at?: string | null
+          document_id?: string | null
+          embedding?: string | null
+          equipment_slugs?: string[] | null
+          id?: string | null
+          is_clean?: boolean | null
+          layer?: number | null
+          metadata?: Json | null
+          organization_id?: string | null
+          page?: number | null
+          quality_score?: number | null
+          section?: string | null
+          stage?: string | null
+          status?: string | null
+          tags?: string[] | null
+          tokens?: number | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          visibility?: string | null
+        }
+        Update: {
+          checksum?: string | null
+          chunk_index?: number | null
+          content?: string | null
+          content_hash?: string | null
+          created_at?: string | null
+          document_id?: string | null
+          embedding?: string | null
+          equipment_slugs?: string[] | null
+          id?: string | null
+          is_clean?: boolean | null
+          layer?: number | null
+          metadata?: Json | null
+          organization_id?: string | null
+          page?: number | null
+          quality_score?: number | null
+          section?: string | null
+          stage?: string | null
+          status?: string | null
+          tags?: string[] | null
+          tokens?: number | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          uploaded_by?: string | null
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_docs_retrievable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_documents_demo"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_ai_document_versions_demo: {
+        Row: {
+          change_reason: string | null
+          checksum: string | null
+          created_at: string | null
+          created_by: string | null
+          document_id: string | null
+          document_type: string | null
+          domain: string | null
+          file_ext: string | null
+          file_name: string | null
+          file_path: string | null
+          file_size: number | null
+          id: string | null
+          language: string | null
+          metadata: Json | null
+          mime_type: string | null
+          organization_id: string | null
+          source_url: string | null
+          status: string | null
+          tags: string | null
+          title: string | null
+          updated_at: string | null
+          upload_notes: string | null
+          uploaded_by: string | null
+          version: number | null
+          version_number: number | null
+          visibility: string | null
+        }
+        Insert: {
+          change_reason?: string | null
+          checksum?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_id?: string | null
+          document_type?: string | null
+          domain?: string | null
+          file_ext?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string | null
+          language?: string | null
+          metadata?: Json | null
+          mime_type?: string | null
+          organization_id?: string | null
+          source_url?: string | null
+          status?: string | null
+          tags?: string | null
+          title?: string | null
+          updated_at?: string | null
+          upload_notes?: string | null
+          uploaded_by?: string | null
+          version?: number | null
+          version_number?: number | null
+          visibility?: string | null
+        }
+        Update: {
+          change_reason?: string | null
+          checksum?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          document_id?: string | null
+          document_type?: string | null
+          domain?: string | null
+          file_ext?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string | null
+          language?: string | null
+          metadata?: Json | null
+          mime_type?: string | null
+          organization_id?: string | null
+          source_url?: string | null
+          status?: string | null
+          tags?: string | null
+          title?: string | null
+          updated_at?: string | null
+          upload_notes?: string | null
+          uploaded_by?: string | null
+          version?: number | null
+          version_number?: number | null
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "ai_documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_docs_retrievable"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_document_versions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_documents_demo"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_document_versions_document_type_fkey"
+            columns: ["document_type"]
+            isOneToOne: false
+            referencedRelation: "document_types"
+            referencedColumns: ["name"]
+          },
+        ]
+      }
+      v_ai_documents_demo: {
+        Row: {
+          bucket_id: string | null
+          checksum: string | null
+          chunked_from_tester: boolean | null
+          created_at: string | null
+          doc_type: string | null
+          document_type: string | null
+          domain: string | null
+          error: string | null
+          file_ext: string | null
+          file_name: string | null
+          file_path: string | null
+          file_size: number | null
+          id: string | null
+          is_ai_ingested: boolean | null
+          language: string | null
+          layer: number | null
+          metadata: Json | null
+          mime_type: string | null
+          object_path: string | null
+          organization_id: string | null
+          processed_at: string | null
+          processing_status: string | null
+          processing_version: number | null
+          schema_version: number | null
+          size_bytes: number | null
+          source: string | null
+          source_url: string | null
+          stage: string | null
+          status: string | null
+          tags: string[] | null
+          tester_approved_at: string | null
+          tester_approved_by: string | null
+          title: string | null
+          total_chunks: number | null
+          unified_upload_metadata: Json | null
+          updated_at: string | null
+          updated_by: string | null
+          upload_notes: string | null
+          uploaded_by: string | null
+          version: number | null
+          visibility: string | null
+        }
+        Insert: {
+          bucket_id?: string | null
+          checksum?: string | null
+          chunked_from_tester?: boolean | null
+          created_at?: string | null
+          doc_type?: string | null
+          document_type?: string | null
+          domain?: string | null
+          error?: string | null
+          file_ext?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string | null
+          is_ai_ingested?: boolean | null
+          language?: string | null
+          layer?: number | null
+          metadata?: Json | null
+          mime_type?: string | null
+          object_path?: string | null
+          organization_id?: string | null
+          processed_at?: string | null
+          processing_status?: string | null
+          processing_version?: number | null
+          schema_version?: number | null
+          size_bytes?: number | null
+          source?: string | null
+          source_url?: string | null
+          stage?: string | null
+          status?: string | null
+          tags?: string[] | null
+          tester_approved_at?: string | null
+          tester_approved_by?: string | null
+          title?: string | null
+          total_chunks?: number | null
+          unified_upload_metadata?: Json | null
+          updated_at?: string | null
+          updated_by?: string | null
+          upload_notes?: string | null
+          uploaded_by?: string | null
+          version?: number | null
+          visibility?: string | null
+        }
+        Update: {
+          bucket_id?: string | null
+          checksum?: string | null
+          chunked_from_tester?: boolean | null
+          created_at?: string | null
+          doc_type?: string | null
+          document_type?: string | null
+          domain?: string | null
+          error?: string | null
+          file_ext?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          id?: string | null
+          is_ai_ingested?: boolean | null
+          language?: string | null
+          layer?: number | null
+          metadata?: Json | null
+          mime_type?: string | null
+          object_path?: string | null
+          organization_id?: string | null
+          processed_at?: string | null
+          processing_status?: string | null
+          processing_version?: number | null
+          schema_version?: number | null
+          size_bytes?: number | null
+          source?: string | null
+          source_url?: string | null
+          stage?: string | null
+          status?: string | null
+          tags?: string[] | null
+          tester_approved_at?: string | null
+          tester_approved_by?: string | null
+          title?: string | null
+          total_chunks?: number | null
+          unified_upload_metadata?: Json | null
+          updated_at?: string | null
+          updated_by?: string | null
+          upload_notes?: string | null
+          uploaded_by?: string | null
+          version?: number | null
+          visibility?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_documents_document_type_fkey"
+            columns: ["document_type"]
+            isOneToOne: false
+            referencedRelation: "document_types"
+            referencedColumns: ["name"]
+          },
+        ]
+      }
     }
     Functions: {
       accept_invitation: {
@@ -4156,6 +4722,10 @@ export type Database = {
             }
         Returns: boolean
       }
+      chunk_quality_score: {
+        Args: { p_text: string }
+        Returns: number
+      }
       count_chunks_by_organization: {
         Args: { org_id: string }
         Returns: {
@@ -4165,6 +4735,10 @@ export type Database = {
       }
       enhanced_input_validation: {
         Args: { input_text: string }
+        Returns: Json
+      }
+      exec_sql: {
+        Args: { sql: string }
         Returns: Json
       }
       expire_approval_requests: {
@@ -4257,6 +4831,10 @@ export type Database = {
         Args: { "": unknown }
         Returns: unknown
       }
+      is_chunk_clean: {
+        Args: { p_text: string }
+        Returns: boolean
+      }
       is_org_member: {
         Args: { org_id_param: string }
         Returns: boolean
@@ -4338,12 +4916,18 @@ export type Database = {
         Returns: undefined
       }
       match_ai_chunks: {
-        Args: {
-          p_match_count?: number
-          p_min_score?: number
-          p_org_id: string
-          p_query_embedding: string
-        }
+        Args:
+          | {
+              match_count?: number
+              match_threshold?: number
+              query_embedding: string
+            }
+          | {
+              p_match_count?: number
+              p_min_score?: number
+              p_org_id: string
+              p_query_embedding: string
+            }
         Returns: {
           chunk_index: number
           content: string
@@ -4507,7 +5091,7 @@ export type Database = {
         | "cancelled"
         | "queued"
         | "done"
-      ingest_job_type: "nightly_crawl" | "manual" | "backfill"
+      ingest_job_type: "nightly_crawl" | "manual" | "backfill" | "crawl_extract"
       invitation_status: "pending" | "accepted" | "expired" | "cancelled"
       maturity_level:
         | "basic"
@@ -4678,7 +5262,7 @@ export const Constants = {
         "queued",
         "done",
       ],
-      ingest_job_type: ["nightly_crawl", "manual", "backfill"],
+      ingest_job_type: ["nightly_crawl", "manual", "backfill", "crawl_extract"],
       invitation_status: ["pending", "accepted", "expired", "cancelled"],
       maturity_level: [
         "basic",
