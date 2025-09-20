@@ -30,6 +30,7 @@ import Subscribe from "./pages/Subscribe";
 import AdminConfig from "./pages/AdminConfig";
 import QADashboard from "./pages/QADashboard";
 import QATestDashboard from "./pages/QATestDashboard";
+import DataSourcesManagement from "./pages/DataSourcesManagement";
 import WatchdogDashboard from "./pages/WatchdogDashboard";
 import NotFound from "./pages/NotFound";
 import SubscribeCheckout from "./pages/SubscribeCheckout";
@@ -82,6 +83,7 @@ const App = () => (
               <Route path={ROUTES.ADMIN_CONFIG} element={<AdminConfig />} />
               <Route path={ROUTES.QA_DASHBOARD} element={<QADashboard />} />
               <Route path="/qa-test-dashboard" element={<QATestDashboard />} />
+              <Route path="/data-sources" element={<DataSourcesManagement />} />
               <Route path={ROUTES.WATCHDOG} element={<WatchdogDashboard />} />
               <Route path="/test-suite" element={<TestSuite />} />
               <Route path="/milestones/:id" element={<MilestoneDetail />} />
