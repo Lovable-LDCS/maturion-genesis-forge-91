@@ -62,3 +62,6 @@ verify_jwt = true
 
 [functions.check-database-access]
 verify_jwt = false
+
+[functions.analyze-table-data]
+verify_jwt = false

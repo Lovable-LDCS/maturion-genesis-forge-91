@@ -108,6 +108,32 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
       return;
     }
 
+    // Check for table analysis requests
+    const tableAnalysisPatterns = [
+      /analyze.*table\s+(\w+)/i,
+      /analyze.*data.*in\s+(\w+)/i,
+      /summarize.*(\w+)\s+table/i,
+      /what.*trends.*in\s+(\w+)/i,
+      /insights.*from\s+(\w+)/i,
+      /analyze.*(\w+_\w+)/i,
+      /data.*analysis.*(\w+)/i,
+      /analyze.*(\w+_\w+_\w+)/i
+    ];
+
+    let tableAnalysisMatch = null;
+    for (const pattern of tableAnalysisPatterns) {
+      const match = inputValue.match(pattern);
+      if (match && match[1]) {
+        tableAnalysisMatch = match[1];
+        break;
+      }
+    }
+
+    if (tableAnalysisMatch) {
+      await analyzeTableData(tableAnalysisMatch, inputValue.trim());
+      return;
+    }
+
     // Check for database access questions
     const lowerInput = inputValue.toLowerCase().trim();
     const isDatabaseAccessQuestion = 
@@ -259,6 +285,85 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
           variant: "destructive"
         });
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const analyzeTableData = async (tableName: string, userQuery: string) => {
+    setIsLoading(true);
+    
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: userQuery,
+      sender: 'user',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('analyze-table-data', {
+        body: {
+          tableName: tableName,
+          query: userQuery,
+          organizationId: currentOrganization?.id
+        }
+      });
+      
+      if (error) throw error;
+
+      let responseContent = '';
+      if (data.success) {
+        const { analysis } = data;
+        const { queryMetadata } = analysis;
+        
+        responseContent = `🔍 **Table Analysis: ${tableName}**
+
+📊 **Analysis Results:**
+${analysis.summary}
+
+📈 **Data Overview:**
+• Records analyzed: ${queryMetadata.recordCount.toLocaleString()}
+• Columns: ${queryMetadata.columnsAnalyzed}
+• Table: ${queryMetadata.tableName}
+${queryMetadata.hasOrganizationFilter ? '• Filtered to your organization data' : '• Global table data'}
+
+${queryMetadata.recordCount === 0 ? 
+  `⚠️ **No Data Found**: The ${tableName} table is currently empty. Consider adding records to enable meaningful analysis.` : 
+  '✅ **Data Analysis Complete**: The insights above are based on your actual database records.'
+}
+
+*Analysis performed at ${new Date(queryMetadata.timestamp).toLocaleString()}*`;
+      } else {
+        responseContent = `❌ **Analysis Failed**: ${data.error || 'Unknown error occurred'}`;
+      }
+
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: responseContent,
+        sender: 'maturion',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
+
+    } catch (error: any) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: `❌ **Error Analyzing Table**: ${tableName}
+
+I encountered an error while analyzing the table data: ${error.message}
+
+This could be due to:
+• Table doesn't exist or is not accessible
+• Insufficient permissions
+• Connection issues
+
+Please verify the table name and try again, or contact support if the issue persists.`,
+        sender: 'maturion',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
       setIsLoading(false);
     }
