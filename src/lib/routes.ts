@@ -29,6 +29,7 @@ export const ROUTES = {
   QA_DASHBOARD: '/qa-dashboard',
   QA_SIGNOFF: '/qa-signoff',
   WATCHDOG: '/watchdog',
+  DATA_SOURCES: '/data-sources',
   
   // Other
   JOURNEY: '/journey',
