@@ -432,8 +432,8 @@ const DataSourcesManagement: React.FC = () => {
         description: `Synchronization initiated for ${source.source_name}`
       });
 
-      // Poll for sync progress
-      pollSyncProgress(source.id);
+      // Poll for sync progress (with minimum 1 second delay to show progress)
+      setTimeout(() => pollSyncProgress(source.id), 1000);
 
     } catch (error) {
       console.error('Error syncing data source:', error);
@@ -494,6 +494,21 @@ const DataSourcesManagement: React.FC = () => {
         // Stop polling if sync is complete or failed
         if (['completed', 'failed'].includes(latestLog.sync_status)) {
           clearInterval(pollInterval);
+          
+          // Show completion feedback
+          if (latestLog.sync_status === 'completed') {
+            toast({
+              title: 'Sync Completed',
+              description: 'Data source has been successfully synchronized.',
+            });
+          } else if (latestLog.sync_status === 'failed') {
+            toast({
+              title: 'Sync Failed',
+              description: latestLog.error_messages?.[0] || 'Sync operation failed.',
+              variant: 'destructive',
+            });
+          }
+          
           loadDataSources(); // Refresh full data
         }
       } catch (error) {
