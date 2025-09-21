@@ -116,6 +116,7 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
   let itemsFailed = 0;
   let syncStatus = 'completed';
   let errorMessage = null;
+  const startTime = Date.now();
 
   try {
     console.log(`Performing sync for data source: ${dataSource.source_name} (${dataSource.source_type})`);
@@ -127,26 +128,28 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
     switch (dataSource.source_type) {
       case 'supabase':
         // Test connection to verify it's working
-        await testSupabaseConnection(dataSource);
+        await testSupabaseConnection(supabase, dataSource);
         itemsProcessed = 1;
         itemsAdded = 0; // No actual items to add for connection test
         break;
       
       case 'google_drive':
         // Sync Google Drive files
-        await testGoogleDriveConnection(dataSource);
+        await testGoogleDriveConnection(supabase, dataSource);
         itemsProcessed = 1;
         break;
       
       case 'sharepoint':
         // Sync SharePoint documents  
-        await testSharePointConnection(dataSource);
+        await testSharePointConnection(supabase, dataSource);
         itemsProcessed = 1;
         break;
       
       case 'rest_api':
+      case 'api':
+      case 'api_endpoint':
         // Test API connection
-        await testAPIConnection(dataSource);
+        await testAPIConnection(supabase, dataSource);
         itemsProcessed = 1;
         break;
       
