@@ -164,12 +164,31 @@ const DataSourcesManagement: React.FC = () => {
         connectionConfig.url = createForm.supabase_url;
         connectionConfig.supports_realtime = true;
         connectionConfig.supports_storage = true;
+        connectionConfig.supports_live_queries = true;
         // Store both anon and service keys securely
         const supabaseCredentials = JSON.stringify({
           anon_key: createForm.supabase_anon_key,
           service_role_key: createForm.supabase_service_key
         });
         connectionConfig.credentials_encrypted = `encrypted:${supabaseCredentials}`;
+      } else if (createForm.source_type === 'postgresql') {
+        connectionConfig.supports_live_queries = true;
+        connectionConfig.connection_type = 'database';
+      } else if (createForm.source_type === 'mysql') {
+        connectionConfig.supports_live_queries = true;
+        connectionConfig.connection_type = 'database';
+      } else if (createForm.source_type === 'postgresql') {
+        connectionConfig.supports_live_queries = true;
+        connectionConfig.connection_type = 'database';
+        connectionConfig.note = 'Direct PostgreSQL connection for live querying';
+      } else if (createForm.source_type === 'mysql') {
+        connectionConfig.supports_live_queries = true;
+        connectionConfig.connection_type = 'database';
+        connectionConfig.note = 'Direct MySQL connection for live querying';
+      } else if (createForm.source_type === 'api') {
+        connectionConfig.api_endpoint = createForm.webhook_url;
+        connectionConfig.supports_live_queries = true;
+        connectionConfig.connection_type = 'api';
       } else if (createForm.source_type === 'google_drive') {
         connectionConfig.client_id = createForm.client_id;
         connectionConfig.scope = createForm.scope || 'https://www.googleapis.com/auth/drive.readonly';
@@ -466,26 +485,48 @@ const DataSourcesManagement: React.FC = () => {
                     Add Data Source
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="max-w-3xl">
                   <DialogHeader>
-                    <DialogTitle>Create New Data Source</DialogTitle>
+                    <DialogTitle>Add Data Source Connection</DialogTitle>
+                    <p className="text-sm text-muted-foreground">
+                      Connect to databases and APIs for <strong>live, real-time querying</strong>. 
+                      No syncing required - query data directly from your sources.
+                    </p>
                   </DialogHeader>
                   
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="source_name">Source Name</Label>
-                        <Input
-                          id="source_name"
-                          value={createForm.source_name}
-                          onChange={(e) => setCreateForm(prev => ({ ...prev, source_name: e.target.value }))}
-                          placeholder="My Data Source"
-                        />
+                  <div className="space-y-6">
+                    {/* Step 1: Basic Information */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">1. Basic Information</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="source_name">Connection Name</Label>
+                          <Input
+                            id="source_name"
+                            value={createForm.source_name}
+                            onChange={(e) => setCreateForm(prev => ({ ...prev, source_name: e.target.value }))}
+                            placeholder="e.g., Production Database, Customer CRM"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="description">Description (Optional)</Label>
+                          <Input
+                            id="description"
+                            value={createForm.description}
+                            onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Brief description of this data source"
+                          />
+                        </div>
                       </div>
-                      
+                    </div>
+
+                    {/* Step 2: Source Type Selection */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">2. Choose Connection Type</h3>
                       <div>
-                        <Label htmlFor="source_type">Source Type</Label>
-                         <Select 
+                        <Label htmlFor="source_type">Data Source Type</Label>
+                        <Select 
                           value={createForm.source_type} 
                           onValueChange={(value) => setCreateForm(prev => ({ ...prev, source_type: value }))}
                         >
@@ -493,143 +534,240 @@ const DataSourcesManagement: React.FC = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="supabase">Supabase Database</SelectItem>
-                            <SelectItem value="google_drive">Google Drive</SelectItem>
-                            <SelectItem value="sharepoint">SharePoint</SelectItem>
-                            <SelectItem value="dropbox">Dropbox</SelectItem>
-                            <SelectItem value="api">REST API</SelectItem>
-                            <SelectItem value="custom">Custom</SelectItem>
+                            <SelectItem value="supabase">
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium">Supabase Database</span>
+                                <span className="text-xs text-muted-foreground">PostgreSQL with real-time features</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="postgresql">
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium">PostgreSQL</span>
+                                <span className="text-xs text-muted-foreground">Direct PostgreSQL database connection</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="mysql">
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium">MySQL</span>
+                                <span className="text-xs text-muted-foreground">MySQL database connection</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="api">
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium">REST API</span>
+                                <span className="text-xs text-muted-foreground">HTTP API with authentication</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="google_drive">
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium">Google Drive</span>
+                                <span className="text-xs text-muted-foreground">Google Drive files and documents</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="sharepoint">
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium">SharePoint</span>
+                                <span className="text-xs text-muted-foreground">Microsoft SharePoint documents</span>
+                              </div>
+                            </SelectItem>
+                            <SelectItem value="custom">
+                              <div className="flex flex-col items-start">
+                                <span className="font-medium">Custom Integration</span>
+                                <span className="text-xs text-muted-foreground">Custom API or database connection</span>
+                              </div>
+                            </SelectItem>
                           </SelectContent>
                         </Select>
+                        
+                        {/* Connection Type Description */}
+                        <div className="mt-2 p-3 bg-muted/50 rounded-lg text-sm">
+                          {createForm.source_type === 'supabase' && (
+                            <p><strong>Supabase:</strong> Real-time PostgreSQL database with built-in authentication and APIs. Ideal for modern applications.</p>
+                          )}
+                          {createForm.source_type === 'postgresql' && (
+                            <p><strong>PostgreSQL:</strong> Direct connection to PostgreSQL databases. Supports complex queries and large datasets.</p>
+                          )}
+                          {createForm.source_type === 'mysql' && (
+                            <p><strong>MySQL:</strong> Connect to MySQL databases for live data access and analysis.</p>
+                          )}
+                          {createForm.source_type === 'api' && (
+                            <p><strong>REST API:</strong> Connect to HTTP APIs with authentication support. Query external services directly.</p>
+                          )}
+                          {createForm.source_type === 'google_drive' && (
+                            <p><strong>Google Drive:</strong> Access documents, spreadsheets, and files from Google Drive.</p>
+                          )}
+                          {createForm.source_type === 'sharepoint' && (
+                            <p><strong>SharePoint:</strong> Connect to Microsoft SharePoint for document and data access.</p>
+                          )}
+                          {createForm.source_type === 'custom' && (
+                            <p><strong>Custom:</strong> Define your own connection parameters for specialized integrations.</p>
+                          )}
+                        </div>
                       </div>
                     </div>
 
-                    {createForm.source_type === 'supabase' && (
-                      <div className="space-y-4">
-                        <Alert>
-                          <Database className="h-4 w-4" />
-                          <AlertDescription>
-                            <strong>Supabase Database Connection</strong><br />
-                            Enter your Supabase project URL and keys to enable real-time database access.
-                          </AlertDescription>
-                        </Alert>
-                        
-                        <div>
-                          <Label htmlFor="supabase_url">Supabase Project URL</Label>
-                          <Input
-                            id="supabase_url"
-                            value={createForm.supabase_url}
-                            onChange={(e) => setCreateForm(prev => ({ ...prev, supabase_url: e.target.value }))}
-                            placeholder="https://your-project.supabase.co"
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="supabase_anon_key">Supabase Anon Key</Label>
-                          <Input
-                            id="supabase_anon_key"
-                            type="password"
-                            value={createForm.supabase_anon_key}
-                            onChange={(e) => setCreateForm(prev => ({ ...prev, supabase_anon_key: e.target.value }))}
-                            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                          />
-                        </div>
-                        
-                        <div>
-                          <Label htmlFor="supabase_service_key">Supabase Service Role Key (Optional)</Label>
-                          <Input
-                            id="supabase_service_key"
-                            type="password"
-                            value={createForm.supabase_service_key}
-                            onChange={(e) => setCreateForm(prev => ({ ...prev, supabase_service_key: e.target.value }))}
-                            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Service role key provides full database access for advanced operations
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                    {/* Step 3: Connection Configuration */}
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">3. Connection Configuration</h3>
+                      
+                      {/* Supabase Configuration */}
+                      {createForm.source_type === 'supabase' && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-base flex items-center">
+                              <Database className="h-4 w-4 mr-2" />
+                              Supabase Connection Details
+                            </CardTitle>
+                            <p className="text-sm text-muted-foreground">
+                              Enter your Supabase project credentials for live database access
+                            </p>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div>
+                              <Label htmlFor="supabase_url">Project URL *</Label>
+                              <Input
+                                id="supabase_url"
+                                type="url"
+                                value={createForm.supabase_url}
+                                onChange={(e) => setCreateForm(prev => ({ ...prev, supabase_url: e.target.value }))}
+                                placeholder="https://your-project.supabase.co"
+                                required
+                              />
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor="supabase_anon_key">Public Anon Key *</Label>
+                              <Input
+                                id="supabase_anon_key"
+                                value={createForm.supabase_anon_key}
+                                onChange={(e) => setCreateForm(prev => ({ ...prev, supabase_anon_key: e.target.value }))}
+                                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                                required
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Found in your Supabase project settings under API
+                              </p>
+                            </div>
+                            
+                            <div>
+                              <Label htmlFor="supabase_service_key">Service Role Key (Optional)</Label>
+                              <Input
+                                id="supabase_service_key"
+                                type="password"
+                                value={createForm.supabase_service_key}
+                                onChange={(e) => setCreateForm(prev => ({ ...prev, supabase_service_key: e.target.value }))}
+                                placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Provides elevated access for protected tables and operations
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
 
-                    {(createForm.source_type === 'google_drive' || createForm.source_type === 'sharepoint') && (
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <Label htmlFor="client_id">Client ID</Label>
-                          <Input
-                            id="client_id"
-                            type="password"
-                            value={createForm.client_id}
-                            onChange={(e) => setCreateForm(prev => ({ ...prev, client_id: e.target.value }))}
-                            placeholder="OAuth Client ID"
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="scope">Scope</Label>
-                          <Input
-                            id="scope"
-                            value={createForm.scope}
-                            onChange={(e) => setCreateForm(prev => ({ ...prev, scope: e.target.value }))}
-                            placeholder="API scope permissions"
-                          />
-                        </div>
-                      </div>
-                    )}
+                      {/* Other source types configuration */}
+                      {createForm.source_type === 'api' && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-base">REST API Connection</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div>
+                              <Label>API Base URL</Label>
+                              <Input
+                                value={createForm.webhook_url}
+                                onChange={(e) => setCreateForm(prev => ({ ...prev, webhook_url: e.target.value }))}
+                                placeholder="https://api.example.com/v1"
+                              />
+                            </div>
+                            <div>
+                              <Label>API Key</Label>
+                              <Input
+                                type="password"
+                                value={createForm.api_key}
+                                onChange={(e) => setCreateForm(prev => ({ ...prev, api_key: e.target.value }))}
+                                placeholder="your-api-key"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
 
-                    {createForm.source_type === 'api' && (
-                      <div>
-                        <Label htmlFor="webhook_url">API Endpoint URL</Label>
-                        <Input
-                          id="webhook_url"
-                          value={createForm.webhook_url}
-                          onChange={(e) => setCreateForm(prev => ({ ...prev, webhook_url: e.target.value }))}
-                          placeholder="https://api.example.com/endpoint"
-                        />
-                      </div>
-                    )}
+                      {(createForm.source_type === 'google_drive' || createForm.source_type === 'sharepoint') && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-base">OAuth Configuration</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div>
+                              <Label>Client ID</Label>
+                              <Input
+                                value={createForm.client_id}
+                                onChange={(e) => setCreateForm(prev => ({ ...prev, client_id: e.target.value }))}
+                                placeholder="OAuth client ID"
+                              />
+                            </div>
+                            <div>
+                              <Label>Client Secret</Label>
+                              <Input
+                                type="password"
+                                value={createForm.client_secret}
+                                onChange={(e) => setCreateForm(prev => ({ ...prev, client_secret: e.target.value }))}
+                                placeholder="OAuth client secret"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
 
-                    {createForm.source_type !== 'supabase' && (
-                      <div>
-                        <Label htmlFor="api_key">API Key / Secret</Label>
-                        <Input
-                          id="api_key"
-                          type="password"
-                          value={createForm.api_key}
-                          onChange={(e) => setCreateForm(prev => ({ ...prev, api_key: e.target.value }))}
-                          placeholder="API key or authentication token"
-                        />
-                      </div>
-                    )}
-
-                    {createForm.source_type === 'custom' && (
-                      <div>
-                        <Label htmlFor="custom_config">Custom Configuration (JSON)</Label>
-                        <Textarea
-                          id="custom_config"
-                          value={createForm.custom_config}
-                          onChange={(e) => setCreateForm(prev => ({ ...prev, custom_config: e.target.value }))}
-                          placeholder='{"key": "value"}'
-                          rows={4}
-                        />
-                      </div>
-                    )}
-
-                    <div>
-                      <Label htmlFor="description">Description</Label>
-                      <Textarea
-                        id="description"
-                        value={createForm.description}
-                        onChange={(e) => setCreateForm(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder="Description of this data source"
-                        rows={3}
-                      />
+                      {createForm.source_type === 'custom' && (
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="text-base">Custom Integration</CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <div>
+                              <Label>Configuration (JSON)</Label>
+                              <Textarea
+                                value={createForm.custom_config}
+                                onChange={(e) => setCreateForm(prev => ({ ...prev, custom_config: e.target.value }))}
+                                placeholder='{"host": "localhost", "port": 5432, "database": "mydb"}'
+                                rows={4}
+                                className="font-mono text-sm"
+                              />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      )}
                     </div>
 
-                    <div className="flex justify-end space-x-2">
-                      <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                    {/* Connection Capabilities Info */}
+                    <Alert>
+                      <Zap className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>Live Query Ready:</strong> Once configured, this connection will enable 
+                        real-time querying through the "Live Query" tab. No data syncing required - 
+                        query your source directly whenever you need fresh data.
+                      </AlertDescription>
+                    </Alert>
+
+                    <div className="flex justify-end space-x-2 pt-4 border-t">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowCreateDialog(false)}
+                      >
                         Cancel
                       </Button>
-                      <Button onClick={createDataSource}>
-                        Create Data Source
+                      <Button
+                        type="button"
+                        onClick={createDataSource}
+                        disabled={!createForm.source_name || !createForm.source_type}
+                        className="bg-primary hover:bg-primary/90"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create Connection
                       </Button>
                     </div>
                   </div>
