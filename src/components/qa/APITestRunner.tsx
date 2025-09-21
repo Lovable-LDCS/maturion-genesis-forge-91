@@ -232,7 +232,7 @@ export const APITestRunner: React.FC = () => {
           .from('data_sources')
           .insert({
             organization_id: unauthorizedOrgId,
-            source_name: 'Unauthorized Test Source',
+            source_name: `QA Test Source ${Date.now()}`, // Make it unique
             source_type: 'supabase',
             connection_config: { test: true },
             created_by: firstOrg,
@@ -247,6 +247,19 @@ export const APITestRunner: React.FC = () => {
             error: directError?.message,
             duration: Date.now() - startTime7
           });
+          
+          // Clean up test record if it was successfully created
+          if (!directError) {
+            try {
+              await supabase
+                .from('data_sources')
+                .delete()
+                .eq('organization_id', unauthorizedOrgId)
+                .like('source_name', 'QA Test Source %');
+            } catch (cleanupError) {
+              console.log('Test cleanup note: Could not remove test data source');
+            }
+          }
         } else {
           // Non-admins should be blocked by RLS
           if (!directError) {
