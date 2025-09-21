@@ -1,6 +1,7 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.51.0';
+import JSZip from 'https://esm.sh/jszip@3.10.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,8 +37,13 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const startTimestamp = new Date();
+  let parsedRequestCache: ProcessDocumentRequest | null = null;
+
   try {
-    const request: ProcessDocumentRequest = await req.json();
+    // Parse once and cache to avoid Body unusable errors later
+    parsedRequestCache = await req.clone().json().catch(() => null) as ProcessDocumentRequest | null;
+    const request: ProcessDocumentRequest = parsedRequestCache ?? await req.json();
     const { documentId, sessionId, processingOptions = {} } = request;
 
     console.log('🚀 Process Document v2 - Starting processing:', {
@@ -140,7 +146,9 @@ serve(async (req) => {
     stages[2].status = 'processing';
     await logPipelineStage(document.id, document.organization_id, 'chunking', 'processing');
 
-    const chunks = await chunkText(extractedContent.text);
+    const chunks = extractedContent.blocks && extractedContent.blocks.length > 0
+      ? await chunkByStructure(extractedContent.blocks)
+      : await chunkText(extractedContent.text);
     
     if (chunks.length === 0) {
       const error = 'No valid chunks generated from text';
@@ -208,13 +216,16 @@ serve(async (req) => {
     await logPipelineStage(document.id, document.organization_id, 'finalization', 'processing');
 
     // Update document status
+    const docTypeValue = (document as any).doc_type || (document as any).document_type || inferDocType(document.mime_type, document.file_name);
     const { error: updateError } = await supabase
       .from('ai_documents')
       .update({
         processing_status: 'completed',
         processed_at: new Date().toISOString(),
         total_chunks: chunks.length,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        doc_type: docTypeValue,
+        is_ai_ingested: true
       })
       .eq('id', documentId);
 
@@ -268,8 +279,8 @@ serve(async (req) => {
     
     // Log failure metrics if we have document context
     try {
-      const request = await req.clone().json();
-      if (request.documentId) {
+      const request = parsedRequestCache;
+      if (request?.documentId) {
         const { data: doc } = await supabase
           .from('ai_documents')
           .select('organization_id')
@@ -303,30 +314,41 @@ async function extractFileContent(fileBlob: Blob, fileName: string, mimeType: st
   text: string;
   method: string;
   warnings: string[];
+  blocks?: StructuredBlock[];
 }> {
   const warnings: string[] = [];
   let text = '';
   let method = 'unknown';
+  let blocks: StructuredBlock[] | undefined = undefined;
 
   try {
     if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
         fileName.endsWith('.docx')) {
-      method = 'docx_extraction';
-      // For now, use basic text extraction - could be enhanced with mammoth.js
+      method = 'docx_structured';
       const arrayBuffer = await fileBlob.arrayBuffer();
-      const decoder = new TextDecoder();
-      text = decoder.decode(arrayBuffer);
-      
-      // Basic DOCX content extraction (simplified)
-      text = text.replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+      const parsed = await parseDocxToBlocks(arrayBuffer).catch((e) => {
+        warnings.push(`Structured DOCX parse failed: ${e?.message || e}`);
+        return null;
+      });
+      if (parsed && parsed.blocks.length > 0) {
+        blocks = parsed.blocks;
+        text = parsed.plainText;
+      } else {
+        // Fallback: attempt naive text read
+        const decoder = new TextDecoder();
+        text = decoder.decode(arrayBuffer).replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+        method = 'docx_fallback_text';
+      }
       
     } else if (mimeType === 'text/plain' || fileName.endsWith('.txt')) {
       method = 'plain_text';
       text = await fileBlob.text();
+      blocks = parsePlainTextToBlocks(text);
       
     } else if (mimeType === 'text/markdown' || fileName.endsWith('.md')) {
       method = 'markdown';
       text = await fileBlob.text();
+      blocks = parseMarkdownToBlocks(text);
       
     } else if (mimeType === 'application/pdf' || fileName.endsWith('.pdf')) {
       method = 'pdf_text_extraction';
@@ -335,19 +357,22 @@ async function extractFileContent(fileBlob: Blob, fileName: string, mimeType: st
       const decoder = new TextDecoder();
       text = decoder.decode(arrayBuffer);
       text = text.replace(/[^\x20-\x7E\n\r\t]/g, ' ').replace(/\s+/g, ' ').trim();
+      blocks = parsePlainTextToBlocks(text);
       
     } else {
       method = 'fallback_text';
       warnings.push(`Unsupported file type ${mimeType}, attempting text extraction`);
       text = await fileBlob.text();
+      blocks = parsePlainTextToBlocks(text);
     }
     
   } catch (error) {
     throw new Error(`Text extraction failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 
-  return { text, method, warnings };
+  return { text, method, warnings, blocks };
 }
+
 
 // Helper function to chunk text
 async function chunkText(text: string, chunkSize: number = 2000, overlap: number = 200): Promise<string[]> {
@@ -382,6 +407,115 @@ async function chunkText(text: string, chunkSize: number = 2000, overlap: number
   }
 
   return chunks;
+}
+
+// Structured parsing utilities
+interface StructuredBlock {
+  type: 'heading' | 'paragraph' | 'list_item';
+  level?: number; // 1-6 for headings
+  text: string;
+}
+
+async function parseDocxToBlocks(arrayBuffer: ArrayBuffer): Promise<{ blocks: StructuredBlock[]; plainText: string }>{
+  const zip = await JSZip.loadAsync(arrayBuffer);
+  const docFile = zip.file('word/document.xml');
+  if (!docFile) throw new Error('DOCX missing word/document.xml');
+  const xml = await docFile.async('string');
+  const dom = new DOMParser().parseFromString(xml, 'application/xml');
+  const pNodes = Array.from(dom.getElementsByTagName('w:p'));
+  const ns = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const blocks: StructuredBlock[] = [];
+
+  function textFrom(node: Element): string {
+    const tNodes = Array.from(node.getElementsByTagNameNS(ns, 't')) as Element[];
+    return tNodes.map(t => t.textContent || '').join('');
+  }
+
+  for (const p of pNodes) {
+    const pPr = p.getElementsByTagNameNS(ns, 'pPr')[0];
+    const style = pPr?.getElementsByTagNameNS(ns, 'pStyle')[0]?.getAttributeNS(ns, 'val') ||
+                  pPr?.getElementsByTagName('w:pStyle')[0]?.getAttribute('w:val');
+    const numPr = pPr?.getElementsByTagNameNS(ns, 'numPr')[0];
+    const text = textFrom(p).trim();
+    if (!text) continue;
+
+    if (style && /Heading[1-6]/i.test(style)) {
+      const levelMatch = style.match(/Heading([1-6])/i);
+      blocks.push({ type: 'heading', level: levelMatch ? parseInt(levelMatch[1]) : 1, text });
+    } else if (numPr) {
+      blocks.push({ type: 'list_item', text });
+    } else {
+      blocks.push({ type: 'paragraph', text });
+    }
+  }
+
+  const plainText = blocks.map(b => b.text).join('\n');
+  return { blocks, plainText };
+}
+
+function parseMarkdownToBlocks(md: string): StructuredBlock[] {
+  const lines = md.split(/\r?\n/);
+  const blocks: StructuredBlock[] = [];
+  for (const line of lines) {
+    if (/^#{1,6}\s+/.test(line)) {
+      const level = line.match(/^#+/)![0].length;
+      blocks.push({ type: 'heading', level, text: line.replace(/^#{1,6}\s+/, '').trim() });
+    } else if (/^\s*[-*+]\s+/.test(line)) {
+      blocks.push({ type: 'list_item', text: line.replace(/^\s*[-*+]\s+/, '').trim() });
+    } else if (line.trim().length) {
+      blocks.push({ type: 'paragraph', text: line.trim() });
+    }
+  }
+  return blocks;
+}
+
+function parsePlainTextToBlocks(txt: string): StructuredBlock[] {
+  const paras = txt.split(/\n{2,}/);
+  return paras.map(p => ({ type: 'paragraph', text: p.trim() })).filter(b => b.text.length);
+}
+
+async function chunkByStructure(blocks: StructuredBlock[], maxChars = 2000, overlapChars = 200): Promise<string[]> {
+  const chunks: string[] = [];
+  let current: string[] = [];
+  let currentLen = 0;
+  const headingPath: string[] = [];
+
+  const flush = () => {
+    if (currentLen === 0) return;
+    const prefix = headingPath.length ? `Section: ${headingPath.join(' > ')}\n\n` : '';
+    const text = prefix + current.join('\n');
+    chunks.push(text);
+    // create overlap by keeping tail
+    const tail = text.slice(Math.max(0, text.length - overlapChars));
+    current = tail ? [tail] : [];
+    currentLen = tail.length;
+  };
+
+  for (const b of blocks) {
+    if (b.type === 'heading') {
+      // Adjust heading path
+      const level = b.level || 1;
+      headingPath.splice(level - 1);
+      headingPath[level - 1] = b.text;
+      flush();
+      continue;
+    }
+
+    const line = (b.type === 'list_item' ? `• ${b.text}` : b.text);
+    if (currentLen + line.length + 1 > maxChars) {
+      flush();
+    }
+    current.push(line);
+    currentLen += line.length + 1;
+  }
+  flush();
+  return chunks.filter(c => c.trim().length);
+}
+
+function inferDocType(mimeType?: string | null, fileName?: string | null): string {
+  if (mimeType?.includes('wordprocessingml') || fileName?.endsWith('.docx')) return 'policy_model';
+  if (mimeType?.includes('markdown') || fileName?.endsWith('.md')) return 'general';
+  return 'general';
 }
 
 // Helper function to generate content hash
