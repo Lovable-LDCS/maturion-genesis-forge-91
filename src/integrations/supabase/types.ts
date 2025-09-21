@@ -5123,6 +5123,12 @@ export type Database = {
       check_rate_limit: {
         Args:
           | {
+              action_type_param: string
+              max_attempts_param?: number
+              user_id_param: string
+              window_minutes_param?: number
+            }
+          | {
               max_attempts?: number
               operation_type_param: string
               window_minutes?: number
@@ -5148,10 +5154,6 @@ export type Database = {
       }
       enhanced_input_validation: {
         Args: { input_text: string }
-        Returns: Json
-      }
-      exec_sql: {
-        Args: { sql: string }
         Returns: Json
       }
       expire_approval_requests: {
