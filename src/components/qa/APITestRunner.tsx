@@ -127,8 +127,9 @@ export const APITestRunner: React.FC = () => {
       updateTestResult('Evidence Submissions API', { status: 'running' });
       const startTime4 = Date.now();
       
-      const { data: evidenceResponse, error: evidenceError } = await supabase.functions.invoke('test-data-sources-api?action=evidence', {
+      const { data: evidenceResponse, error: evidenceError } = await supabase.functions.invoke('test-data-sources-api', {
         body: {
+          action: 'evidence',
           organization_id: firstOrg,
           data_source_id: createResponse.data.id,
           evidence_type: 'document',
@@ -153,8 +154,9 @@ export const APITestRunner: React.FC = () => {
       updateTestResult('API Usage Logging', { status: 'running' });
       const startTime5 = Date.now();
       
-      const { data: logResponse, error: logError } = await supabase.functions.invoke('test-data-sources-api?action=logging', {
+      const { data: logResponse, error: logError } = await supabase.functions.invoke('test-data-sources-api', {
         body: {
+          action: 'logging',
           organization_id: firstOrg,
           user_id: firstOrg,
           data_source_id: createResponse.data.id

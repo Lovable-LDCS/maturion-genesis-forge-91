@@ -63,170 +63,179 @@ serve(async (req) => {
     }
 
     if (method === 'POST' && path === 'test-data-sources-api') {
-      // Test: Create a new data source and then clean it up
+      // Read body once and determine what action to take
       const body = await req.json();
       
-      if (!body.organization_id) {
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: 'organization_id is required for test data source creation',
-          test: 'create_data_source'
-        }), {
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
+      // Handle evidence submission action
+      if (body.action === 'evidence') {
+        const { data: newEvidence, error } = await supabase
+          .from('evidence_submissions')
+          .insert({
+            organization_id: body.organization_id,
+            data_source_id: body.data_source_id,
+            evidence_type: body.evidence_type || 'document',
+            title: body.title || 'QA Test Evidence',
+            description: body.description || 'Test evidence submission for QA validation',
+            submitted_by: body.submitted_by
+          })
+          .select(`
+            id,
+            title,
+            evidence_type,
+            evaluation_status,
+            data_source_id,
+            created_at,
+            data_sources(source_name, source_type)
+          `)
+          .single();
 
-      const { data: newDataSource, error } = await supabase
-        .from('data_sources')
-        .insert({
-          organization_id: body.organization_id,
-          source_name: body.source_name || 'QA Test Data Source (Temporary)',
-          source_type: body.source_type || 'api', // Now allowed in constraint
-          connection_config: body.connection_config || { 
-            test: true,
-            description: 'Temporary test data source - will be auto-deleted',
-            api_endpoint: 'https://api.test.example.com'
-          },
-          created_by: body.created_by,
-          updated_by: body.updated_by || body.created_by
-        })
-        .select(`
-          id,
-          source_name,
-          source_type,
-          is_active,
-          created_at,
-          updated_at
-        `)
-        .single();
-
-      if (error) {
-        console.error('Error creating data source:', error);
-        return new Response(JSON.stringify({ 
-          success: false, 
-          error: error.message,
-          test: 'create_data_source'
-        }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-
-      // Clean up: Delete the test data source immediately after creation test
-      if (newDataSource?.id) {
-        const { error: deleteError } = await supabase
-          .from('data_sources')
-          .delete()
-          .eq('id', newDataSource.id);
-        
-        if (deleteError) {
-          console.warn('Warning: Failed to clean up test data source:', deleteError);
+        if (error) {
+          console.error('Error creating evidence submission:', error);
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: error.message,
+            test: 'create_evidence_submission' 
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
-      }
 
-      return new Response(JSON.stringify({ 
-        success: true, 
-        data: {
-          ...newDataSource,
-          cleaned_up: true,
-          message: 'Test data source created and cleaned up successfully'
-        },
-        test: 'create_data_source'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (method === 'POST' && url.searchParams.get('action') === 'evidence') {
-      // Test: Create evidence submission linked to data source
-      const body = await req.json();
-      
-      const { data: newEvidence, error } = await supabase
-        .from('evidence_submissions')
-        .insert({
-          organization_id: body.organization_id,
-          data_source_id: body.data_source_id,
-          evidence_type: body.evidence_type || 'document',
-          title: body.title || 'QA Test Evidence',
-          description: body.description || 'Test evidence submission for QA validation',
-          submitted_by: body.submitted_by
-        })
-        .select(`
-          id,
-          title,
-          evidence_type,
-          evaluation_status,
-          data_source_id,
-          created_at,
-          data_sources(source_name, source_type)
-        `)
-        .single();
-
-      if (error) {
-        console.error('Error creating evidence submission:', error);
         return new Response(JSON.stringify({ 
-          success: false, 
-          error: error.message,
-          test: 'create_evidence_submission' 
+          success: true, 
+          data: newEvidence,
+          test: 'create_evidence_submission'
         }), {
-          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      return new Response(JSON.stringify({ 
-        success: true, 
-        data: newEvidence,
-        test: 'create_evidence_submission'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+      // Handle logging action
+      if (body.action === 'logging') {
+        const { data: logEntry, error } = await supabase
+          .from('api_usage_log')
+          .insert({
+            organization_id: body.organization_id,
+            user_id: body.user_id,
+            endpoint: '/test-api-endpoint',
+            method: 'POST',
+            request_payload: { test: 'QA validation request' },
+            response_status: 200,
+            execution_time_ms: 150,
+            data_source_id: body.data_source_id
+          })
+          .select('id, endpoint, method, response_status, created_at')
+          .single();
 
-    if (method === 'POST' && url.searchParams.get('action') === 'logging') {
-      // Test: Create API usage log
-      const body = await req.json();
-      
-      const { data: logEntry, error } = await supabase
-        .from('api_usage_log')
-        .insert({
-          organization_id: body.organization_id,
-          user_id: body.user_id,
-          endpoint: '/test-api-endpoint',
-          method: 'POST',
-          request_payload: { test: 'QA validation request' },
-          response_status: 200,
-          execution_time_ms: 150,
-          data_source_id: body.data_source_id
-        })
-        .select('id, endpoint, method, response_status, created_at')
-        .single();
+        if (error) {
+          console.error('Error creating API log:', error);
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: error.message,
+            test: 'create_api_log'
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
 
-      if (error) {
-        console.error('Error creating API log:', error);
         return new Response(JSON.stringify({ 
-          success: false, 
-          error: error.message,
+          success: true, 
+          data: logEntry,
           test: 'create_api_log'
         }), {
-          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      return new Response(JSON.stringify({ 
-        success: true, 
-        data: logEntry,
-        test: 'create_api_log'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      // Handle regular data source creation (no action specified)
+      if (!body.action) {
+        if (!body.organization_id) {
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: 'organization_id is required for test data source creation',
+            test: 'create_data_source'
+          }), {
+            status: 400,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        const { data: newDataSource, error } = await supabase
+          .from('data_sources')
+          .insert({
+            organization_id: body.organization_id,
+            source_name: body.source_name || 'QA Test Data Source (Temporary)',
+            source_type: body.source_type || 'api',
+            connection_config: body.connection_config || { 
+              test: true,
+              description: 'Temporary test data source - will be auto-deleted',
+              api_endpoint: 'https://api.test.example.com'
+            },
+            created_by: body.created_by,
+            updated_by: body.updated_by || body.created_by
+          })
+          .select(`
+            id,
+            source_name,
+            source_type,
+            is_active,
+            created_at,
+            updated_at
+          `)
+          .single();
+
+        if (error) {
+          console.error('Error creating data source:', error);
+          return new Response(JSON.stringify({ 
+            success: false, 
+            error: error.message,
+            test: 'create_data_source'
+          }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
+        }
+
+        // Clean up: Delete the test data source immediately
+        if (newDataSource?.id) {
+          const { error: deleteError } = await supabase
+            .from('data_sources')
+            .delete()
+            .eq('id', newDataSource.id);
+          
+          if (deleteError) {
+            console.warn('Warning: Failed to clean up test data source:', deleteError);
+          }
+        }
+
+        return new Response(JSON.stringify({ 
+          success: true, 
+          data: {
+            ...newDataSource,
+            cleaned_up: true,
+            message: 'Test data source created and cleaned up successfully'
+          },
+          test: 'create_data_source'
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
     }
 
     return new Response(JSON.stringify({ 
       error: 'Endpoint not found',
-      available_actions: ['GET /', 'POST / (create data source)', 'POST /?action=evidence', 'POST /?action=logging']
+      available_actions: [
+        'GET /test-data-sources-api (list data sources)',
+        'POST /test-data-sources-api (create data source)', 
+        'POST /test-data-sources-api with action: "evidence" (create evidence)',
+        'POST /test-data-sources-api with action: "logging" (create API log)'
+      ],
+      request_info: {
+        method,
+        path,
+        body_preview: method === 'POST' ? 'body contains action field' : 'N/A'
+      }
     }), {
       status: 404,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
