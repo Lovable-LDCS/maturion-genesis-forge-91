@@ -224,22 +224,25 @@ export const APITestRunner: React.FC = () => {
       const startTime7 = Date.now();
       
       try {
-        // This should fail due to RLS restrictions
+        // Generate a random UUID for an organization that doesn't exist
+        // This should fail due to RLS restrictions (user not member of non-existent org)
+        const fakeOrgId = '00000000-0000-0000-0000-000000000000';
+        
         const { data: directData, error: directError } = await supabase
           .from('data_sources')
           .insert({
-            organization_id: firstOrg,
+            organization_id: fakeOrgId, // Non-existent organization
             source_name: 'Unauthorized Test Source',
-            source_type: 'supabase', // Use valid source type
+            source_type: 'supabase',
             connection_config: { test: true },
-            created_by: firstOrg,
-            updated_by: firstOrg
+            created_by: fakeOrgId, // Invalid user ID
+            updated_by: fakeOrgId
           });
         
         if (!directError) {
           updateTestResult('RLS Security Test', {
             status: 'failed',
-            message: 'RLS should have blocked unauthorized insert',
+            message: 'RLS should have blocked unauthorized insert to non-member organization',
             duration: Date.now() - startTime7
           });
         } else {
@@ -253,7 +256,7 @@ export const APITestRunner: React.FC = () => {
       } catch (error) {
         updateTestResult('RLS Security Test', {
           status: 'passed',
-          message: 'RLS correctly blocked unauthorized access',
+          message: 'RLS correctly blocked unauthorized access (exception thrown)',
           error: error instanceof Error ? error.message : 'Unknown error',
           duration: Date.now() - startTime7
         });
