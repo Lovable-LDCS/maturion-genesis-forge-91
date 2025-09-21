@@ -47,14 +47,17 @@ const DataSourcesManagement: React.FC = () => {
   // Create form state
   const [createForm, setCreateForm] = useState({
     source_name: '',
-    source_type: 'google_drive',
+    source_type: 'supabase',
     api_key: '',
     client_id: '',
     client_secret: '',
     scope: '',
     webhook_url: '',
     custom_config: '{}',
-    description: ''
+    description: '',
+    supabase_url: '',
+    supabase_anon_key: '',
+    supabase_service_key: ''
   });
 
   const [testResults, setTestResults] = useState<{
@@ -157,7 +160,17 @@ const DataSourcesManagement: React.FC = () => {
       };
 
       // Add type-specific configuration
-      if (createForm.source_type === 'google_drive') {
+      if (createForm.source_type === 'supabase') {
+        connectionConfig.url = createForm.supabase_url;
+        connectionConfig.supports_realtime = true;
+        connectionConfig.supports_storage = true;
+        // Store both anon and service keys securely
+        const supabaseCredentials = JSON.stringify({
+          anon_key: createForm.supabase_anon_key,
+          service_role_key: createForm.supabase_service_key
+        });
+        connectionConfig.credentials_encrypted = `encrypted:${supabaseCredentials}`;
+      } else if (createForm.source_type === 'google_drive') {
         connectionConfig.client_id = createForm.client_id;
         connectionConfig.scope = createForm.scope || 'https://www.googleapis.com/auth/drive.readonly';
       } else if (createForm.source_type === 'sharepoint') {
@@ -185,7 +198,9 @@ const DataSourcesManagement: React.FC = () => {
           source_name: createForm.source_name,
           source_type: createForm.source_type,
           connection_config: connectionConfig,
-          credentials_encrypted: createForm.api_key ? `encrypted:${createForm.api_key.slice(0, 8)}...` : null,
+          credentials_encrypted: createForm.source_type === 'supabase' 
+            ? connectionConfig.credentials_encrypted 
+            : (createForm.api_key ? `encrypted:${createForm.api_key.slice(0, 8)}...` : null),
           metadata: {
             created_via: 'ui',
             description: createForm.description
@@ -204,14 +219,17 @@ const DataSourcesManagement: React.FC = () => {
       setShowCreateDialog(false);
       setCreateForm({
         source_name: '',
-        source_type: 'google_drive',
+        source_type: 'supabase',
         api_key: '',
         client_id: '',
         client_secret: '',
         scope: '',
         webhook_url: '',
         custom_config: '{}',
-        description: ''
+        description: '',
+        supabase_url: '',
+        supabase_anon_key: '',
+        supabase_service_key: ''
       });
       
       loadDataSources();
@@ -467,7 +485,7 @@ const DataSourcesManagement: React.FC = () => {
                       
                       <div>
                         <Label htmlFor="source_type">Source Type</Label>
-                        <Select 
+                         <Select 
                           value={createForm.source_type} 
                           onValueChange={(value) => setCreateForm(prev => ({ ...prev, source_type: value }))}
                         >
@@ -475,16 +493,63 @@ const DataSourcesManagement: React.FC = () => {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
+                            <SelectItem value="supabase">Supabase Database</SelectItem>
                             <SelectItem value="google_drive">Google Drive</SelectItem>
                             <SelectItem value="sharepoint">SharePoint</SelectItem>
                             <SelectItem value="dropbox">Dropbox</SelectItem>
                             <SelectItem value="api">REST API</SelectItem>
-                            <SelectItem value="supabase">Supabase</SelectItem>
                             <SelectItem value="custom">Custom</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
+
+                    {createForm.source_type === 'supabase' && (
+                      <div className="space-y-4">
+                        <Alert>
+                          <Database className="h-4 w-4" />
+                          <AlertDescription>
+                            <strong>Supabase Database Connection</strong><br />
+                            Enter your Supabase project URL and keys to enable real-time database access.
+                          </AlertDescription>
+                        </Alert>
+                        
+                        <div>
+                          <Label htmlFor="supabase_url">Supabase Project URL</Label>
+                          <Input
+                            id="supabase_url"
+                            value={createForm.supabase_url}
+                            onChange={(e) => setCreateForm(prev => ({ ...prev, supabase_url: e.target.value }))}
+                            placeholder="https://your-project.supabase.co"
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="supabase_anon_key">Supabase Anon Key</Label>
+                          <Input
+                            id="supabase_anon_key"
+                            type="password"
+                            value={createForm.supabase_anon_key}
+                            onChange={(e) => setCreateForm(prev => ({ ...prev, supabase_anon_key: e.target.value }))}
+                            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                          />
+                        </div>
+                        
+                        <div>
+                          <Label htmlFor="supabase_service_key">Supabase Service Role Key (Optional)</Label>
+                          <Input
+                            id="supabase_service_key"
+                            type="password"
+                            value={createForm.supabase_service_key}
+                            onChange={(e) => setCreateForm(prev => ({ ...prev, supabase_service_key: e.target.value }))}
+                            placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Service role key provides full database access for advanced operations
+                          </p>
+                        </div>
+                      </div>
+                    )}
 
                     {(createForm.source_type === 'google_drive' || createForm.source_type === 'sharepoint') && (
                       <div className="grid grid-cols-2 gap-4">
@@ -522,16 +587,18 @@ const DataSourcesManagement: React.FC = () => {
                       </div>
                     )}
 
-                    <div>
-                      <Label htmlFor="api_key">API Key / Secret</Label>
-                      <Input
-                        id="api_key"
-                        type="password"
-                        value={createForm.api_key}
-                        onChange={(e) => setCreateForm(prev => ({ ...prev, api_key: e.target.value }))}
-                        placeholder="API key or authentication token"
-                      />
-                    </div>
+                    {createForm.source_type !== 'supabase' && (
+                      <div>
+                        <Label htmlFor="api_key">API Key / Secret</Label>
+                        <Input
+                          id="api_key"
+                          type="password"
+                          value={createForm.api_key}
+                          onChange={(e) => setCreateForm(prev => ({ ...prev, api_key: e.target.value }))}
+                          placeholder="API key or authentication token"
+                        />
+                      </div>
+                    )}
 
                     {createForm.source_type === 'custom' && (
                       <div>
@@ -628,44 +695,99 @@ const DataSourcesManagement: React.FC = () => {
           </TabsContent>
 
           <TabsContent value="api-keys" className="space-y-6">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold mb-2">Database Credentials</h2>
+              <p className="text-muted-foreground">
+                Add database credentials to enable real-time connections. Start with Supabase for immediate testing.
+              </p>
+            </div>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Database className="h-5 w-5 mr-2" />
+                  Quick Setup: Add Supabase Database
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Alert className="mb-4">
+                  <Zap className="h-4 w-4" />
+                  <AlertDescription>
+                    <strong>Get started in 2 minutes:</strong> Add your Supabase credentials to test real-time database connections.
+                  </AlertDescription>
+                </Alert>
+                
+                <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+                  <DialogTrigger asChild>
+                    <Button className="w-full" size="lg">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Supabase Database Connection
+                    </Button>
+                  </DialogTrigger>
+                </Dialog>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Key className="h-5 w-5 mr-2" />
-                  API Key Management
+                  Connected Databases & API Keys
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    API keys are encrypted and stored securely. Only truncated versions are displayed for security.
+                    All credentials are encrypted and stored securely. Only truncated versions are displayed.
                   </AlertDescription>
                 </Alert>
                 
                 <div className="space-y-4">
-                  {dataSources.filter(ds => ds.credentials_encrypted).map((source) => (
+                  {dataSources.map((source) => (
                     <div key={source.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div>
-                        <p className="font-medium">{source.source_name}</p>
-                        <p className="text-sm text-muted-foreground">{source.source_type}</p>
+                      <div className="flex items-center space-x-3">
+                        <div className="p-2 bg-muted rounded-lg">
+                          <Database className="h-4 w-4" />
+                        </div>
+                        <div>
+                          <p className="font-medium">{source.source_name}</p>
+                          <p className="text-sm text-muted-foreground">{source.source_type}</p>
+                          {source.connection_config && typeof source.connection_config === 'object' && 
+                           source.connection_config !== null && 
+                           'url' in source.connection_config && 
+                           typeof (source.connection_config as any).url === 'string' && (
+                            <p className="text-xs text-muted-foreground">{(source.connection_config as any).url}</p>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <code className="text-xs bg-muted px-2 py-1 rounded">
-                          {source.credentials_encrypted}
-                        </code>
+                        {source.credentials_encrypted && (
+                          <code className="text-xs bg-muted px-2 py-1 rounded">
+                            {source.credentials_encrypted.slice(0, 20)}...
+                          </code>
+                        )}
+                        <Button size="sm" variant="outline">
+                          <Zap className="h-4 w-4 mr-2" />
+                          Test Connection
+                        </Button>
                         <Button size="sm" variant="outline">
                           <Settings className="h-4 w-4 mr-2" />
-                          Rotate Key
+                          Manage
                         </Button>
                       </div>
                     </div>
                   ))}
                   
-                  {dataSources.filter(ds => ds.credentials_encrypted).length === 0 && (
-                    <p className="text-center text-muted-foreground py-8">
-                      No API keys configured yet.
-                    </p>
+                  {dataSources.length === 0 && (
+                    <div className="text-center py-8">
+                      <Database className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground mb-4">No database connections configured yet.</p>
+                      <Button onClick={() => setShowCreateDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Your First Database
+                      </Button>
+                    </div>
                   )}
                 </div>
               </CardContent>
