@@ -216,8 +216,16 @@ async function testSupabaseConnection(dataSource: any) {
     },
     body: JSON.stringify({
       data_source_id: dataSource.id,
+      organization_id: dataSource.organization_id,
       connection_test: true
     })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Supabase connection test failed: ${error.error}`);
+  }
+}
   });
 
   if (!response.ok) {
@@ -239,6 +247,7 @@ async function testGoogleDriveConnection(dataSource: any) {
     },
     body: JSON.stringify({
       data_source_id: dataSource.id,
+      organization_id: dataSource.organization_id,
       connection_test: true
     })
   });
@@ -262,6 +271,7 @@ async function testSharePointConnection(dataSource: any) {
     },
     body: JSON.stringify({
       data_source_id: dataSource.id,
+      organization_id: dataSource.organization_id,
       connection_test: true
     })
   });
@@ -285,6 +295,7 @@ async function testAPIConnection(dataSource: any) {
     },
     body: JSON.stringify({
       data_source_id: dataSource.id,
+      organization_id: dataSource.organization_id,
       connection_test: true
     })
   });

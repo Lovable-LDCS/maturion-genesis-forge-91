@@ -101,21 +101,33 @@ const DataSourcesManagement: React.FC = () => {
   };
 
   const testDataSourcesAPI = async () => {
-    if (!currentOrganization) return;
+    if (!currentOrganization) {
+      toast({
+        title: 'Error',
+        description: 'Please select an organization first',
+        variant: 'destructive'
+      });
+      return;
+    }
     
     try {
+      setLoading(true);
+      
       // Test List API
       const listResponse = await supabase.functions.invoke('test-data-sources-api', {
         method: 'GET'
       });
       
-      // Test Create API
+      // Test Create API with required organization_id and user_id
       const createResponse = await supabase.functions.invoke('test-data-sources-api', {
         method: 'POST',
         body: {
-          source_name: 'Test Source',
+          source_name: 'QA Test Source',
           source_type: 'api',
-          description: 'Test data source creation'
+          description: 'Test data source creation',
+          organization_id: currentOrganization.id,
+          created_by: user?.id,
+          updated_by: user?.id
         }
       });
       
@@ -132,20 +144,23 @@ const DataSourcesManagement: React.FC = () => {
         }
       });
       
-      if (!listResponse.error && !createResponse.error) {
-        toast({
-          title: 'API Test Successful',
-          description: 'All data source APIs are working correctly'
-        });
-      }
+      toast({
+        title: 'API Test Complete',
+        description: `List: ${!listResponse.error ? 'Success' : 'Failed'}, Create: ${!createResponse.error ? 'Success' : 'Failed'}`
+      });
+      
+      // Switch to test results tab to show results
+      setActiveTab('test-results');
       
     } catch (error) {
-      console.error('API test error:', error);
+      console.error('Error testing API:', error);
       toast({
-        title: 'API Test Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
+        title: 'Test Failed',
+        description: 'Failed to run API tests',
         variant: 'destructive'
       });
+    } finally {
+      setLoading(false);
     }
   };
 

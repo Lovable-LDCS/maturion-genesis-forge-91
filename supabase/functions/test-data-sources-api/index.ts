@@ -63,18 +63,29 @@ serve(async (req) => {
     }
 
     if (method === 'POST' && path === 'test-data-sources-api') {
-      // Test: Create a new data source
+      // Test: Create a new data source and then clean it up
       const body = await req.json();
       
+      if (!body.organization_id) {
+        return new Response(JSON.stringify({ 
+          success: false, 
+          error: 'organization_id is required for test data source creation',
+          test: 'create_data_source'
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       const { data: newDataSource, error } = await supabase
         .from('data_sources')
         .insert({
           organization_id: body.organization_id,
-          source_name: body.source_name || 'QA Test Data Source',
-          source_type: body.source_type || 'google_drive',
+          source_name: body.source_name || 'QA Test Data Source (Temporary)',
+          source_type: body.source_type || 'api',
           connection_config: body.connection_config || { 
-            client_id: 'test123',
-            scope: 'drive.readonly'
+            test: true,
+            description: 'Temporary test data source - will be auto-deleted'
           },
           created_by: body.created_by,
           updated_by: body.updated_by || body.created_by
@@ -101,9 +112,25 @@ serve(async (req) => {
         });
       }
 
+      // Clean up: Delete the test data source immediately after creation test
+      if (newDataSource?.id) {
+        const { error: deleteError } = await supabase
+          .from('data_sources')
+          .delete()
+          .eq('id', newDataSource.id);
+        
+        if (deleteError) {
+          console.warn('Warning: Failed to clean up test data source:', deleteError);
+        }
+      }
+
       return new Response(JSON.stringify({ 
         success: true, 
-        data: newDataSource,
+        data: {
+          ...newDataSource,
+          cleaned_up: true,
+          message: 'Test data source created and cleaned up successfully'
+        },
         test: 'create_data_source'
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
