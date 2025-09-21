@@ -260,14 +260,14 @@ export type Database = {
             foreignKeyName: "ai_behavior_monitoring_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_documents"
+            referencedRelation: "ai_docs_completed"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ai_behavior_monitoring_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "v_ai_docs_retrievable"
+            referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
           {
@@ -377,14 +377,14 @@ export type Database = {
             foreignKeyName: "ai_confidence_scoring_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_documents"
+            referencedRelation: "ai_docs_completed"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ai_confidence_scoring_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "v_ai_docs_retrievable"
+            referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
           {
@@ -480,14 +480,14 @@ export type Database = {
             foreignKeyName: "ai_document_chunks_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_documents"
+            referencedRelation: "ai_docs_completed"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ai_document_chunks_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "v_ai_docs_retrievable"
+            referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
           {
@@ -589,14 +589,14 @@ export type Database = {
             foreignKeyName: "ai_document_versions_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_documents"
+            referencedRelation: "ai_docs_completed"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ai_document_versions_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "v_ai_docs_retrievable"
+            referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
           {
@@ -924,14 +924,14 @@ export type Database = {
             foreignKeyName: "ai_feedback_submissions_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_documents"
+            referencedRelation: "ai_docs_completed"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ai_feedback_submissions_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "v_ai_docs_retrievable"
+            referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
           {
@@ -1098,14 +1098,14 @@ export type Database = {
             foreignKeyName: "ai_upload_audit_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_documents"
+            referencedRelation: "ai_docs_completed"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ai_upload_audit_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "v_ai_docs_retrievable"
+            referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
           {
@@ -1275,14 +1275,14 @@ export type Database = {
             foreignKeyName: "approved_chunks_cache_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_documents"
+            referencedRelation: "ai_docs_completed"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "approved_chunks_cache_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "v_ai_docs_retrievable"
+            referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
           {
@@ -3893,14 +3893,14 @@ export type Database = {
             foreignKeyName: "processing_pipeline_status_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_documents"
+            referencedRelation: "ai_docs_completed"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "processing_pipeline_status_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "v_ai_docs_retrievable"
+            referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
           {
@@ -4578,7 +4578,51 @@ export type Database = {
       }
     }
     Views: {
-      ai_document_chunks_search: {
+      ai_docs_completed: {
+        Row: {
+          doc_type: string | null
+          domain: string | null
+          file_name: string | null
+          id: string | null
+          organization_id: string | null
+          tags: string[] | null
+          title: string | null
+          total_chunks: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          doc_type?: string | null
+          domain?: string | null
+          file_name?: string | null
+          id?: string | null
+          organization_id?: string | null
+          tags?: string[] | null
+          title?: never
+          total_chunks?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          doc_type?: string | null
+          domain?: string | null
+          file_name?: string | null
+          id?: string | null
+          organization_id?: string | null
+          tags?: string[] | null
+          title?: never
+          total_chunks?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_documents_document_type_fkey"
+            columns: ["doc_type"]
+            isOneToOne: false
+            referencedRelation: "document_types"
+            referencedColumns: ["name"]
+          },
+        ]
+      }
+      ai_document_chunks_filtered: {
         Row: {
           checksum: string | null
           chunk_index: number | null
@@ -4662,14 +4706,14 @@ export type Database = {
             foreignKeyName: "ai_document_chunks_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_documents"
+            referencedRelation: "ai_docs_completed"
             referencedColumns: ["id"]
           },
           {
             foreignKeyName: "ai_document_chunks_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "v_ai_docs_retrievable"
+            referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
           {
@@ -4680,56 +4724,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      system_health_report_v1: {
-        Row: {
-          docs_without_chunks: number | null
-          done: number | null
-          failed: number | null
-          generated_at: string | null
-          processing: number | null
-          queued: number | null
-          total_chars: number | null
-          total_chunks: number | null
-          total_docs: number | null
-        }
-        Relationships: []
-      }
-      v_ai_docs_retrievable: {
-        Row: {
-          doc_type: string | null
-          domain: string | null
-          file_name: string | null
-          id: string | null
-          organization_id: string | null
-          tags: string[] | null
-          title: string | null
-          total_chunks: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          doc_type?: string | null
-          domain?: string | null
-          file_name?: string | null
-          id?: string | null
-          organization_id?: string | null
-          tags?: string[] | null
-          title?: never
-          total_chunks?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          doc_type?: string | null
-          domain?: string | null
-          file_name?: string | null
-          id?: string | null
-          organization_id?: string | null
-          tags?: string[] | null
-          title?: never
-          total_chunks?: number | null
-          updated_at?: string | null
-        }
-        Relationships: []
       }
       v_demo_documents_secure: {
         Row: {
