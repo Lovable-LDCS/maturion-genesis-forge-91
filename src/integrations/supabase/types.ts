@@ -260,13 +260,6 @@ export type Database = {
             foreignKeyName: "ai_behavior_monitoring_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_docs_completed"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_behavior_monitoring_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
@@ -370,13 +363,6 @@ export type Database = {
             foreignKeyName: "ai_confidence_scoring_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_docs_completed"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_confidence_scoring_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
@@ -462,13 +448,6 @@ export type Database = {
           visibility?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "ai_document_chunks_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "ai_docs_completed"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "ai_document_chunks_document_id_fkey"
             columns: ["document_id"]
@@ -564,13 +543,6 @@ export type Database = {
           visibility?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "ai_document_versions_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "ai_docs_completed"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "ai_document_versions_document_id_fkey"
             columns: ["document_id"]
@@ -896,13 +868,6 @@ export type Database = {
             foreignKeyName: "ai_feedback_submissions_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_docs_completed"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_feedback_submissions_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
@@ -1059,13 +1024,6 @@ export type Database = {
           visibility?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "ai_upload_audit_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "ai_docs_completed"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "ai_upload_audit_document_id_fkey"
             columns: ["document_id"]
@@ -1229,13 +1187,6 @@ export type Database = {
           organization_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "approved_chunks_cache_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "ai_docs_completed"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "approved_chunks_cache_document_id_fkey"
             columns: ["document_id"]
@@ -3844,13 +3795,6 @@ export type Database = {
             foreignKeyName: "processing_pipeline_status_document_id_fkey"
             columns: ["document_id"]
             isOneToOne: false
-            referencedRelation: "ai_docs_completed"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "processing_pipeline_status_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
@@ -4522,146 +4466,7 @@ export type Database = {
       }
     }
     Views: {
-      ai_docs_completed: {
-        Row: {
-          doc_type: string | null
-          domain: string | null
-          file_name: string | null
-          id: string | null
-          organization_id: string | null
-          tags: string[] | null
-          title: string | null
-          total_chunks: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          doc_type?: string | null
-          domain?: string | null
-          file_name?: string | null
-          id?: string | null
-          organization_id?: string | null
-          tags?: string[] | null
-          title?: never
-          total_chunks?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          doc_type?: string | null
-          domain?: string | null
-          file_name?: string | null
-          id?: string | null
-          organization_id?: string | null
-          tags?: string[] | null
-          title?: never
-          total_chunks?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_documents_document_type_fkey"
-            columns: ["doc_type"]
-            isOneToOne: false
-            referencedRelation: "document_types"
-            referencedColumns: ["name"]
-          },
-        ]
-      }
-      ai_document_chunks_filtered: {
-        Row: {
-          checksum: string | null
-          chunk_index: number | null
-          content: string | null
-          content_hash: string | null
-          created_at: string | null
-          document_id: string | null
-          embedding: string | null
-          equipment_slugs: string[] | null
-          id: string | null
-          is_clean: boolean | null
-          layer: number | null
-          metadata: Json | null
-          organization_id: string | null
-          page: number | null
-          quality_score: number | null
-          section: string | null
-          stage: string | null
-          status: string | null
-          tags: string[] | null
-          tokens: number | null
-          updated_at: string | null
-          uploaded_at: string | null
-          uploaded_by: string | null
-          visibility: string | null
-        }
-        Insert: {
-          checksum?: string | null
-          chunk_index?: number | null
-          content?: string | null
-          content_hash?: string | null
-          created_at?: string | null
-          document_id?: string | null
-          embedding?: string | null
-          equipment_slugs?: string[] | null
-          id?: string | null
-          is_clean?: boolean | null
-          layer?: number | null
-          metadata?: Json | null
-          organization_id?: string | null
-          page?: number | null
-          quality_score?: number | null
-          section?: string | null
-          stage?: string | null
-          status?: string | null
-          tags?: string[] | null
-          tokens?: number | null
-          updated_at?: string | null
-          uploaded_at?: string | null
-          uploaded_by?: string | null
-          visibility?: string | null
-        }
-        Update: {
-          checksum?: string | null
-          chunk_index?: number | null
-          content?: string | null
-          content_hash?: string | null
-          created_at?: string | null
-          document_id?: string | null
-          embedding?: string | null
-          equipment_slugs?: string[] | null
-          id?: string | null
-          is_clean?: boolean | null
-          layer?: number | null
-          metadata?: Json | null
-          organization_id?: string | null
-          page?: number | null
-          quality_score?: number | null
-          section?: string | null
-          stage?: string | null
-          status?: string | null
-          tags?: string[] | null
-          tokens?: number | null
-          updated_at?: string | null
-          uploaded_at?: string | null
-          uploaded_by?: string | null
-          visibility?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_document_chunks_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "ai_docs_completed"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_document_chunks_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "ai_documents"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
+      [_ in never]: never
     }
     Functions: {
       accept_invitation: {
@@ -4732,6 +4537,20 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }
+      get_completed_documents: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          doc_type: string
+          domain: string
+          file_name: string
+          id: string
+          organization_id: string
+          tags: string[]
+          title: string
+          total_chunks: number
+          updated_at: string
+        }[]
+      }
       get_demo_documents: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -4744,6 +4563,35 @@ export type Database = {
           tags: string[]
           title: string
           total_chunks: number
+        }[]
+      }
+      get_filtered_document_chunks: {
+        Args: { exclude_boilerplate?: boolean }
+        Returns: {
+          checksum: string
+          chunk_index: number
+          content: string
+          content_hash: string
+          created_at: string
+          document_id: string
+          embedding: string
+          equipment_slugs: string[]
+          id: string
+          is_clean: boolean
+          layer: number
+          metadata: Json
+          organization_id: string
+          page: number
+          quality_score: number
+          section: string
+          stage: string
+          status: string
+          tags: string[]
+          tokens: number
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string
+          visibility: string
         }[]
       }
       get_security_setting: {
