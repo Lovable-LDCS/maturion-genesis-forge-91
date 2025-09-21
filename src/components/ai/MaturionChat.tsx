@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { useOrganization } from '@/hooks/useOrganization';
-import { MessageCircle, Send, Bot, User, Minimize2, Maximize2, Monitor, X } from 'lucide-react';
+import { MessageCircle, Send, Bot, User, Minimize2, Maximize2, Monitor, Database, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { sanitizeInput, detectPromptInjection } from '@/lib/security';
 
@@ -134,8 +134,25 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
       return;
     }
 
-    // Check for database access questions
+    // Check for database scan requests
     const lowerInput = inputValue.toLowerCase().trim();
+    const scanDatabasePatterns = [
+      /scan.*tables?/i,
+      /scan.*database/i,
+      /check.*database.*access/i,
+      /check.*table.*permissions/i,
+      /database.*scan/i,
+      /table.*access.*check/i,
+      /permission.*check/i
+    ];
+
+    const isDatabaseScanRequest = scanDatabasePatterns.some(pattern => pattern.test(lowerInput));
+    if (isDatabaseScanRequest) {
+      await scanAllTables(inputValue.trim());
+      return;
+    }
+
+    // Check for database access questions
     const isDatabaseAccessQuestion = 
       lowerInput.includes('database access') ||
       lowerInput.includes('supabase project') ||
@@ -359,7 +376,91 @@ This could be due to:
 • Insufficient permissions
 • Connection issues
 
-Please verify the table name and try again, or contact support if the issue persists.`,
+💡 **Try**: Use the "Scan Database" command to check all table permissions first.`,
+        sender: 'maturion',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const scanAllTables = async (userQuery: string) => {
+    setIsLoading(true);
+    
+    const userMessage: Message = {
+      id: Date.now().toString(),
+      content: userQuery,
+      sender: 'user',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, userMessage]);
+    setInputValue('');
+
+    try {
+      const { data, error } = await supabase.functions.invoke('scan-all-tables', {
+        body: {
+          organizationId: currentOrganization?.id
+        }
+      });
+      
+      if (error) throw error;
+
+      let responseContent = '';
+      if (data.success) {
+        const { summary, accessibleTables, errors: accessErrors, recommendations } = data;
+        
+        responseContent = `🔍 **Database Scan Results**
+
+📊 **Summary:**
+• Total tables: ${summary.totalTables}
+• Accessible tables: ${summary.accessibleTables}
+• Tables with data: ${summary.tablesWithData}
+• Tables with organization filtering: ${summary.tablesWithOrgFilter}
+• Access errors: ${summary.errorCount}
+
+✅ **Accessible Tables:**
+${accessibleTables.map((t: any) => 
+  `• **${t.tableName}**: ${t.recordCount.toLocaleString()} records${t.hasOrganizationFilter ? ' (org-filtered)' : ''}`
+).join('\n')}
+
+${accessErrors.length > 0 ? 
+  `❌ **Access Issues:**
+${accessErrors.map((e: any) => `• **${e.table}**: ${e.error}`).join('\n')}
+
+` : ''}${recommendations.length > 0 ? 
+  `💡 **Recommendations:**
+${recommendations.map((r: any) => `• ${r.message}`).join('\n')}
+
+` : ''}*Database scan completed at ${new Date().toLocaleString()}*
+
+🚀 **Next Steps:** You can now analyze specific tables by asking "analyze the [table_name] table" or ask questions about your data!`;
+      } else {
+        responseContent = `❌ **Database Scan Failed**: ${data.error || 'Unknown error occurred'}`;
+      }
+
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: responseContent,
+        sender: 'maturion',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
+
+    } catch (error: any) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: `❌ **Error Scanning Database**
+
+I encountered an error while scanning the database: ${error.message}
+
+This could indicate:
+• Service role permission issues
+• Connection problems
+• Database configuration issues
+
+💡 **Contact Support**: This may require admin intervention to resolve database access permissions.`,
         sender: 'maturion',
         timestamp: new Date()
       };
@@ -728,6 +829,17 @@ Please try again or contact support if the issue persists.`,
                 >
                   <Monitor className="h-3 w-3 mr-1" />
                   DB Check
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => scanAllTables('Scan all database tables')}
+                  disabled={isLoading}
+                  className="text-xs"
+                  title="Scan All Tables"
+                >
+                  <Database className="h-3 w-3 mr-1" />
+                  Scan DB
                 </Button>
                 <Button
                   variant="outline"

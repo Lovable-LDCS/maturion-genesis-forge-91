@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.analyze-table-data]
 verify_jwt = false
+
+[functions.scan-all-tables]
+verify_jwt = false
