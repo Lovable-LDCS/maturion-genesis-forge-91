@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.list-all-documents]
 verify_jwt = true
+
+[functions.sync-data-source]
+verify_jwt = true
