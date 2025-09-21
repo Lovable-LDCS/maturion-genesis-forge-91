@@ -1593,6 +1593,42 @@ export type Database = {
         }
         Relationships: []
       }
+      conversation_history: {
+        Row: {
+          created_at: string
+          id: string
+          metadata: Json | null
+          openai_response_id: string | null
+          organization_id: string
+          prompt: string
+          response: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          openai_response_id?: string | null
+          organization_id: string
+          prompt: string
+          response: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          openai_response_id?: string | null
+          organization_id?: string
+          prompt?: string
+          response?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       criteria: {
         Row: {
           ai_suggested_statement: string | null
