@@ -122,14 +122,16 @@ async function querySupabase(supabase: any, dataSource: any, queryRequest: Query
     let result;
     switch (queryRequest.query_type) {
       case 'sql':
-        // For security, only allow SELECT queries
-        if (!queryRequest.query.trim().toLowerCase().startsWith('select')) {
-          throw new Error('Only SELECT queries are allowed');
+        // For table listing, use secure RPC function
+        if (queryRequest.query.trim().toLowerCase().includes('information_schema.tables')) {
+          result = await client.rpc('list_public_tables');
+        } else {
+          return {
+            success: false,
+            error: 'Direct SQL queries are not supported. Use list_public_tables() function for table listing.',
+            execution_time_ms: Date.now() - startTime
+          };
         }
-        result = await client.rpc('execute_sql', { 
-          query: queryRequest.query,
-          params: queryRequest.parameters 
-        });
         break;
       
       case 'list':
@@ -183,9 +185,10 @@ async function querySupabase(supabase: any, dataSource: any, queryRequest: Query
       error: result.error?.message
     };
   } catch (error) {
+    console.error('Credential parsing error:', error);
     return {
       success: false,
-      error: error.message,
+      error: `Credential parsing failed: ${error.message}`,
       execution_time_ms: Date.now() - startTime
     };
   }

@@ -56,3 +56,6 @@ verify_jwt = true
 
 [functions.sync-data-source]
 verify_jwt = true
+
+[functions.encrypt-credentials]
+verify_jwt = true
