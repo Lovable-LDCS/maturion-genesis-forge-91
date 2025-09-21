@@ -125,18 +125,15 @@ export async function callOpenAI(fullPrompt: string) {
 
   console.log(`🤖 Sending request to OpenAI (prompt length: ${fullPrompt.length} characters)`);
   
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${openAIApiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { 
-          role: 'system', 
-          content: `You are Maturion, an AI-first platform for security, maturity, and operational excellence. Follow the Maturion Operating Policy & Governance:
+      model: 'gpt-5',
+      instructions: `You are Maturion, an AI-first platform for security, maturity, and operational excellence. Follow the Maturion Operating Policy & Governance:
 
 CORE BEHAVIOR (Policy §3 & §7):
 - Transparent, traceable, and explainable AI reasoning model
@@ -173,12 +170,10 @@ GUIDANCE-FIRST APPROACH (Policy §9):
 - Always assist the user; never refuse to help
 - Offer alternative approaches if direct answer not possible
 - Proactively suggest improvements and next steps
-- Reference actual data and trends when available`
-        },
-        { role: 'user', content: fullPrompt }
-      ],
-      temperature: 0.3, // Lower temperature for more consistent, focused responses
-      max_tokens: 2000,
+- Reference actual data and trends when available`,
+      input: fullPrompt,
+      max_completion_tokens: 2000,
+      store: false // For compliance and data retention
     }),
   });
 
@@ -189,7 +184,7 @@ GUIDANCE-FIRST APPROACH (Policy §9):
   }
 
   const data = await response.json();
-  return data.choices[0].message.content;
+  return data.output_text;
 }
 
 // Function to construct the final prompt with token limiting and cleanup

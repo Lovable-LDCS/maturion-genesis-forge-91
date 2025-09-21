@@ -169,20 +169,18 @@ Respond with ONLY valid JSON in this exact format:
       throw new Error(`Prompt exceeds token limit: ${finalTokens} tokens`);
     }
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: 'You are a security assessment expert. Generate practical, specific criteria for maturity assessments using evidence-first format.' },
-          { role: 'user', content: finalPrompt }
-        ],
-        temperature: 0.3,
-        max_tokens: 2000,
+        model: 'gpt-5',
+        instructions: 'You are a security assessment expert. Generate practical, specific criteria for maturity assessments using evidence-first format.',
+        input: finalPrompt,
+        max_completion_tokens: 2000,
+        store: false // For compliance and data retention
       }),
     });
 
@@ -191,7 +189,7 @@ Respond with ONLY valid JSON in this exact format:
     }
 
     const aiData = await response.json();
-    const aiContent = aiData.choices[0].message.content;
+    const aiContent = aiData.output_text;
     
     console.log(`🤖 Generated AI content for MPS ${mpsNumber}`);
     
