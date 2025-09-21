@@ -82,11 +82,11 @@ serve(async (req) => {
         .insert({
           organization_id: body.organization_id,
           source_name: body.source_name || 'QA Test Data Source (Temporary)',
-          source_type: body.source_type || 'supabase', // Use valid source type
+          source_type: body.source_type || 'api', // Now allowed in constraint
           connection_config: body.connection_config || { 
             test: true,
             description: 'Temporary test data source - will be auto-deleted',
-            url: 'https://test-project.supabase.co'
+            api_endpoint: 'https://api.test.example.com'
           },
           created_by: body.created_by,
           updated_by: body.updated_by || body.created_by

@@ -123,7 +123,7 @@ const DataSourcesManagement: React.FC = () => {
         method: 'POST',
         body: {
           source_name: 'QA Test Source',
-          source_type: 'supabase', // Use allowed source type
+          source_type: 'api', // Now allowed in database constraint
           description: 'Test data source creation',
           organization_id: currentOrganization.id,
           created_by: user?.id,
@@ -154,9 +154,22 @@ const DataSourcesManagement: React.FC = () => {
       
     } catch (error) {
       console.error('Error testing API:', error);
+      
+      // Enhanced error handling for better debugging
+      let errorMessage = 'Failed to run API tests';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        try {
+          errorMessage = JSON.stringify(error);
+        } catch (e) {
+          errorMessage = String(error);
+        }
+      }
+      
       toast({
         title: 'Test Failed',
-        description: 'Failed to run API tests',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {
@@ -763,9 +776,18 @@ const DataSourcesManagement: React.FC = () => {
                     </DialogContent>
                   </Dialog>
 
-                  <Button variant="outline" onClick={testDataSourcesAPI}>
+                  <Button variant="outline" onClick={testDataSourcesAPI} disabled={loading}>
                     <Settings className="mr-2 h-4 w-4" />
-                    Test API
+                    {loading ? 'Testing...' : 'Test API'}
+                  </Button>
+
+                  <Button 
+                    variant="outline" 
+                    onClick={() => supabase.functions.invoke('reset-stuck-syncs')}
+                    disabled={loading}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Reset Stuck Syncs
                   </Button>
                 </div>
               </CardContent>
