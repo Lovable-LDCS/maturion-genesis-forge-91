@@ -39,6 +39,87 @@ const DataSourcesManagement: React.FC = () => {
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
   const { toast } = useToast();
+
+  // Helper function to handle API errors with user-friendly messages
+  const handleApiError = (error: any, operation: string = 'operation') => {
+    const errorCode = error?.error_code;
+    const errorMessage = error?.error || error?.message || 'Unknown error';
+    
+    let title = `${operation} Failed`;
+    let description = errorMessage;
+    let guidance = '';
+    
+    switch (errorCode) {
+      case 'DATA_SOURCE_NOT_FOUND_404':
+        title = 'Data Source Not Found';
+        description = 'The requested data source does not exist.';
+        guidance = 'Please refresh the page and try again.';
+        break;
+      
+      case 'DATA_SOURCE_ACCESS_DENIED_403':
+        title = 'Access Denied';
+        description = 'You do not have permission to access this data source.';
+        guidance = 'Contact your administrator for access permissions.';
+        break;
+      
+      case 'DATA_SOURCE_INACTIVE_409':
+        title = 'Data Source Inactive';
+        description = 'This data source has been deactivated.';
+        guidance = 'Activate the data source before attempting to use it.';
+        break;
+      
+      case 'SYNC_ALREADY_IN_PROGRESS_409':
+        title = 'Sync In Progress';
+        description = 'Another sync operation is currently running.';
+        guidance = 'Please wait for the current sync to complete before starting a new one.';
+        break;
+      
+      case 'SUPABASE_AUTH_FAILED_403':
+        title = 'Supabase Authentication Failed';
+        description = 'Invalid credentials or unauthorized access.';
+        guidance = 'Check your Supabase anon key and service role key.';
+        break;
+      
+      case 'GOOGLE_DRIVE_AUTH_FAILED_403':
+      case 'GOOGLE_DRIVE_ACCESS_DENIED_403':
+        title = 'Google Drive Access Issue';
+        description = 'Failed to authenticate with Google Drive.';
+        guidance = 'Re-authenticate your Google Drive connection or check permissions.';
+        break;
+      
+      case 'SHAREPOINT_AUTH_FAILED_403':
+      case 'SHAREPOINT_ACCESS_DENIED_403':
+        title = 'SharePoint Access Issue';
+        description = 'Failed to authenticate with SharePoint.';
+        guidance = 'Re-authenticate your SharePoint connection or check permissions.';
+        break;
+      
+      case 'API_AUTH_FAILED_403':
+      case 'API_ACCESS_DENIED_403':
+        title = 'API Authentication Failed';
+        description = 'API credentials are invalid or insufficient permissions.';
+        guidance = 'Verify your API key and endpoint permissions.';
+        break;
+      
+      case 'API_CONFLICT_409':
+        title = 'API Conflict';
+        description = 'Resource conflict detected during API operation.';
+        guidance = 'Wait a moment and try again, or check for duplicate requests.';
+        break;
+      
+      default:
+        // Keep original error message for unknown error codes
+        break;
+    }
+    
+    const fullDescription = guidance ? `${description} ${guidance}` : description;
+    
+    toast({
+      title,
+      description: fullDescription,
+      variant: 'destructive'
+    });
+  };
   
   const [dataSources, setDataSources] = useState<DataSource[]>([]);
   const [loading, setLoading] = useState(true);
@@ -94,11 +175,7 @@ const DataSourcesManagement: React.FC = () => {
       setDataSources(data || []);
     } catch (error) {
       console.error('Error loading data sources:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load data sources',
-        variant: 'destructive'
-      });
+      handleApiError(error, 'Loading Data Sources');
     } finally {
       setLoading(false);
     }
@@ -325,11 +402,7 @@ const DataSourcesManagement: React.FC = () => {
       loadDataSources();
     } catch (error) {
       console.error('Error creating data source:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create data source',
-        variant: 'destructive'
-      });
+      handleApiError(error, 'Create Data Source');
     } finally {
       setIsCreating(false);
     }
@@ -378,11 +451,8 @@ const DataSourcesManagement: React.FC = () => {
         )
       );
       
-      toast({
-        title: 'Sync Failed',
-        description: error instanceof Error ? error.message : 'Failed to start synchronization',
-        variant: 'destructive'
-      });
+      // Use the enhanced error handler
+      handleApiError(error, 'Sync');
     }
   };
 
@@ -457,11 +527,7 @@ const DataSourcesManagement: React.FC = () => {
       loadDataSources();
     } catch (error) {
       console.error('Error deleting data source:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to delete data source',
-        variant: 'destructive'
-      });
+      handleApiError(error, 'Delete Data Source');
     }
   };
 

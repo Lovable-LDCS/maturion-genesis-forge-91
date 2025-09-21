@@ -50,11 +50,28 @@ serve(async (req) => {
       .single();
 
     if (fetchError || !dataSource) {
-      throw new Error(`Data source not found: ${fetchError?.message}`);
+      const errorCode = fetchError?.code === 'PGRST116' ? 'DATA_SOURCE_NOT_FOUND_404' : 'DATA_SOURCE_ACCESS_DENIED_403';
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Data source not found or access denied',
+        error_code: errorCode,
+        error_details: fetchError?.message || 'Data source does not exist or you do not have permission to access it'
+      }), {
+        status: fetchError?.code === 'PGRST116' ? 404 : 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     if (!dataSource.is_active) {
-      throw new Error('Data source is not active');
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Data source is not active',
+        error_code: 'DATA_SOURCE_INACTIVE_409',
+        error_details: 'This data source has been deactivated and cannot be used for connections'
+      }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // Handle different data source types
@@ -143,9 +160,19 @@ async function connectSupabase(dataSource: any, testOnly = false, supabaseClient
       }
     };
   } catch (error) {
+    const errorMessage = error.message || 'Unknown error';
+    let errorCode = 'SUPABASE_CONNECTION_ERROR_500';
+    
+    if (errorMessage.includes('Invalid JWT') || errorMessage.includes('Unauthorized')) {
+      errorCode = 'SUPABASE_AUTH_FAILED_403';
+    } else if (errorMessage.includes('not found') || errorMessage.includes('404')) {
+      errorCode = 'SUPABASE_DATABASE_NOT_FOUND_404';
+    }
+    
     return {
       success: false,
-      error: error.message
+      error: errorMessage,
+      error_code: errorCode
     };
   }
 }
@@ -183,9 +210,19 @@ async function connectGoogleDrive(dataSource: any, testOnly = false, supabaseCli
       }
     };
   } catch (error) {
+    const errorMessage = error.message || 'Unknown error';
+    let errorCode = 'GOOGLE_DRIVE_CONNECTION_ERROR_500';
+    
+    if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+      errorCode = 'GOOGLE_DRIVE_AUTH_FAILED_403';
+    } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+      errorCode = 'GOOGLE_DRIVE_ACCESS_DENIED_403';
+    }
+    
     return {
       success: false,
-      error: error.message
+      error: errorMessage,
+      error_code: errorCode
     };
   }
 }
@@ -223,9 +260,19 @@ async function connectSharePoint(dataSource: any, testOnly = false, supabaseClie
       }
     };
   } catch (error) {
+    const errorMessage = error.message || 'Unknown error';
+    let errorCode = 'SHAREPOINT_CONNECTION_ERROR_500';
+    
+    if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+      errorCode = 'SHAREPOINT_AUTH_FAILED_403';
+    } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+      errorCode = 'SHAREPOINT_ACCESS_DENIED_403';
+    }
+    
     return {
       success: false,
-      error: error.message
+      error: errorMessage,
+      error_code: errorCode
     };
   }
 }
@@ -265,9 +312,21 @@ async function connectAPI(dataSource: any, testOnly = false, supabaseClient?: an
       error: response.ok ? undefined : `API returned ${response.status}: ${response.statusText}`
     };
   } catch (error) {
+    const errorMessage = error.message || 'Unknown error';
+    let errorCode = 'API_CONNECTION_ERROR_500';
+    
+    if (errorMessage.includes('401') || errorMessage.includes('Unauthorized')) {
+      errorCode = 'API_AUTH_FAILED_403';
+    } else if (errorMessage.includes('403') || errorMessage.includes('Forbidden')) {
+      errorCode = 'API_ACCESS_DENIED_403';
+    } else if (errorMessage.includes('409') || errorMessage.includes('Conflict')) {
+      errorCode = 'API_CONFLICT_409';
+    }
+    
     return {
       success: false,
-      error: error.message
+      error: errorMessage,
+      error_code: errorCode
     };
   }
 }

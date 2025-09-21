@@ -39,17 +39,19 @@ serve(async (req) => {
       .single();
 
     if (fetchError || !dataSource) {
-      console.error('Error fetching data source:', fetchError);
+      const errorCode = fetchError?.code === 'PGRST116' ? 'DATA_SOURCE_NOT_FOUND_404' : 'DATA_SOURCE_ACCESS_DENIED_403';
       return new Response(JSON.stringify({
         success: false,
-        error: 'Data source not found'
+        error: 'Data source not found or access denied',
+        error_code: errorCode,
+        error_details: fetchError?.message || 'Data source does not exist or you do not have permission to access it'
       }), {
-        status: 404,
+        status: fetchError?.code === 'PGRST116' ? 404 : 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
 
-    // Update sync status to syncing
+    // Update sync status to syncing - check for conflicts
     const { error: updateError } = await supabase
       .from('data_sources')
       .update({
@@ -57,10 +59,31 @@ serve(async (req) => {
         sync_error_message: null,
         updated_at: new Date().toISOString()
       })
-      .eq('id', data_source_id);
+      .eq('id', data_source_id)
+      .neq('sync_status', 'syncing'); // Only update if not already syncing
 
     if (updateError) {
       console.error('Error updating sync status:', updateError);
+      
+      // Check if this is a conflict (already syncing)
+      const { data: currentStatus } = await supabase
+        .from('data_sources')
+        .select('sync_status')
+        .eq('id', data_source_id)
+        .single();
+      
+      if (currentStatus?.sync_status === 'syncing') {
+        return new Response(JSON.stringify({
+          success: false,
+          error: 'Sync already in progress',
+          error_code: 'SYNC_ALREADY_IN_PROGRESS_409',
+          error_details: 'Another sync operation is currently running for this data source. Please wait for it to complete.'
+        }), {
+          status: 409,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
+      
       throw updateError;
     }
 
@@ -99,11 +122,29 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in sync-data-source:', error);
+    
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    let errorCode = 'SYNC_OPERATION_ERROR_500';
+    let statusCode = 500;
+    
+    if (errorMessage.includes('permission') || errorMessage.includes('access denied')) {
+      errorCode = 'SYNC_ACCESS_DENIED_403';
+      statusCode = 403;
+    } else if (errorMessage.includes('not found')) {
+      errorCode = 'SYNC_RESOURCE_NOT_FOUND_404';
+      statusCode = 404;
+    } else if (errorMessage.includes('conflict') || errorMessage.includes('already')) {
+      errorCode = 'SYNC_CONFLICT_409';
+      statusCode = 409;
+    }
+    
     return new Response(JSON.stringify({
       success: false,
-      error: error instanceof Error ? error.message : String(error)
+      error: errorMessage,
+      error_code: errorCode,
+      error_details: 'An error occurred during the sync operation. Please check your permissions and try again.'
     }), {
-      status: 500,
+      status: statusCode,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   }
