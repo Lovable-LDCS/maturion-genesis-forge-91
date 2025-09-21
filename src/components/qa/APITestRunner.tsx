@@ -224,19 +224,19 @@ export const APITestRunner: React.FC = () => {
       const startTime7 = Date.now();
       
       try {
-        // Generate a random UUID for an organization that doesn't exist
-        // This should fail due to RLS restrictions (user not member of non-existent org)
-        const fakeOrgId = '00000000-0000-0000-0000-000000000000';
+        // Use a real organization that the user is NOT a member of (SRMS)
+        // This should fail due to RLS restrictions
+        const unauthorizedOrgId = '922596d4-496d-403b-9cb5-9f6eb4ebf5aa'; // SRMS org
         
         const { data: directData, error: directError } = await supabase
           .from('data_sources')
           .insert({
-            organization_id: fakeOrgId, // Non-existent organization
+            organization_id: unauthorizedOrgId,
             source_name: 'Unauthorized Test Source',
             source_type: 'supabase',
             connection_config: { test: true },
-            created_by: fakeOrgId, // Invalid user ID
-            updated_by: fakeOrgId
+            created_by: firstOrg, // Use the user's actual org for valid user reference
+            updated_by: firstOrg
           });
         
         if (!directError) {
