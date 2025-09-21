@@ -229,8 +229,9 @@ export const APITestRunner: React.FC = () => {
           .from('data_sources')
           .insert({
             organization_id: firstOrg,
-            source_name: 'Unauthorized Test',
-            source_type: 'test',
+            source_name: 'Unauthorized Test Source',
+            source_type: 'supabase', // Use valid source type
+            connection_config: { test: true },
             created_by: firstOrg,
             updated_by: firstOrg
           });
