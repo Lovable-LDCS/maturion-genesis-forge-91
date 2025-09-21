@@ -6,6 +6,8 @@ import { DocumentManagementTable } from "@/components/ai/DocumentManagementTable
 import { DocumentEditDialog, DocumentUpdateData } from "@/components/ai/DocumentEditDialog";
 import { DocumentPlaceholderMerger } from "@/components/ai/DocumentPlaceholderMerger";
 import { EmbeddingProgressDialog } from "@/components/ai/EmbeddingProgressDialog";
+import { RemediationDashboard } from "@/components/admin/RemediationDashboard";
+import { ResponsesAPIMigrationStatus } from "@/components/admin/ResponsesAPIMigrationStatus";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -183,12 +185,14 @@ export default function MaturionUploads() {
         </div>
         
         <Tabs defaultValue="upload" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="upload">Document Upload</TabsTrigger>
-            <TabsTrigger value="manage">Manage Documents</TabsTrigger>
-            <TabsTrigger value="merge">Merge Placeholders</TabsTrigger>
-            <TabsTrigger value="security">Security Dashboard</TabsTrigger>
-          </TabsList>
+            <TabsList>
+              <TabsTrigger value="upload">Document Upload</TabsTrigger>
+              <TabsTrigger value="manage">Manage Documents</TabsTrigger>
+              <TabsTrigger value="merge">Merge Placeholders</TabsTrigger>
+              <TabsTrigger value="remediation">Remediation</TabsTrigger>
+              <TabsTrigger value="migration">API Migration</TabsTrigger>
+              <TabsTrigger value="security">Security Dashboard</TabsTrigger>
+            </TabsList>
 
           <TabsContent value="upload" className="space-y-6">
             <UnifiedDocumentUploader 
@@ -218,6 +222,14 @@ export default function MaturionUploads() {
 
           <TabsContent value="merge" className="space-y-6">
             <DocumentPlaceholderMerger />
+          </TabsContent>
+
+          <TabsContent value="remediation" className="space-y-6">
+            <RemediationDashboard />
+          </TabsContent>
+
+          <TabsContent value="migration" className="space-y-6">
+            <ResponsesAPIMigrationStatus />
           </TabsContent>
 
           <TabsContent value="security">

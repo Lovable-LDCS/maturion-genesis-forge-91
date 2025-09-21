@@ -1,9 +1,10 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from './lib/constants.ts';
-import { buildPromptContext, callOpenAI, constructFinalPrompt, type PromptRequest } from './lib/prompt.ts';
+import { buildPromptContext, constructFinalPrompt, type PromptRequest } from './lib/prompt.ts';
 import { detectMissingSpecifics, createGapTicket, generateCommitmentText } from './lib/gap-tracker.ts';
 import { supabase, sanitizeInput } from './lib/utils.ts';
+import { ConversationStateManager } from './lib/conversation-state.ts';
 
 // OpenAI embeddings function
 async function generateEmbedding(text: string, apiKey: string): Promise<number[]> {
@@ -90,7 +91,7 @@ serve(async (req) => {
     let retrievedContexts: string[] = [];
 
     if (orgId && sanitizedPrompt.trim()) {
-      try {
+    const startTime = Date.now();
         const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
         if (!OPENAI_API_KEY) {
           console.warn('⚠️ OpenAI API key not configured - using fallback retrieval');
@@ -201,9 +202,18 @@ serve(async (req) => {
     
     console.log('✅ Final prompt passed all safety checks - proceeding with AI generation');
     
-    // Generate AI response
+    // Construct and send the OpenAI request with conversation context
+    const conversationManager = new ConversationStateManager(
+      request.organizationId || '', 
+      undefined // We could get userId from auth context if needed
+    );
+
+    // Build contextual input for multi-turn conversations
+    const contextualInput = await conversationManager.buildContextualInput(fullPrompt);
+    
     console.log('🤖 Generating AI response...');
     let aiResponse: string;
+    let responseId: string | undefined;
 
     if (sources.length === 0) {
       // Fallback only when zero results
@@ -211,8 +221,46 @@ serve(async (req) => {
       console.log('ℹ️ No KB sources available; returned friendly fallback.');
     } else {
       try {
-        aiResponse = await callOpenAI(finalPrompt);
-        console.log('✅ AI response generated successfully');
+        // Enhanced API call with conversation context and tools
+        const openAIResponse = await fetch('https://api.openai.com/v1/responses', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openAIApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-5',
+            instructions: `You are Maturion, an AI-first platform for security, maturity, and operational excellence. Follow the Maturion Operating Policy & Governance and provide evidence-first, diamond-specific guidance.`,
+            input: contextualInput,
+            tools: [
+              { type: 'web_search' },
+              { type: 'file_search' }
+            ],
+            previous_response_id: conversationManager.getLastResponseId(),
+            max_completion_tokens: 2000,
+            store: false,
+            include: ['reasoning.encrypted_content']
+          }),
+        });
+
+        if (!openAIResponse.ok) {
+          throw new Error(`OpenAI API error: ${openAIResponse.status}`);
+        }
+
+        const responseData = await openAIResponse.json();
+        aiResponse = responseData.output_text;
+        responseId = responseData.id;
+        
+        // Store conversation turn for future context
+        if (request.organizationId) {
+          await conversationManager.storeConversationTurn(
+            request.prompt, 
+            aiResponse, 
+            responseId
+          );
+        }
+        
+        console.log('✅ AI response generated successfully with enhanced context');
       } catch (modelErr) {
         const msg = (modelErr as any)?.message || String(modelErr);
         console.warn('⚠️ OpenAI unavailable, synthesizing from retrieved chunks:', msg);

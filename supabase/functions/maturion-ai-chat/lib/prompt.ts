@@ -172,8 +172,17 @@ GUIDANCE-FIRST APPROACH (Policy §9):
 - Proactively suggest improvements and next steps
 - Reference actual data and trends when available`,
       input: fullPrompt,
+      tools: [
+        {
+          type: "web_search"
+        },
+        {
+          type: "file_search"
+        }
+      ],
       max_completion_tokens: 2000,
-      store: false // For compliance and data retention
+      store: false, // For compliance and data retention
+      include: ["reasoning.encrypted_content"] // For zero data retention while keeping reasoning
     }),
   });
 
