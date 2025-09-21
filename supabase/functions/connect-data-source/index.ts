@@ -61,16 +61,16 @@ serve(async (req) => {
     let connectionResult;
     switch (dataSource.source_type) {
       case 'supabase':
-        connectionResult = await connectSupabase(dataSource, connection_test);
+        connectionResult = await connectSupabase(dataSource, connection_test, supabase);
         break;
       case 'google_drive':
-        connectionResult = await connectGoogleDrive(dataSource, connection_test);
+        connectionResult = await connectGoogleDrive(dataSource, connection_test, supabase);
         break;
       case 'sharepoint':
-        connectionResult = await connectSharePoint(dataSource, connection_test);
+        connectionResult = await connectSharePoint(dataSource, connection_test, supabase);
         break;
       case 'api':
-        connectionResult = await connectAPI(dataSource, connection_test);
+        connectionResult = await connectAPI(dataSource, connection_test, supabase);
         break;
       default:
         throw new Error(`Unsupported data source type: ${dataSource.source_type}`);
@@ -113,10 +113,10 @@ serve(async (req) => {
   }
 });
 
-async function connectSupabase(dataSource: any, testOnly = false) {
+async function connectSupabase(dataSource: any, testOnly = false, supabaseClient?: any) {
   try {
     const config = dataSource.connection_config as SupabaseConfig;
-    const credentials = await parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(dataSource.credentials_encrypted, supabaseClient);
 
     if (!config.url || !credentials.anon_key) {
       throw new Error('Missing Supabase URL or anon key');
@@ -150,10 +150,10 @@ async function connectSupabase(dataSource: any, testOnly = false) {
   }
 }
 
-async function connectGoogleDrive(dataSource: any, testOnly = false) {
+async function connectGoogleDrive(dataSource: any, testOnly = false, supabaseClient?: any) {
   try {
     const config = dataSource.connection_config as GoogleDriveConfig;
-    const credentials = await parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(dataSource.credentials_encrypted, supabaseClient);
 
     if (!credentials.access_token && !credentials.refresh_token) {
       throw new Error('Missing Google Drive authentication tokens');
@@ -190,10 +190,10 @@ async function connectGoogleDrive(dataSource: any, testOnly = false) {
   }
 }
 
-async function connectSharePoint(dataSource: any, testOnly = false) {
+async function connectSharePoint(dataSource: any, testOnly = false, supabaseClient?: any) {
   try {
     const config = dataSource.connection_config;
-    const credentials = await parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(dataSource.credentials_encrypted, supabaseClient);
 
     if (!credentials.access_token) {
       throw new Error('Missing SharePoint access token');
@@ -230,10 +230,10 @@ async function connectSharePoint(dataSource: any, testOnly = false) {
   }
 }
 
-async function connectAPI(dataSource: any, testOnly = false) {
+async function connectAPI(dataSource: any, testOnly = false, supabaseClient?: any) {
   try {
     const config = dataSource.connection_config;
-    const credentials = await parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(dataSource.credentials_encrypted, supabaseClient);
 
     if (!config.api_endpoint) {
       throw new Error('Missing API endpoint URL');
@@ -272,13 +272,17 @@ async function connectAPI(dataSource: any, testOnly = false) {
   }
 }
 
-async function parseCredentials(encryptedCredentials: string | null): Promise<Record<string, string>> {
+async function parseCredentials(encryptedCredentials: string | null, supabaseClient?: any): Promise<Record<string, string>> {
   if (!encryptedCredentials) return {};
   
   try {
     // Production encryption handling
     if (encryptedCredentials.startsWith('encrypted:v1:')) {
-      const decryptResponse = await supabase.functions.invoke('encrypt-credentials', {
+      if (!supabaseClient) {
+        throw new Error('Supabase client required for credential decryption');
+      }
+      
+      const decryptResponse = await supabaseClient.functions.invoke('encrypt-credentials', {
         body: { action: 'decrypt', data: encryptedCredentials }
       });
       
