@@ -101,7 +101,7 @@ serve(async (req) => {
     console.error('Error in sync-data-source:', error);
     return new Response(JSON.stringify({
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : String(error)
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -121,6 +121,9 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
   try {
     console.log(`Performing sync for data source: ${dataSource.source_name} (${dataSource.source_type})`);
 
+    // Update sync progress: Starting
+    await updateSyncProgress(supabase, syncLogId, 'connecting', 'Establishing connection...');
+
     // For now, we'll just simulate a sync process
     // In a real implementation, this would connect to the actual data source
     // and sync data based on the source type
@@ -128,20 +131,26 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
     switch (dataSource.source_type) {
       case 'supabase':
         // Test connection to verify it's working
+        await updateSyncProgress(supabase, syncLogId, 'connecting', 'Testing Supabase connection...');
         await testSupabaseConnection(supabase, dataSource);
+        await updateSyncProgress(supabase, syncLogId, 'processing', 'Connection verified');
         itemsProcessed = 1;
         itemsAdded = 0; // No actual items to add for connection test
         break;
       
       case 'google_drive':
         // Sync Google Drive files
+        await updateSyncProgress(supabase, syncLogId, 'connecting', 'Connecting to Google Drive...');
         await testGoogleDriveConnection(supabase, dataSource);
+        await updateSyncProgress(supabase, syncLogId, 'processing', 'Syncing files...');
         itemsProcessed = 1;
         break;
       
       case 'sharepoint':
         // Sync SharePoint documents  
+        await updateSyncProgress(supabase, syncLogId, 'connecting', 'Connecting to SharePoint...');
         await testSharePointConnection(supabase, dataSource);
+        await updateSyncProgress(supabase, syncLogId, 'processing', 'Syncing documents...');
         itemsProcessed = 1;
         break;
       
@@ -149,7 +158,9 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
       case 'api':
       case 'api_endpoint':
         // Test API connection
+        await updateSyncProgress(supabase, syncLogId, 'connecting', 'Testing API connection...');
         await testAPIConnection(supabase, dataSource);
+        await updateSyncProgress(supabase, syncLogId, 'processing', 'API connection verified');
         itemsProcessed = 1;
         break;
       
@@ -157,13 +168,17 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
         throw new Error(`Unsupported data source type: ${dataSource.source_type}`);
     }
 
+    await updateSyncProgress(supabase, syncLogId, 'completed', 'Sync completed successfully');
     console.log(`Sync completed successfully for ${dataSource.source_name}`);
     
   } catch (error) {
     console.error(`Sync failed for ${dataSource.source_name}:`, error);
     syncStatus = 'failed';
-    errorMessage = error.message;
+    errorMessage = error instanceof Error ? error.message : String(error);
     itemsFailed = 1;
+    
+    // Update sync progress with error
+    await updateSyncProgress(supabase, syncLogId, 'failed', `Sync failed: ${errorMessage}`);
   }
 
   // Update data source with final sync status
@@ -195,7 +210,7 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
       sync_summary: {
         source_type: dataSource.source_type,
         source_name: dataSource.source_name,
-        sync_duration_ms: Date.now() - new Date(syncLogId).getTime(),
+        sync_duration_ms: Date.now() - startTime,
         success: syncStatus === 'completed'
       }
     })
@@ -206,98 +221,93 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
   }
 }
 
-async function testSupabaseConnection(dataSource: any) {
-  // Test Supabase connection by calling connect-data-source function
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  
-  const response = await fetch(`${supabaseUrl}/functions/v1/connect-data-source`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${supabaseServiceRoleKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      data_source_id: dataSource.id,
-      organization_id: dataSource.organization_id,
-      connection_test: true
-    })
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Supabase connection test failed: ${error.error}`);
+async function updateSyncProgress(supabase: any, syncLogId: string, status: string, message: string) {
+  try {
+    await supabase
+      .from('data_source_sync_logs')
+      .update({
+        sync_status: status,
+        sync_progress: message,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', syncLogId);
+  } catch (error) {
+    console.error('Error updating sync progress:', error);
   }
 }
 
-async function testGoogleDriveConnection(dataSource: any) {
-  // Similar connection test for Google Drive
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  
-  const response = await fetch(`${supabaseUrl}/functions/v1/connect-data-source`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${supabaseServiceRoleKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
+async function testSupabaseConnection(supabase: any, dataSource: any) {
+  // Test connection using Supabase client for better error handling
+  const { data, error } = await supabase.functions.invoke('connect-data-source', {
+    body: {
       data_source_id: dataSource.id,
       organization_id: dataSource.organization_id,
       connection_test: true
-    })
+    }
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Google Drive connection test failed: ${error.error}`);
+  if (error) {
+    throw new Error(`Supabase connection test failed: ${error.message || JSON.stringify(error)}`);
+  }
+  
+  if (!data?.success) {
+    throw new Error(`Supabase connection test failed: ${data?.error || 'Unknown error'}`);
   }
 }
 
-async function testSharePointConnection(dataSource: any) {
-  // Similar connection test for SharePoint
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  
-  const response = await fetch(`${supabaseUrl}/functions/v1/connect-data-source`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${supabaseServiceRoleKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
+async function testGoogleDriveConnection(supabase: any, dataSource: any) {
+  // Test connection using Supabase client for better error handling
+  const { data, error } = await supabase.functions.invoke('connect-data-source', {
+    body: {
       data_source_id: dataSource.id,
       organization_id: dataSource.organization_id,
       connection_test: true
-    })
+    }
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`SharePoint connection test failed: ${error.error}`);
+  if (error) {
+    throw new Error(`Google Drive connection test failed: ${error.message || JSON.stringify(error)}`);
+  }
+  
+  if (!data?.success) {
+    throw new Error(`Google Drive connection test failed: ${data?.error || 'Unknown error'}`);
   }
 }
 
-async function testAPIConnection(dataSource: any) {
-  // Similar connection test for REST API
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  
-  const response = await fetch(`${supabaseUrl}/functions/v1/connect-data-source`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${supabaseServiceRoleKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
+async function testSharePointConnection(supabase: any, dataSource: any) {
+  // Test connection using Supabase client for better error handling
+  const { data, error } = await supabase.functions.invoke('connect-data-source', {
+    body: {
       data_source_id: dataSource.id,
       organization_id: dataSource.organization_id,
       connection_test: true
-    })
+    }
   });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`API connection test failed: ${error.error}`);
+  if (error) {
+    throw new Error(`SharePoint connection test failed: ${error.message || JSON.stringify(error)}`);
+  }
+  
+  if (!data?.success) {
+    throw new Error(`SharePoint connection test failed: ${data?.error || 'Unknown error'}`);
+  }
+}
+
+async function testAPIConnection(supabase: any, dataSource: any) {
+  // Test connection using Supabase client for better error handling
+  const { data, error } = await supabase.functions.invoke('connect-data-source', {
+    body: {
+      data_source_id: dataSource.id,
+      organization_id: dataSource.organization_id,
+      connection_test: true
+    }
+  });
+
+  if (error) {
+    throw new Error(`API connection test failed: ${error.message || JSON.stringify(error)}`);
+  }
+  
+  if (!data?.success) {
+    throw new Error(`API connection test failed: ${data?.error || 'Unknown error'}`);
   }
 }

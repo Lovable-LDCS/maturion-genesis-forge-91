@@ -331,28 +331,102 @@ const DataSourcesManagement: React.FC = () => {
     }
   };
 
-  const syncDataSource = async (dataSource: DataSource) => {
+  const syncDataSource = async (source: DataSource) => {
     try {
+      // Optimistic UI update
+      setDataSources(prev => 
+        prev.map(ds => 
+          ds.id === source.id 
+            ? { ...ds, sync_status: 'syncing', sync_error_message: null }
+            : ds
+        )
+      );
+
       const { error } = await supabase.functions.invoke('sync-data-source', {
-        body: { data_source_id: dataSource.id }
+        body: { data_source_id: source.id }
       });
 
-      if (error) throw error;
+      if (error) {
+        throw new Error(error.message || 'Sync failed');
+      }
 
       toast({
         title: 'Sync Started',
-        description: `Synchronization initiated for ${dataSource.source_name}`
+        description: `Synchronization initiated for ${source.source_name}`
       });
 
-      loadDataSources();
+      // Poll for sync progress
+      pollSyncProgress(source.id);
+
     } catch (error) {
       console.error('Error syncing data source:', error);
+      
+      // Revert optimistic update on error
+      setDataSources(prev => 
+        prev.map(ds => 
+          ds.id === source.id 
+            ? { 
+                ...ds, 
+                sync_status: 'failed', 
+                sync_error_message: error instanceof Error ? error.message : 'Sync failed'
+              }
+            : ds
+        )
+      );
+      
       toast({
         title: 'Sync Failed',
-        description: 'Failed to start synchronization',
+        description: error instanceof Error ? error.message : 'Failed to start synchronization',
         variant: 'destructive'
       });
     }
+  };
+
+  const pollSyncProgress = (dataSourceId: string) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data: logs, error } = await supabase
+          .from('data_source_sync_logs')
+          .select('sync_status, sync_progress, error_messages')
+          .eq('data_source_id', dataSourceId)
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (error) {
+          console.error('Error polling sync progress:', error);
+          return;
+        }
+
+        const latestLog = logs?.[0];
+        if (!latestLog) return;
+
+        // Update UI with progress
+        setDataSources(prev => 
+          prev.map(ds => {
+            if (ds.id === dataSourceId) {
+              return {
+                ...ds,
+                sync_status: latestLog.sync_status,
+                sync_error_message: latestLog.error_messages?.[0] || null
+              };
+            }
+            return ds;
+          })
+        );
+
+        // Stop polling if sync is complete or failed
+        if (['completed', 'failed'].includes(latestLog.sync_status)) {
+          clearInterval(pollInterval);
+          loadDataSources(); // Refresh full data
+        }
+      } catch (error) {
+        console.error('Error in sync progress polling:', error);
+        clearInterval(pollInterval);
+      }
+    }, 2000); // Poll every 2 seconds
+
+    // Auto-stop polling after 5 minutes
+    setTimeout(() => clearInterval(pollInterval), 5 * 60 * 1000);
   };
 
   const deleteDataSource = async (dataSource: DataSource) => {
@@ -389,6 +463,8 @@ const DataSourcesManagement: React.FC = () => {
       case 'completed':
         return <CheckCircle2 className="h-4 w-4 text-green-500" />;
       case 'syncing':
+      case 'connecting':
+      case 'processing':
         return <RefreshCw className="h-4 w-4 text-blue-500 animate-spin" />;
       case 'failed':
         return <AlertCircle className="h-4 w-4 text-red-500" />;
@@ -401,6 +477,8 @@ const DataSourcesManagement: React.FC = () => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive'> = {
       completed: 'default',
       syncing: 'secondary',
+      connecting: 'secondary',
+      processing: 'secondary',
       failed: 'destructive',
       never_synced: 'secondary'
     };
