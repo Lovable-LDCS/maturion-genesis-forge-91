@@ -270,13 +270,6 @@ export type Database = {
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "ai_behavior_monitoring_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "v_demo_documents_secure"
-            referencedColumns: ["id"]
-          },
         ]
       }
       ai_chunk_hash_stats: {
@@ -387,13 +380,6 @@ export type Database = {
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "ai_confidence_scoring_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "v_demo_documents_secure"
-            referencedColumns: ["id"]
-          },
         ]
       }
       ai_document_chunks: {
@@ -488,13 +474,6 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "ai_documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_document_chunks_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "v_demo_documents_secure"
             referencedColumns: ["id"]
           },
         ]
@@ -597,13 +576,6 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "ai_documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_document_versions_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "v_demo_documents_secure"
             referencedColumns: ["id"]
           },
           {
@@ -934,13 +906,6 @@ export type Database = {
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "ai_feedback_submissions_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "v_demo_documents_secure"
-            referencedColumns: ["id"]
-          },
         ]
       }
       ai_learning_patterns: {
@@ -1106,13 +1071,6 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "ai_documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "ai_upload_audit_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "v_demo_documents_secure"
             referencedColumns: ["id"]
           },
         ]
@@ -1283,13 +1241,6 @@ export type Database = {
             columns: ["document_id"]
             isOneToOne: false
             referencedRelation: "ai_documents"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "approved_chunks_cache_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "v_demo_documents_secure"
             referencedColumns: ["id"]
           },
         ]
@@ -3903,13 +3854,6 @@ export type Database = {
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "processing_pipeline_status_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "v_demo_documents_secure"
-            referencedColumns: ["id"]
-          },
         ]
       }
       profiles: {
@@ -4716,57 +4660,6 @@ export type Database = {
             referencedRelation: "ai_documents"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "ai_document_chunks_document_id_fkey"
-            columns: ["document_id"]
-            isOneToOne: false
-            referencedRelation: "v_demo_documents_secure"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      v_demo_documents_secure: {
-        Row: {
-          created_at: string | null
-          document_type: string | null
-          domain: string | null
-          file_name: string | null
-          id: string | null
-          processing_status: string | null
-          tags: string[] | null
-          title: string | null
-          total_chunks: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          document_type?: string | null
-          domain?: string | null
-          file_name?: string | null
-          id?: string | null
-          processing_status?: string | null
-          tags?: string[] | null
-          title?: never
-          total_chunks?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          document_type?: string | null
-          domain?: string | null
-          file_name?: string | null
-          id?: string | null
-          processing_status?: string | null
-          tags?: string[] | null
-          title?: never
-          total_chunks?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_documents_document_type_fkey"
-            columns: ["document_type"]
-            isOneToOne: false
-            referencedRelation: "document_types"
-            referencedColumns: ["name"]
-          },
         ]
       }
     }
@@ -4838,6 +4731,20 @@ export type Database = {
       expire_approval_requests: {
         Args: Record<PropertyKey, never>
         Returns: undefined
+      }
+      get_demo_documents: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          created_at: string
+          document_type: string
+          domain: string
+          file_name: string
+          id: string
+          processing_status: string
+          tags: string[]
+          title: string
+          total_chunks: number
+        }[]
       }
       get_security_setting: {
         Args: { setting_name_param: string }
