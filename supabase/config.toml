@@ -3,6 +3,12 @@ project_id = "dmhlxhatogrrrvuruayv"
 [functions.test-data-sources-api]
 verify_jwt = false
 
+[functions.connect-data-source]
+verify_jwt = true
+
+[functions.query-data-source]
+verify_jwt = true
+
 [functions.maturion-ai-chat]
 verify_jwt = true
 

@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
+import { LiveDataSourceQuery } from '@/components/admin/LiveDataSourceQuery';
 import { 
   Database, 
   Key, 
@@ -26,7 +27,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
-  Upload
+  Upload,
+  Zap
 } from 'lucide-react';
 
 // Use the actual Supabase type
@@ -333,9 +335,10 @@ const DataSourcesManagement: React.FC = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="manage">Manage Sources</TabsTrigger>
+            <TabsTrigger value="live-query">Live Query</TabsTrigger>
             <TabsTrigger value="api-keys">API Keys</TabsTrigger>
             <TabsTrigger value="test-results">Test Results</TabsTrigger>
           </TabsList>
@@ -422,6 +425,17 @@ const DataSourcesManagement: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="live-query" className="space-y-6">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold mb-2">Live Data Source Query</h2>
+              <p className="text-muted-foreground">
+                Execute real-time queries against your connected data sources. No syncing required.
+              </p>
+            </div>
+            
+            <LiveDataSourceQuery organizationId={currentOrganization?.id || ''} />
           </TabsContent>
 
           <TabsContent value="manage" className="space-y-6">
