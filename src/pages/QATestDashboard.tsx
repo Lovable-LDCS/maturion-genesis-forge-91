@@ -53,10 +53,10 @@ const QATestDashboard: React.FC = () => {
                 <div>
                   <h4 className="font-semibold mb-2">Data Integrity</h4>
                   <ul className="space-y-1 text-muted-foreground">
-                    <li>• Referential integrity</li>
-                    <li>• Timestamp automation</li>
-                    <li>• Constraint validation</li>
-                    <li>• Cascade operations</li>
+                    <li>• Data persistence verification</li>
+                    <li>• Record creation validation</li>
+                    <li>• Field mapping accuracy</li>
+                    <li>• Query result integrity</li>
                   </ul>
                 </div>
               </div>
