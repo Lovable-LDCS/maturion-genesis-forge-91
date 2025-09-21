@@ -123,7 +123,7 @@ const DataSourcesManagement: React.FC = () => {
         method: 'POST',
         body: {
           source_name: 'QA Test Source',
-          source_type: 'api',
+          source_type: 'supabase', // Use allowed source type
           description: 'Test data source creation',
           organization_id: currentOrganization.id,
           created_by: user?.id,
@@ -135,12 +135,12 @@ const DataSourcesManagement: React.FC = () => {
         list: {
           success: !listResponse.error,
           data: listResponse.data,
-          error: listResponse.error?.message
+          error: listResponse.error?.message || (listResponse.error ? JSON.stringify(listResponse.error) : undefined)
         },
         create: {
           success: !createResponse.error,
           data: createResponse.data,
-          error: createResponse.error?.message
+          error: createResponse.error?.message || (createResponse.error ? JSON.stringify(createResponse.error) : undefined)
         }
       });
       
