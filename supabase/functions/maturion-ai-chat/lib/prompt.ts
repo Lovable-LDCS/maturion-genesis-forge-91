@@ -1,6 +1,6 @@
 import { openAIApiKey, KNOWLEDGE_TIERS } from './constants.ts';
 import { determineKnowledgeTier, validateMpsNumber, sanitizeInput, supabase } from './utils.ts';
-import { getAIBehaviorPolicy, getIntentPromptLogic, getMaturionReasoningArchitecture } from './policy.ts';
+import { getMaturionOperatingPolicy, getDynamicReasoningContext, getMaturionReasoningArchitecture } from './policy.ts';
 import { getDocumentContext } from './context.ts';
 import { buildOrganizationalContext } from './organization.ts';
 import { getExternalInsights } from './external.ts';
@@ -136,42 +136,44 @@ export async function callOpenAI(fullPrompt: string) {
       messages: [
         { 
           role: 'system', 
-          content: `You are Maturion, a diamond operations maturity specialist. Follow the Maturion Knowledge File v2.0 Diamond-Ready Build Charter rules:
+          content: `You are Maturion, an AI-first platform for security, maturity, and operational excellence. Follow the Maturion Operating Policy & Governance:
 
-ANSWER-FIRST BEHAVIOR (v2.0 §2):
-- Provide immediate, concrete diamond requirements/recommendations
-- NEVER mention sources, knowledge base, documents, or reasoning process
-- Use diamond terminology: KPC, test stones, dual custody, variance thresholds, black-screen monitoring, chain of custody, diamond reconciliation, sorting protocols, vault integrity, export controls, Kimberley compliance
-- Ban: "uploaded knowledge base," "I don't know," apologies about uncertainty, any chain-of-thought/meta
+CORE BEHAVIOR (Policy §3 & §7):
+- Transparent, traceable, and explainable AI reasoning model
+- Reasoning chain: Internal Knowledge → Organization Context → Sector Intelligence → Best Practices → Real-Time Events
+- Always explain reasoning like ChatGPT - show your thinking process
+- Friendly, clear, professional tone with systems-thinking approach
+- NEVER say "I don't know" without offering to help
 
-OUTPUT FORMAT (v2.0 §2):
-- Format as "Requirement — Evidence" or "Recommendation — Action" bullets
-- Include specific cadences (daily/weekly/monthly/quarterly) and role owners  
-- 8-12 specific bullets maximum
-- Direct, authoritative tone using diamond industry context
+DYNAMIC REASONING (Policy §2 & §8):
+- Reason dynamically, not just scan tables or return hard-coded responses
+- Interpret user intent, analyze real data, and generate explainable, data-driven answers
+- Reference actual records, trends, policies from the knowledge base
+- Cross-reference internal and external logic
+- Detect industry-specific anomalies and risks
 
-DOMAIN ROUTING (v2.0 §4):
-- Leadership & Governance: custody, governance & oversight, KPIs, RACI, exec attestations, Kimberley
-- Process Integrity: reconciliation, sorting & valuation, plant recovery
-- People & Culture: insider threat
-- Protection: access & compartmentalization, technology & scanning, perimeter & vault, transport & export
-- Proof it Works: resilience & incident response, data & records integrity
+EVIDENCE-FIRST LOGIC (Policy §4):
+- Evidence-first structure (Annex 2 style): Evidence → Noun → Context
+- Singular structure, avoid compound logic and vague statements
+- Incorporate organization name/role as needed
+- Adjust phrasing for industry/role specificity
 
-CLOSING COMMITMENT (v2.0 §2):
-- When specifics are missing (owners/thresholds/system names/cadences/local laws), end with:
-  "I'll confirm site-specific owners, thresholds, and system names by [DATE +48h]."
+SECTOR AWARENESS (Policy §6):
+- Supported sectors: Mining, Transport & Logistics, Construction, Heavy Equipment, Retail, Sensitive Goods
+- Each sector linked to specific threats, actors, tactics, control gaps
+- Adjust advice based on sector-specific risks and requirements
 
-RETRIEVAL PRIORITY (v2.0 §3):
-- Diamond-specific / industry-priority documents FIRST
-- Titles beginning "Diamond ..." SECOND  
-- Generic MPS content ONLY to fill gaps
-- If diamond and generic overlap, show diamond only
+TRANSPARENCY & AUDITABILITY (Policy §9):
+- Always justify every decision or logic step
+- Show reasoning chain and sources used
+- Cross-domain awareness across MPS, threat, policy, and people pillars
+- All responses must be traceable back to source documents
 
-NEVER:
-- Say "based on your uploaded documents" or "I don't have information"
-- Apologize or explain limitations
-- Use meta language about knowledge sources or reasoning
-- Mention "knowledge base" or document sources`
+GUIDANCE-FIRST APPROACH (Policy §9):
+- Always assist the user; never refuse to help
+- Offer alternative approaches if direct answer not possible
+- Proactively suggest improvements and next steps
+- Reference actual data and trends when available`
         },
         { role: 'user', content: fullPrompt }
       ],
@@ -195,8 +197,8 @@ export function constructFinalPrompt(promptContext: any) {
   const {
     sanitizedPrompt,
     documentContext,
-    behaviorPolicy,
-    intentPromptLogic,
+    operatingPolicy,
+    dynamicReasoningContext,
     maturionReasoningArchitecture,
     organizationContext,
     externalContext,
@@ -242,31 +244,41 @@ ${truncatedReasoning}
     console.log(`🧠 Added Platform Anchor Logic: ${reasoningTokens} tokens`);
   }
   
-  // Add behavior policy if available (for internal secure contexts)
-  if (behaviorPolicy && requiresInternalSecure) {
-    const truncatedPolicy = truncateToTokens(behaviorPolicy, MAX_BEHAVIOR_TOKENS);
+  // Add operating policy if available (for internal secure contexts)
+  if (operatingPolicy && requiresInternalSecure) {
+    const truncatedPolicy = truncateToTokens(operatingPolicy, MAX_BEHAVIOR_TOKENS);
     const policyTokens = estimateTokens(truncatedPolicy);
     
     if (currentTokens + policyTokens <= MAX_TOTAL_TOKENS) {
-      fullPrompt += `${truncatedPolicy}\n\n`;
+      fullPrompt += `=== MATURION OPERATING POLICY & GOVERNANCE ===
+${truncatedPolicy}
+
+=== END OPERATING POLICY ===
+
+`;
       currentTokens += policyTokens;
-      console.log(`📋 Added behavior policy: ${policyTokens} tokens`);
+      console.log(`📋 Added operating policy: ${policyTokens} tokens`);
     } else {
-      console.log('⚠️ Skipping behavior policy due to token limit');
+      console.log('⚠️ Skipping operating policy due to token limit');
     }
   }
   
-  // Add intent prompt logic if available
-  if (intentPromptLogic && requiresInternalSecure) {
-    const truncatedIntent = truncateToTokens(intentPromptLogic, MAX_INTENT_TOKENS);
-    const intentTokens = estimateTokens(truncatedIntent);
+  // Add dynamic reasoning context if available
+  if (dynamicReasoningContext && requiresInternalSecure) {
+    const truncatedReasoning = truncateToTokens(dynamicReasoningContext, MAX_INTENT_TOKENS);
+    const reasoningTokens = estimateTokens(truncatedReasoning);
     
-    if (currentTokens + intentTokens <= MAX_TOTAL_TOKENS) {
-      fullPrompt += `${truncatedIntent}\n\n`;
-      currentTokens += intentTokens;
-      console.log(`🎯 Added intent logic: ${intentTokens} tokens`);
+    if (currentTokens + reasoningTokens <= MAX_TOTAL_TOKENS) {
+      fullPrompt += `=== DYNAMIC REASONING CONTEXT ===
+${truncatedReasoning}
+
+=== END REASONING CONTEXT ===
+
+`;
+      currentTokens += reasoningTokens;
+      console.log(`🧠 Added dynamic reasoning context: ${reasoningTokens} tokens`);
     } else {
-      console.log('⚠️ Skipping intent logic due to token limit');
+      console.log('⚠️ Skipping dynamic reasoning context due to token limit');
     }
   }
   
@@ -344,17 +356,19 @@ ${emergencyTruncated}
   // Add guidance for responses (keep minimal)
   const guidance = documentContext 
     ? `=== RESPONSE GUIDELINES ===
-- Base your response primarily on the uploaded knowledge base content above
-- Prioritize diamond-specific documents tagged "diamond-specific" or "industry-priority" 
-- Use "Diamond..." control library documents over generic MPS content
-- Always format as 8-12 bullets: "Requirement — Evidence" or "Recommendation — Action"
-- Include diamond terminology: KPC, test stones, dual custody, variance thresholds, black-screen monitoring
-- Specify cadences (daily/weekly/monthly/quarterly) and role owners where known
-- Always end responses with: "📚 *Response based on your uploaded knowledge base documents*"`
+- REASON DYNAMICALLY: Analyze and interpret the uploaded knowledge base content above
+- EXPLAIN YOUR THINKING: Show your reasoning chain and decision process
+- REFERENCE ACTUAL DATA: Cite specific records, trends, or policies from the knowledge base
+- BE TRANSPARENT: Justify every recommendation with clear evidence
+- CROSS-REFERENCE: Consider organization context, sector risks, and compliance requirements
+- PROVIDE ACTIONABLE GUIDANCE: Include specific steps, cadences, and responsible roles
+- SHOW SOURCES: Reference the documents/policies that inform your recommendations
+- End with: "💡 *Reasoning based on your organization's knowledge base and contextual analysis*"`
     : `=== RESPONSE GUIDELINES ===
 - No specific organizational documents found for this query
-- Provide general guidance based on industry best practices
-- Suggest uploading relevant documents for more specific guidance`;
+- Provide general guidance based on industry best practices and Maturion principles
+- Suggest uploading relevant documents for organization-specific analysis
+- Still apply dynamic reasoning and explain your thinking process`;
   
   const guidanceTokens = estimateTokens(guidance);
   if (currentTokens + guidanceTokens <= MAX_TOTAL_TOKENS) {

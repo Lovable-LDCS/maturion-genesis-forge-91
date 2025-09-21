@@ -1,42 +1,49 @@
 import { supabase } from './utils.ts';
 
-// Function to get the AI Behavior & Knowledge Source Policy for enforcement
-export async function getAIBehaviorPolicy(organizationId: string): Promise<string> {
+// Function to get the Maturion Operating Policy & Governance
+export async function getMaturionOperatingPolicy(organizationId: string): Promise<string> {
   try {
     const { data: policyChunks, error } = await supabase
       .from('ai_document_chunks')
       .select('content, ai_documents!inner(title)')
       .eq('organization_id', organizationId)
-      .eq('ai_documents.title', 'AI Behavior & Knowledge Source Policy')
-      .limit(5);
+      .eq('ai_documents.title', 'Maturion Operating Policy & Governance')
+      .order('chunk_index', { ascending: true })
+      .limit(15);
     
     if (error || !policyChunks?.length) {
-      console.log('No AI Behavior Policy found, using default enforcement');
+      console.log('No Maturion Operating Policy found, using default logic');
       return '';
     }
     
+    console.log(`📋 Operating Policy: Loaded ${policyChunks.length} chunks from governance document`);
     return policyChunks.map(chunk => chunk.content).join('\n\n');
   } catch (error) {
-    console.error('Error fetching AI Behavior Policy:', error);
+    console.error('Error fetching Maturion Operating Policy:', error);
     return '';
   }
 }
 
-// Function to get Enhanced Maturion Intent Prompt Logic
-export async function getIntentPromptLogic(organizationId: string): Promise<string> {
+// Function to get dynamic reasoning context from uploaded knowledge base
+export async function getDynamicReasoningContext(organizationId: string, userQuery: string): Promise<string> {
   try {
-    const { data: logicChunks, error } = await supabase
-      .from('ai_document_chunks')
-      .select('content, ai_documents!inner(title)')
+    // Get all available policy and framework documents
+    const { data: documents, error } = await supabase
+      .from('ai_documents')
+      .select('id, title, document_type, tags, domain')
       .eq('organization_id', organizationId)
-      .eq('ai_documents.title', 'Enhanced Maturion Intent Prompt Logic')
-      .limit(5);
+      .eq('processing_status', 'completed')
+      .in('document_type', ['policy_document', 'framework_document', 'governance_document', 'mps_document']);
     
-    if (error || !logicChunks?.length) return '';
+    if (error || !documents?.length) {
+      console.log('No reasoning context documents found');
+      return '';
+    }
     
-    return logicChunks.map(chunk => chunk.content).join('\n\n');
+    console.log(`🧠 Found ${documents.length} reasoning context documents`);
+    return `Available Knowledge Base: ${documents.map(doc => `${doc.title} (${doc.document_type})`).join(', ')}`;
   } catch (error) {
-    console.error('Error fetching Intent Prompt Logic:', error);
+    console.error('Error fetching dynamic reasoning context:', error);
     return '';
   }
 }

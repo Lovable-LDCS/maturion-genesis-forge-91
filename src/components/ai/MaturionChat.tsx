@@ -47,7 +47,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
         return parsed.length > 0 ? parsed : [
           {
             id: '1',
-            content: "I'm Maturion, your diamond industry security specialist. I provide specific, actionable guidance for diamond operations, controls, and compliance. What diamond security topic can I help you with today?",
+            content: "Hello! I'm Maturion, your AI-first platform for security, maturity, and operational excellence. I analyze your organization's data and policies to provide transparent, explainable guidance. Ask me about your security posture, compliance gaps, or operational improvements - I'll show you my reasoning process and reference actual data.",
             sender: 'maturion',
             timestamp: new Date()
           }
@@ -60,7 +60,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
     return [
       {
         id: '1',
-        content: "Hello! I'm Maturion, your operational maturity specialist. I help organizations navigate their journey from reactive to resilient. How can I assist with your maturity assessment today?",
+        content: "Hello! I'm Maturion, your AI-first platform for security, maturity, and operational excellence. I provide transparent, traceable, and explainable guidance based on your organization's knowledge base and real-time analysis. I reason dynamically across your policies, data, and sector intelligence to deliver actionable insights. How can I help you today?",
         sender: 'maturion',
         timestamp: new Date()
       }
