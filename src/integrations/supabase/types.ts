@@ -1884,6 +1884,7 @@ export type Database = {
           items_updated: number | null
           organization_id: string
           sync_completed_at: string | null
+          sync_progress_message: string | null
           sync_started_at: string
           sync_status: string
           sync_summary: Json | null
@@ -1900,6 +1901,7 @@ export type Database = {
           items_updated?: number | null
           organization_id: string
           sync_completed_at?: string | null
+          sync_progress_message?: string | null
           sync_started_at?: string
           sync_status?: string
           sync_summary?: Json | null
@@ -1916,6 +1918,7 @@ export type Database = {
           items_updated?: number | null
           organization_id?: string
           sync_completed_at?: string | null
+          sync_progress_message?: string | null
           sync_started_at?: string
           sync_status?: string
           sync_summary?: Json | null
