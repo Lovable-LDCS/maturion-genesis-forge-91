@@ -226,13 +226,6 @@ async function testSupabaseConnection(dataSource: any) {
     throw new Error(`Supabase connection test failed: ${error.error}`);
   }
 }
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Supabase connection test failed: ${error.error}`);
-  }
-}
 
 async function testGoogleDriveConnection(dataSource: any) {
   // Similar connection test for Google Drive
