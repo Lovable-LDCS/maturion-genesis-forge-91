@@ -5146,14 +5146,14 @@ export type Database = {
         Returns: number
       }
       count_chunks_by_organization: {
-        Args: { org_id: string }
+        Args: { org_id_param: string }
         Returns: {
           chunks_with_embeddings: number
           total_chunks: number
         }[]
       }
       enhanced_input_validation: {
-        Args: { input_text: string }
+        Args: { input_data: Json } | { input_text: string }
         Returns: Json
       }
       expire_approval_requests: {
