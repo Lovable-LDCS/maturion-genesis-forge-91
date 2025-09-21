@@ -387,7 +387,7 @@ const DataSourcesManagement: React.FC = () => {
       try {
         const { data: logs, error } = await supabase
           .from('data_source_sync_logs')
-          .select('sync_status, sync_progress, error_messages')
+          .select('sync_status, error_messages')
           .eq('data_source_id', dataSourceId)
           .order('created_at', { ascending: false })
           .limit(1);
