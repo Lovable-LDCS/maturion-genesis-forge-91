@@ -53,16 +53,16 @@ serve(async (req) => {
     let queryResult;
     switch (dataSource.source_type) {
       case 'supabase':
-        queryResult = await querySupabase(dataSource, queryRequest);
+        queryResult = await querySupabase(supabase, dataSource, queryRequest);
         break;
       case 'google_drive':
-        queryResult = await queryGoogleDrive(dataSource, queryRequest);
+        queryResult = await queryGoogleDrive(supabase, dataSource, queryRequest);
         break;
       case 'sharepoint':
-        queryResult = await querySharePoint(dataSource, queryRequest);
+        queryResult = await querySharePoint(supabase, dataSource, queryRequest);
         break;
       case 'api':
-        queryResult = await queryAPI(dataSource, queryRequest);
+        queryResult = await queryAPI(supabase, dataSource, queryRequest);
         break;
       default:
         throw new Error(`Unsupported data source type: ${dataSource.source_type}`);
@@ -110,12 +110,12 @@ serve(async (req) => {
   }
 });
 
-async function querySupabase(dataSource: any, queryRequest: QueryRequest) {
+async function querySupabase(supabase: any, dataSource: any, queryRequest: QueryRequest) {
   const startTime = Date.now();
   
   try {
     const config = dataSource.connection_config;
-    const credentials = await parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(supabase, dataSource.credentials_encrypted);
 
     const client = createClient(config.url, credentials.anon_key);
 
@@ -191,11 +191,11 @@ async function querySupabase(dataSource: any, queryRequest: QueryRequest) {
   }
 }
 
-async function queryGoogleDrive(dataSource: any, queryRequest: QueryRequest) {
+async function queryGoogleDrive(supabase: any, dataSource: any, queryRequest: QueryRequest) {
   const startTime = Date.now();
   
   try {
-    const credentials = await parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(supabase, dataSource.credentials_encrypted);
 
     let url = 'https://www.googleapis.com/drive/v3/files';
     const params = new URLSearchParams();
@@ -250,11 +250,11 @@ async function queryGoogleDrive(dataSource: any, queryRequest: QueryRequest) {
   }
 }
 
-async function querySharePoint(dataSource: any, queryRequest: QueryRequest) {
+async function querySharePoint(supabase: any, dataSource: any, queryRequest: QueryRequest) {
   const startTime = Date.now();
   
   try {
-    const credentials = await parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(supabase, dataSource.credentials_encrypted);
     const siteId = queryRequest.parameters?.site_id || 'root';
 
     let url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root/children`;
@@ -304,12 +304,12 @@ async function querySharePoint(dataSource: any, queryRequest: QueryRequest) {
   }
 }
 
-async function queryAPI(dataSource: any, queryRequest: QueryRequest) {
+async function queryAPI(supabase: any, dataSource: any, queryRequest: QueryRequest) {
   const startTime = Date.now();
   
   try {
     const config = dataSource.connection_config;
-    const credentials = await parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(supabase, dataSource.credentials_encrypted);
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
@@ -364,7 +364,7 @@ async function queryAPI(dataSource: any, queryRequest: QueryRequest) {
   }
 }
 
-async function parseCredentials(encryptedCredentials: string | null): Promise<Record<string, string>> {
+async function parseCredentials(supabase: any, encryptedCredentials: string | null): Promise<Record<string, string>> {
   if (!encryptedCredentials) return {};
   
   try {
