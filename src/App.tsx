@@ -75,6 +75,7 @@ const App = () => (
               <Route path={ROUTES.MATURION_KNOWLEDGE_BASE} element={<MaturionKnowledgeBase />} />
               <Route path="/maturion-knowledge-base" element={<MaturionKnowledgeBase />} />
               <Route path={ROUTES.MATURION_UPLOADS} element={<MaturionUploads />} />
+              <Route path="/maturion-uploads" element={<Navigate to={ROUTES.MATURION_UPLOADS} replace />} />
               <Route path="/knowledge-base" element={<Navigate to={ROUTES.MATURION_KNOWLEDGE_BASE} replace />} />
               <Route path="/uploads" element={<Navigate to={ROUTES.MATURION_UPLOADS} replace />} />
               <Route path={ROUTES.INVITATION_ACCEPTANCE} element={<InvitationAcceptance />} />
