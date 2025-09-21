@@ -68,11 +68,45 @@ serve(async (req) => {
       
       // Handle evidence submission action
       if (body.action === 'evidence') {
+        // Create a temporary data source for the evidence if needed
+        let dataSourceId = body.data_source_id;
+        let tempDataSourceCreated = false;
+        
+        if (!dataSourceId) {
+          const { data: tempDataSource, error: tempError } = await supabase
+            .from('data_sources')
+            .insert({
+              organization_id: body.organization_id,
+              source_name: 'Temp Data Source for Evidence Test',
+              source_type: 'api',
+              connection_config: { test: true },
+              created_by: body.submitted_by,
+              updated_by: body.submitted_by
+            })
+            .select('id')
+            .single();
+            
+          if (tempError) {
+            console.error('Error creating temp data source for evidence:', tempError);
+            return new Response(JSON.stringify({ 
+              success: false, 
+              error: `Failed to create temp data source: ${tempError.message}`,
+              test: 'create_evidence_submission' 
+            }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          dataSourceId = tempDataSource.id;
+          tempDataSourceCreated = true;
+        }
+
         const { data: newEvidence, error } = await supabase
           .from('evidence_submissions')
           .insert({
             organization_id: body.organization_id,
-            data_source_id: body.data_source_id,
+            data_source_id: dataSourceId,
             evidence_type: body.evidence_type || 'document',
             title: body.title || 'QA Test Evidence',
             description: body.description || 'Test evidence submission for QA validation',
@@ -88,6 +122,14 @@ serve(async (req) => {
             data_sources(source_name, source_type)
           `)
           .single();
+
+        // Clean up temp data source if we created one
+        if (tempDataSourceCreated && dataSourceId) {
+          await supabase
+            .from('data_sources')
+            .delete()
+            .eq('id', dataSourceId);
+        }
 
         if (error) {
           console.error('Error creating evidence submission:', error);
@@ -112,6 +154,40 @@ serve(async (req) => {
 
       // Handle logging action
       if (body.action === 'logging') {
+        // Create a temporary data source for the logging if needed
+        let dataSourceId = body.data_source_id;
+        let tempDataSourceCreated = false;
+        
+        if (!dataSourceId) {
+          const { data: tempDataSource, error: tempError } = await supabase
+            .from('data_sources')
+            .insert({
+              organization_id: body.organization_id,
+              source_name: 'Temp Data Source for Logging Test',
+              source_type: 'api',
+              connection_config: { test: true },
+              created_by: body.user_id,
+              updated_by: body.user_id
+            })
+            .select('id')
+            .single();
+            
+          if (tempError) {
+            console.error('Error creating temp data source for logging:', tempError);
+            return new Response(JSON.stringify({ 
+              success: false, 
+              error: `Failed to create temp data source: ${tempError.message}`,
+              test: 'create_api_log'
+            }), {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            });
+          }
+          
+          dataSourceId = tempDataSource.id;
+          tempDataSourceCreated = true;
+        }
+
         const { data: logEntry, error } = await supabase
           .from('api_usage_log')
           .insert({
@@ -122,10 +198,18 @@ serve(async (req) => {
             request_payload: { test: 'QA validation request' },
             response_status: 200,
             execution_time_ms: 150,
-            data_source_id: body.data_source_id
+            data_source_id: dataSourceId
           })
           .select('id, endpoint, method, response_status, created_at')
           .single();
+
+        // Clean up temp data source if we created one
+        if (tempDataSourceCreated && dataSourceId) {
+          await supabase
+            .from('data_sources')
+            .delete()
+            .eq('id', dataSourceId);
+        }
 
         if (error) {
           console.error('Error creating API log:', error);
@@ -241,14 +325,28 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
-    console.error('QA Test API Error:', error);
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error.message 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+    } catch (error) {
+      console.error('QA Test API Error:', error);
+      
+      // Enhanced error logging
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+      }
+      
+      return new Response(JSON.stringify({ 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        error_details: error instanceof Error ? {
+          name: error.name,
+          stack: error.stack?.split('\n').slice(0, 3).join('\n')
+        } : null
+      }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 });

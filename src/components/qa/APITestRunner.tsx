@@ -79,8 +79,12 @@ export const APITestRunner: React.FC = () => {
         method: 'GET'
       });
       
-      if (listError || !listResponse.success) {
-        throw new Error(listError?.message || listResponse?.error || 'List API failed');
+      if (listError) {
+        throw new Error(`List API error: ${listError.message}`);
+      }
+      
+      if (!listResponse || !listResponse.success) {
+        throw new Error(`List API failed: ${listResponse?.error || 'Unknown error'}`);
       }
       
       updateTestResult('Data Sources API - List', {
@@ -112,8 +116,12 @@ export const APITestRunner: React.FC = () => {
         }
       });
       
-      if (createError || !createResponse.success) {
-        throw new Error(createError?.message || createResponse?.error || 'Create API failed');
+      if (createError) {
+        throw new Error(`Create API error: ${createError.message}`);
+      }
+      
+      if (!createResponse || !createResponse.success) {
+        throw new Error(`Create API failed: ${createResponse?.error || 'Unknown error'}`);
       }
       
       updateTestResult('Data Sources API - Create', {
@@ -131,7 +139,7 @@ export const APITestRunner: React.FC = () => {
         body: {
           action: 'evidence',
           organization_id: firstOrg,
-          data_source_id: createResponse.data.id,
+          // Don't provide data_source_id - let the function create a temp one
           evidence_type: 'document',
           title: `QA Test Evidence ${Date.now()}`,
           description: 'Test evidence for QA validation',
@@ -139,8 +147,12 @@ export const APITestRunner: React.FC = () => {
         }
       });
       
-      if (evidenceError || !evidenceResponse.success) {
-        throw new Error(evidenceError?.message || evidenceResponse?.error || 'Evidence API failed');
+      if (evidenceError) {
+        throw new Error(`Evidence API error: ${evidenceError.message}`);
+      }
+      
+      if (!evidenceResponse || !evidenceResponse.success) {
+        throw new Error(`Evidence API failed: ${evidenceResponse?.error || 'Unknown error'}`);
       }
       
       updateTestResult('Evidence Submissions API', {
@@ -159,12 +171,16 @@ export const APITestRunner: React.FC = () => {
           action: 'logging',
           organization_id: firstOrg,
           user_id: firstOrg,
-          data_source_id: createResponse.data.id
+          // Don't provide data_source_id - let the function create a temp one
         }
       });
       
-      if (logError || !logResponse.success) {
-        throw new Error(logError?.message || logResponse?.error || 'Logging API failed');
+      if (logError) {
+        throw new Error(`Logging API error: ${logError.message}`);
+      }
+      
+      if (!logResponse || !logResponse.success) {
+        throw new Error(`Logging API failed: ${logResponse?.error || 'Unknown error'}`);
       }
       
       updateTestResult('API Usage Logging', {
@@ -247,6 +263,13 @@ export const APITestRunner: React.FC = () => {
 
     } catch (error) {
       console.error('QA Test Error:', error);
+      
+      // Enhanced error logging with more details
+      if (error instanceof Error) {
+        console.error('Error name:', error.name);
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+      }
       
       // Update any running tests as failed
       setTestResults(prev => 
