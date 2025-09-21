@@ -32,76 +32,61 @@ serve(async (req) => {
 
     console.log(`🔍 Analyzing table: ${tableName} for org: ${organizationId}`);
 
-    // Get table schema information using raw SQL
-    const { data: schemaData, error: schemaError } = await supabase.rpc('execute_sql', {
-      query: `
-        SELECT column_name, data_type, is_nullable 
-        FROM information_schema.columns 
-        WHERE table_name = $1 AND table_schema = 'public'
-        ORDER BY ordinal_position
-      `,
-      params: [tableName]
-    }).then(async (result) => {
-      if (result.error) {
-        // Fallback to direct query if RPC doesn't exist 
-        return await supabase.from('information_schema.columns')
-          .select('column_name, data_type, is_nullable')
-          .eq('table_name', tableName)
-          .eq('table_schema', 'public');
-      }
-      return result;
-    }).catch(async () => {
-      // Final fallback using a different approach
-      const query = `
-        SELECT column_name, data_type, is_nullable 
-        FROM information_schema.columns 
-        WHERE table_name = '${tableName}' AND table_schema = 'public'
-        ORDER BY ordinal_position
-      `;
-      
-      const { data, error } = await supabase.rpc('list_public_tables');
-      if (error) throw error;
-      
-      // Simple schema detection for known tables
-      const knownTables = {
-        'adaptive_learning_metrics': [
-          { column_name: 'id', data_type: 'uuid', is_nullable: 'NO' },
-          { column_name: 'organization_id', data_type: 'uuid', is_nullable: 'NO' },
-          { column_name: 'metric_type', data_type: 'text', is_nullable: 'NO' },
-          { column_name: 'current_value', data_type: 'numeric', is_nullable: 'NO' },
-          { column_name: 'baseline_value', data_type: 'numeric', is_nullable: 'YES' },
-          { column_name: 'created_at', data_type: 'timestamp with time zone', is_nullable: 'NO' }
-        ]
-      };
-      
-      return { 
-        data: knownTables[tableName] || [], 
-        error: knownTables[tableName] ? null : new Error('Table schema not found') 
-      };
-    });
-
-    if (schemaError) {
-      console.error('Schema error:', schemaError);
+    // Verify table exists using safe RPC (no raw SQL / system schemas)
+    const { data: tables, error: tablesError } = await supabase.rpc('list_public_tables');
+    if (tablesError) {
+      console.error('Tables listing error:', tablesError);
       return new Response(JSON.stringify({ 
-        error: 'Failed to get table schema',
-        details: schemaError.message 
+        error: 'Failed to list tables',
+        details: tablesError.message 
       }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Query table data with organization filter if applicable
+    const tableExists = (tables || []).some((t: any) => (t.table_name || t).toString() === tableName);
+    if (!tableExists) {
+      return new Response(JSON.stringify({ 
+        error: `Table not found: ${tableName}`
+      }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Build base query and prefer last 6 months if date columns exist
     let tableQuery = supabase.from(tableName).select('*');
-    
-    // Apply organization filter if the table has organization_id column
-    const hasOrgColumn = schemaData?.some(col => col.column_name === 'organization_id');
+
+    // Temporary light query to infer columns from a single row
+    const { data: oneRow } = await supabase.from(tableName).select('*').limit(1).maybeSingle();
+    const inferredColumns = oneRow ? Object.keys(oneRow) : [];
+
+    // Organization filter when applicable
+    const hasOrgColumn = inferredColumns.includes('organization_id');
     if (hasOrgColumn && organizationId) {
       tableQuery = tableQuery.eq('organization_id', organizationId);
     }
 
-    // Limit to recent data for performance
-    tableQuery = tableQuery.order('created_at', { ascending: false }).limit(100);
+    // Date window (last 6 months) if we have common date columns
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    const sixMonthsIso = sixMonthsAgo.toISOString();
+    const datePriority = ['measurement_period_start', 'measurement_period_end', 'created_at', 'updated_at'];
+    const dateCol = datePriority.find(c => inferredColumns.includes(c));
+    if (dateCol) {
+      tableQuery = tableQuery.gte(dateCol, sixMonthsIso);
+    }
+
+    // Order by best available timestamp to keep analysis consistent
+    if (dateCol) {
+      tableQuery = tableQuery.order(dateCol, { ascending: false });
+    } else if (inferredColumns.includes('created_at')) {
+      tableQuery = tableQuery.order('created_at', { ascending: false });
+    }
+
+    // Reasonable limit for analysis
+    tableQuery = tableQuery.limit(500);
 
     const { data: tableData, error: dataError } = await tableQuery;
 
@@ -119,19 +104,37 @@ serve(async (req) => {
     const recordCount = tableData?.length || 0;
     console.log(`📊 Retrieved ${recordCount} records from ${tableName}`);
 
+    // Infer schema from data (column names and basic JS types)
+    const sample = tableData?.[0] || oneRow || {};
+    const schemaData = Object.keys(sample).map((key) => {
+      const v = (sample as any)[key];
+      const jsType = Array.isArray(v) ? 'array' : (v === null ? 'null' : typeof v);
+      return { column_name: key, data_type: jsType, is_nullable: v === null ? 'YES' : 'UNKNOWN' };
+    });
+
     // Analyze data structure and patterns
+    const dateFieldHeuristics = (col: string) => {
+      const lc = col.toLowerCase();
+      return lc.includes('date') || lc.includes('time') || lc.endsWith('_at') || lc === 'measurement_period_start' || lc === 'measurement_period_end';
+    };
+
+    const numericHeuristics = (val: any) => {
+      if (typeof val === 'number') return true;
+      if (typeof val === 'string') return !isNaN(parseFloat(val)) && isFinite(parseFloat(val));
+      return false;
+    };
+
+    const dateFields = schemaData.map(c => c.column_name).filter(dateFieldHeuristics);
+    const numericFields = Object.keys(sample).filter(k => numericHeuristics((sample as any)[k]));
+
     const analysisData = {
       tableName,
       schema: schemaData,
       recordCount,
       hasData: recordCount > 0,
-      sample: tableData?.slice(0, 5), // First 5 records for analysis
-      dateFields: schemaData?.filter(col => 
-        col.data_type.includes('timestamp') || col.data_type.includes('date')
-      ).map(col => col.column_name) || [],
-      numericFields: schemaData?.filter(col => 
-        col.data_type.includes('numeric') || col.data_type.includes('integer') || col.data_type.includes('real')
-      ).map(col => col.column_name) || [],
+      sample: tableData?.slice(0, 5),
+      dateFields,
+      numericFields,
     };
 
     // If no OpenAI key, return structured data for manual analysis

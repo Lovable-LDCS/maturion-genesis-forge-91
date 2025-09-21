@@ -110,14 +110,13 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
 
     // Check for table analysis requests
     const tableAnalysisPatterns = [
-      /analyze.*table\s+(\w+)/i,
-      /analyze.*data.*in\s+(\w+)/i,
-      /summarize.*(\w+)\s+table/i,
-      /what.*trends.*in\s+(\w+)/i,
-      /insights.*from\s+(\w+)/i,
-      /analyze.*(\w+_\w+)/i,
-      /data.*analysis.*(\w+)/i,
-      /analyze.*(\w+_\w+_\w+)/i
+      /analyze\s+(?:the\s+)?table\s+([a-zA-Z0-9_]+)/i,
+      /analyze.*data.*in\s+(?:the\s+)?([a-zA-Z0-9_]+)\s+table\b/i,
+      /summarize\s+(?:the\s+)?([a-zA-Z0-9_]+)\s+table\b/i,
+      /what.*trends?.*in\s+(?:the\s+)?([a-zA-Z0-9_]+)\s+table\b/i,
+      /insights?.*from\s+(?:the\s+)?([a-zA-Z0-9_]+)\s+table\b/i,
+      /analyze\s+([a-zA-Z0-9_]+)/i,
+      /data\s+analysis.*([a-zA-Z0-9_]+)/i
     ];
 
     let tableAnalysisMatch = null;
