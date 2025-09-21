@@ -305,20 +305,15 @@ const DataSourcesManagement: React.FC = () => {
 
   const syncDataSource = async (dataSource: DataSource) => {
     try {
-      const { error } = await supabase
-        .from('data_sources')
-        .update({
-          sync_status: 'syncing',
-          updated_at: new Date().toISOString(),
-          updated_by: user?.id
-        })
-        .eq('id', dataSource.id);
+      const { error } = await supabase.functions.invoke('sync-data-source', {
+        body: { data_source_id: dataSource.id }
+      });
 
       if (error) throw error;
 
       toast({
         title: 'Sync Started',
-        description: `Synchronization started for ${dataSource.source_name}`
+        description: `Synchronization initiated for ${dataSource.source_name}`
       });
 
       loadDataSources();
@@ -333,7 +328,7 @@ const DataSourcesManagement: React.FC = () => {
   };
 
   const deleteDataSource = async (dataSource: DataSource) => {
-    if (!confirm(`Are you sure you want to delete ${dataSource.source_name}?`)) {
+    if (!confirm(`Are you sure you want to delete "${dataSource.source_name}"? This action cannot be undone.`)) {
       return;
     }
 
@@ -347,7 +342,7 @@ const DataSourcesManagement: React.FC = () => {
 
       toast({
         title: 'Success',
-        description: 'Data source deleted successfully'
+        description: `${dataSource.source_name} deleted successfully`
       });
 
       loadDataSources();
