@@ -59,3 +59,6 @@ verify_jwt = true
 
 [functions.encrypt-credentials]
 verify_jwt = true
+
+[functions.check-database-access]
+verify_jwt = false

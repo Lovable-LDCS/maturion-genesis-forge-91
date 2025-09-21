@@ -108,6 +108,29 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
       return;
     }
 
+    // Check for database access questions
+    const lowerInput = inputValue.toLowerCase().trim();
+    const isDatabaseAccessQuestion = 
+      lowerInput.includes('database access') ||
+      lowerInput.includes('supabase project') ||
+      lowerInput.includes('access to my') && lowerInput.includes('database') ||
+      lowerInput.includes('connected to') && lowerInput.includes('supabase') ||
+      lowerInput.includes('can you confirm') && lowerInput.includes('access') ||
+      lowerInput.includes('do you have access');
+
+    if (isDatabaseAccessQuestion) {
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        content: inputValue,
+        sender: 'user',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, userMessage]);
+      setInputValue('');
+      await checkDatabaseAccess();
+      return;
+    }
+
     // Security validation
     const sanitizedInput = sanitizeInput(inputValue);
     const wasSanitized = sanitizedInput !== inputValue;
@@ -241,6 +264,81 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
     }
   };
 
+  const checkDatabaseAccess = async () => {
+    setIsLoading(true);
+    
+    const testMessage: Message = {
+      id: Date.now().toString(),
+      content: "Checking database access...",
+      sender: 'user',
+      timestamp: new Date()
+    };
+    setMessages(prev => [...prev, testMessage]);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('check-database-access');
+      
+      if (error) throw error;
+
+      let responseContent = '';
+      if (data.success) {
+        const { database, connection } = data;
+        const keyTableInfo = database.keyTables.found.map((table: string) => {
+          const count = database.keyTables.counts[table];
+          return `${table}${count >= 0 ? ` (${count.toLocaleString()} records)` : ' (access limited)'}`;
+        }).join(', ');
+
+        responseContent = `✅ **Database Access Confirmed**
+
+I have active access to your Supabase project called "Maturion". Here's what I can see:
+
+🗄️ **Database Overview:**
+• Total tables: ${database.totalTables}
+• Connection time: ${connection.queryTime}ms
+• Status: Connected and operational
+
+🔑 **Key Maturion Tables:**
+${keyTableInfo}
+
+📋 **All Available Tables:**
+${database.tableNames.slice(0, 20).join(', ')}${database.tableNames.length > 20 ? ` and ${database.tableNames.length - 20} more...` : ''}
+
+This confirms I can access your project data and provide context-aware responses based on your uploaded documents and assessment information.`;
+      } else {
+        responseContent = `❌ **Database Access Issue**
+
+I am unable to access your Supabase project right now. Here's the error I received:
+
+**Error:** ${data.error}
+
+Please check your connection or contact support if this issue persists.`;
+      }
+
+      const aiMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: responseContent,
+        sender: 'maturion',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
+
+    } catch (error) {
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: `❌ **Database Access Test Failed**
+
+I encountered an error while checking database access: ${error.message}
+
+Please try again or contact support if the issue persists.`,
+        sender: 'maturion',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleDiagnosticCommand = async (command: string) => {
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -253,7 +351,10 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
     setInputValue('');
 
     let response = '';
-    if (command === '!status' || command === '!memory') {
+    if (command === '!dbcheck' || command === '!database') {
+      await checkDatabaseAccess();
+      return;
+    } else if (command === '!status' || command === '!memory') {
       try {
         // Get document count for the organization
         const { data: docData } = await supabase
@@ -322,7 +423,7 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
         response = `❌ Error testing retrieval: ${error}`;
       }
     } else {
-      response = `🤖 **Available Commands:**\n\n• \`!status\` - Show system status and available knowledge\n• \`!memory\` - Display memory and document access info\n• \`!doc <filename>\` - Check chunks for specific document\n• \`!retrieval <query>\` - Test document retrieval for query\n\nTry asking: "Can you summarize our Diamond Security and Control Principles?" or "Are you able to read the uploaded documents?"`;
+      response = `🤖 **Available Commands:**\n\n• \`!dbcheck\` - Test database access and show connection status\n• \`!status\` - Show system status and available knowledge\n• \`!memory\` - Display memory and document access info\n• \`!doc <filename>\` - Check chunks for specific document\n• \`!retrieval <query>\` - Test document retrieval for query\n\nTry asking: "Can you confirm that you have access to my Supabase project?" or "Do you have access to the database?"`;
     }
 
     const aiMessage: Message = {
@@ -511,6 +612,36 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
             </ScrollArea>
 
             <div className="p-4 border-t border-gray-200">
+              <div className="flex space-x-2 mb-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={checkDatabaseAccess}
+                  disabled={isLoading}
+                  className="text-xs"
+                  title="Check Database Access"
+                >
+                  <Monitor className="h-3 w-3 mr-1" />
+                  DB Check
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setMessages([{
+                      id: '1',
+                      content: "Hello! I'm Maturion, your operational maturity specialist. I help organizations navigate their journey from reactive to resilient. How can I assist with your maturity assessment today?",
+                      sender: 'maturion',
+                      timestamp: new Date()
+                    }]);
+                  }}
+                  className="text-xs"
+                  title="Clear Chat"
+                >
+                  <MessageCircle className="h-3 w-3 mr-1" />
+                  Clear
+                </Button>
+              </div>
               <div className="flex space-x-2">
                 <Input
                   value={inputValue}
