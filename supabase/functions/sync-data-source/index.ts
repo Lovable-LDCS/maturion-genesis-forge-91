@@ -114,15 +114,17 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
   let itemsAdded = 0;
   let itemsUpdated = 0;
   let itemsFailed = 0;
-  let syncStatus = 'completed';
-  let errorMessage = null;
+  // Separate statuses for logs vs data_sources table
+  let logStatus = 'completed'; // data_source_sync_logs allowed values
+  let sourceStatus = 'success'; // data_sources allowed values
+  let errorMessage: string | null = null;
   const startTime = Date.now();
 
   try {
     console.log(`Performing sync for data source: ${dataSource.source_name} (${dataSource.source_type})`);
 
     // Update sync progress: Starting
-    await updateSyncProgress(supabase, syncLogId, 'connecting', 'Establishing connection...');
+    await updateSyncProgress(supabase, syncLogId, 'in_progress', 'Establishing connection...');
 
     // For now, we'll just simulate a sync process
     // In a real implementation, this would connect to the actual data source
@@ -131,26 +133,26 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
     switch (dataSource.source_type) {
       case 'supabase':
         // Test connection to verify it's working
-        await updateSyncProgress(supabase, syncLogId, 'connecting', 'Testing Supabase connection...');
+        await updateSyncProgress(supabase, syncLogId, 'in_progress', 'Testing Supabase connection...');
         await testSupabaseConnection(supabase, dataSource);
-        await updateSyncProgress(supabase, syncLogId, 'processing', 'Connection verified');
+        await updateSyncProgress(supabase, syncLogId, 'in_progress', 'Connection verified');
         itemsProcessed = 1;
         itemsAdded = 0; // No actual items to add for connection test
         break;
       
       case 'google_drive':
         // Sync Google Drive files
-        await updateSyncProgress(supabase, syncLogId, 'connecting', 'Connecting to Google Drive...');
+        await updateSyncProgress(supabase, syncLogId, 'in_progress', 'Connecting to Google Drive...');
         await testGoogleDriveConnection(supabase, dataSource);
-        await updateSyncProgress(supabase, syncLogId, 'processing', 'Syncing files...');
+        await updateSyncProgress(supabase, syncLogId, 'in_progress', 'Syncing files...');
         itemsProcessed = 1;
         break;
       
       case 'sharepoint':
         // Sync SharePoint documents  
-        await updateSyncProgress(supabase, syncLogId, 'connecting', 'Connecting to SharePoint...');
+        await updateSyncProgress(supabase, syncLogId, 'in_progress', 'Connecting to SharePoint...');
         await testSharePointConnection(supabase, dataSource);
-        await updateSyncProgress(supabase, syncLogId, 'processing', 'Syncing documents...');
+        await updateSyncProgress(supabase, syncLogId, 'in_progress', 'Syncing documents...');
         itemsProcessed = 1;
         break;
       
@@ -158,9 +160,9 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
       case 'api':
       case 'api_endpoint':
         // Test API connection
-        await updateSyncProgress(supabase, syncLogId, 'connecting', 'Testing API connection...');
+        await updateSyncProgress(supabase, syncLogId, 'in_progress', 'Testing API connection...');
         await testAPIConnection(supabase, dataSource);
-        await updateSyncProgress(supabase, syncLogId, 'processing', 'API connection verified');
+        await updateSyncProgress(supabase, syncLogId, 'in_progress', 'API connection verified');
         itemsProcessed = 1;
         break;
       
@@ -170,10 +172,13 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
 
     await updateSyncProgress(supabase, syncLogId, 'completed', 'Sync completed successfully');
     console.log(`Sync completed successfully for ${dataSource.source_name}`);
-    
+    // Final statuses
+    logStatus = 'completed';
+    sourceStatus = 'success';
   } catch (error) {
     console.error(`Sync failed for ${dataSource.source_name}:`, error);
-    syncStatus = 'failed';
+    logStatus = 'failed';
+    sourceStatus = 'failed';
     errorMessage = error instanceof Error ? error.message : String(error);
     itemsFailed = 1;
     
@@ -185,7 +190,7 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
   const { error: updateError } = await supabase
     .from('data_sources')
     .update({
-      sync_status: syncStatus,
+      sync_status: sourceStatus,
       sync_error_message: errorMessage,
       last_sync_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -201,7 +206,7 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
     .from('data_source_sync_logs')
     .update({
       sync_completed_at: new Date().toISOString(),
-      sync_status: syncStatus,
+      sync_status: logStatus,
       items_processed: itemsProcessed,
       items_added: itemsAdded,
       items_updated: itemsUpdated,
@@ -211,7 +216,7 @@ async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: 
         source_type: dataSource.source_type,
         source_name: dataSource.source_name,
         sync_duration_ms: Date.now() - startTime,
-        success: syncStatus === 'completed'
+        success: logStatus === 'completed'
       }
     })
     .eq('id', syncLogId);
@@ -227,7 +232,7 @@ async function updateSyncProgress(supabase: any, syncLogId: string, status: stri
       .from('data_source_sync_logs')
       .update({
         sync_status: status,
-        sync_progress: message,
+        sync_progress_message: message,
         updated_at: new Date().toISOString()
       })
       .eq('id', syncLogId);

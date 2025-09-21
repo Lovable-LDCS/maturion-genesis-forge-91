@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
@@ -68,6 +69,9 @@ const DataSourcesManagement: React.FC = () => {
     list: null,
     create: null
   });
+
+  // Live sync progress by data source id
+  const [syncProgress, setSyncProgress] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (currentOrganization) {
@@ -386,8 +390,8 @@ const DataSourcesManagement: React.FC = () => {
     const pollInterval = setInterval(async () => {
       try {
         const { data: logs, error } = await supabase
-          .from('data_source_sync_logs')
-          .select('sync_status, error_messages')
+          .from('data_source_sync_logs' as any)
+          .select('sync_status, sync_progress_message, error_messages')
           .eq('data_source_id', dataSourceId)
           .order('created_at', { ascending: false })
           .limit(1);
@@ -397,10 +401,13 @@ const DataSourcesManagement: React.FC = () => {
           return;
         }
 
-        const latestLog = logs?.[0];
+        const latestLog: any = logs?.[0];
         if (!latestLog) return;
 
-        // Update UI with progress
+        // Update per-source progress
+        setSyncProgress(prev => ({ ...prev, [dataSourceId]: latestLog.sync_progress_message || '' }));
+
+        // Update UI with status and error
         setDataSources(prev => 
           prev.map(ds => {
             if (ds.id === dataSourceId) {
@@ -476,6 +483,7 @@ const DataSourcesManagement: React.FC = () => {
   const getStatusBadge = (status: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive'> = {
       completed: 'default',
+      success: 'default',
       syncing: 'secondary',
       connecting: 'secondary',
       processing: 'secondary',
@@ -902,21 +910,32 @@ const DataSourcesManagement: React.FC = () => {
                 ) : (
                   <div className="space-y-4">
                     {dataSources.map((source) => (
-                      <div key={source.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div className="space-y-1">
-                          <div className="flex items-center space-x-2">
-                            <h4 className="font-medium">{source.source_name}</h4>
-                            <Badge variant="outline">{source.source_type}</Badge>
-                            {getStatusBadge(source.sync_status || 'never_synced')}
-                          </div>
-                          <p className="text-sm text-muted-foreground">
-                            {(source.metadata as any)?.description || 'No description'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Created: {new Date(source.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
+                    <div key={source.id} className="flex items-center justify-between p-4 border rounded-lg">
+                      <div className="space-y-1">
                         <div className="flex items-center space-x-2">
+                          <h4 className="font-medium">{source.source_name}</h4>
+                          <Badge variant="outline">{source.source_type}</Badge>
+                          {getStatusBadge(source.sync_status || 'never_synced')}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {(source.metadata as any)?.description || 'No description'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Created: {new Date(source.created_at).toLocaleDateString()}
+                        </p>
+                        {(source.sync_status === 'syncing' || syncProgress[source.id]) && (
+                          <div className="mt-2 flex items-center gap-3">
+                            <Progress
+                              value={source.sync_status === 'success' ? 100 : source.sync_status === 'failed' ? 100 : 35}
+                              className="w-40"
+                            />
+                            <span className="text-xs text-muted-foreground">
+                              {syncProgress[source.id] || 'Preparing sync...'}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
                           <Button
                             variant="outline"
                             size="sm"
