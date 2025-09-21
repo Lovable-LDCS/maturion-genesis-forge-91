@@ -15,7 +15,63 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+    const supabaseAnon = Deno.env.get('SUPABASE_ANON_KEY')!
+    
+    // Create admin client for authentication check
+    const adminSupabase = createClient(supabaseUrl, supabaseServiceKey)
+    const userSupabase = createClient(supabaseUrl, supabaseAnon)
+
+    // Get and validate auth token
+    const authHeader = req.headers.get('Authorization')
+    if (!authHeader) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Authorization header required'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401
+      })
+    }
+
+    const token = authHeader.replace('Bearer ', '')
+    const { data: user, error: authError } = await userSupabase.auth.getUser(token)
+    
+    if (authError || !user.user) {
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Invalid or expired token'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 401
+      })
+    }
+
+    // Check if user is admin using the secure function
+    const { data: isAdmin, error: adminError } = await adminSupabase.rpc('is_user_admin', {
+      user_uuid: user.user.id
+    })
+
+    if (adminError || !isAdmin) {
+      // Log security violation
+      await adminSupabase.from('audit_trail').insert({
+        organization_id: '00000000-0000-0000-0000-000000000000',
+        table_name: 'security_violations',
+        record_id: user.user.id,
+        action: 'UNAUTHORIZED_DATABASE_ACCESS_ATTEMPT',
+        changed_by: user.user.id,
+        change_reason: 'Non-admin user attempted to access check-database-access function'
+      })
+      
+      return new Response(JSON.stringify({
+        success: false,
+        error: 'Admin privileges required for database access checks'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 403
+      })
+    }
+
+    const supabase = adminSupabase
 
     console.log('Starting database access check...')
 
