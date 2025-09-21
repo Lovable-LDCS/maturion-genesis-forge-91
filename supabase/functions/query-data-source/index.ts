@@ -115,7 +115,7 @@ async function querySupabase(dataSource: any, queryRequest: QueryRequest) {
   
   try {
     const config = dataSource.connection_config;
-    const credentials = parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(dataSource.credentials_encrypted);
 
     const client = createClient(config.url, credentials.anon_key);
 
@@ -195,7 +195,7 @@ async function queryGoogleDrive(dataSource: any, queryRequest: QueryRequest) {
   const startTime = Date.now();
   
   try {
-    const credentials = parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(dataSource.credentials_encrypted);
 
     let url = 'https://www.googleapis.com/drive/v3/files';
     const params = new URLSearchParams();
@@ -254,7 +254,7 @@ async function querySharePoint(dataSource: any, queryRequest: QueryRequest) {
   const startTime = Date.now();
   
   try {
-    const credentials = parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(dataSource.credentials_encrypted);
     const siteId = queryRequest.parameters?.site_id || 'root';
 
     let url = `https://graph.microsoft.com/v1.0/sites/${siteId}/drive/root/children`;
@@ -309,7 +309,7 @@ async function queryAPI(dataSource: any, queryRequest: QueryRequest) {
   
   try {
     const config = dataSource.connection_config;
-    const credentials = parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(dataSource.credentials_encrypted);
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json'
@@ -364,20 +364,34 @@ async function queryAPI(dataSource: any, queryRequest: QueryRequest) {
   }
 }
 
-function parseCredentials(encryptedCredentials: string | null): Record<string, string> {
+async function parseCredentials(encryptedCredentials: string | null): Promise<Record<string, string>> {
   if (!encryptedCredentials) return {};
   
   try {
-    // In a real implementation, you would decrypt the credentials
-    // For now, assuming they're stored as JSON (not recommended for production)
+    // Production encryption handling
+    if (encryptedCredentials.startsWith('encrypted:v1:')) {
+      const decryptResponse = await supabase.functions.invoke('encrypt-credentials', {
+        body: { action: 'decrypt', data: encryptedCredentials }
+      });
+      
+      if (decryptResponse.error) {
+        console.error('Credential decryption failed:', decryptResponse.error);
+        throw new Error('Failed to decrypt credentials');
+      }
+      
+      return decryptResponse.data.decrypted;
+    }
+    
+    // Legacy fallback - for backwards compatibility during migration
     if (encryptedCredentials.startsWith('encrypted:')) {
-      // Mock decryption - in production, use proper encryption
       const mockDecrypted = encryptedCredentials.replace('encrypted:', '');
       return JSON.parse(mockDecrypted);
     }
     
+    // Unencrypted JSON (legacy)
     return JSON.parse(encryptedCredentials);
-  } catch {
+  } catch (error) {
+    console.error('Credential parsing error:', error);
     return { api_key: encryptedCredentials };
   }
 }

@@ -116,7 +116,7 @@ serve(async (req) => {
 async function connectSupabase(dataSource: any, testOnly = false) {
   try {
     const config = dataSource.connection_config as SupabaseConfig;
-    const credentials = parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(dataSource.credentials_encrypted);
 
     if (!config.url || !credentials.anon_key) {
       throw new Error('Missing Supabase URL or anon key');
@@ -153,7 +153,7 @@ async function connectSupabase(dataSource: any, testOnly = false) {
 async function connectGoogleDrive(dataSource: any, testOnly = false) {
   try {
     const config = dataSource.connection_config as GoogleDriveConfig;
-    const credentials = parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(dataSource.credentials_encrypted);
 
     if (!credentials.access_token && !credentials.refresh_token) {
       throw new Error('Missing Google Drive authentication tokens');
@@ -193,7 +193,7 @@ async function connectGoogleDrive(dataSource: any, testOnly = false) {
 async function connectSharePoint(dataSource: any, testOnly = false) {
   try {
     const config = dataSource.connection_config;
-    const credentials = parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(dataSource.credentials_encrypted);
 
     if (!credentials.access_token) {
       throw new Error('Missing SharePoint access token');
@@ -233,7 +233,7 @@ async function connectSharePoint(dataSource: any, testOnly = false) {
 async function connectAPI(dataSource: any, testOnly = false) {
   try {
     const config = dataSource.connection_config;
-    const credentials = parseCredentials(dataSource.credentials_encrypted);
+    const credentials = await parseCredentials(dataSource.credentials_encrypted);
 
     if (!config.api_endpoint) {
       throw new Error('Missing API endpoint URL');
@@ -272,20 +272,33 @@ async function connectAPI(dataSource: any, testOnly = false) {
   }
 }
 
-function parseCredentials(encryptedCredentials: string | null): Record<string, string> {
+async function parseCredentials(encryptedCredentials: string | null): Promise<Record<string, string>> {
   if (!encryptedCredentials) return {};
   
   try {
-    // In a real implementation, you would decrypt the credentials
-    // For now, assuming they're stored as JSON (not recommended for production)
+    // Production encryption handling
+    if (encryptedCredentials.startsWith('encrypted:v1:')) {
+      const decryptResponse = await supabase.functions.invoke('encrypt-credentials', {
+        body: { action: 'decrypt', data: encryptedCredentials }
+      });
+      
+      if (decryptResponse.error) {
+        console.error('Credential decryption failed:', decryptResponse.error);
+        throw new Error('Failed to decrypt credentials');
+      }
+      
+      return decryptResponse.data.decrypted;
+    }
+    
+    // Legacy fallback
     if (encryptedCredentials.startsWith('encrypted:')) {
-      // Mock decryption - in production, use proper encryption
       const mockDecrypted = encryptedCredentials.replace('encrypted:', '');
       return JSON.parse(mockDecrypted);
     }
     
     return JSON.parse(encryptedCredentials);
-  } catch {
+  } catch (error) {
+    console.error('Credential parsing error:', error);
     return { api_key: encryptedCredentials };
   }
 }

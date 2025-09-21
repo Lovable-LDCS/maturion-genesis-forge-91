@@ -155,9 +155,14 @@ const DataSourcesManagement: React.FC = () => {
     if (!currentOrganization || !user) return;
 
     try {
+      setIsCreating(true);
+      
       const connectionConfig: Record<string, any> = {
         description: createForm.description
       };
+
+      // Prepare credentials for encryption
+      let credentialsToEncrypt: Record<string, any> = {};
 
       // Add type-specific configuration
       if (createForm.source_type === 'supabase') {
@@ -165,39 +170,140 @@ const DataSourcesManagement: React.FC = () => {
         connectionConfig.supports_realtime = true;
         connectionConfig.supports_storage = true;
         connectionConfig.supports_live_queries = true;
-        // Store both anon and service keys securely
-        const supabaseCredentials = JSON.stringify({
+        
+        credentialsToEncrypt = {
           anon_key: createForm.supabase_anon_key,
-          service_role_key: createForm.supabase_service_key
-        });
-        connectionConfig.credentials_encrypted = `encrypted:${supabaseCredentials}`;
+          service_role_key: createForm.supabase_service_key,
+          url: createForm.supabase_url
+        };
       } else if (createForm.source_type === 'postgresql') {
         connectionConfig.supports_live_queries = true;
         connectionConfig.connection_type = 'database';
+        
+        credentialsToEncrypt = {
+          host: createForm.host || '',
+          port: createForm.port || 5432,
+          database: createForm.database || '',
+          username: createForm.username || '',
+          password: createForm.password || ''
+        };
       } else if (createForm.source_type === 'mysql') {
         connectionConfig.supports_live_queries = true;
         connectionConfig.connection_type = 'database';
-      } else if (createForm.source_type === 'postgresql') {
-        connectionConfig.supports_live_queries = true;
-        connectionConfig.connection_type = 'database';
-        connectionConfig.note = 'Direct PostgreSQL connection for live querying';
-      } else if (createForm.source_type === 'mysql') {
-        connectionConfig.supports_live_queries = true;
-        connectionConfig.connection_type = 'database';
-        connectionConfig.note = 'Direct MySQL connection for live querying';
-      } else if (createForm.source_type === 'api') {
-        connectionConfig.api_endpoint = createForm.webhook_url;
+        
+        credentialsToEncrypt = {
+          host: createForm.host || '',
+          port: createForm.port || 3306,
+          database: createForm.database || '',
+          username: createForm.username || '',
+          password: createForm.password || ''
+        };
+      } else if (createForm.source_type === 'rest_api') {
         connectionConfig.supports_live_queries = true;
         connectionConfig.connection_type = 'api';
+        
+        credentialsToEncrypt = {
+          base_url: createForm.webhook_url,
+          api_key: createForm.api_key,
+          headers: {}
+        };
       } else if (createForm.source_type === 'google_drive') {
         connectionConfig.client_id = createForm.client_id;
         connectionConfig.scope = createForm.scope || 'https://www.googleapis.com/auth/drive.readonly';
+        
+        credentialsToEncrypt = {
+          client_id: createForm.client_id,
+          client_secret: createForm.client_secret,
+          access_token: ''
+        };
       } else if (createForm.source_type === 'sharepoint') {
         connectionConfig.client_id = createForm.client_id;
         connectionConfig.scope = createForm.scope || 'Sites.Read.All';
-      } else if (createForm.source_type === 'api') {
-        connectionConfig.api_endpoint = createForm.webhook_url;
+        
+        credentialsToEncrypt = {
+          client_id: createForm.client_id,
+          client_secret: createForm.client_secret,
+          access_token: ''
+        };
       } else if (createForm.source_type === 'custom') {
+        try {
+          connectionConfig.custom = JSON.parse(createForm.custom_config);
+        } catch {
+          toast({
+            title: 'Invalid JSON',
+            description: 'Custom configuration must be valid JSON',
+            variant: 'destructive'
+          });
+          return;
+        }
+        
+        credentialsToEncrypt = {
+          endpoint: createForm.webhook_url,
+          api_key: createForm.api_key,
+          headers: {}
+        };
+      }
+
+      // Encrypt credentials using production encryption
+      const { data: encryptedResult, error: encryptError } = await supabase.functions.invoke('encrypt-credentials', {
+        body: { action: 'encrypt', data: credentialsToEncrypt }
+      });
+
+      if (encryptError) {
+        throw new Error('Failed to encrypt credentials: ' + encryptError.message);
+      }
+
+      const { error } = await supabase
+        .from('data_sources')
+        .insert({
+          organization_id: currentOrganization.id,
+          source_name: createForm.source_name,
+          source_type: createForm.source_type,
+          connection_config: connectionConfig,
+          credentials_encrypted: encryptedResult.encrypted,
+          metadata: {
+            created_via: 'ui',
+            description: createForm.description
+          },
+          created_by: user.id,
+          updated_by: user.id
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Data source created successfully with encrypted credentials'
+      });
+
+      setShowCreateDialog(false);
+      setCreateForm({
+        source_name: '',
+        source_type: 'supabase',
+        api_key: '',
+        client_id: '',
+        client_secret: '',
+        scope: '',
+        webhook_url: '',
+        custom_config: '{}',
+        description: '',
+        supabase_url: '',
+        supabase_anon_key: '',
+        supabase_service_key: ''
+      });
+      
+      loadDataSources();
+    } catch (error) {
+      console.error('Error creating data source:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to create data source',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsCreating(false);
+    }
+  };
         try {
           connectionConfig.custom = JSON.parse(createForm.custom_config);
         } catch {
@@ -252,15 +358,6 @@ const DataSourcesManagement: React.FC = () => {
       });
       
       loadDataSources();
-    } catch (error) {
-      console.error('Error creating data source:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to create data source',
-        variant: 'destructive'
-      });
-    }
-  };
 
   const syncDataSource = async (dataSource: DataSource) => {
     try {
