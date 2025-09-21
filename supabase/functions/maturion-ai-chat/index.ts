@@ -91,7 +91,8 @@ serve(async (req) => {
     let retrievedContexts: string[] = [];
 
     if (orgId && sanitizedPrompt.trim()) {
-    const startTime = Date.now();
+      const startTime = Date.now();
+      try {
         const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
         if (!OPENAI_API_KEY) {
           console.warn('⚠️ OpenAI API key not configured - using fallback retrieval');
@@ -209,7 +210,7 @@ serve(async (req) => {
     );
 
     // Build contextual input for multi-turn conversations
-    const contextualInput = await conversationManager.buildContextualInput(fullPrompt);
+    const contextualInput = await conversationManager.buildContextualInput(finalPrompt);
     
     console.log('🤖 Generating AI response...');
     let aiResponse: string;
@@ -222,10 +223,11 @@ serve(async (req) => {
     } else {
       try {
         // Enhanced API call with conversation context and tools
+        const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
         const openAIResponse = await fetch('https://api.openai.com/v1/responses', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${openAIApiKey}`,
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
