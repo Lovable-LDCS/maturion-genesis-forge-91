@@ -144,12 +144,14 @@ serve(async (req) => {
           const embedding = await generateEmbedding(sanitizedPrompt, OPENAI_API_KEY);
           
           // 2) Call match_ai_chunks via Supabase RPC
-          const { data: hits, error } = await supabase.rpc('match_ai_chunks', {
+          const { data: initialHits, error } = await supabase.rpc('match_ai_chunks', {
             p_org_id: orgId,
             p_query_embedding: `[${embedding.join(',')}]`,
             p_match_count: 8,
             p_min_score: 0.2,
           });
+
+          let hits = initialHits;
 
           if (error) {
             console.error('❌ match_ai_chunks error:', error);
