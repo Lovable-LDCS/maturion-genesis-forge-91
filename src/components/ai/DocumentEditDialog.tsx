@@ -40,7 +40,9 @@ export const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   document,
   saving = false
 }) => {
-const [formData, setFormData] = useState<DocumentUpdateData>({
+  const { availableContexts } = useOrganizationHierarchy();
+  
+  const [formData, setFormData] = useState<DocumentUpdateData>({
     title: '',
     domain: '',
     tags: '',
@@ -199,7 +201,7 @@ const handleSave = async () => {
                 <SelectValue placeholder="Select document context" />
               </SelectTrigger>
               <SelectContent>
-                {useOrganizationHierarchy().availableContexts.map((context) => (
+                {availableContexts.map((context) => (
                   <SelectItem key={context.id} value={context.id}>
                     {context.label}
                   </SelectItem>
