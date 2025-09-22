@@ -30,45 +30,40 @@ async function generateEmbedding(text: string, apiKey: string): Promise<number[]
 
 // Generate informative fallback response when AI fails
 const generateInformativeFallback = (prompt: string, error: any): string => {
-  console.log('🔄 Generating informative fallback for prompt:', prompt.substring(0, 100));
-  
-  // Analyze the prompt to provide relevant guidance
-  const lowerPrompt = prompt.toLowerCase();
-  
-  if (lowerPrompt.includes('domain') || lowerPrompt.includes('maturity model')) {
-    return `The main domains in the maturity model are:
+  console.log('🔄 Generating informative fallback for prompt:', prompt.substring(0, 120));
+  const lower = (prompt || '').toLowerCase();
 
-• **Leadership & Governance** — Oversight frameworks, chain of custody protocols, and executive accountability structures
-• **Process Integrity** — Reconciliation procedures, sorting methodologies, and operational variance controls  
-• **People & Culture** — Personnel security, insider threat mitigation, and competency management
-• **Protection** — Physical security, access controls, and technology safeguards
-• **Proof it Works** — Assurance frameworks, testing protocols, and evidence management
-
-Each domain contains specific criteria that organizations can assess and improve over time through a structured maturity progression.
-
-Would you like me to elaborate on any specific domain or discuss how to get started with your assessment?`;
+  // 1) Specific MPS criteria request
+  const mpsMatch = /mps\s*(\d{1,2})/i.exec(prompt || '');
+  const wantsCriteria = /\b(criteria|audit criteria|generate criteria|controls|requirements)\b/i.test(lower);
+  const titleMatch = /mps\s*\d{1,2}\s*[:\-]\s*([^\n]+)$/i.exec(prompt || '');
+  if (mpsMatch && wantsCriteria) {
+    const num = mpsMatch[1];
+    const title = titleMatch ? titleMatch[1].trim() : 'Specified MPS';
+    const heading = `AUDIT CRITERIA FOR MPS ${num} - ${title}`;
+    // Evidence-first, diamond-specific, plain text
+    const bullets = [
+      'A documented procedure that defines roles, approvals, and handoffs for this MPS.',
+      'A calibrated equipment register that records serials, location, calibration dates, and next-due dates.',
+      'A calibration certificate archive with traceability to standards and out-of-tolerance disposition.',
+      'A measurement log that captures inputs, readings, anomalies, and operator signatures for each run.',
+      'An exception workflow that logs anomalies, triage actions, compensating controls, and final resolution.',
+      'Dual data stream capture with automated variance thresholds and real-time alarms.',
+      'An independent verification record (second-person or system check) for critical steps.',
+      'A daily dashboard that shows KPIs, tolerance breaches, downtime, and reasons codes.',
+      'A change control record for procedures/equipment with risk assessment and approvals.',
+      'A monthly management review minutes pack with trends, corrective actions, and owners with due dates.'
+    ];
+    return [heading, '', ...bullets.map(b => `- ${b}`)].join('\n');
   }
-  
-  if (lowerPrompt.includes('table') || lowerPrompt.includes('data') || lowerPrompt.includes('analy')) {
-    return `For data analysis and table operations:
 
-• **Data Structure** — I can help you understand your database schema and relationships
-• **Analytics** — I can guide you through interpreting trends and patterns in your data
-• **Reporting** — I can assist with generating meaningful insights from your metrics
-• **Next Steps** — I can recommend actions based on your data patterns
-
-What specific aspect of your data would you like to explore? I can provide guidance on analysis techniques, interpretation methods, or help you identify key performance indicators.`;
+  // 2) Framework/domain questions
+  if (/(domains?|framework|structure|outline|maturity model)/i.test(lower)) {
+    return `MATURITY FRAMEWORK - FIVE CORE DOMAINS\n\n1. Leadership & Governance\n- Oversight, custody, accountability\n\n2. Process Integrity\n- Reconciliation, sorting/valuation, controls\n\n3. People & Culture\n- Insider threat, vetting, access reviews\n\n4. Protection\n- Physical security, access controls, technology safeguards\n\n5. Proof it Works\n- Assurance, testing, evidence and records integrity`;
   }
-  
-  // General fallback
-  return `I'm here to help with your maturity assessment and operational excellence goals. Here are immediate ways I can assist:
 
-• **Assessment Guidance** — Help you understand maturity models and evaluation frameworks
-• **Process Improvement** — Provide recommendations for operational enhancements
-• **Best Practices** — Share industry-standard approaches for your specific challenges
-• **Next Steps** — Guide you through implementation planning and prioritization
-
-What specific area would you like to focus on? I can provide detailed guidance tailored to your organization's needs.`;
+  // 3) General fallback
+  return `I can help with your maturity assessment. Tell me the domain/MPS and whether you want criteria, evidence examples, or actions.`;
 };
 
 serve(async (req) => {
@@ -416,6 +411,8 @@ For specific operational questions, use the retrieved context for detailed imple
 
 Guidelines:
 - Answer framework questions with framework content first
+- For prompts containing "MPS" and "criteria" (or "audit criteria"), do NOT return the framework; output 8-12 evidence-first audit criteria for that specific MPS
+- Follow only the latest user message if previous context conflicts
 - Provide diamond-first, evidence-based responses  
 - Use requirement-evidence-action format for operational details
 - Include cadences and owners for specific implementations
@@ -456,14 +453,8 @@ Guidelines:
         const msg = (modelErr as any)?.message || String(modelErr);
         console.warn('⚠️ OpenAI unavailable, synthesizing from retrieved chunks:', msg);
         
-        // Try to synthesize from retrieved chunks, otherwise use informative fallback
-        if (promptContext.documentContext && promptContext.documentContext.length > 0) {
-          // Provide a clean, plain-text framework overview instead of noisy synthesis
-          aiResponse = `MATURITY FRAMEWORK - FIVE CORE DOMAINS\n\n1. Leadership & Governance\n   MPS 1: Governance & Oversight - Board oversight, executive accountability\n   MPS 2: Chain of Custody - Asset tracking, custody protocols\n   MPS 3: KPI Dashboards - Performance monitoring, reporting frameworks\n   MPS 4: Risk Assessment - Risk identification, mitigation strategies\n   MPS 5: Regulatory Compliance - Compliance frameworks, attestations\n\n2. Process Integrity\n   MPS 6: Reconciliation - Tolerance-based reconciliation, variance detection\n   MPS 7: Sorting & Valuation - Double-blind methodologies, verification\n   MPS 8: Plant Recovery - Calibration protocols, anomaly detection\n   MPS 9: Process Controls - Standard operating procedures\n   MPS 10: Quality Assurance - Testing protocols, process control\n\n3. People & Culture\n   MPS 11: Insider Threat - Behavioral monitoring, reporting mechanisms\n   MPS 12: Personnel Vetting - Background screening, clearance management\n   MPS 13: Access Management - Privilege reviews, dual presence\n   MPS 14: Training & Competency - Skills assessment, certification\n   MPS 15: Culture & Ethics - Code of conduct, whistleblowing\n\n4. Protection\n   MPS 16: Physical Security - Perimeter defense, vault controls\n   MPS 17: Access Controls - Biometric systems, dual authorization\n   MPS 18: Technology Safeguards - Tamper detection, test stones\n   MPS 19: Scanning & Detection - Automated scanning, validation\n   MPS 20: Security Operations - Key control, alarm response\n\n5. Proof it Works\n   MPS 21: Assurance Framework - Independent verification, audits\n   MPS 22: Testing Protocols - Drill programs, red-team exercises\n   MPS 23: Evidence Management - Chain of evidence, audit trails\n   MPS 24: Records Integrity - Data hashing, backup verification\n   MPS 25: Resilience Planning - Fail-safe mechanisms, contingency planning`;
-        } else {
-          // Use informative fallback when no sources are available
-          aiResponse = generateInformativeFallback(contextualInput, modelErr);
-        }
+        // Use resilient plain-text fallback tailored to the prompt
+        aiResponse = generateInformativeFallback(contextualInput, modelErr);
       }
     }
 
