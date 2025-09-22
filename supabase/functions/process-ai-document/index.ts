@@ -909,7 +909,7 @@ serve(async (req: Request): Promise<Response> => {
           const contentHash = `chunk_${documentId}_${index}_${Date.now()}`;
 
           // Insert chunk with enhanced metadata for training slides
-          const isTrainingSlide = docType === 'training_slide' || 
+          const isTrainingSlideChunk = docType === 'training_slide' || 
                                   extractionMethod.includes('pptm') || 
                                   document.file_name.endsWith('.pptm') || 
                                   document.file_name.endsWith('.pptx');
@@ -947,25 +947,25 @@ serve(async (req: Request): Promise<Response> => {
               embedding: embedding,
               // New schema fields for training slides
               tokens: chunk.split(/\s+/).length,
-              page: isTrainingSlide ? Math.floor(index / 2) + 1 : null, // Approximate slide number
-              section: isTrainingSlide ? `Slide ${Math.floor(index / 2) + 1}` : null,
+              page: isTrainingSlideChunk ? Math.floor(index / 2) + 1 : null, // Approximate slide number
+              section: isTrainingSlideChunk ? `Slide ${Math.floor(index / 2) + 1}` : null,
               equipment_slugs: equipmentDetected.length > 0 ? equipmentDetected : null,
               stage: stage,
               layer: layer,
-              tags: isTrainingSlide ? [...tags, ...equipmentDetected.map(e => `equipment:${e}`)] : tags.length > 0 ? tags : null,
+              tags: isTrainingSlideChunk ? [...tags, ...equipmentDetected.map(e => `equipment:${e}`)] : tags.length > 0 ? tags : null,
               metadata: {
                 extraction_method: extractionMethod,
                 chunk_size: chunk.length,
                 has_embedding: !!embedding,
                 is_governance_document: isGovernanceDocument,
-                is_training_slide: isTrainingSlide,
-                layer3_extraction: isTrainingSlide,
-                training_material: isTrainingSlide,
-                document_type: isTrainingSlide ? 'training_slide' : document.document_type,
+                is_training_slide: isTrainingSlideChunk,
+                layer3_extraction: isTrainingSlideChunk,
+                training_material: isTrainingSlideChunk,
+                document_type: isTrainingSlideChunk ? 'training_slide' : document.document_type,
                 quality_score: isGovernanceDocument ? 1 : (chunk.length >= minChunkSizeForValidation ? 1 : 0.5),
                 processing_timestamp: new Date().toISOString(),
                 equipment_detected: equipmentDetected.length,
-                slide_processing: isTrainingSlide ? {
+                slide_processing: isTrainingSlideChunk ? {
                   slide_number: Math.floor(index / 2) + 1,
                   chunk_within_slide: (index % 2) + 1
                 } : null
