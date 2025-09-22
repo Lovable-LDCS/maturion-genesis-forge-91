@@ -29,14 +29,19 @@ async function generateEmbedding(text: string, apiKey: string): Promise<number[]
 }
 
 // Generate informative fallback response when AI fails
-const generateInformativeFallback = (prompt: string, error: any): string => {
-  console.log('🔄 Generating informative fallback for prompt:', prompt.substring(0, 120));
-  const lower = (prompt || '').toLowerCase();
+const generateInformativeFallback = (prompt: unknown, error: any): string => {
+  // Normalize prompt to plain text for safe processing
+  const promptText = Array.isArray(prompt)
+    ? prompt.map((p: any) => (typeof p === 'string' ? p : p?.content ?? '')).join('\n')
+    : String(prompt ?? '');
+
+  console.log('🔄 Generating informative fallback for prompt:', promptText.substring(0, 120));
+  const lower = promptText.toLowerCase();
 
   // 1) Specific MPS criteria request
-  const mpsMatch = /mps\s*(\d{1,2})/i.exec(prompt || '');
+  const mpsMatch = /mps\s*(\d{1,2})/i.exec(promptText);
   const wantsCriteria = /\b(criteria|audit criteria|generate criteria|controls|requirements)\b/i.test(lower);
-  const titleMatch = /mps\s*\d{1,2}\s*[:\-]\s*([^\n]+)$/i.exec(prompt || '');
+  const titleMatch = /mps\s*\d{1,2}\s*[:\-]\s*([^\n]+)$/i.exec(promptText);
   if (mpsMatch && wantsCriteria) {
     const num = mpsMatch[1];
     const title = titleMatch ? titleMatch[1].trim() : 'Specified MPS';
@@ -297,18 +302,7 @@ serve(async (req) => {
           throw new Error('OpenAI API key not configured');
         }
 
-        const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              {
-                role: 'system',
-                content: `You are Maturion, an AI assistant specializing in maturity models and organizational development. 
+const systemPromptA = `You are Maturion, an AI assistant specializing in maturity models and organizational development. 
                 
 Key Guidelines:
 - Provide diamond-first, answer-first responses
@@ -316,17 +310,25 @@ Key Guidelines:
 - Include cadences (daily/weekly/monthly/quarterly) and owners
 - Focus on technology-first controls and defense-in-depth
 - No meta-discussion or uncertainty language
-- When you don't have specific data, provide general best practices for the domain requested`
-              },
-              {
-                role: 'user',
-                content: contextualInput
-              }
-            ],
-            max_tokens: 1000,
-            temperature: 0.7
-          }),
-        });
+- When you don't have specific data, provide general best practices for the domain requested`;
+
+const chatMessagesA = Array.isArray(contextualInput)
+  ? [{ role: 'system', content: systemPromptA }, ...contextualInput]
+  : [{ role: 'system', content: systemPromptA }, { role: 'user', content: contextualInput }];
+
+const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${OPENAI_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'gpt-4o-mini',
+    messages: chatMessagesA,
+    max_tokens: 1000,
+    temperature: 0.7
+  }),
+});
 
         if (!openAIResponse.ok) {
           const errorData = await openAIResponse.text();
@@ -365,17 +367,28 @@ Key Guidelines:
           systemContent += '\n\nInstructions:\n- Do NOT output the framework list unless explicitly asked.\n- Use retrieved context to answer the user\'s request.';
         }
 
-        const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          body: JSON.stringify({
-            model: 'gpt-4o-mini',
-            messages: [
-              { role: 'system', content: systemContent },
-              { role: 'user', content: contextualInput }
-            ],
-            max_tokens: 1000,
-            temperature: 0.7
-          }),
-        });
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+if (!OPENAI_API_KEY) {
+  throw new Error('OpenAI API key not configured');
+}
+
+const chatMessagesB = Array.isArray(contextualInput)
+  ? [{ role: 'system', content: systemContent }, ...contextualInput]
+  : [{ role: 'system', content: systemContent }, { role: 'user', content: contextualInput }];
+
+const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Authorization': `Bearer ${OPENAI_API_KEY}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    model: 'gpt-4o-mini',
+    messages: chatMessagesB,
+    max_tokens: 1000,
+    temperature: 0.7
+  }),
+});
 
         if (!openAIResponse.ok) {
           const errorData = await openAIResponse.text();
