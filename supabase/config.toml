@@ -74,3 +74,9 @@ verify_jwt = true
 
 [functions.bulk-update-context]
 verify_jwt = true
+
+[functions.cleanup-duplicate-document]
+verify_jwt = true
+
+[functions.cleanup-legacy-documents]
+verify_jwt = true

@@ -31,6 +31,7 @@ import { AILogicIngestionDashboard } from '@/components/qa/AILogicIngestionDashb
 // import { DocumentChunkTester } from '@/components/qa/DocumentChunkTester'; // Disabled to avoid conflicts with Knowledge Base
 import { ApprovedFilesQueue } from '@/components/ai/ApprovedFilesQueue';
 import { DuplicateDocumentCleaner } from '@/components/qa/DuplicateDocumentCleaner';
+import { LegacyDocumentCleaner } from '@/components/qa/LegacyDocumentCleaner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useEffect, useState as useReactState } from 'react';
@@ -229,6 +230,7 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           </CardHeader>
           <CardContent>
             <DuplicateDocumentCleaner />
+            <LegacyDocumentCleaner />
           </CardContent>
         </Card>
 
