@@ -226,27 +226,36 @@ Please provide:
 
 Be specific and reference actual data values where relevant. If there's no data, explain what the table is designed to track and suggest next steps.`;
 
-    const openAIResponse = await fetch('https://api.openai.com/v1/responses', {
+    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-5',
-        instructions: 'You are a data analyst expert. Provide clear, actionable insights based on database table analysis. Focus on trends, patterns, and practical recommendations.',
-        input: aiPrompt,
-        max_completion_tokens: 1000,
-        store: false // For compliance and data retention
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a data analyst expert. Provide clear, actionable insights based on database table analysis. Focus on trends, patterns, and practical recommendations.'
+          },
+          {
+            role: 'user',
+            content: aiPrompt
+          }
+        ],
+        max_tokens: 1000
       }),
     });
 
     if (!openAIResponse.ok) {
-      throw new Error(`OpenAI API error: ${openAIResponse.status}`);
+      const errorText = await openAIResponse.text();
+      console.error('OpenAI API error:', openAIResponse.status, errorText);
+      throw new Error(`OpenAI API error: ${openAIResponse.status} - ${errorText}`);
     }
 
     const aiData = await openAIResponse.json();
-    const analysis = aiData.output_text;
+    const analysis = aiData.choices[0].message.content;
 
     return new Response(JSON.stringify({
       success: true,
