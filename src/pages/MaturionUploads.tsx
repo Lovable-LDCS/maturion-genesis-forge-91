@@ -226,6 +226,32 @@ const handleDelete = async (documentId: string) => {
     }, 2000);
   };
 
+  const handleReprocessAll = async () => {
+    if (!currentOrganization?.id) {
+      toast({ title: 'Error', description: 'No organization context available', variant: 'destructive' });
+      return;
+    }
+    setIsRefreshing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('trigger-document-reprocess', {
+        body: { organizationId: currentOrganization.id }
+      });
+      if (error) throw error;
+      toast({
+        title: 'Reprocess triggered',
+        description: `Queued ${data?.totalFound ?? 'all'} documents (failed/processing/pending)`
+      });
+    } catch (err: any) {
+      console.error('Error triggering reprocess-all:', err);
+      toast({ title: 'Reprocess failed', description: err?.message || 'Could not trigger reprocess', variant: 'destructive' });
+    } finally {
+      setTimeout(async () => {
+        await refreshDocuments();
+        setIsRefreshing(false);
+      }, 2000);
+    }
+  };
+
   const handleRegenerateEmbeddings = () => {
     setEmbeddingDialogOpen(true);
   };
@@ -321,7 +347,17 @@ const handleDelete = async (documentId: string) => {
                 </div>
               </div>
             </div>
-            <DocumentEditingGuide />
+            <div className="flex items-center justify-between gap-4">
+              <DocumentEditingGuide />
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={handleReprocessPending} disabled={isRefreshing}>
+                  Process Pending
+                </Button>
+                <Button variant="outline" onClick={handleReprocessAll} disabled={isRefreshing}>
+                  Reset Stuck & Reprocess All
+                </Button>
+              </div>
+            </div>
             <DocumentManagementTable
               documents={documents}
               loading={loading}
