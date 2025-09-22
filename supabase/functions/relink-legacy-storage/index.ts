@@ -5,16 +5,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+type Status = 'found_and_relinked' | 'found_but_failed' | 'not_found' | 'already_exists'
+
 interface RelinkResult {
   documentId: string
   fileName: string
   title?: string
   oldPath: string
   newPath?: string
-  status: 'found_and_relinked' | 'found_but_failed' | 'not_found' | 'already_exists'
+  status: Status
   bucket?: string
   error?: string
+  error_code?:
+    | 'file_not_found'
+    | 'permission_denied'
+    | 'download_failed'
+    | 'upload_failed'
+    | 'db_update_failed'
+    | 'processing_trigger_failed'
+    | 'unknown'
   processingTriggered?: boolean
+  attemptedBuckets: string[]
 }
 
 interface RelinkReport {
@@ -57,7 +68,7 @@ Deno.serve(async (req) => {
     const adminClient = createClient(supabaseUrl, serviceKey)
     const userClient = createClient(supabaseUrl, anonKey, { auth: { persistSession: false } })
 
-    // Validate user and check superuser status
+    // Validate user and ensure superuser
     const { data: userData, error: authError } = await userClient.auth.getUser(token)
     if (authError || !userData?.user) {
       return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
@@ -67,252 +78,211 @@ Deno.serve(async (req) => {
     }
 
     const userId = userData.user.id
-
-    // Check if user is superuser
-    const { data: isSuperuser, error: suError } = await adminClient
-      .rpc('is_superuser', { user_id_param: userId })
-
-    if (suError || !isSuperuser) {
+    const { data: isSuperuser } = await adminClient.rpc('is_superuser', { user_id_param: userId })
+    if (!isSuperuser) {
       return new Response(JSON.stringify({ error: 'Forbidden: superuser access required' }), {
         status: 403,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    const { organizationId, dryRun = true } = await req.json()
+    const { organizationId = null, dryRun = true } = await req.json()
 
-    console.log(`🔍 Starting legacy storage relink scan${dryRun ? ' (DRY RUN)' : ''} for org: ${organizationId || 'ALL'}`)
+    console.log(`🔍 Relink legacy storage ${dryRun ? '(DRY RUN)' : ''} org=${organizationId ?? 'ALL'}`)
 
-    // Get documents that might have storage issues
+    // Fetch candidate docs (exclude soft-deleted)
     let query = adminClient
       .from('ai_documents')
-      .select('id, file_name, file_path, title, organization_id, processing_status')
+      .select('id, file_name, file_path, title, organization_id, checksum, metadata')
       .is('deleted_at', null)
 
-    if (organizationId) {
-      query = query.eq('organization_id', organizationId)
-    }
+    if (organizationId) query = query.eq('organization_id', organizationId)
 
     const { data: documents, error: docsError } = await query
-
     if (docsError) {
-      console.error('Error fetching documents:', docsError)
+      console.error('Docs fetch error', docsError)
       return new Response(JSON.stringify({ error: 'Failed to fetch documents' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       })
     }
 
-    console.log(`📄 Found ${documents?.length || 0} documents to scan`)
-
     const results: RelinkResult[] = []
     const buckets = ['ai-documents', 'documents', 'ai_documents', 'chunk-tester']
 
     for (const doc of documents || []) {
-      console.log(`🔍 Scanning document: ${doc.file_name} (${doc.id})`)
-      
-      const result: RelinkResult = {
+      const attempted: string[] = []
+      const base: RelinkResult = {
         documentId: doc.id,
         fileName: doc.file_name,
         title: doc.title,
         oldPath: doc.file_path,
-        status: 'not_found'
+        status: 'not_found',
+        attemptedBuckets: attempted,
       }
 
-      // First, check if current path exists
-      const { data: currentExists } = await adminClient.storage
-        .from('ai-documents')
-        .list(doc.file_path.split('/').slice(0, -1).join('/'), {
-          search: doc.file_path.split('/').pop()
-        })
+      try {
+        // Check if current path already present in target bucket
+        attempted.push('ai-documents')
+        const parent = doc.file_path?.split('/')?.slice(0, -1).join('/') || ''
+        const leaf = doc.file_path?.split('/')?.pop() || doc.file_name
+        const { data: currentExists, error: curErr } = await adminClient.storage
+          .from('ai-documents')
+          .list(parent, { search: leaf })
+        if (curErr) console.warn('Check current path error', curErr)
 
-      if (currentExists && currentExists.length > 0) {
-        result.status = 'already_exists'
-        result.bucket = 'ai-documents'
-        results.push(result)
-        continue
-      }
+        if (currentExists && currentExists.some((f) => f.name === leaf)) {
+          base.status = 'already_exists'
+          base.bucket = 'ai-documents'
+          results.push(base)
+          continue
+        }
 
-      // Search across all buckets for the file
-      let foundInBucket: string | null = null
-      let foundPath: string | null = null
+        // Search other buckets: exact folder/leaf, then common paths, then case-insensitive in these paths
+        let foundBucket: string | null = null
+        let foundPath: string | null = null
 
-      for (const bucket of buckets) {
-        if (bucket === 'ai-documents') continue // Already checked
+        const candidatePaths = new Set<string>()
+        const parentFolder = parent
+        if (parentFolder) candidatePaths.add(parentFolder)
+        ;['', 'uploads', 'documents', userId].forEach((p) => candidatePaths.add(p))
 
-        try {
-          // Try to find by exact path first
-          const { data: exactMatch } = await adminClient.storage
-            .from(bucket)
-            .list(doc.file_path.split('/').slice(0, -1).join('/'), {
-              search: doc.file_path.split('/').pop()
+        for (const bucket of buckets) {
+          if (bucket === 'ai-documents') continue
+          attempted.push(bucket)
+          const listAndMatch = async (p: string) => {
+            const { data: files, error: listErr } = await adminClient.storage.from(bucket).list(p)
+            if (listErr) {
+              console.warn(`List error bucket=${bucket} path=${p}`, listErr)
+              return false
+            }
+            if (!files || files.length === 0) return false
+            const byName = files.find((f) => f.name === leaf)
+            const byNameCI = byName || files.find((f) => f.name.toLowerCase() === leaf.toLowerCase())
+            if (byNameCI) {
+              foundBucket = bucket
+              foundPath = p ? `${p}/${byNameCI.name}` : byNameCI.name
+              return true
+            }
+            return false
+          }
+
+          // Try parentFolder and common paths
+          const paths = Array.from(candidatePaths)
+          let matched = false
+          for (const p of paths) {
+            // eslint-disable-next-line no-await-in-loop
+            if (await listAndMatch(p)) {
+              matched = true
+              break
+            }
+          }
+          if (matched) break
+        }
+
+        if (foundBucket && foundPath) {
+          base.bucket = foundBucket
+          base.newPath = foundPath
+
+          if (dryRun) {
+            base.status = 'found_and_relinked'
+            results.push(base)
+            continue
+          }
+
+          // Move file to ai-documents if needed
+          let finalPath = foundPath
+          if (foundBucket !== 'ai-documents') {
+            const { data: fileData, error: dlErr } = await adminClient.storage.from(foundBucket).download(foundPath)
+            if (dlErr) {
+              base.status = 'found_but_failed'
+              base.error_code = 'download_failed'
+              base.error = dlErr.message
+              results.push(base)
+              continue
+            }
+
+            const targetPath = `${userId}/${Date.now()}-${leaf}`
+            const { error: upErr } = await adminClient.storage.from('ai-documents').upload(targetPath, fileData, { upsert: true })
+            if (upErr) {
+              base.status = 'found_but_failed'
+              base.error_code = 'upload_failed'
+              base.error = upErr.message
+              results.push(base)
+              continue
+            }
+
+            // Remove from source bucket (best effort)
+            await adminClient.storage.from(foundBucket).remove([foundPath])
+            finalPath = targetPath
+          }
+
+          // Update DB
+          const { error: updErr } = await adminClient
+            .from('ai_documents')
+            .update({
+              file_path: finalPath,
+              updated_at: new Date().toISOString(),
+              metadata: { ...(typeof doc.metadata === 'object' ? doc.metadata : {}), relinked_at: new Date().toISOString(), relinked_by: userId, relink_source: `${foundBucket}:${foundPath}` },
             })
+            .eq('id', doc.id)
 
-          if (exactMatch && exactMatch.length > 0) {
-            foundInBucket = bucket
-            foundPath = doc.file_path
-            break
+          if (updErr) {
+            base.status = 'found_but_failed'
+            base.error_code = 'db_update_failed'
+            base.error = updErr.message
+            results.push(base)
+            continue
           }
 
-          // Try to find by filename in root or common paths
-          const commonPaths = ['', 'uploads', 'documents', userId]
-          
-          for (const path of commonPaths) {
-            const { data: files } = await adminClient.storage
-              .from(bucket)
-              .list(path, { search: doc.file_name })
-
-            if (files && files.length > 0) {
-              const matchingFile = files.find(f => f.name === doc.file_name)
-              if (matchingFile) {
-                foundInBucket = bucket
-                foundPath = path ? `${path}/${matchingFile.name}` : matchingFile.name
-                break
-              }
-            }
-          }
-
-          if (foundInBucket) break
-        } catch (error) {
-          console.warn(`Error searching bucket ${bucket}:`, error)
-        }
-      }
-
-      if (foundInBucket && foundPath) {
-        console.log(`✅ Found ${doc.file_name} in bucket ${foundInBucket} at ${foundPath}`)
-        
-        result.bucket = foundInBucket
-        result.newPath = foundPath
-
-        if (!dryRun) {
+          // Re-trigger processing (best effort)
           try {
-            // Move file to ai-documents bucket if needed
-            let finalPath = foundPath
-            
-            if (foundInBucket !== 'ai-documents') {
-              // Download from source bucket
-              const { data: fileData, error: downloadError } = await adminClient.storage
-                .from(foundInBucket)
-                .download(foundPath)
-
-              if (downloadError) {
-                throw new Error(`Failed to download from ${foundInBucket}: ${downloadError.message}`)
-              }
-
-              // Upload to ai-documents
-              const targetPath = `${userId}/${Date.now()}-${doc.file_name}`
-              const { error: uploadError } = await adminClient.storage
-                .from('ai-documents')
-                .upload(targetPath, fileData, { upsert: true })
-
-              if (uploadError) {
-                throw new Error(`Failed to upload to ai-documents: ${uploadError.message}`)
-              }
-
-              finalPath = targetPath
-
-              // Delete from source bucket
-              await adminClient.storage
-                .from(foundInBucket)
-                .remove([foundPath])
-            }
-
-            // Update database record
-            const { error: updateError } = await adminClient
-              .from('ai_documents')
-              .update({ 
-                file_path: finalPath,
-                updated_at: new Date().toISOString(),
-                metadata: {
-                  ...doc.metadata,
-                  relinked_at: new Date().toISOString(),
-                  relinked_from: `${foundInBucket}:${foundPath}`,
-                  relinked_by: userId
-                }
-              })
-              .eq('id', doc.id)
-
-            if (updateError) {
-              throw new Error(`Failed to update database: ${updateError.message}`)
-            }
-
-            // Re-trigger processing
-            try {
-              await adminClient.functions.invoke('process-ai-document', {
-                body: { documentId: doc.id, forceReprocess: true }
-              })
-              result.processingTriggered = true
-            } catch (processError) {
-              console.warn(`Failed to trigger processing for ${doc.id}:`, processError)
-            }
-
-            result.status = 'found_and_relinked'
-            result.newPath = finalPath
-
-            // Log the relink action
-            await adminClient
-              .from('ai_upload_audit')
-              .insert({
-                organization_id: doc.organization_id,
-                document_id: doc.id,
-                action: 'relink_storage',
-                user_id: userId,
-                metadata: {
-                  old_path: doc.file_path,
-                  new_path: finalPath,
-                  source_bucket: foundInBucket,
-                  relinked_at: new Date().toISOString()
-                }
-              })
-
-          } catch (error) {
-            console.error(`Failed to relink ${doc.file_name}:`, error)
-            result.status = 'found_but_failed'
-            result.error = error.message
+            await adminClient.functions.invoke('process-ai-document', { body: { documentId: doc.id, forceReprocess: true } })
+            base.processingTriggered = true
+          } catch (pe: any) {
+            base.processingTriggered = false
+            base.error_code = 'processing_trigger_failed'
+            base.error = pe?.message
           }
-        } else {
-          result.status = 'found_and_relinked' // Would be relinked
-        }
-      }
 
-      results.push(result)
+          base.status = 'found_and_relinked'
+          base.newPath = finalPath
+          results.push(base)
+        } else {
+          base.status = 'not_found'
+          base.error_code = 'file_not_found'
+          base.error = 'File not found in any known bucket and paths'
+          results.push(base)
+        }
+      } catch (e: any) {
+        base.status = 'found_but_failed'
+        base.error_code = 'unknown'
+        base.error = e?.message || String(e)
+        results.push(base)
+      }
     }
 
     const report: RelinkReport = {
       totalDocuments: documents?.length || 0,
-      successfulRelinks: results.filter(r => r.status === 'found_and_relinked').length,
-      failedRelinks: results.filter(r => r.status === 'found_but_failed').length,
-      notFound: results.filter(r => r.status === 'not_found').length,
-      alreadyExists: results.filter(r => r.status === 'already_exists').length,
+      successfulRelinks: results.filter((r) => r.status === 'found_and_relinked').length,
+      failedRelinks: results.filter((r) => r.status === 'found_but_failed').length,
+      notFound: results.filter((r) => r.status === 'not_found').length,
+      alreadyExists: results.filter((r) => r.status === 'already_exists').length,
       results,
       scanTime: new Date().toISOString(),
-      executedBy: userId
+      executedBy: userId,
     }
 
-    console.log(`📊 Relink scan complete:`, {
-      total: report.totalDocuments,
-      successful: report.successfulRelinks,
-      failed: report.failedRelinks,
-      notFound: report.notFound,
-      alreadyExists: report.alreadyExists
-    })
+    console.log('📊 Relink report', report.successfulRelinks, report.failedRelinks, report.notFound)
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      report,
-      dryRun 
-    }), {
+    return new Response(JSON.stringify({ success: true, report, dryRun }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     })
-
-  } catch (error) {
+  } catch (error: any) {
     console.error('Relink legacy storage error:', error)
-    return new Response(JSON.stringify({ 
-      error: 'Internal server error',
-      details: error.message 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    })
+    return new Response(
+      JSON.stringify({ error: 'Internal server error', details: error?.message || String(error) }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    )
   }
 })

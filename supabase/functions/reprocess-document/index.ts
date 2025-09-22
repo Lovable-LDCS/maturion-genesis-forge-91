@@ -114,6 +114,20 @@ serve(async (req) => {
 
     if (processError) {
       console.error('Error triggering document processing:', processError);
+
+      // Try to extract detailed error from downstream function
+      let downstream: any = null;
+      try {
+        const res: Response | undefined = (processError as any).context;
+        if (res) {
+          const ct = res.headers.get('content-type') || '';
+          downstream = ct.includes('application/json') ? await res.json() : await res.text();
+        }
+      } catch (e) {
+        // ignore parsing issues
+      }
+      const detailMsg = typeof downstream === 'string' ? downstream : downstream?.error || downstream?.message || processError.message;
+      const status = (processError as any)?.context?.status || 500;
       
       // Revert status back to error
       await supabase
@@ -125,14 +139,15 @@ serve(async (req) => {
         .eq('id', documentId);
 
       return new Response(
-        JSON.stringify({ 
-          success: false, 
+        JSON.stringify({
+          success: false,
           error: 'Failed to trigger document processing',
-          details: processError.message
+          details: detailMsg,
+          status
         }),
-        { 
-          status: 500, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        {
+          status,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
     }

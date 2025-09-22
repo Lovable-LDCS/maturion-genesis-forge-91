@@ -34,7 +34,9 @@ interface RelinkResult {
   status: 'found_and_relinked' | 'found_but_failed' | 'not_found' | 'already_exists';
   bucket?: string;
   error?: string;
+  error_code?: 'file_not_found' | 'permission_denied' | 'download_failed' | 'upload_failed' | 'db_update_failed' | 'processing_trigger_failed' | 'unknown';
   processingTriggered?: boolean;
+  attemptedBuckets?: string[];
 }
 
 interface RelinkReport {
