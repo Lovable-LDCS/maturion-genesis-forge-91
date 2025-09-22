@@ -44,7 +44,7 @@ export const useMaturionDocuments = () => {
       if (!fnError && fnData && Array.isArray((fnData as any).documents)) {
         const docs = (fnData as any).documents as MaturionDocument[]
         console.log(`[Docs] Edge function returned ${docs.length} documents (superuser bypass).`)
-        setDocuments(docs)
+        setDocuments((docs || []).filter((d: any) => !d.deleted_at))
         return
       } else if (fnError) {
         console.warn('[Docs] Edge function not used (likely not superuser). Falling back to RLS query.', fnError)

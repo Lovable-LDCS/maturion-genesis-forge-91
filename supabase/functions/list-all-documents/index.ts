@@ -81,6 +81,7 @@ Deno.serve(async (req) => {
     const { data: documents, error: docsError } = await adminClient
       .from('ai_documents')
       .select('*')
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
 
     if (docsError) {
