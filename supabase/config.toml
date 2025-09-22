@@ -68,3 +68,6 @@ verify_jwt = true
 
 [functions.scan-all-tables]
 verify_jwt = true
+
+[functions.relink-legacy-storage]
+verify_jwt = true
