@@ -582,7 +582,13 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              className="h-8 w-8 p-0 data-[state=open]:bg-muted hover:bg-muted"
+                              title="Document actions"
+                            >
+                              <span className="sr-only">Open document actions menu</span>
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>

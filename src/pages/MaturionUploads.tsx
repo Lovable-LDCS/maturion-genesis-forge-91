@@ -18,6 +18,7 @@ import { useMaturionDocuments, MaturionDocument } from "@/hooks/useMaturionDocum
 import { useOrganization } from "@/hooks/useOrganization";
 import { supabase } from "@/integrations/supabase/client";
 import { SecurityGuard } from "@/components/security/SecurityGuard";
+import { Eye } from "lucide-react";
 export default function MaturionUploads() {
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
@@ -82,8 +83,12 @@ export default function MaturionUploads() {
 
   const handleReprocess = async (documentId: string) => {
     try {
-      const { error } = await supabase.functions.invoke('process-ai-document', {
-        body: { documentId }
+      const { data, error } = await supabase.functions.invoke('reprocess-document', {
+        body: { 
+          documentId,
+          organizationId: currentOrganization?.id,
+          forceReprocess: true 
+        }
       });
 
       if (error) throw error;
@@ -219,6 +224,28 @@ export default function MaturionUploads() {
           </TabsContent>
 
           <TabsContent value="manage" className="space-y-6">
+            <div className="bg-blue-50 dark:bg-blue-950 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <Eye className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-blue-900 dark:text-blue-100 mb-1">
+                    How to Edit Documents
+                  </h3>
+                  <p className="text-sm text-blue-700 dark:text-blue-200 mb-2">
+                    Click the <strong>⋯ button</strong> in the "Actions" column of any document row to access:
+                  </p>
+                  <ul className="text-sm text-blue-700 dark:text-blue-200 space-y-1">
+                    <li>• <strong>Edit Metadata</strong> - Update title, tags, domain, etc.</li>
+                    <li>• <strong>Replace Document</strong> - Upload a new version</li>
+                    <li>• <strong>View Audit Log</strong> - See all changes made</li>
+                    <li>• <strong>Reprocess</strong> - Retry failed documents</li>
+                    <li>• <strong>Delete</strong> - Remove documents permanently</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
             <DocumentEditingGuide />
             <DocumentManagementTable
               documents={documents}
