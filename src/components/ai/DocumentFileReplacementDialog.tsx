@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useToast } from "@/hooks/use-toast";
+import { useOrganization } from "@/hooks/useOrganization";
 import { Upload, FileText, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -34,6 +35,7 @@ export const DocumentFileReplacementDialog: React.FC<DocumentFileReplacementDial
   const [isReplacing, setIsReplacing] = useState(false);
   const { uploadFile, uploading } = useFileUpload();
   const { toast } = useToast();
+  const { currentOrganization } = useOrganization();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -54,9 +56,11 @@ export const DocumentFileReplacementDialog: React.FC<DocumentFileReplacementDial
 
     setIsReplacing(true);
     try {
-      // Upload the new file to replace the existing document
-      const newFilePath = `documents/${document.id}/${selectedFile.name}`;
-      const uploadUrl = await uploadFile(selectedFile, 'documents', newFilePath);
+      // Generate a session ID for the replacement upload
+      const sessionId = crypto.randomUUID();
+      // Use the same bucket and path structure as regular uploads
+      const newFilePath = `unified-uploads/${currentOrganization?.id}/${sessionId}/${selectedFile.name}`;
+      const uploadUrl = await uploadFile(selectedFile, 'ai-documents', newFilePath);
       
       if (uploadUrl) {
         // Call the reprocess endpoint to trigger document replacement
