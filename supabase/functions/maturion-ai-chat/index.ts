@@ -376,41 +376,41 @@ CRITICAL: When asked about "main domains", "framework structure", "5 domains", o
 MATURITY FRAMEWORK - FIVE CORE DOMAINS
 
 1. Leadership & Governance
-- Chain of custody protocols and executive accountability
-- Governance oversight frameworks and variance management
-- Key Performance Indicator (KPI) dashboards and reporting
-- Risk assessment and regulatory compliance oversight
-- Executive attestations and RACI accountability matrices
+   MPS 1: Governance & Oversight - Board oversight, executive accountability, variance management
+   MPS 2: Chain of Custody - Asset tracking, custody protocols, handoff procedures
+   MPS 3: KPI Dashboards - Performance monitoring, reporting frameworks, variance alerts
+   MPS 4: Risk Assessment - Risk identification, assessment protocols, mitigation strategies
+   MPS 5: Regulatory Compliance - Compliance frameworks, audit preparation, attestations
 
 2. Process Integrity  
-- Reconciliation procedures with defined tolerances and cadences
-- Sorting and valuation methodologies with double-blind controls
-- Plant recovery operations with calibration and anomaly detection
-- Dual data stream monitoring and variance alarms
-- Standard Operating Procedures (SOPs) and process controls
+   MPS 6: Reconciliation - Tolerance-based reconciliation, automated variance detection
+   MPS 7: Sorting & Valuation - Double-blind methodologies, independent verification
+   MPS 8: Plant Recovery - Calibration protocols, anomaly detection, dual data streams
+   MPS 9: Process Controls - Standard operating procedures, control point monitoring
+   MPS 10: Quality Assurance - Testing protocols, statistical process control
 
 3. People & Culture
-- Insider threat mitigation and behavioral monitoring
-- Enhanced personnel vetting and background screening
-- Dual presence requirements and personnel rotation
-- Access reviews and privilege management (monthly cadence)
-- Whistleblowing mechanisms and incident reporting
+   MPS 11: Insider Threat - Behavioral monitoring, anomaly detection, reporting mechanisms
+   MPS 12: Personnel Vetting - Background screening, ongoing monitoring, clearance management
+   MPS 13: Access Management - Privilege reviews, rotation policies, dual presence
+   MPS 14: Training & Competency - Skills assessment, certification programs, refresher training
+   MPS 15: Culture & Ethics - Code of conduct, whistleblowing, incident response
 
 4. Protection
-- Physical security including perimeter defense and vault controls
-- Access controls with biometric authentication and dual authorization
-- Technology safeguards including tamper detection and test stones
-- Scanning systems with black-screen verification procedures
-- Mantraps, key control, and alarm response protocols
+   MPS 16: Physical Security - Perimeter defense, vault controls, mantrap access
+   MPS 17: Access Controls - Biometric systems, dual authorization, real-time monitoring
+   MPS 18: Technology Safeguards - Tamper detection, test stones, black-screen verification
+   MPS 19: Scanning & Detection - Automated scanning, anomaly alerts, validation procedures
+   MPS 20: Security Operations - Key control, alarm response, incident management
 
 5. Proof it Works
-- Assurance frameworks and independent verification
-- Testing protocols including drills and red-team exercises
-- Evidence management with immutable audit trails
-- Records integrity with hashing, signatures, and backup testing
-- Resilience planning with fail-safe mechanisms and contingencies
+   MPS 21: Assurance Framework - Independent verification, third-party audits, certification
+   MPS 22: Testing Protocols - Drill programs, red-team exercises, vulnerability assessments
+   MPS 23: Evidence Management - Chain of evidence, immutable logs, audit trails
+   MPS 24: Records Integrity - Data hashing, backup verification, restore testing
+   MPS 25: Resilience Planning - Fail-safe mechanisms, contingency planning, recovery procedures
 
-Each domain contains multiple Management Performance Standards (MPS) that define specific operational requirements and evidence criteria.
+Each MPS contains specific operational requirements, evidence criteria, and implementation guidance tailored to diamond industry security and operational excellence.
 
 For specific operational questions, use the retrieved context for detailed implementation guidance.
 
@@ -459,7 +459,7 @@ Guidelines:
         // Try to synthesize from retrieved chunks, otherwise use informative fallback
         if (promptContext.documentContext && promptContext.documentContext.length > 0) {
           // Provide a clean, plain-text framework overview instead of noisy synthesis
-          aiResponse = `MATURITY FRAMEWORK - FIVE CORE DOMAINS\n\n1. Leadership & Governance\n- Chain of custody protocols, executive accountability, governance oversight\n\n2. Process Integrity\n- Reconciliation procedures, sorting/valuation methodologies, operational controls\n\n3. People & Culture\n- Insider threat mitigation, enhanced vetting, dual presence and access reviews\n\n4. Protection\n- Physical security, access controls, tamper detection and scanning safeguards\n\n5. Proof it Works\n- Assurance frameworks, testing protocols, evidence and records integrity`;
+          aiResponse = `MATURITY FRAMEWORK - FIVE CORE DOMAINS\n\n1. Leadership & Governance\n   MPS 1: Governance & Oversight - Board oversight, executive accountability\n   MPS 2: Chain of Custody - Asset tracking, custody protocols\n   MPS 3: KPI Dashboards - Performance monitoring, reporting frameworks\n   MPS 4: Risk Assessment - Risk identification, mitigation strategies\n   MPS 5: Regulatory Compliance - Compliance frameworks, attestations\n\n2. Process Integrity\n   MPS 6: Reconciliation - Tolerance-based reconciliation, variance detection\n   MPS 7: Sorting & Valuation - Double-blind methodologies, verification\n   MPS 8: Plant Recovery - Calibration protocols, anomaly detection\n   MPS 9: Process Controls - Standard operating procedures\n   MPS 10: Quality Assurance - Testing protocols, process control\n\n3. People & Culture\n   MPS 11: Insider Threat - Behavioral monitoring, reporting mechanisms\n   MPS 12: Personnel Vetting - Background screening, clearance management\n   MPS 13: Access Management - Privilege reviews, dual presence\n   MPS 14: Training & Competency - Skills assessment, certification\n   MPS 15: Culture & Ethics - Code of conduct, whistleblowing\n\n4. Protection\n   MPS 16: Physical Security - Perimeter defense, vault controls\n   MPS 17: Access Controls - Biometric systems, dual authorization\n   MPS 18: Technology Safeguards - Tamper detection, test stones\n   MPS 19: Scanning & Detection - Automated scanning, validation\n   MPS 20: Security Operations - Key control, alarm response\n\n5. Proof it Works\n   MPS 21: Assurance Framework - Independent verification, audits\n   MPS 22: Testing Protocols - Drill programs, red-team exercises\n   MPS 23: Evidence Management - Chain of evidence, audit trails\n   MPS 24: Records Integrity - Data hashing, backup verification\n   MPS 25: Resilience Planning - Fail-safe mechanisms, contingency planning`;
         } else {
           // Use informative fallback when no sources are available
           aiResponse = generateInformativeFallback(contextualInput, modelErr);
