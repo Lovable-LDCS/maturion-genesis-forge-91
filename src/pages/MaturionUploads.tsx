@@ -12,6 +12,7 @@ import { FailedDocumentsCleanup } from "@/components/ai/FailedDocumentsCleanup";
 import { DeletedDocumentsTrash } from "@/components/ai/DeletedDocumentsTrash";
 import { DocumentEditingGuide, FeatureExplanation } from "@/components/ui/FeatureGuide";
 import { LegacyStorageRelinker } from "@/components/admin/LegacyStorageRelinker";
+import { BulkContextUpdater } from "@/components/admin/BulkContextUpdater";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -272,6 +273,7 @@ const handleDelete = async (documentId: string) => {
               <TabsTrigger value="failed">Failed Documents</TabsTrigger>
               <TabsTrigger value="trash">Trash</TabsTrigger>
               <TabsTrigger value="relink">Legacy Relink</TabsTrigger>
+              <TabsTrigger value="bulk-context">Bulk Context</TabsTrigger>
               <TabsTrigger value="merge">Merge Placeholders</TabsTrigger>
               <TabsTrigger value="migration">API Migration</TabsTrigger>
               <TabsTrigger value="security">Security Dashboard</TabsTrigger>
@@ -346,6 +348,10 @@ const handleDelete = async (documentId: string) => {
 
           <TabsContent value="relink" className="space-y-6">
             <LegacyStorageRelinker />
+          </TabsContent>
+
+          <TabsContent value="bulk-context" className="space-y-6">
+            <BulkContextUpdater />
           </TabsContent>
 
           <TabsContent value="merge" className="space-y-6">

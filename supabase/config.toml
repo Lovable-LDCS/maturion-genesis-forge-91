@@ -71,3 +71,6 @@ verify_jwt = true
 
 [functions.relink-legacy-storage]
 verify_jwt = true
+
+[functions.bulk-update-context]
+verify_jwt = true
