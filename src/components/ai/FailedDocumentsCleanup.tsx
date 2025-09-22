@@ -15,6 +15,8 @@ interface FailedDocumentsCleanupProps {
   loading?: boolean;
 }
 
+const STUCK_THRESHOLD_HOURS = 24; // Documents pending for more than 24 hours are considered stuck
+
 export const FailedDocumentsCleanup: React.FC<FailedDocumentsCleanupProps> = ({
   failedDocuments,
   onDelete,
@@ -23,6 +25,16 @@ export const FailedDocumentsCleanup: React.FC<FailedDocumentsCleanupProps> = ({
   loading = false
 }) => {
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
+
+  // Include documents that are stuck in pending state for too long
+  const stuckPendingDocs = failedDocuments.filter(doc => {
+    if (doc.processing_status !== 'pending') return false;
+    const hoursSinceCreated = (Date.now() - new Date(doc.created_at).getTime()) / (1000 * 60 * 60);
+    return hoursSinceCreated > STUCK_THRESHOLD_HOURS;
+  });
+
+  const actualFailedDocs = failedDocuments.filter(doc => doc.processing_status === 'failed');
+  const allProblematicDocs = [...actualFailedDocs, ...stuckPendingDocs];
 
   const toggleSelection = (docId: string) => {
     const newSelection = new Set(selectedDocs);
@@ -35,7 +47,7 @@ export const FailedDocumentsCleanup: React.FC<FailedDocumentsCleanupProps> = ({
   };
 
   const selectAll = () => {
-    setSelectedDocs(new Set(failedDocuments.map(doc => doc.id)));
+    setSelectedDocs(new Set(allProblematicDocs.map(doc => doc.id)));
   };
 
   const clearSelection = () => {
@@ -48,6 +60,10 @@ export const FailedDocumentsCleanup: React.FC<FailedDocumentsCleanupProps> = ({
   };
 
   const getErrorReason = (doc: MaturionDocument) => {
+    if (doc.processing_status === 'pending') {
+      const hoursSinceCreated = (Date.now() - new Date(doc.created_at).getTime()) / (1000 * 60 * 60);
+      return `Stuck in pending state for ${Math.floor(hoursSinceCreated)} hours - likely processing failure`;
+    }
     if (doc.metadata?.error) {
       return doc.metadata.error;
     }
@@ -57,13 +73,13 @@ export const FailedDocumentsCleanup: React.FC<FailedDocumentsCleanupProps> = ({
     return 'Unknown error during processing';
   };
 
-  if (failedDocuments.length === 0) {
+  if (allProblematicDocs.length === 0) {
     return (
       <Card>
         <CardContent className="py-8">
           <div className="text-center text-muted-foreground">
             <Info className="h-12 w-12 mx-auto mb-4 opacity-50" />
-            <div>No failed documents found</div>
+            <div>No problematic documents found</div>
             <div className="text-sm mt-2">All documents have been processed successfully</div>
           </div>
         </CardContent>
@@ -78,11 +94,14 @@ export const FailedDocumentsCleanup: React.FC<FailedDocumentsCleanupProps> = ({
           <div>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-destructive" />
-              Failed Documents Cleanup
-              <Badge variant="destructive">{failedDocuments.length}</Badge>
+              Failed & Stuck Documents
+              <Badge variant="destructive">{actualFailedDocs.length}</Badge>
+              {stuckPendingDocs.length > 0 && (
+                <Badge variant="outline">{stuckPendingDocs.length} stuck</Badge>
+              )}
             </CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              These documents failed processing and may need attention
+              Documents that failed processing or are stuck pending for over {STUCK_THRESHOLD_HOURS} hours
             </p>
           </div>
           <div className="flex gap-2">
@@ -124,7 +143,7 @@ export const FailedDocumentsCleanup: React.FC<FailedDocumentsCleanupProps> = ({
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
-          {failedDocuments.map((doc) => (
+          {allProblematicDocs.map((doc) => (
             <div 
               key={doc.id}
               className={`border rounded-lg p-4 transition-colors ${
@@ -142,8 +161,11 @@ export const FailedDocumentsCleanup: React.FC<FailedDocumentsCleanupProps> = ({
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-2">
                       <h4 className="font-medium truncate">{doc.title || doc.file_name}</h4>
-                      <Badge variant="destructive" className="text-xs">
-                        Failed
+                      <Badge 
+                        variant={doc.processing_status === 'failed' ? 'destructive' : 'outline'} 
+                        className="text-xs"
+                      >
+                        {doc.processing_status === 'failed' ? 'Failed' : 'Stuck Pending'}
                       </Badge>
                     </div>
                     <div className="text-sm text-muted-foreground space-y-1">

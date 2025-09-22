@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { CheckCircle, XCircle, Clock, Zap, Brain, Shield } from 'lucide-react';
-import { useToast } from '@/components/ui/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 interface TestResult {
@@ -92,6 +92,10 @@ export const ResponsesAPIMigrationStatus: React.FC = () => {
             <Brain className="h-6 w-6" />
             OpenAI Responses API Migration Status
           </CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            This shows the migration status from OpenAI's Chat Completions API to the new Responses API with GPT-5. 
+            The migration enhances Maturion's reasoning capabilities for document analysis and industry-specific insights.
+          </p>
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="checklist" className="w-full">
@@ -122,6 +126,13 @@ export const ResponsesAPIMigrationStatus: React.FC = () => {
             </TabsContent>
 
             <TabsContent value="testing" className="space-y-4">
+              <div className="mb-4">
+                <p className="text-sm text-muted-foreground mb-3">
+                  <strong>Purpose:</strong> This tests the AI reasoning engine that powers Maturion's document analysis. 
+                  Run these tests to verify that the AI can properly analyze your uploaded documents and provide 
+                  industry-specific insights aligned with your organization's context.
+                </p>
+              </div>
               <div className="flex gap-2 mb-4">
                 <Button 
                   onClick={() => runMigrationTest('basic')} 

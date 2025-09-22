@@ -10,6 +10,7 @@ import { DocumentAuditLogDialog } from "@/components/ai/DocumentAuditLogDialog";
 import { ResponsesAPIMigrationStatus } from "@/components/admin/ResponsesAPIMigrationStatus";
 import { FailedDocumentsCleanup } from "@/components/ai/FailedDocumentsCleanup";
 import { DeletedDocumentsTrash } from "@/components/ai/DeletedDocumentsTrash";
+import { DocumentEditingGuide, FeatureExplanation } from "@/components/ui/FeatureGuide";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -218,6 +219,7 @@ export default function MaturionUploads() {
           </TabsContent>
 
           <TabsContent value="manage" className="space-y-6">
+            <DocumentEditingGuide />
             <DocumentManagementTable
               documents={documents}
               loading={loading}
@@ -234,7 +236,11 @@ export default function MaturionUploads() {
 
           <TabsContent value="failed" className="space-y-6">
             <FailedDocumentsCleanup
-              failedDocuments={documents.filter(doc => doc.processing_status === 'failed')}
+              failedDocuments={documents.filter(doc => 
+                doc.processing_status === 'failed' || 
+                (doc.processing_status === 'pending' && 
+                 (Date.now() - new Date(doc.created_at).getTime()) / (1000 * 60 * 60) > 24)
+              )}
               onDelete={(docId) => handleDelete(docId)}
               onReprocess={handleReprocess}
               onBulkDelete={handleBulkDelete}
@@ -251,6 +257,18 @@ export default function MaturionUploads() {
           </TabsContent>
 
           <TabsContent value="migration" className="space-y-6">
+            <FeatureExplanation
+              title="OpenAI Responses API Migration (Annex 3)"
+              description="AI reasoning engine migration status and testing interface"
+              purpose="This shows the migration from OpenAI's Chat Completions to Responses API with GPT-5, which powers Maturion's enhanced reasoning over your documents. It ensures the AI can provide industry-specific insights aligned with your organization's context."
+              howToUse={[
+                'Review the Migration Checklist to see completed features',
+                'Use API Testing to verify the reasoning engine is working properly',  
+                'Check Benefits Realized to understand performance improvements',
+                'Run tests if you experience issues with AI document analysis'
+              ]}
+              status="ready"
+            />
             <ResponsesAPIMigrationStatus />
           </TabsContent>
 
