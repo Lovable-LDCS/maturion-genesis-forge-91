@@ -538,7 +538,7 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                   >
                     Uploaded
                   </TableHead>
-                  <TableHead className="w-20 sticky right-0 bg-background z-10">
+                  <TableHead className="w-20 sticky right-0 bg-background z-30 border-l border-border">
                     <div className="flex items-center gap-1">
                       Actions
                       <TooltipProvider>
@@ -573,24 +573,24 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                    </TableRow>
                 ) : (
                   filteredAndSortedDocuments.map((doc) => (
-                    <TableRow key={doc.id} className="hover:bg-muted/50 group">
-                      <TableCell>
-                        <Checkbox
-                          checked={selectedDocuments.has(doc.id)}
-                          onCheckedChange={() => toggleDocumentSelection(doc.id)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{doc.title || doc.file_name}</div>
-                          <div className="text-sm text-muted-foreground">{doc.file_name}</div>
-                          {doc.tags && (
-                            <div className="text-xs text-muted-foreground mt-1">
-                              Tags: {doc.tags}
-                            </div>
-                          )}
-                        </div>
-                      </TableCell>
+                     <TableRow key={doc.id} className="hover:bg-muted/50 group">
+                       <TableCell className="sticky left-0 bg-background z-10 border-r border-border">
+                         <Checkbox
+                           checked={selectedDocuments.has(doc.id)}
+                           onCheckedChange={() => toggleDocumentSelection(doc.id)}
+                         />
+                       </TableCell>
+                       <TableCell className="sticky left-12 bg-background z-10 border-r border-border">
+                         <div>
+                           <div className="font-medium">{doc.title || doc.file_name}</div>
+                           <div className="text-sm text-muted-foreground">{doc.file_name}</div>
+                           {doc.tags && (
+                             <div className="text-xs text-muted-foreground mt-1">
+                               Tags: {doc.tags}
+                             </div>
+                           )}
+                         </div>
+                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="capitalize">
                           {doc.document_type.replace(/_/g, ' ')}
@@ -651,19 +651,19 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                           {formatDistanceToNow(new Date(doc.created_at), { addSuffix: true })}
                         </div>
                       </TableCell>
-                       <TableCell className="sticky right-0 bg-background z-10">
-                         <DropdownMenu>
-                           <DropdownMenuTrigger asChild>
-                             <Button 
-                               variant="ghost" 
-                               size="sm"
-                               className="h-8 w-8 p-0 bg-muted/30 hover:bg-muted border border-muted-foreground/20 hover:border-muted-foreground/40 transition-all duration-200"
-                               title="Click for document actions: Edit, Replace, Delete, etc."
-                             >
-                               <span className="sr-only">Open document actions menu</span>
-                               <MoreHorizontal className="h-4 w-4 text-foreground/60 hover:text-foreground transition-colors" />
-                             </Button>
-                           </DropdownMenuTrigger>
+                        <TableCell className="sticky right-0 bg-background z-30 border-l border-border">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button 
+                                variant="ghost" 
+                                size="sm"
+                                className="h-8 w-8 p-0 bg-muted/30 hover:bg-muted border border-muted-foreground/20 hover:border-muted-foreground/40 transition-all duration-200"
+                                title="Click for document actions: Edit, Replace, Delete, etc."
+                              >
+                                <span className="sr-only">Open document actions menu</span>
+                                <MoreHorizontal className="h-4 w-4 text-foreground/60 hover:text-foreground transition-colors" />
+                              </Button>
+                            </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => onEdit(doc)}>
                               <Edit className="h-4 w-4 mr-2" />
