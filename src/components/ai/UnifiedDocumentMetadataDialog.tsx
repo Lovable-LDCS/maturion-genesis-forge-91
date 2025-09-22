@@ -64,10 +64,10 @@ const UnifiedDocumentMetadataDialog: React.FC<UnifiedDocumentMetadataDialogProps
 
   const [hasChanges, setHasChanges] = useState(false);
 
-  // Initialize metadata when dialog opens
+  // Initialize metadata when dialog opens (only once when dialog opens)
   useEffect(() => {
     const initializeMetadata = async () => {
-      if (open) {
+      if (open && !contextsLoading) {
         const defaultContext = initialMetadata?.contextLevel || 
           (mode === 'create' ? await getDefaultContext() : 'organization');
         
@@ -87,10 +87,30 @@ const UnifiedDocumentMetadataDialog: React.FC<UnifiedDocumentMetadataDialogProps
       }
     };
 
-    if (!contextsLoading) {
+    // Only initialize when dialog opens or when contexts finish loading for the first time
+    if (open && !contextsLoading) {
       initializeMetadata();
     }
-  }, [open, initialMetadata, contextsLoading, getDefaultContext, mode]);
+  }, [open, contextsLoading, mode]); // Removed problematic dependencies
+
+  // Separate effect to handle initial metadata changes
+  useEffect(() => {
+    if (open && !contextsLoading && initialMetadata) {
+      const newMetadata = {
+        title: initialMetadata?.title || '',
+        documentType: initialMetadata?.documentType || 'guidance_document',
+        domain: initialMetadata?.domain || '',
+        tags: initialMetadata?.tags || '',
+        visibility: initialMetadata?.visibility || 'all_users',
+        description: initialMetadata?.description || '',
+        changeReason: initialMetadata?.changeReason || '',
+        contextLevel: (initialMetadata?.contextLevel || 'organization') as 'global' | 'organization' | 'subsidiary',
+        targetOrganizationId: initialMetadata?.targetOrganizationId || ''
+      };
+      setMetadata(prev => ({ ...prev, ...newMetadata }));
+      setHasChanges(false);
+    }
+  }, [initialMetadata, open, contextsLoading]);
 
   // Track changes
   useEffect(() => {
