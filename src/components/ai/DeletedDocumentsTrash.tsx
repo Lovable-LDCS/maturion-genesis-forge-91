@@ -7,7 +7,7 @@ import { Trash2, RotateCcw, Info } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { MaturionDocument } from '@/hooks/useMaturionDocuments';
+import { MaturionDocument, useMaturionDocuments } from '@/hooks/useMaturionDocuments';
 import { useOrganization } from '@/hooks/useOrganization';
 
 interface DeletedDocumentsTrashProps {
@@ -23,6 +23,7 @@ export const DeletedDocumentsTrash: React.FC<DeletedDocumentsTrashProps> = ({
   const [isSuperuser, setIsSuperuser] = useState(false);
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
+  const { deleteDocument: deleteDocHook } = useMaturionDocuments();
 
   // Check superuser status
   useEffect(() => {
@@ -111,10 +112,10 @@ export const DeletedDocumentsTrash: React.FC<DeletedDocumentsTrashProps> = ({
 
   const permanentlyDeleteDocument = async (documentId: string) => {
     try {
-      // Get document info for storage cleanup and organization check
+      // Get document info for permission check
       const { data: doc, error: fetchError } = await supabase
         .from('ai_documents')
-        .select('file_path, title, file_name, organization_id')
+        .select('id, title, file_name, organization_id')
         .eq('id', documentId)
         .single();
 
@@ -131,24 +132,12 @@ export const DeletedDocumentsTrash: React.FC<DeletedDocumentsTrashProps> = ({
         return;
       }
 
-      // Delete from storage
-      if (doc?.file_path) {
-        await supabase.storage
-          .from('ai-documents')
-          .remove([doc.file_path]);
-      }
-
-      // Hard delete from database
-      const { error } = await supabase
-        .from('ai_documents')
-        .delete()
-        .eq('id', documentId);
-
-      if (error) throw error;
+      // Route through unified hook logic (handles audit + storage + DB delete)
+      await deleteDocHook(documentId, true);
 
       toast({
         title: "Document permanently deleted",
-        description: "Document has been permanently removed",
+        description: `${doc.title || doc.file_name} has been permanently removed`,
       });
 
       await fetchDeletedDocuments();

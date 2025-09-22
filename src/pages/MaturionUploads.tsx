@@ -115,15 +115,21 @@ const handleDelete = async (documentId: string) => {
 
   const handleReprocess = async (documentId: string) => {
     try {
-      // Validate org context first to prevent 404/permission errors
-      const { data: doc, error: fetchErr } = await supabase
-        .from('ai_documents')
-        .select('id, organization_id, title, file_name')
-        .eq('id', documentId)
-        .single();
+      // Fetch document and superuser status in parallel
+      const [{ data: doc, error: fetchErr }, { data: isSuperuser }] = await Promise.all([
+        supabase
+          .from('ai_documents')
+          .select('id, organization_id, title, file_name')
+          .eq('id', documentId)
+          .single(),
+        supabase.rpc('is_superuser')
+      ]);
       if (fetchErr || !doc) throw fetchErr || new Error('Document not found');
 
-      if (currentOrganization?.id && doc.organization_id !== currentOrganization.id) {
+      // Determine org to use (superuser bypass uses document's org)
+      const orgToUse = isSuperuser ? doc.organization_id : currentOrganization?.id;
+
+      if (!isSuperuser && currentOrganization?.id && doc.organization_id !== currentOrganization.id) {
         toast({
           title: 'Reprocess blocked',
           description: `Document belongs to a different organization. Switch org to reprocess. (Doc org: ${doc.organization_id}, Your org: ${currentOrganization.id})`,
@@ -135,7 +141,7 @@ const handleDelete = async (documentId: string) => {
       const { data, error } = await supabase.functions.invoke('reprocess-document', {
         body: { 
           documentId,
-          organizationId: currentOrganization?.id,
+          organizationId: orgToUse,
           forceReprocess: true 
         }
       });
@@ -170,19 +176,25 @@ const handleDelete = async (documentId: string) => {
   };
 
   const handleReprocessPending = async () => {
-    if (!currentOrganization?.id) return;
-    
+    const [{ data: isSuperuser }] = await Promise.all([
+      supabase.rpc('is_superuser')
+    ]);
+
     setIsRefreshing(true);
     const pendingDocs = documents?.filter(doc => doc.processing_status === 'pending') || [];
     
     for (const doc of pendingDocs) {
       try {
-        console.log(`Reprocessing pending document: ${doc.title}`);
-        
+        // If not superuser, only allow reprocess within current org
+        if (!isSuperuser && currentOrganization?.id && doc.organization_id !== currentOrganization.id) {
+          continue;
+        }
+
+        const orgToUse = isSuperuser ? doc.organization_id : currentOrganization?.id;
         const { error } = await supabase.functions.invoke('reprocess-document', {
           body: {
             documentId: doc.id,
-            organizationId: currentOrganization.id,
+            organizationId: orgToUse!,
             forceReprocess: true
           }
         });
