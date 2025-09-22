@@ -249,40 +249,93 @@ serve(async (req) => {
     let responseId: string | undefined;
 
     if (sources.length === 0) {
-      // Fallback only when zero results
-      aiResponse = `🔄 I'm currently processing your uploaded documents and preparing diamond-specific guidance. In the meantime, here are immediate recommendations:\n\n- Recommendation — Action: Establish dual custody and tamper-evident seals for any in-transit parcels; daily variance checks by Logistics Supervisor.\n- Recommendation — Action: Enable black-screen monitoring for high-risk areas; weekly variance review by Protection lead.\n- Recommendation — Action: Run 3-2-1 backups with monthly restore tests; Evidence Manager to attest quarterly.\n\nOnce processing completes I'll reference your Organization Profile and Diamond Knowledge Pack directly.`;
-      console.log('ℹ️ No KB sources available; returned friendly fallback.');
-    } else {
+      // Generate AI response even without specific sources - use general reasoning
+      console.log('🤖 No specific sources found, generating AI response with general context...');
       try {
-        // Enhanced API call with conversation context and tools
         const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-        const openAIResponse = await fetch('https://api.openai.com/v1/responses', {
+        if (!OPENAI_API_KEY) {
+          throw new Error('OpenAI API key not configured');
+        }
+
+        const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${OPENAI_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'gpt-5',
-            instructions: `You are Maturion, an AI-first platform for security, maturity, and operational excellence. Follow the Maturion Operating Policy & Governance and provide evidence-first, diamond-specific guidance.`,
-            input: contextualInput,
-            tools: [
-              { type: 'web_search' },
-              { type: 'file_search' }
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: `You are Maturion, an AI assistant specializing in maturity models and organizational development. 
+                
+Key Guidelines:
+- Provide diamond-first, answer-first responses
+- Use requirement-evidence-action format with bullets
+- Include cadences (daily/weekly/monthly/quarterly) and owners
+- Focus on technology-first controls and defense-in-depth
+- No meta-discussion or uncertainty language
+- When you don't have specific data, provide general best practices for the domain requested`
+              },
+              {
+                role: 'user',
+                content: contextualInput
+              }
             ],
-            previous_response_id: conversationManager.getLastResponseId(),
-            max_completion_tokens: 2000,
-            store: false,
-            include: ['reasoning.encrypted_content']
+            max_tokens: 1000,
+            temperature: 0.7
           }),
         });
 
         if (!openAIResponse.ok) {
-          throw new Error(`OpenAI API error: ${openAIResponse.status}`);
+          const errorData = await openAIResponse.text();
+          throw new Error(`OpenAI API error: ${openAIResponse.status} - ${errorData}`);
+        }
+
+        const aiData = await openAIResponse.json();
+        aiResponse = aiData.choices[0].message.content;
+        
+        console.log('✅ Generated AI response without specific knowledge sources');
+      } catch (aiError) {
+        console.error('❌ AI generation failed:', aiError);
+        aiResponse = `I encountered an issue generating a response. Please ensure the system is properly configured and try again.`;
+      }
+    } else {
+      try {
+        // Enhanced API call with conversation context and tools
+        const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+        const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${OPENAI_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: `You are Maturion, an AI-first platform for security, maturity, and operational excellence. Follow the Maturion Operating Policy & Governance and provide evidence-first, diamond-specific guidance.`
+              },
+              {
+                role: 'user',
+                content: contextualInput
+              }
+            ],
+            max_tokens: 1000,
+            temperature: 0.7
+          }),
+        });
+
+        if (!openAIResponse.ok) {
+          const errorData = await openAIResponse.text();
+          console.error('❌ OpenAI API error:', openAIResponse.status, errorData);
+          throw new Error(`OpenAI API error: ${openAIResponse.status} - ${errorData}`);
         }
 
         const responseData = await openAIResponse.json();
-        aiResponse = responseData.output_text;
+        aiResponse = responseData.choices[0].message.content;
         responseId = responseData.id;
         
         // Store conversation turn for future context
