@@ -41,27 +41,30 @@ serve(async (req: Request) => {
       throw new Error(`Failed to fetch documents: ${fetchError.message}`);
     }
 
-    // Identify legacy/orphaned documents based on multiple criteria
+    // Identify legacy/orphaned documents - ONLY documents with 0 chunks
     const legacyDocuments = documents.filter((doc: any) => {
-      const isStuckPending = doc.processing_status === 'pending' && 
-                           doc.total_chunks === 0 && 
-                           new Date(doc.created_at) < new Date(Date.now() - 24 * 60 * 60 * 1000); // older than 24 hours
+      // CRITICAL: Only consider documents with 0 chunks as legacy
+      if (doc.total_chunks > 0) {
+        return false; // Skip any document that has been chunked - these are current documents
+      }
       
-      const isFailedWithNoChunks = doc.processing_status === 'failed' && doc.total_chunks === 0;
+      const isStuckPending = doc.processing_status === 'pending' && 
+                           new Date(doc.created_at) < new Date(Date.now() - 2 * 60 * 60 * 1000); // older than 2 hours
+      
+      const isFailedProcessing = doc.processing_status === 'failed';
       
       const hasLegacyMetadata = doc.metadata && (
         doc.metadata.legacy_upload === true ||
-        doc.metadata.upload_version < 2 ||
-        !doc.metadata.upload_session_id
+        doc.metadata.upload_version < 2
       );
       
       const hasLegacyFilePath = doc.file_path && (
         doc.file_path.includes('temp/') ||
-        doc.file_path.includes('legacy/') ||
-        !doc.file_path.includes('uploads/')
+        doc.file_path.includes('legacy/')
       );
       
-      return isStuckPending || isFailedWithNoChunks || hasLegacyMetadata || hasLegacyFilePath;
+      // Only flag as legacy if it has 0 chunks AND meets other criteria
+      return isStuckPending || isFailedProcessing || hasLegacyMetadata || hasLegacyFilePath;
     });
 
     console.log(`Found ${legacyDocuments.length} potentially legacy documents`);
@@ -169,15 +172,18 @@ serve(async (req: Request) => {
 function getCleanupReason(doc: any): string {
   const reasons = [];
   
-  if (doc.processing_status === 'pending' && doc.total_chunks === 0) {
-    const daysSincePending = Math.floor((Date.now() - new Date(doc.created_at).getTime()) / (24 * 60 * 60 * 1000));
-    if (daysSincePending > 0) {
-      reasons.push(`Stuck in pending for ${daysSincePending} days`);
+  // Always mention 0 chunks as primary indicator
+  reasons.push('0 chunks (never processed)');
+  
+  if (doc.processing_status === 'pending') {
+    const hoursSincePending = Math.floor((Date.now() - new Date(doc.created_at).getTime()) / (60 * 60 * 1000));
+    if (hoursSincePending > 2) {
+      reasons.push(`Stuck in pending for ${Math.floor(hoursSincePending / 24)} days`);
     }
   }
   
-  if (doc.processing_status === 'failed' && doc.total_chunks === 0) {
-    reasons.push('Failed processing with no chunks');
+  if (doc.processing_status === 'failed') {
+    reasons.push('Failed processing');
   }
   
   if (doc.metadata?.legacy_upload) {
@@ -192,5 +198,5 @@ function getCleanupReason(doc: any): string {
     reasons.push('Legacy file path');
   }
   
-  return reasons.length > 0 ? reasons.join(', ') : 'Legacy document detected';
+  return reasons.join(', ');
 }
