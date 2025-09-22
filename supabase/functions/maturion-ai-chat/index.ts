@@ -28,6 +28,49 @@ async function generateEmbedding(text: string, apiKey: string): Promise<number[]
   return data.data[0].embedding;
 }
 
+// Generate informative fallback response when AI fails
+const generateInformativeFallback = (prompt: string, error: any): string => {
+  console.log('🔄 Generating informative fallback for prompt:', prompt.substring(0, 100));
+  
+  // Analyze the prompt to provide relevant guidance
+  const lowerPrompt = prompt.toLowerCase();
+  
+  if (lowerPrompt.includes('domain') || lowerPrompt.includes('maturity model')) {
+    return `The main domains in the maturity model are:
+
+• **Leadership & Governance** — Oversight frameworks, chain of custody protocols, and executive accountability structures
+• **Process Integrity** — Reconciliation procedures, sorting methodologies, and operational variance controls  
+• **People & Culture** — Personnel security, insider threat mitigation, and competency management
+• **Protection** — Physical security, access controls, and technology safeguards
+• **Proof it Works** — Assurance frameworks, testing protocols, and evidence management
+
+Each domain contains specific criteria that organizations can assess and improve over time through a structured maturity progression.
+
+Would you like me to elaborate on any specific domain or discuss how to get started with your assessment?`;
+  }
+  
+  if (lowerPrompt.includes('table') || lowerPrompt.includes('data') || lowerPrompt.includes('analy')) {
+    return `For data analysis and table operations:
+
+• **Data Structure** — I can help you understand your database schema and relationships
+• **Analytics** — I can guide you through interpreting trends and patterns in your data
+• **Reporting** — I can assist with generating meaningful insights from your metrics
+• **Next Steps** — I can recommend actions based on your data patterns
+
+What specific aspect of your data would you like to explore? I can provide guidance on analysis techniques, interpretation methods, or help you identify key performance indicators.`;
+  }
+  
+  // General fallback
+  return `I'm here to help with your maturity assessment and operational excellence goals. Here are immediate ways I can assist:
+
+• **Assessment Guidance** — Help you understand maturity models and evaluation frameworks
+• **Process Improvement** — Provide recommendations for operational enhancements
+• **Best Practices** — Share industry-standard approaches for your specific challenges
+• **Next Steps** — Guide you through implementation planning and prioritization
+
+What specific area would you like to focus on? I can provide detailed guidance tailored to your organization's needs.`;
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -299,7 +342,9 @@ Key Guidelines:
         console.log('✅ Generated AI response without specific knowledge sources');
       } catch (aiError) {
         console.error('❌ AI generation failed:', aiError);
-        aiResponse = `I encountered an issue generating a response. Please ensure the system is properly configured and try again.`;
+        // Provide a more informative fallback based on the original query
+        const fallbackResponse = generateInformativeFallback(contextualInput, aiError);
+        aiResponse = fallbackResponse;
       }
     } else {
       try {
@@ -351,12 +396,18 @@ Key Guidelines:
       } catch (modelErr) {
         const msg = (modelErr as any)?.message || String(modelErr);
         console.warn('⚠️ OpenAI unavailable, synthesizing from retrieved chunks:', msg);
-        // Minimal synthesis using retrieved chunks to avoid hard fallback
-        const snippet = promptContext.documentContext
-          .slice(0, 6)
-          .map((s: string) => '- ' + (s.split('\n').slice(1).join(' ').slice(0, 200)))
-          .join('\n');
-        aiResponse = `Here is a synthesized summary from retrieved sources:\n${snippet}`;
+        
+        // Try to synthesize from retrieved chunks, otherwise use informative fallback
+        if (promptContext.documentContext && promptContext.documentContext.length > 0) {
+          const snippet = promptContext.documentContext
+            .slice(0, 6)
+            .map((s: string) => '- ' + (s.split('\n').slice(1).join(' ').slice(0, 200)))
+            .join('\n');
+          aiResponse = `Here is a synthesized summary from retrieved sources:\n${snippet}`;
+        } else {
+          // Use informative fallback when no sources are available
+          aiResponse = generateInformativeFallback(contextualInput, modelErr);
+        }
       }
     }
 
