@@ -12,6 +12,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Search, Filter, MoreHorizontal, Edit, Trash2, RefreshCw, Download, Calendar, FileText, Database, Clock, Upload, Eye, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { MaturionDocument } from '@/hooks/useMaturionDocuments';
+import { DocumentEditDialog } from "./DocumentEditDialog";
+import { DocumentAuditLogDialog } from "./DocumentAuditLogDialog";
+import { UnifiedDocumentMetadataDialog } from "./UnifiedDocumentMetadataDialog";
+import { DocumentFileReplacementDialog } from "./DocumentFileReplacementDialog";
 
 interface DocumentManagementTableProps {
   documents: MaturionDocument[];
@@ -87,6 +91,25 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
   onRegenerateEmbeddings
 }) => {
   
+  // State for dialog management
+  const [replaceDialogOpen, setReplaceDialogOpen] = useState(false);
+  const [selectedDocumentForReplace, setSelectedDocumentForReplace] = useState<MaturionDocument | null>(null);
+  
+  // Count pending documents
+  const pendingCount = documents.filter(doc => doc.processing_status === 'pending').length;
+
+  // Handle replace document
+  const handleReplace = (document: MaturionDocument) => {
+    setSelectedDocumentForReplace(document);
+    setReplaceDialogOpen(true);
+  };
+
+  const handleReplaceSuccess = () => {
+    onRefresh();
+    setReplaceDialogOpen(false);
+    setSelectedDocumentForReplace(null);
+  };
+
   // Count pending documents
   const pendingDocsCount = documents.filter(doc => doc.processing_status === 'pending').length;
   const [filters, setFilters] = useState<DocumentFilters>({
@@ -636,12 +659,12 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                               <Edit className="h-4 w-4 mr-2" />
                               Edit Metadata
                             </DropdownMenuItem>
-                            {onReplace && (
-                              <DropdownMenuItem onClick={() => onReplace(doc)}>
-                                <Upload className="h-4 w-4 mr-2" />
-                                Replace Document
-                              </DropdownMenuItem>
-                            )}
+                             {onReplace && (
+                               <DropdownMenuItem onClick={() => handleReplace(doc)}>
+                                 <Upload className="h-4 w-4 mr-2" />
+                                 Replace Document
+                               </DropdownMenuItem>
+                             )}
                             {onViewAuditLog && (
                               <DropdownMenuItem onClick={() => onViewAuditLog(doc.id)}>
                                 <Eye className="h-4 w-4 mr-2" />
@@ -673,6 +696,16 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
           </div>
         </CardContent>
       </Card>
+
+      {/* Document File Replacement Dialog */}
+      {selectedDocumentForReplace && (
+        <DocumentFileReplacementDialog
+          open={replaceDialogOpen}
+          onOpenChange={setReplaceDialogOpen}
+          document={selectedDocumentForReplace}
+          onSuccess={handleReplaceSuccess}
+        />
+      )}
     </div>
   );
 };
