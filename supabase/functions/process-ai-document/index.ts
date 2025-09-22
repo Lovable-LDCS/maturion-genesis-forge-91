@@ -1033,7 +1033,7 @@ serve(async (req: Request): Promise<Response> => {
       }
 
       // Enhanced metadata updates for training slides and Layer-3 extraction
-      const isTrainingSlide = docType === 'training_slide' || 
+      const isTrainingSlideFinal = docType === 'training_slide' || 
                               extractionMethod.includes('pptm') || 
                               document.file_name.endsWith('.pptm') || 
                               document.file_name.endsWith('.pptx');
@@ -1055,21 +1055,21 @@ serve(async (req: Request): Promise<Response> => {
           object_path: `org/${document.organization_id}/uploads/${document.file_name}`,
           size_bytes: fileData?.size || document.file_size,
           error: finalStatus === 'failed' ? 'Processing failed after chunk creation' : null,
-          document_type: isTrainingSlide ? 'training_slide' : document.document_type,
+          document_type: isTrainingSlideFinal ? 'training_slide' : document.document_type,
           metadata: {
             chunks_created: successfulChunks,
             extraction_method: extractionMethod,
             processing_duration_ms: Date.now(),
             is_governance_document: isGovernanceDocument,
-            is_training_slide: isTrainingSlide,
-            layer3_extraction: isTrainingSlide,
-            training_material: isTrainingSlide,
+            is_training_slide: isTrainingSlideFinal,
+            layer3_extraction: isTrainingSlideFinal,
+            training_material: isTrainingSlideFinal,
             chunk_failures: chunks.length - successfulChunks,
             text_length: extractedText.length,
             chunks_generated: chunks.length,
             actual_success: actualSuccess,
             // Enhanced training slide metadata
-            ...(isTrainingSlide && {
+            ...(isTrainingSlideFinal && {
               ingest: {
                 requestId: requestId,
                 textExtraction: extractionMethod.includes('pptm') ? 'pptx-to-text' : 'unknown',
