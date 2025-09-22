@@ -6,7 +6,10 @@ import { DocumentManagementTable } from "@/components/ai/DocumentManagementTable
 import { DocumentEditDialog, DocumentUpdateData } from "@/components/ai/DocumentEditDialog";
 import { DocumentPlaceholderMerger } from "@/components/ai/DocumentPlaceholderMerger";
 import { EmbeddingProgressDialog } from "@/components/ai/EmbeddingProgressDialog";
+import { DocumentAuditLogDialog } from "@/components/ai/DocumentAuditLogDialog";
 import { ResponsesAPIMigrationStatus } from "@/components/admin/ResponsesAPIMigrationStatus";
+import { FailedDocumentsCleanup } from "@/components/ai/FailedDocumentsCleanup";
+import { DeletedDocumentsTrash } from "@/components/ai/DeletedDocumentsTrash";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -29,6 +32,15 @@ export default function MaturionUploads() {
   
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [embeddingDialogOpen, setEmbeddingDialogOpen] = useState(false);
+  const [auditLogDialog, setAuditLogDialog] = useState<{
+    open: boolean;
+    documentId: string | null;
+    documentTitle?: string;
+  }>({
+    open: false,
+    documentId: null,
+    documentTitle: undefined
+  });
 
   const [editDialog, setEditDialog] = useState<{
     open: boolean;
@@ -149,12 +161,12 @@ export default function MaturionUploads() {
   };
 
   const handleViewAuditLog = (documentId: string) => {
-    // TODO: Implement audit log viewer
-    toast({
-      title: "Audit Log",
-      description: "Opening audit trail for document",
+    const document = documents.find(doc => doc.id === documentId);
+    setAuditLogDialog({
+      open: true,
+      documentId,
+      documentTitle: document?.title || document?.file_name
     });
-    console.log('View audit log for document:', documentId);
   };
 
   return (
@@ -187,6 +199,8 @@ export default function MaturionUploads() {
             <TabsList>
               <TabsTrigger value="upload">Document Upload</TabsTrigger>
               <TabsTrigger value="manage">Manage Documents</TabsTrigger>
+              <TabsTrigger value="failed">Failed Documents</TabsTrigger>
+              <TabsTrigger value="trash">Trash</TabsTrigger>
               <TabsTrigger value="merge">Merge Placeholders</TabsTrigger>
               <TabsTrigger value="migration">API Migration</TabsTrigger>
               <TabsTrigger value="security">Security Dashboard</TabsTrigger>
@@ -218,6 +232,20 @@ export default function MaturionUploads() {
             />
           </TabsContent>
 
+          <TabsContent value="failed" className="space-y-6">
+            <FailedDocumentsCleanup
+              failedDocuments={documents.filter(doc => doc.processing_status === 'failed')}
+              onDelete={(docId) => handleDelete(docId)}
+              onReprocess={handleReprocess}
+              onBulkDelete={handleBulkDelete}
+              loading={loading}
+            />
+          </TabsContent>
+
+          <TabsContent value="trash" className="space-y-6">
+            <DeletedDocumentsTrash onRestore={handleRefresh} />
+          </TabsContent>
+
           <TabsContent value="merge" className="space-y-6">
             <DocumentPlaceholderMerger />
           </TabsContent>
@@ -242,6 +270,13 @@ export default function MaturionUploads() {
         <EmbeddingProgressDialog
           open={embeddingDialogOpen}
           onClose={() => setEmbeddingDialogOpen(false)}
+        />
+
+        <DocumentAuditLogDialog
+          open={auditLogDialog.open}
+          onClose={() => setAuditLogDialog({ open: false, documentId: null })}
+          documentId={auditLogDialog.documentId}
+          documentTitle={auditLogDialog.documentTitle}
         />
       </div>
     </SecurityGuard>

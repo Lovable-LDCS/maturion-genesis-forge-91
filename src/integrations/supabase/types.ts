@@ -565,6 +565,7 @@ export type Database = {
           checksum: string | null
           chunked_from_tester: boolean | null
           created_at: string
+          deleted_at: string | null
           doc_type: string | null
           document_type: string
           domain: string | null
@@ -608,6 +609,7 @@ export type Database = {
           checksum?: string | null
           chunked_from_tester?: boolean | null
           created_at?: string
+          deleted_at?: string | null
           doc_type?: string | null
           document_type: string
           domain?: string | null
@@ -651,6 +653,7 @@ export type Database = {
           checksum?: string | null
           chunked_from_tester?: boolean | null
           created_at?: string
+          deleted_at?: string | null
           doc_type?: string | null
           document_type?: string
           domain?: string | null

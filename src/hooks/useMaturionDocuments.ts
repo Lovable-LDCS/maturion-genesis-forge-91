@@ -23,6 +23,7 @@ export interface MaturionDocument {
   tags?: string[] | null;
   upload_notes?: string;
   is_ai_ingested?: boolean;
+  deleted_at?: string | null;
 }
 
 export const useMaturionDocuments = () => {
@@ -46,10 +47,11 @@ export const useMaturionDocuments = () => {
         console.warn('[Docs] Edge function not used (likely not superuser). Falling back to RLS query.', fnError)
       }
 
-      // Fallback to RLS-protected direct query
+      // Fallback to RLS-protected direct query (filter out soft-deleted documents)
       const { data, error } = await supabase
         .from('ai_documents')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -281,14 +283,14 @@ export const useMaturionDocuments = () => {
     }
   };
 
-  const deleteDocument = async (documentId: string) => {
+  const deleteDocument = async (documentId: string, hardDelete: boolean = false) => {
     try {
-      console.log('Starting document deletion for ID:', documentId);
+      console.log('Starting document deletion for ID:', documentId, 'Hard delete:', hardDelete);
       
       // Get document info first
       const { data: doc, error: fetchError } = await supabase
         .from('ai_documents')
-        .select('file_path, organization_id, title, file_name')
+        .select('file_path, organization_id, title, file_name, deleted_at')
         .eq('id', documentId)
         .maybeSingle();
 
@@ -304,57 +306,93 @@ export const useMaturionDocuments = () => {
 
       console.log('Found document to delete:', doc);
 
-      // Create audit log BEFORE deleting (to avoid foreign key constraint violation)
-      const { error: auditError } = await supabase
-        .from('ai_upload_audit')
-        .insert({
-          organization_id: doc.organization_id,
-          document_id: documentId,
-          action: 'delete',
-          user_id: (await supabase.auth.getUser()).data.user?.id || '',
-          metadata: { 
-            deleted_at: new Date().toISOString(),
-            deleted_file: doc.file_name,
-            deleted_title: doc.title 
-          }
+      if (hardDelete || doc.deleted_at) {
+        // Hard delete or delete already soft-deleted document
+        
+        // Create audit log BEFORE deleting
+        const { error: auditError } = await supabase
+          .from('ai_upload_audit')
+          .insert({
+            organization_id: doc.organization_id,
+            document_id: documentId,
+            action: 'delete',
+            user_id: (await supabase.auth.getUser()).data.user?.id || '',
+            metadata: { 
+              deleted_at: new Date().toISOString(),
+              deleted_file: doc.file_name,
+              deleted_title: doc.title,
+              hard_delete: true
+            }
+          });
+
+        if (auditError) {
+          console.warn('Audit log creation failed:', auditError);
+        }
+
+        // Delete from storage
+        const { error: storageError } = await supabase.storage
+          .from('ai-documents')
+          .remove([doc.file_path]);
+
+        if (storageError) {
+          console.warn('Storage deletion warning:', storageError);
+        }
+
+        // Hard delete from database
+        const { error: deleteError } = await supabase
+          .from('ai_documents')
+          .delete()
+          .eq('id', documentId);
+
+        if (deleteError) {
+          console.error('Database deletion error:', deleteError);
+          throw deleteError;
+        }
+
+        toast({
+          title: "Document permanently deleted",
+          description: `${doc.title || doc.file_name} has been permanently removed`,
         });
-
-      if (auditError) {
-        console.warn('Audit log creation failed:', auditError);
-        // Continue with deletion even if audit logging fails
       } else {
-        console.log('Audit log created successfully');
+        // Soft delete
+        const { error: updateError } = await supabase
+          .from('ai_documents')
+          .update({ 
+            deleted_at: new Date().toISOString(),
+            updated_by: (await supabase.auth.getUser()).data.user?.id || ''
+          })
+          .eq('id', documentId);
+
+        if (updateError) {
+          console.error('Soft delete error:', updateError);
+          throw updateError;
+        }
+
+        // Create audit log
+        const { error: auditError } = await supabase
+          .from('ai_upload_audit')
+          .insert({
+            organization_id: doc.organization_id,
+            document_id: documentId,
+            action: 'delete',
+            user_id: (await supabase.auth.getUser()).data.user?.id || '',
+            metadata: { 
+              deleted_at: new Date().toISOString(),
+              deleted_file: doc.file_name,
+              deleted_title: doc.title,
+              soft_delete: true
+            }
+          });
+
+        if (auditError) {
+          console.warn('Audit log creation failed:', auditError);
+        }
+
+        toast({
+          title: "Document deleted",
+          description: `${doc.title || doc.file_name} has been moved to trash`,
+        });
       }
-
-      // Delete from storage first
-      const { error: storageError } = await supabase.storage
-        .from('ai-documents')
-        .remove([doc.file_path]);
-
-      if (storageError) {
-        console.warn('Storage deletion warning:', storageError);
-        // Continue with database deletion even if storage fails
-      } else {
-        console.log('Storage file deleted successfully');
-      }
-
-      // Delete document record (chunks will be deleted via CASCADE)
-      const { error: deleteError } = await supabase
-        .from('ai_documents')
-        .delete()
-        .eq('id', documentId);
-
-      if (deleteError) {
-        console.error('Database deletion error:', deleteError);
-        throw deleteError;
-      }
-
-      console.log('Document deleted from database successfully');
-
-      toast({
-        title: "Document deleted",
-        description: `${doc.title || doc.file_name} has been removed`,
-      });
 
       // Refresh documents list
       await fetchDocuments();
@@ -380,7 +418,7 @@ export const useMaturionDocuments = () => {
       // Get documents info first for audit logging
       const { data: docs, error: fetchError } = await supabase
         .from('ai_documents')
-        .select('id, file_path, organization_id, title, file_name')
+        .select('id, file_path, organization_id, title, file_name, deleted_at')
         .in('id', documentIds);
 
       if (fetchError) {
@@ -429,22 +467,26 @@ export const useMaturionDocuments = () => {
       const storageResults = await Promise.allSettled(storagePromises);
       console.log('Storage deletion results:', storageResults);
 
-      // Delete document records from database
+      // Soft delete document records from database
       const { error: deleteError } = await supabase
         .from('ai_documents')
-        .delete()
-        .in('id', documentIds);
+        .update({ 
+          deleted_at: new Date().toISOString(),
+          updated_by: currentUserId
+        })
+        .in('id', documentIds)
+        .is('deleted_at', null); // Only soft delete non-deleted documents
 
       if (deleteError) {
-        console.error('Bulk database deletion error:', deleteError);
+        console.error('Bulk soft delete error:', deleteError);
         throw deleteError;
       }
 
-      console.log(`Successfully deleted ${docs.length} documents from database`);
+      console.log(`Successfully soft deleted ${docs.length} documents`);
 
       toast({
         title: "Bulk deletion completed",
-        description: `${docs.length} documents have been removed`,
+        description: `${docs.length} documents have been moved to trash`,
       });
 
       // Refresh documents list
