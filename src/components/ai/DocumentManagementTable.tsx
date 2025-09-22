@@ -450,11 +450,11 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
           )}
 
           {/* Documents Table */}
-          <div className="border rounded-lg">
-            <Table>
+          <div className="border rounded-lg overflow-x-auto">
+            <Table className="min-w-full">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12">
+                  <TableHead className="w-12 sticky left-0 bg-background z-10">
                     <Checkbox
                       checked={selectedDocuments.size === filteredAndSortedDocuments.length && filteredAndSortedDocuments.length > 0}
                       onCheckedChange={(checked) => {
@@ -467,45 +467,45 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                     />
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:text-foreground"
+                    className="cursor-pointer hover:text-foreground min-w-[200px]"
                     onClick={() => handleSort('title')}
                   >
                     Document Title
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:text-foreground"
+                    className="cursor-pointer hover:text-foreground min-w-[120px]"
                     onClick={() => handleSort('document_type')}
                   >
                     Type
                   </TableHead>
                    <TableHead 
-                     className="cursor-pointer hover:text-foreground"
+                     className="cursor-pointer hover:text-foreground min-w-[100px]"
                      onClick={() => handleSort('domain')}
                    >
                      Domain
                    </TableHead>
-                   <TableHead>
+                   <TableHead className="min-w-[150px]">
                      Context/Organization
                    </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:text-foreground"
+                    className="cursor-pointer hover:text-foreground min-w-[120px]"
                     onClick={() => handleSort('processing_status')}
                   >
                     Status
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:text-foreground"
+                    className="cursor-pointer hover:text-foreground min-w-[80px]"
                     onClick={() => handleSort('total_chunks')}
                   >
                     Chunks
                   </TableHead>
                   <TableHead 
-                    className="cursor-pointer hover:text-foreground"
+                    className="cursor-pointer hover:text-foreground min-w-[120px]"
                     onClick={() => handleSort('created_at')}
                   >
                     Uploaded
                   </TableHead>
-                  <TableHead className="w-12">
+                  <TableHead className="w-20 sticky right-0 bg-background z-10">
                     <div className="flex items-center gap-1">
                       Actions
                       <TooltipProvider>
@@ -618,7 +618,7 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                           {formatDistanceToNow(new Date(doc.created_at), { addSuffix: true })}
                         </div>
                       </TableCell>
-                       <TableCell className="relative">
+                       <TableCell className="sticky right-0 bg-background z-10">
                          <DropdownMenu>
                            <DropdownMenuTrigger asChild>
                              <Button 
