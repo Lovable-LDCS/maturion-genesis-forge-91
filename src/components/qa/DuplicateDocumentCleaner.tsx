@@ -4,21 +4,50 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, AlertTriangle, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
+
+interface CleanupResult {
+  duplicateSets: number;
+  totalCleaned: number;
+  details: Array<{
+    title: string;
+    removedId: string;
+    keptId: string;
+    removedChunks: number;
+    keptChunks: number;
+    success: boolean;
+  }>;
+}
 
 export const DuplicateDocumentCleaner: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [cleanupDetails, setCleanupDetails] = useState<CleanupResult | null>(null);
   const { toast } = useToast();
+  const { currentOrganization } = useOrganization();
 
-  const cleanupDuplicateMP10 = async () => {
+  const cleanupAllDuplicates = async () => {
+    if (!currentOrganization?.id) {
+      toast({
+        title: "❌ No Organization",
+        description: "Organization context is required for cleanup",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setResult(null);
+    setCleanupDetails(null);
 
     try {
-      // Clean up the corrupted MPS 10 document (only 2 chunks)
+      // Auto-clean all duplicates for the organization
       const { data, error } = await supabase.functions.invoke('cleanup-duplicate-document', {
-        body: { documentId: 'a5ad3294-f7fa-44bf-b963-5fd70c407fda' }
+        body: { 
+          autoCleanAll: true,
+          organizationId: currentOrganization.id 
+        }
       });
 
       if (error) {
@@ -26,10 +55,11 @@ export const DuplicateDocumentCleaner: React.FC = () => {
       }
 
       if (data?.success) {
-        setResult('Successfully cleaned up duplicate MPS 10 document');
+        setResult(`Successfully cleaned up ${data.totalCleaned} duplicate documents from ${data.duplicateSets} duplicate sets`);
+        setCleanupDetails(data);
         toast({
-          title: "✅ Cleanup Complete",
-          description: "Duplicate MPS 10 document has been removed. Refresh the embedding dialog to see the fix.",
+          title: "🎉 Cleanup Complete",
+          description: `Removed ${data.totalCleaned} duplicate documents. Refresh the embedding dialog to see the fixes.`,
         });
       } else {
         throw new Error(data?.error || 'Unknown error occurred');
@@ -58,26 +88,26 @@ export const DuplicateDocumentCleaner: React.FC = () => {
       <CardContent className="space-y-4">
         <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
           <p className="text-sm text-orange-800">
-            <strong>Issue Detected:</strong> There are duplicate MPS 10 documents causing display confusion in the embedding dialog.
+            <strong>Duplicate Detection System:</strong> Automatically finds and removes corrupted duplicate documents across your entire organization.
           </p>
           <p className="text-sm text-orange-600 mt-1">
-            One version has 209 chunks (correct), another has only 2 chunks (corrupted duplicate).
+            Keeps the best version of each document (highest chunk count, completed status, newest) and removes inferior duplicates.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <Button
-            onClick={cleanupDuplicateMP10}
-            disabled={isProcessing}
+            onClick={cleanupAllDuplicates}
+            disabled={isProcessing || !currentOrganization}
             variant="destructive"
             size="sm"
           >
             <Trash2 className="h-4 w-4 mr-2" />
-            {isProcessing ? 'Cleaning up...' : 'Remove Duplicate MPS 10'}
+            {isProcessing ? 'Scanning & Cleaning...' : 'Clean All Duplicates'}
           </Button>
           
           <Badge variant="outline" className="text-xs">
-            Target: Document with 2 chunks
+            Organization-wide cleanup
           </Badge>
         </div>
 
@@ -96,8 +126,37 @@ export const DuplicateDocumentCleaner: React.FC = () => {
           </div>
         )}
 
+        {cleanupDetails && cleanupDetails.details.length > 0 && (
+          <Card className="mt-4">
+            <CardHeader>
+              <CardTitle className="text-sm">Cleanup Details</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {cleanupDetails.details.map((detail, index) => (
+                  <div key={index} className="flex items-center justify-between text-xs p-2 bg-muted/30 rounded">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{detail.title}</p>
+                      <p className="text-muted-foreground">
+                        Kept: {detail.keptChunks} chunks | Removed: {detail.removedChunks} chunks
+                      </p>
+                    </div>
+                    <div className="ml-2">
+                      {detail.success ? (
+                        <CheckCircle className="h-3 w-3 text-green-600" />
+                      ) : (
+                        <AlertTriangle className="h-3 w-3 text-red-600" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="text-xs text-muted-foreground">
-          <p>This will remove the corrupted MPS 10 document (ID: a5ad3294-f7fa-44bf-b963-5fd70c407fda) and keep the correct one (ID: ee604a5e-2741-4339-b22c-3ef8020b2bf6).</p>
+          <p>This automatically detects documents with identical titles, keeps the highest quality version (most chunks, completed status), and removes all inferior duplicates.</p>
         </div>
       </CardContent>
     </Card>
