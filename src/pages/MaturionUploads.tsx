@@ -234,7 +234,7 @@ export default function MaturionUploads() {
                     How to Edit Documents
                   </h3>
                   <p className="text-sm text-blue-700 dark:text-blue-200 mb-2">
-                    Click the <strong>⋯ button</strong> in the "Actions" column of any document row to access:
+                    Look for the <strong>⋯ (three dots) button</strong> in the rightmost "Actions" column to access:
                   </p>
                   <ul className="text-sm text-blue-700 dark:text-blue-200 space-y-1">
                     <li>• <strong>Edit Metadata</strong> - Update title, tags, domain, etc.</li>

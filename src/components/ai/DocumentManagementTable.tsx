@@ -502,7 +502,21 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                   >
                     Uploaded
                   </TableHead>
-                  <TableHead className="w-12">Actions</TableHead>
+                  <TableHead className="w-12">
+                    <div className="flex items-center gap-1">
+                      Actions
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <MoreHorizontal className="h-3 w-3 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            Click ⋯ to edit, replace, or delete documents
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -523,7 +537,7 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                   </TableRow>
                 ) : (
                   filteredAndSortedDocuments.map((doc) => (
-                    <TableRow key={doc.id} className="hover:bg-muted/50">
+                    <TableRow key={doc.id} className="hover:bg-muted/50 group">
                       <TableCell>
                         <Checkbox
                           checked={selectedDocuments.has(doc.id)}
@@ -579,17 +593,20 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                           {formatDistanceToNow(new Date(doc.created_at), { addSuffix: true })}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="relative">
+                        <div className="absolute left-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 text-xs text-muted-foreground pointer-events-none">
+                          Click ⋯
+                        </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button 
                               variant="ghost" 
                               size="sm"
-                              className="h-8 w-8 p-0 data-[state=open]:bg-muted hover:bg-muted"
-                              title="Document actions"
+                              className="h-8 w-8 p-0 data-[state=open]:bg-muted hover:bg-muted border border-transparent hover:border-muted-foreground/20 transition-all duration-200"
+                              title="Click for document actions: Edit, Replace, Delete, etc."
                             >
                               <span className="sr-only">Open document actions menu</span>
-                              <MoreHorizontal className="h-4 w-4" />
+                              <MoreHorizontal className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
