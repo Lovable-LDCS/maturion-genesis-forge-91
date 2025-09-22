@@ -146,7 +146,8 @@ export const MaturionKnowledgeUploadZone: React.FC<MaturionKnowledgeUploadZonePr
         ? 'Global Platform Logic – applies to all AI components, MPS logic, user pages, and guidance systems'
         : selectedDomain || undefined;
       
-      await uploadDocument(
+      // Use legacy function for backward compatibility
+      await (uploadDocument as any)(
         file, 
         selectedDocumentType as any, 
         currentOrganization!.id, 

@@ -564,6 +564,7 @@ export type Database = {
           bucket_id: string | null
           checksum: string | null
           chunked_from_tester: boolean | null
+          context_level: string | null
           created_at: string
           deleted_at: string | null
           doc_type: string | null
@@ -592,6 +593,7 @@ export type Database = {
           stage: string | null
           status: string | null
           tags: string[] | null
+          target_organization_id: string | null
           tester_approved_at: string | null
           tester_approved_by: string | null
           title: string | null
@@ -608,6 +610,7 @@ export type Database = {
           bucket_id?: string | null
           checksum?: string | null
           chunked_from_tester?: boolean | null
+          context_level?: string | null
           created_at?: string
           deleted_at?: string | null
           doc_type?: string | null
@@ -636,6 +639,7 @@ export type Database = {
           stage?: string | null
           status?: string | null
           tags?: string[] | null
+          target_organization_id?: string | null
           tester_approved_at?: string | null
           tester_approved_by?: string | null
           title?: string | null
@@ -652,6 +656,7 @@ export type Database = {
           bucket_id?: string | null
           checksum?: string | null
           chunked_from_tester?: boolean | null
+          context_level?: string | null
           created_at?: string
           deleted_at?: string | null
           doc_type?: string | null
@@ -680,6 +685,7 @@ export type Database = {
           stage?: string | null
           status?: string | null
           tags?: string[] | null
+          target_organization_id?: string | null
           tester_approved_at?: string | null
           tester_approved_by?: string | null
           title?: string | null
@@ -699,6 +705,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "document_types"
             referencedColumns: ["name"]
+          },
+          {
+            foreignKeyName: "ai_documents_target_organization_id_fkey"
+            columns: ["target_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3505,8 +3518,10 @@ export type Database = {
           logo_object_path: string | null
           logo_url: string | null
           name: string
+          organization_level: string | null
           organization_type: string | null
           owner_id: string
+          parent_organization_id: string | null
           primary_color: string | null
           primary_website_url: string | null
           region_operating: string | null
@@ -3544,8 +3559,10 @@ export type Database = {
           logo_object_path?: string | null
           logo_url?: string | null
           name: string
+          organization_level?: string | null
           organization_type?: string | null
           owner_id?: string
+          parent_organization_id?: string | null
           primary_color?: string | null
           primary_website_url?: string | null
           region_operating?: string | null
@@ -3583,8 +3600,10 @@ export type Database = {
           logo_object_path?: string | null
           logo_url?: string | null
           name?: string
+          organization_level?: string | null
           organization_type?: string | null
           owner_id?: string
+          parent_organization_id?: string | null
           primary_color?: string | null
           primary_website_url?: string | null
           region_operating?: string | null
@@ -3599,7 +3618,15 @@ export type Database = {
           updated_by?: string
           zapier_webhook_url?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "organizations_parent_organization_id_fkey"
+            columns: ["parent_organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       override_approvals: {
         Row: {
@@ -4597,6 +4624,16 @@ export type Database = {
           visibility: string
         }[]
       }
+      get_organization_hierarchy: {
+        Args: { org_id: string }
+        Returns: {
+          depth: number
+          id: string
+          name: string
+          organization_level: string
+          parent_organization_id: string
+        }[]
+      }
       get_security_setting: {
         Args: { setting_name_param: string }
         Returns: Json
@@ -4866,6 +4903,10 @@ export type Database = {
           p_status: Database["public"]["Enums"]["doc_status"]
         }
         Returns: undefined
+      }
+      user_can_access_organization_context: {
+        Args: { org_id: string; user_id?: string }
+        Returns: boolean
       }
       user_can_manage_org_invitations: {
         Args: { org_id: string }

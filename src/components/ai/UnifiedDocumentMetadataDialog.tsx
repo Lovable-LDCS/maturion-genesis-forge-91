@@ -14,8 +14,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Save, XCircle, Shield, AlertTriangle, HelpCircle } from 'lucide-react';
+import { Save, XCircle, Shield, AlertTriangle, HelpCircle, Building2 } from 'lucide-react';
 import { DOCUMENT_TYPE_OPTIONS, DOMAIN_OPTIONS, VISIBILITY_OPTIONS, FIELD_DESCRIPTIONS } from '@/lib/documentConstants';
+import { useOrganizationHierarchy } from '@/hooks/useOrganizationHierarchy';
 
 export interface DocumentMetadata {
   title: string;
@@ -25,6 +26,8 @@ export interface DocumentMetadata {
   visibility: string;
   description: string;
   changeReason?: string;
+  contextLevel?: 'global' | 'organization' | 'subsidiary';
+  targetOrganizationId?: string;
 }
 
 interface UnifiedDocumentMetadataDialogProps {
@@ -46,6 +49,7 @@ const UnifiedDocumentMetadataDialog: React.FC<UnifiedDocumentMetadataDialogProps
   isSaving = false,
   mode = 'edit'
 }) => {
+  const { availableContexts, loading: contextsLoading, getDefaultContext } = useOrganizationHierarchy();
   const [metadata, setMetadata] = useState<DocumentMetadata>({
     title: '',
     documentType: 'guidance_document',
@@ -53,27 +57,40 @@ const UnifiedDocumentMetadataDialog: React.FC<UnifiedDocumentMetadataDialogProps
     tags: '',
     visibility: 'all_users',
     description: '',
-    changeReason: ''
+    changeReason: '',
+    contextLevel: 'organization',
+    targetOrganizationId: ''
   });
 
   const [hasChanges, setHasChanges] = useState(false);
 
   // Initialize metadata when dialog opens
   useEffect(() => {
-    if (open && initialMetadata) {
-      const newMetadata = {
-        title: initialMetadata.title || '',
-        documentType: initialMetadata.documentType || 'guidance_document',
-        domain: initialMetadata.domain || '',
-        tags: initialMetadata.tags || '',
-        visibility: initialMetadata.visibility || 'all_users',
-        description: initialMetadata.description || '',
-        changeReason: initialMetadata.changeReason || ''
-      };
-      setMetadata(newMetadata);
-      setHasChanges(false);
+    const initializeMetadata = async () => {
+      if (open) {
+        const defaultContext = initialMetadata?.contextLevel || 
+          (mode === 'create' ? await getDefaultContext() : 'organization');
+        
+        const newMetadata = {
+          title: initialMetadata?.title || '',
+          documentType: initialMetadata?.documentType || 'guidance_document',
+          domain: initialMetadata?.domain || '',
+          tags: initialMetadata?.tags || '',
+          visibility: initialMetadata?.visibility || 'all_users',
+          description: initialMetadata?.description || '',
+          changeReason: initialMetadata?.changeReason || '',
+          contextLevel: (defaultContext === 'global' ? 'global' : 'organization') as 'global' | 'organization' | 'subsidiary',
+          targetOrganizationId: initialMetadata?.targetOrganizationId || (defaultContext !== 'global' ? defaultContext : '')
+        };
+        setMetadata(newMetadata);
+        setHasChanges(false);
+      }
+    };
+
+    if (!contextsLoading) {
+      initializeMetadata();
     }
-  }, [open, initialMetadata]);
+  }, [open, initialMetadata, contextsLoading, getDefaultContext, mode]);
 
   // Track changes
   useEffect(() => {
@@ -132,6 +149,68 @@ const UnifiedDocumentMetadataDialog: React.FC<UnifiedDocumentMetadataDialogProps
           )}
 
           <div className="space-y-4">
+            {/* Document Context Selection */}
+            <div className="space-y-2 mb-6 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-4 w-4 text-blue-600" />
+                <Label htmlFor="context">Document Context *</Label>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="max-w-xs">
+                      Select the organizational context for this document. Global documents serve as best practices for all organizations.
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <Select
+                value={metadata.contextLevel === 'global' ? 'global' : metadata.targetOrganizationId}
+                onValueChange={(value) => {
+                  if (value === 'global') {
+                    setMetadata(prev => ({ 
+                      ...prev, 
+                      contextLevel: 'global', 
+                      targetOrganizationId: undefined 
+                    }));
+                  } else {
+                    const context = availableContexts.find(c => c.id === value);
+                    setMetadata(prev => ({ 
+                      ...prev, 
+                      contextLevel: context?.organization_level === 'subsidiary' ? 'subsidiary' : 'organization',
+                      targetOrganizationId: value 
+                    }));
+                  }
+                }}
+                disabled={isPreApproved && mode === 'edit'}
+              >
+                <SelectTrigger className="bg-white dark:bg-gray-950">
+                  <SelectValue placeholder="Select document context" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableContexts.map(context => (
+                    <SelectItem key={context.id} value={context.id}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          context.organization_level === 'backoffice' ? 'bg-blue-500' :
+                          context.organization_level === 'subsidiary' ? 'bg-gray-500' :
+                          'bg-green-500'
+                        }`} />
+                        {context.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {metadata.contextLevel === 'global' 
+                  ? 'This document will be available as best practice guidance for all organizations'
+                  : 'This document will be specific to the selected organization/subsidiary'
+                }
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Document Title */}
               <div className="space-y-2">

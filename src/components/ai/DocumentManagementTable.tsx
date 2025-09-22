@@ -478,12 +478,15 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                   >
                     Type
                   </TableHead>
-                  <TableHead 
-                    className="cursor-pointer hover:text-foreground"
-                    onClick={() => handleSort('domain')}
-                  >
-                    Domain
-                  </TableHead>
+                   <TableHead 
+                     className="cursor-pointer hover:text-foreground"
+                     onClick={() => handleSort('domain')}
+                   >
+                     Domain
+                   </TableHead>
+                   <TableHead>
+                     Context/Organization
+                   </TableHead>
                   <TableHead 
                     className="cursor-pointer hover:text-foreground"
                     onClick={() => handleSort('processing_status')}
@@ -520,21 +523,21 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8">
-                      <div className="flex items-center justify-center gap-2">
-                        <Clock className="h-4 w-4 animate-spin" />
-                        Loading documents...
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredAndSortedDocuments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                      No documents match your current filters
-                    </TableCell>
-                  </TableRow>
+                 {loading ? (
+                   <TableRow>
+                     <TableCell colSpan={9} className="text-center py-8">
+                       <div className="flex items-center justify-center gap-2">
+                         <Clock className="h-4 w-4 animate-spin" />
+                         Loading documents...
+                       </div>
+                     </TableCell>
+                   </TableRow>
+                 ) : filteredAndSortedDocuments.length === 0 ? (
+                   <TableRow>
+                     <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                       No documents match your current filters
+                     </TableCell>
+                   </TableRow>
                 ) : (
                   filteredAndSortedDocuments.map((doc) => (
                     <TableRow key={doc.id} className="hover:bg-muted/50 group">
@@ -560,13 +563,35 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                           {doc.document_type.replace(/_/g, ' ')}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        {doc.domain ? (
-                          <Badge variant="secondary">{doc.domain}</Badge>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">-</span>
-                        )}
-                      </TableCell>
+                       <TableCell>
+                         {doc.domain ? (
+                           <Badge variant="secondary">{doc.domain}</Badge>
+                         ) : (
+                           <span className="text-muted-foreground text-sm">-</span>
+                         )}
+                       </TableCell>
+                       <TableCell>
+                         {/* Context/Organization Display */}
+                         <div className="flex items-center gap-2">
+                           <div className={`w-2 h-2 rounded-full ${
+                             (doc as any).context_level === 'global' ? 'bg-blue-500' :
+                             (doc as any).context_level === 'subsidiary' ? 'bg-gray-500' :
+                             'bg-green-500'
+                           }`} />
+                           <div className="text-sm">
+                             {(doc as any).context_level === 'global' ? (
+                               <span className="text-blue-700 dark:text-blue-300 font-medium">
+                                 Backoffice/Global
+                               </span>
+                             ) : (
+                               <span className="text-gray-700 dark:text-gray-300">
+                                 {/* We would need to fetch org name here, for now show ID */}
+                                 Organization
+                               </span>
+                             )}
+                           </div>
+                         </div>
+                       </TableCell>
                       <TableCell>
                         <TooltipProvider>
                           <Tooltip>

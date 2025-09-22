@@ -70,13 +70,18 @@ export const useMaturionDocuments = () => {
   };
   const uploadDocument = async (
     file: File,
-    documentType: MaturionDocument['document_type'],
-    organizationId: string,
-    userId: string,
-    title?: string,
-    domain?: string,
-    tags?: string,
-    uploadNotes?: string
+    metadata: {
+      title: string;
+      documentType: string;
+      domain: string;
+      tags: string;
+      visibility: string;
+      description?: string;
+      contextLevel?: 'global' | 'organization' | 'subsidiary';
+      targetOrganizationId?: string;
+      userId?: string;
+    },
+    organizationId: string
   ): Promise<string | null> => {
     setUploading(true);
     
@@ -87,7 +92,7 @@ export const useMaturionDocuments = () => {
         .select('id, file_name')
         .eq('organization_id', organizationId)
         .eq('file_name', file.name)
-        .eq('uploaded_by', userId);
+        .eq('uploaded_by', metadata.userId || '');
 
       if (checkError) {
         console.warn('Error checking for duplicates:', checkError);
@@ -99,7 +104,7 @@ export const useMaturionDocuments = () => {
       // Upload file to storage
       const fileExt = file.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${userId}/${fileName}`;
+      const filePath = `${metadata.userId || 'unknown'}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('ai-documents')
@@ -110,7 +115,7 @@ export const useMaturionDocuments = () => {
 
       if (uploadError) throw uploadError;
 
-      // Create document record
+      // Create document record with context fields
       const { data: docData, error: docError } = await supabase
         .from('ai_documents')
         .insert({
@@ -119,20 +124,25 @@ export const useMaturionDocuments = () => {
           file_path: filePath,
           file_size: file.size,
           mime_type: file.type,
-          document_type: documentType,
-          title: title || file.name.replace(/\.[^/.]+$/, ''), // Use provided title or filename without extension
-          domain: domain,
-          tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-          upload_notes: uploadNotes,
-          uploaded_by: userId,
-          updated_by: userId,
+          document_type: metadata.documentType,
+          title: metadata.title,
+          domain: metadata.domain,
+          tags: metadata.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+          visibility: metadata.visibility,
+          upload_notes: metadata.description,
+          context_level: metadata.contextLevel || 'organization',
+          target_organization_id: metadata.targetOrganizationId,
+          uploaded_by: metadata.userId || '',
+          updated_by: metadata.userId || '',
           metadata: {
             original_name: file.name,
             upload_timestamp: new Date().toISOString(),
-            title: title,
-            domain: domain,
-            tags: tags ? tags.split(',').map(tag => tag.trim()) : [],
-            upload_notes: uploadNotes
+            title: metadata.title,
+            domain: metadata.domain,
+            tags: metadata.tags.split(',').map(tag => tag.trim()).filter(Boolean),
+            upload_notes: metadata.description,
+            context_level: metadata.contextLevel || 'organization',
+            target_organization_id: metadata.targetOrganizationId
           }
         })
         .select()
@@ -147,21 +157,22 @@ export const useMaturionDocuments = () => {
           organization_id: organizationId,
           document_id: docData.id,
           action: 'upload',
-          user_id: userId,
+          user_id: metadata.userId || '',
           metadata: {
             file_name: file.name,
             file_size: file.size,
-            document_type: documentType,
-            domain: domain,
-            tags: tags,
-            upload_notes: uploadNotes
+            document_type: metadata.documentType,
+            domain: metadata.domain,
+            tags: metadata.tags,
+            upload_notes: metadata.description,
+            context_level: metadata.contextLevel || 'organization',
+            target_organization_id: metadata.targetOrganizationId
           }
         });
 
       // Trigger processing
       console.log('🔄 About to invoke process-ai-document function...');
       console.log('🔄 Document ID:', docData.id);
-      console.log('🔄 Supabase client state:', !!supabase);
       
       const { data: processData, error: processError } = await supabase.functions.invoke('process-ai-document', {
         body: { documentId: docData.id }
@@ -173,7 +184,6 @@ export const useMaturionDocuments = () => {
 
       if (processError) {
         console.error('❌ Processing error:', processError);
-        console.error('❌ Error details:', JSON.stringify(processError, null, 2));
         // Don't fail the upload if processing fails, just log it
       }
 
@@ -197,6 +207,29 @@ export const useMaturionDocuments = () => {
     } finally {
       setUploading(false);
     }
+  };
+
+  // Legacy uploadDocument function for backward compatibility
+  const uploadDocumentLegacy = async (
+    file: File,
+    documentType: MaturionDocument['document_type'],
+    organizationId: string,
+    userId: string,
+    title?: string,
+    domain?: string,
+    tags?: string,
+    uploadNotes?: string
+  ): Promise<string | null> => {
+    return uploadDocument(file, {
+      title: title || file.name.replace(/\.[^/.]+$/, ''),
+      documentType: documentType,
+      domain: domain || '',
+      tags: tags || '',
+      visibility: 'all_users',
+      description: uploadNotes,
+      contextLevel: 'organization',
+      userId: userId
+    }, organizationId);
   };
 
   const updateDocument = async (
@@ -513,6 +546,7 @@ export const useMaturionDocuments = () => {
     loading,
     uploading,
     uploadDocument,
+    uploadDocumentLegacy, // Export legacy function for backward compatibility
     updateDocument,
     deleteDocument,
     bulkDeleteDocuments,

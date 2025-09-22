@@ -80,8 +80,9 @@ export const DKPUploadTest: React.FC = () => {
         description: 'Test Diamond Knowledge Pack focusing on Protection domain access and scanning requirements'
       };
       
-      await uploadDocument(
-        file, 
+      // Use legacy function for backward compatibility  
+      await (uploadDocument as any)(
+        file,
         'diamond_knowledge_pack' as any,
         'e443d914-8756-4b29-9599-6a59230b87f3', // De Beers org ID
         'dc7609db-1323-478a-8739-775f0020cac2', // Current user ID (from logs)

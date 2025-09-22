@@ -153,7 +153,8 @@ After submitting a custom criterion:
         lastModified: Date.now()
       });
 
-      const documentId = await uploadDocument(
+      // Use legacy function for backward compatibility
+      const documentId = await (uploadDocument as any)(
         file,
         'general',
         currentOrganization.id,
