@@ -104,11 +104,10 @@ serve(async (req) => {
     }
 
     // Trigger document processing
-    const { data: processResult, error: processError } = await supabase.functions.invoke('process-document-v2', {
+    const { data: processResult, error: processError } = await supabase.functions.invoke('process-ai-document', {
       body: {
         documentId: documentId,
-        organizationId: organizationId,
-        reprocess: forceReprocess
+        forceReprocess: forceReprocess
       }
     });
 
