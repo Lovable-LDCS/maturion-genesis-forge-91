@@ -109,8 +109,40 @@ serve(async (req) => {
           });
 
           if (error) {
-            console.warn('⚠️ match_ai_chunks error:', error);
-          } else if (hits && hits.length > 0) {
+            console.error('❌ match_ai_chunks error:', error);
+            console.error('   Organization ID:', orgId);
+            console.error('   Embedding length:', embedding?.length);
+            
+            // Fallback to search-ai-context function
+            console.log('🔄 Falling back to search-ai-context function...');
+            try {
+              const searchResponse = await supabase.functions.invoke('search-ai-context', {
+                body: {
+                  query: sanitizedPrompt,
+                  organizationId: orgId,
+                  limit: 8,
+                  threshold: 0.2
+                }
+              });
+              
+              if (searchResponse.data?.success && searchResponse.data?.results?.length > 0) {
+                console.log(`🎯 Fallback search retrieved ${searchResponse.data.results.length} results`);
+                const fallbackHits = searchResponse.data.results.map((result: any) => ({
+                  id: result.chunk_id,
+                  document_id: result.document_id,
+                  content: result.content,
+                  document_title: result.document_name,
+                  doc_type: result.document_type,
+                  score: result.similarity
+                }));
+                hits = fallbackHits;
+              }
+            } catch (fallbackError) {
+              console.error('⚠️ Fallback search also failed:', fallbackError);
+            }
+          }
+          
+          if (hits && hits.length > 0) {
             console.log(`🎯 Retrieved ${hits.length} relevant chunks`);
             
             // 3) Build context from top chunks (de-dup doc titles, cap ~3-5k chars)
