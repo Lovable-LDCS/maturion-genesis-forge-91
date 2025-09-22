@@ -484,12 +484,10 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
 
           {/* Documents Table */}
           <div className="border rounded-lg overflow-x-auto w-full">
-            <div className="min-w-[1200px]">
-              <Table className="w-full table-fixed"
-                style={{minWidth: '1200px'}}>
+            <Table className="min-w-[1200px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-12 sticky left-0 bg-background z-10">
+                  <TableHead className="w-12">
                     <Checkbox
                       checked={selectedDocuments.size === filteredAndSortedDocuments.length && filteredAndSortedDocuments.length > 0}
                       onCheckedChange={(checked) => {
@@ -703,9 +701,8 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
                     </TableRow>
                   ))
                 )}
-              </TableBody>
-              </Table>
-            </div>
+               </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
