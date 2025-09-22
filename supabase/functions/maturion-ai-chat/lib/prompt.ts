@@ -35,8 +35,8 @@ export async function buildPromptContext(request: PromptRequest) {
     
     // Simple intent detection - more sophisticated than importing external lib
     const isOrgQuery = /\b(company|organization|footprint|brands|business|tell me about|what is|who is|describe|overview|background|sales channels|subsidiaries|joint ventures|locations|countries|presence|markets|industry|sector)\b/i.test(prompt);
-    const isFrameworkQuery = /\b(domains?|framework|structure|outline|main.*domains?|five.*domains?|5.*domains?|domain.*structure|maturity.*model|sub.*MPS|MPS.*belong|domain.*MPS)\b/i.test(prompt);
-    const isCriteriaQuery = /\b(criteria|controls|requirements|compliance|protection|access|scanning|governance|leadership|specific.*criteria|implementation|operational)\b/i.test(prompt) && !isFrameworkQuery;
+    const isFrameworkQuery = /\b(domains?|framework|structure|outline|main.*domains?|five.*domains?|5.*domains?|domain.*structure|maturity.*model)\b/i.test(prompt) && !/\b(MPS\s*\d+|criteria for|audit criteria|generate.*criteria|specific.*MPS)\b/i.test(prompt);
+    const isCriteriaQuery = /\b(criteria|controls|requirements|compliance|protection|access|scanning|governance|leadership|specific.*criteria|implementation|operational|MPS\s*\d+.*criteria|audit.*criteria|generate.*criteria)\b/i.test(prompt) && !isFrameworkQuery;
     
     console.log('🎯 Query analysis:', { isOrgQuery, isFrameworkQuery, isCriteriaQuery, domain: currentDomain });
     
