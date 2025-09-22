@@ -367,10 +367,7 @@ const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions',
           systemContent += '\n\nInstructions:\n- Do NOT output the framework list unless explicitly asked.\n- Use retrieved context to answer the user\'s request.';
         }
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
-if (!OPENAI_API_KEY) {
-  throw new Error('OpenAI API key not configured');
-}
+// Use same API key that was already checked above
 
 const chatMessagesB = Array.isArray(contextualInput)
   ? [{ role: 'system', content: systemContent }, ...contextualInput]
