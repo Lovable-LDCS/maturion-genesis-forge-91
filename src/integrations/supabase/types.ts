@@ -4519,6 +4519,10 @@ export type Database = {
           total_criteria: number
         }[]
       }
+      can_manage_document: {
+        Args: { doc_context_level?: string; doc_org_id: string }
+        Returns: boolean
+      }
       chat_search_contains: {
         Args: { p_org_id: string; p_phrase: string; p_top_k?: number }
         Returns: {
