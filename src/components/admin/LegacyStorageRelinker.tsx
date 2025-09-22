@@ -74,6 +74,7 @@ export const LegacyStorageRelinker: React.FC = () => {
   const [scanning, setScanning] = useState(false);
   const [report, setReport] = useState<RelinkReport | null>(null);
   const [dryRun, setDryRun] = useState(true);
+  const [scopeAllOrgs, setScopeAllOrgs] = useState(false);
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
@@ -83,14 +84,17 @@ export const LegacyStorageRelinker: React.FC = () => {
     setProgress(0);
     
     try {
+      const orgScope = scopeAllOrgs ? null : currentOrganization?.id;
+      const scopeDesc = scopeAllOrgs ? 'ALL organizations' : `organization: ${currentOrganization?.name}`;
+      
       toast({
-        title: `Starting storage scan`,
+        title: `Starting storage scan (${scopeDesc})`,
         description: dryRun ? 'Running in preview mode - no changes will be made' : 'This will modify storage and database records',
       });
 
       const { data, error } = await supabase.functions.invoke('relink-legacy-storage', {
         body: { 
-          organizationId: currentOrganization?.id,
+          organizationId: orgScope,
           dryRun 
         }
       });
@@ -170,16 +174,30 @@ export const LegacyStorageRelinker: React.FC = () => {
             </AlertDescription>
           </Alert>
 
-          <div className="flex items-center space-x-2">
-            <Switch
-              id="dry-run"
-              checked={dryRun}
-              onCheckedChange={setDryRun}
-              disabled={scanning}
-            />
-            <Label htmlFor="dry-run">
-              Dry Run (Preview Mode) - {dryRun ? 'No changes will be made' : 'Will modify storage and database'}
-            </Label>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="dry-run"
+                checked={dryRun}
+                onCheckedChange={setDryRun}
+                disabled={scanning}
+              />
+              <Label htmlFor="dry-run">
+                Dry Run (Preview Mode) - {dryRun ? 'No changes will be made' : 'Will modify storage and database'}
+              </Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="scope-all-orgs"
+                checked={scopeAllOrgs}
+                onCheckedChange={setScopeAllOrgs}
+                disabled={scanning}
+              />
+              <Label htmlFor="scope-all-orgs">
+                Scan ALL organizations (not just current: {currentOrganization?.name})
+              </Label>
+            </div>
           </div>
 
           <div className="flex gap-4">
@@ -225,7 +243,8 @@ export const LegacyStorageRelinker: React.FC = () => {
             </CardTitle>
             <CardDescription>
               Scan completed at {new Date(report.scanTime).toLocaleString()}
-              {dryRun && ' (Preview Mode)'}
+              {dryRun && ' (Preview Mode)'} • 
+              Scope: {scopeAllOrgs ? 'ALL organizations' : `${currentOrganization?.name || 'Current organization'} only`}
             </CardDescription>
           </CardHeader>
           <CardContent>

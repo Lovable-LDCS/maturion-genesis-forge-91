@@ -43,7 +43,7 @@ export const useMaturionDocuments = () => {
 
       if (!fnError && fnData && Array.isArray((fnData as any).documents)) {
         const docs = (fnData as any).documents as MaturionDocument[]
-        console.log(`[Docs] Edge function returned ${docs.length} documents (superuser bypass).`)
+        console.log(`[Docs] Edge function returned ${docs.length} documents (superuser - all orgs).`)
         setDocuments((docs || []).filter((d: any) => !d.deleted_at))
         return
       } else if (fnError) {

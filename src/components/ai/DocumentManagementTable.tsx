@@ -252,10 +252,20 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Documents</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Documents
+              {stats.total > 100 && (
+                <span className="ml-2 text-xs text-muted-foreground">(All Orgs)</span>
+              )}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.total}</div>
+            {stats.total > 100 && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Superuser view - all organizations
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>
