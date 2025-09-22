@@ -1,8 +1,22 @@
 import { supabase } from './utils.ts';
 
 // Enhanced function to get DIAMOND-FIRST + ORG-WEB document context
-export async function getDocumentContext(organizationId: string, query: string, domain?: string, mpsNumber?: number): Promise<string> {
+export async function getDocumentContext(params: { 
+  organizationId: string; 
+  query: string; 
+  domain?: string; 
+  mpsNumber?: number; 
+  searchStrategy?: string; 
+}): Promise<string> {
   try {
+    const { organizationId, query, domain, mpsNumber, searchStrategy = 'balanced' } = params;
+    
+    // Framework queries should use built-in knowledge only
+    if (searchStrategy === 'framework_builtin') {
+      console.log('🏗️ Framework query detected - skipping document retrieval, using built-in knowledge');
+      return '';
+    }
+    
     // Ensure organizationId is a string, not an object
     const orgId = typeof organizationId === 'string' ? organizationId : String(organizationId);
     console.log('Fetching document context for organization:', orgId, 'Query:', query, 'MPS Number:', mpsNumber);

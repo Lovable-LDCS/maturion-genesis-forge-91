@@ -35,12 +35,16 @@ export async function buildPromptContext(request: PromptRequest) {
     
     // Simple intent detection - more sophisticated than importing external lib
     const isOrgQuery = /\b(company|organization|footprint|brands|business|tell me about|what is|who is|describe|overview|background|sales channels|subsidiaries|joint ventures|locations|countries|presence|markets|industry|sector)\b/i.test(prompt);
-    const isCriteriaQuery = /\b(criteria|controls|maturity|requirements|compliance|give me|list|provide|~?10|protection|access|scanning|governance|leadership)\b/i.test(prompt);
+    const isFrameworkQuery = /\b(domains?|framework|structure|outline|main.*domains?|five.*domains?|5.*domains?|domain.*structure|maturity.*model|sub.*MPS|MPS.*belong|domain.*MPS)\b/i.test(prompt);
+    const isCriteriaQuery = /\b(criteria|controls|requirements|compliance|protection|access|scanning|governance|leadership|specific.*criteria|implementation|operational)\b/i.test(prompt) && !isFrameworkQuery;
     
-    console.log('🎯 Query analysis:', { isOrgQuery, isCriteriaQuery, domain: currentDomain });
+    console.log('🎯 Query analysis:', { isOrgQuery, isFrameworkQuery, isCriteriaQuery, domain: currentDomain });
     
     let searchStrategy = 'balanced';
-    if (isOrgQuery && !isCriteriaQuery) {
+    if (isFrameworkQuery) {
+      searchStrategy = 'framework_builtin';
+      console.log('🏗️ Framework structure query detected - using built-in knowledge');
+    } else if (isOrgQuery && !isCriteriaQuery) {
       searchStrategy = 'organization_first';
       console.log('🏢 Organization-focused query detected');
     } else if (isCriteriaQuery && !isOrgQuery) {

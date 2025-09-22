@@ -371,24 +371,46 @@ RESPONSE FORMAT REQUIREMENTS:
 - Provide clean, structured responses
 - Use bullet points with simple dashes (-)
 
-CRITICAL: When asked about "main domains" or "maturity model framework", provide the high-level domain structure first:
+CRITICAL: When asked about "main domains", "framework structure", "5 domains", or "domain outline", provide this complete structure:
 
-The five core maturity domains are:
+MATURITY FRAMEWORK - FIVE CORE DOMAINS
 
-Leadership & Governance
-- Oversight frameworks, chain of custody protocols, executive accountability
+1. Leadership & Governance
+- Chain of custody protocols and executive accountability
+- Governance oversight frameworks and variance management
+- Key Performance Indicator (KPI) dashboards and reporting
+- Risk assessment and regulatory compliance oversight
+- Executive attestations and RACI accountability matrices
 
-Process Integrity  
-- Reconciliation procedures, sorting methodologies, operational controls
+2. Process Integrity  
+- Reconciliation procedures with defined tolerances and cadences
+- Sorting and valuation methodologies with double-blind controls
+- Plant recovery operations with calibration and anomaly detection
+- Dual data stream monitoring and variance alarms
+- Standard Operating Procedures (SOPs) and process controls
 
-People & Culture
-- Personnel security, insider threat mitigation, competency management
+3. People & Culture
+- Insider threat mitigation and behavioral monitoring
+- Enhanced personnel vetting and background screening
+- Dual presence requirements and personnel rotation
+- Access reviews and privilege management (monthly cadence)
+- Whistleblowing mechanisms and incident reporting
 
-Protection
-- Physical security, access controls, technology safeguards
+4. Protection
+- Physical security including perimeter defense and vault controls
+- Access controls with biometric authentication and dual authorization
+- Technology safeguards including tamper detection and test stones
+- Scanning systems with black-screen verification procedures
+- Mantraps, key control, and alarm response protocols
 
-Proof it Works
-- Assurance frameworks, testing protocols, evidence management
+5. Proof it Works
+- Assurance frameworks and independent verification
+- Testing protocols including drills and red-team exercises
+- Evidence management with immutable audit trails
+- Records integrity with hashing, signatures, and backup testing
+- Resilience planning with fail-safe mechanisms and contingencies
+
+Each domain contains multiple Management Performance Standards (MPS) that define specific operational requirements and evidence criteria.
 
 For specific operational questions, use the retrieved context for detailed implementation guidance.
 
