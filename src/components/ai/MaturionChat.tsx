@@ -330,29 +330,20 @@ export const MaturionChat: React.FC<MaturionChatProps> = ({
       if (error) throw error;
 
       let responseContent = '';
-      if (data.success) {
-        const { analysis } = data;
-        const { queryMetadata } = analysis;
-        
-        responseContent = `🔍 **Table Analysis: ${tableName}**
+      if (data?.success) {
+        const analysis = data.analysis ?? {};
+        const qm = analysis.queryMetadata ?? null;
 
-📊 **Analysis Results:**
-${analysis.summary}
+        const header = `🔍 **Table Analysis: ${tableName}**\n\n📊 **Analysis Results:**\n${analysis.summary || 'No analysis summary available.'}`;
 
-📈 **Data Overview:**
-• Records analyzed: ${queryMetadata.recordCount.toLocaleString()}
-• Columns: ${queryMetadata.columnsAnalyzed}
-• Table: ${queryMetadata.tableName}
-${queryMetadata.hasOrganizationFilter ? '• Filtered to your organization data' : '• Global table data'}
+        const overview = qm ? `\n\n📈 **Data Overview:**\n• Records analyzed: ${(qm.recordCount ?? 0).toLocaleString?.() ?? qm.recordCount ?? 0}\n• Columns: ${qm.columnsAnalyzed ?? '—'}\n• Table: ${qm.tableName ?? tableName}\n${qm.hasOrganizationFilter ? '• Filtered to your organization data' : '• Global table data'}\n\n${qm.recordCount === 0 ? 
+          `⚠️ **No Data Found**: The ${tableName} table is currently empty. Consider adding records to enable meaningful analysis.` : 
+          '✅ **Data Analysis Complete**: The insights above are based on your actual database records.'
+        }\n\n*Analysis performed at ${new Date(qm.timestamp || Date.now()).toLocaleString()}*` : '';
 
-${queryMetadata.recordCount === 0 ? 
-  `⚠️ **No Data Found**: The ${tableName} table is currently empty. Consider adding records to enable meaningful analysis.` : 
-  '✅ **Data Analysis Complete**: The insights above are based on your actual database records.'
-}
-
-*Analysis performed at ${new Date(queryMetadata.timestamp).toLocaleString()}*`;
+        responseContent = header + overview;
       } else {
-        responseContent = `❌ **Analysis Failed**: ${data.error || 'Unknown error occurred'}`;
+        responseContent = `❌ **Analysis Failed**: ${data?.error || 'Unknown error occurred'}`;
       }
 
       const aiMessage: Message = {
