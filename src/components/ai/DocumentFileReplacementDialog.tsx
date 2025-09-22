@@ -7,6 +7,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useFileUpload } from "@/hooks/useFileUpload";
 import { useToast } from "@/hooks/use-toast";
 import { useOrganization } from "@/hooks/useOrganization";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Upload, FileText, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -36,6 +38,7 @@ export const DocumentFileReplacementDialog: React.FC<DocumentFileReplacementDial
   const { uploadFile, uploading } = useFileUpload();
   const { toast } = useToast();
   const { currentOrganization } = useOrganization();
+  const { user } = useAuth();
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -56,10 +59,34 @@ export const DocumentFileReplacementDialog: React.FC<DocumentFileReplacementDial
 
     setIsReplacing(true);
     try {
-      // Generate a session ID for the replacement upload
+      if (!currentOrganization || !user) {
+        throw new Error('Missing organization or user context for replacement');
+      }
+
+      // Generate a session ID for the replacement upload and record it for RLS
       const sessionId = crypto.randomUUID();
+
+      // Log context validation (audit)
+      await supabase.rpc('log_upload_context_validation', {
+        session_id_param: sessionId,
+        organization_id_param: currentOrganization.id,
+        user_id_param: user.id,
+        validation_result_param: true,
+        error_details_param: 'Upload authorized for document replacement'
+      });
+
+      // Start upload session log (unified flow used by storage RLS)
+      await supabase.from('upload_session_log').insert({
+        session_id: sessionId,
+        organization_id: currentOrganization.id,
+        user_id: user.id,
+        document_count: 1,
+        total_size_bytes: selectedFile.size,
+        session_data: { processing_version: 2, schema_version: 2, unified_upload: true, mode: 'replace' }
+      });
+
       // Use the same bucket and path structure as regular uploads
-      const newFilePath = `unified-uploads/${currentOrganization?.id}/${sessionId}/${selectedFile.name}`;
+      const newFilePath = `unified-uploads/${currentOrganization.id}/${sessionId}/${selectedFile.name}`;
       const uploadUrl = await uploadFile(selectedFile, 'ai-documents', newFilePath);
       
       if (uploadUrl) {
@@ -71,6 +98,7 @@ export const DocumentFileReplacementDialog: React.FC<DocumentFileReplacementDial
           },
           body: JSON.stringify({
             documentId: document.id,
+            organizationId: currentOrganization.id,
             forceReprocess: true,
             newFilePath: newFilePath,
             newFileName: selectedFile.name,
