@@ -347,82 +347,30 @@ Key Guidelines:
       try {
         // Enhanced API call with conversation context and tools
         const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY');
+
+        // Dynamic system prompt selection to avoid framework echo on MPS criteria requests
+        const lower = (request.prompt || '').toLowerCase();
+        const mpsMatch = /mps\s*(\d{1,2})/i.exec(lower);
+        const mpsNum = mpsMatch ? mpsMatch[1] : '';
+        const wantsCriteria = /\b(criteria|audit criteria|controls|requirements)\b/i.test(lower);
+        const isFrameworkQuery = /\b(domains?|framework|structure|outline|maturity model|five domains|5 domains)\b/i.test(lower) && !(mpsMatch && wantsCriteria);
+
+        let systemContent = 'You are Maturion, an AI-first platform for security, maturity, and operational excellence.\n\nRESPONSE FORMAT REQUIREMENTS:\n- Use plain text only, no markdown formatting\n- Use clear headers without asterisks or special characters\n- Provide clean, structured responses\n- Use bullet points with simple dashes (-)';
+
+        if (isFrameworkQuery) {
+          systemContent += '\n\nMATURITY FRAMEWORK - FIVE CORE DOMAINS\n\n1. Leadership & Governance\n   MPS 1: Governance & Oversight - Board oversight, executive accountability, variance management\n   MPS 2: Chain of Custody - Asset tracking, custody protocols, handoff procedures\n   MPS 3: KPI Dashboards - Performance monitoring, reporting frameworks, variance alerts\n   MPS 4: Risk Assessment - Risk identification, assessment protocols, mitigation strategies\n   MPS 5: Regulatory Compliance - Compliance frameworks, audit preparation, attestations\n\n2. Process Integrity  \n   MPS 6: Reconciliation - Tolerance-based reconciliation, automated variance detection\n   MPS 7: Sorting & Valuation - Double-blind methodologies, independent verification\n   MPS 8: Plant Recovery - Calibration protocols, anomaly detection, dual data streams\n   MPS 9: Process Controls - Standard operating procedures, control point monitoring\n   MPS 10: Quality Assurance - Testing protocols, statistical process control\n\n3. People & Culture\n   MPS 11: Insider Threat - Behavioral monitoring, anomaly detection, reporting mechanisms\n   MPS 12: Personnel Vetting - Background screening, ongoing monitoring, clearance management\n   MPS 13: Access Management - Privilege reviews, rotation policies, dual presence\n   MPS 14: Training & Competency - Skills assessment, certification programs, refresher training\n   MPS 15: Culture & Ethics - Code of conduct, whistleblowing, incident response\n\n4. Protection\n   MPS 16: Physical Security - Perimeter defense, vault controls, mantrap access\n   MPS 17: Access Controls - Biometric systems, dual authorization, real-time monitoring\n   MPS 18: Technology Safeguards - Tamper detection, test stones, black-screen verification\n   MPS 19: Scanning & Detection - Automated scanning, anomaly alerts, validation procedures\n   MPS 20: Security Operations - Key control, alarm response, incident management\n\n5. Proof it Works\n   MPS 21: Assurance Framework - Independent verification, third-party audits, certification\n   MPS 22: Testing Protocols - Drill programs, red-team exercises, vulnerability assessments\n   MPS 23: Evidence Management - Chain of evidence, immutable logs, audit trails\n   MPS 24: Records Integrity - Data hashing, backup verification, restore testing\n   MPS 25: Resilience Planning - Fail-safe mechanisms, contingency planning, recovery procedures\n\nGuidelines:\n- Answer framework questions with framework content first\n- Always use plain text formatting';
+        } else if (mpsMatch && wantsCriteria) {
+          systemContent += `\n\nInstructions:\n- Do NOT output the framework list.\n- Generate 8-12 evidence-first audit criteria for MPS ${mpsNum}.\n- Phrase each as: A documented [document] that [action/verification]...\n- Include cadences (daily/weekly/monthly) and owners where applicable.`;
+        } else {
+          systemContent += '\n\nInstructions:\n- Do NOT output the framework list unless explicitly asked.\n- Use retrieved context to answer the user\'s request.';
+        }
+
         const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${OPENAI_API_KEY}`,
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({
             model: 'gpt-4o-mini',
             messages: [
-              {
-                role: 'system',
-                content: `You are Maturion, an AI-first platform for security, maturity, and operational excellence. 
-
-RESPONSE FORMAT REQUIREMENTS:
-- Use plain text only, no markdown formatting
-- Use clear headers without asterisks or special characters
-- Provide clean, structured responses
-- Use bullet points with simple dashes (-)
-
-CRITICAL: When asked about "main domains", "framework structure", "5 domains", or "domain outline", provide this complete structure:
-
-MATURITY FRAMEWORK - FIVE CORE DOMAINS
-
-1. Leadership & Governance
-   MPS 1: Governance & Oversight - Board oversight, executive accountability, variance management
-   MPS 2: Chain of Custody - Asset tracking, custody protocols, handoff procedures
-   MPS 3: KPI Dashboards - Performance monitoring, reporting frameworks, variance alerts
-   MPS 4: Risk Assessment - Risk identification, assessment protocols, mitigation strategies
-   MPS 5: Regulatory Compliance - Compliance frameworks, audit preparation, attestations
-
-2. Process Integrity  
-   MPS 6: Reconciliation - Tolerance-based reconciliation, automated variance detection
-   MPS 7: Sorting & Valuation - Double-blind methodologies, independent verification
-   MPS 8: Plant Recovery - Calibration protocols, anomaly detection, dual data streams
-   MPS 9: Process Controls - Standard operating procedures, control point monitoring
-   MPS 10: Quality Assurance - Testing protocols, statistical process control
-
-3. People & Culture
-   MPS 11: Insider Threat - Behavioral monitoring, anomaly detection, reporting mechanisms
-   MPS 12: Personnel Vetting - Background screening, ongoing monitoring, clearance management
-   MPS 13: Access Management - Privilege reviews, rotation policies, dual presence
-   MPS 14: Training & Competency - Skills assessment, certification programs, refresher training
-   MPS 15: Culture & Ethics - Code of conduct, whistleblowing, incident response
-
-4. Protection
-   MPS 16: Physical Security - Perimeter defense, vault controls, mantrap access
-   MPS 17: Access Controls - Biometric systems, dual authorization, real-time monitoring
-   MPS 18: Technology Safeguards - Tamper detection, test stones, black-screen verification
-   MPS 19: Scanning & Detection - Automated scanning, anomaly alerts, validation procedures
-   MPS 20: Security Operations - Key control, alarm response, incident management
-
-5. Proof it Works
-   MPS 21: Assurance Framework - Independent verification, third-party audits, certification
-   MPS 22: Testing Protocols - Drill programs, red-team exercises, vulnerability assessments
-   MPS 23: Evidence Management - Chain of evidence, immutable logs, audit trails
-   MPS 24: Records Integrity - Data hashing, backup verification, restore testing
-   MPS 25: Resilience Planning - Fail-safe mechanisms, contingency planning, recovery procedures
-
-Each MPS contains specific operational requirements, evidence criteria, and implementation guidance tailored to diamond industry security and operational excellence.
-
-For specific operational questions, use the retrieved context for detailed implementation guidance.
-
-Guidelines:
-- Answer framework questions with framework content first
-- For prompts containing "MPS" and "criteria" (or "audit criteria"), do NOT return the framework; output 8-12 evidence-first audit criteria for that specific MPS
-- Follow only the latest user message if previous context conflicts
-- Provide diamond-first, evidence-based responses  
-- Use requirement-evidence-action format for operational details
-- Include cadences and owners for specific implementations
-- Focus on technology-first controls and defense-in-depth
-- Always use plain text formatting, no markdown or special characters`
-              },
-              {
-                role: 'user',
-                content: contextualInput
-              }
+              { role: 'system', content: systemContent },
+              { role: 'user', content: contextualInput }
             ],
             max_tokens: 1000,
             temperature: 0.7
