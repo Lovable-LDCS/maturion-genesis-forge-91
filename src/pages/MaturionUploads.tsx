@@ -78,11 +78,56 @@ export default function MaturionUploads() {
   };
 
   const handleDelete = async (documentId: string) => {
-    await deleteDocument(documentId);
+    try {
+      // Pre-check org ownership to avoid RLS errors and surface clear guidance
+      const { data: doc, error } = await supabase
+        .from('ai_documents')
+        .select('id, organization_id, title, file_name')
+        .eq('id', documentId)
+        .single();
+
+      if (error || !doc) {
+        throw error || new Error('Document not found');
+      }
+
+      if (currentOrganization?.id && doc.organization_id !== currentOrganization.id) {
+        toast({
+          title: 'Cannot delete document',
+          description: `This document belongs to a different organization. Switch org to manage it. (Doc org: ${doc.organization_id}, Your org: ${currentOrganization.id})`,
+          variant: 'destructive',
+        });
+        return; // Stop here to prevent RLS failure
+      }
+
+      await deleteDocument(documentId);
+    } catch (err: any) {
+      toast({
+        title: 'Delete failed',
+        description: err?.message || 'Unable to delete document right now.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleReprocess = async (documentId: string) => {
     try {
+      // Validate org context first to prevent 404/permission errors
+      const { data: doc, error: fetchErr } = await supabase
+        .from('ai_documents')
+        .select('id, organization_id, title, file_name')
+        .eq('id', documentId)
+        .single();
+      if (fetchErr || !doc) throw fetchErr || new Error('Document not found');
+
+      if (currentOrganization?.id && doc.organization_id !== currentOrganization.id) {
+        toast({
+          title: 'Reprocess blocked',
+          description: `Document belongs to a different organization. Switch org to reprocess. (Doc org: ${doc.organization_id}, Your org: ${currentOrganization.id})`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke('reprocess-document', {
         body: { 
           documentId,
@@ -91,23 +136,25 @@ export default function MaturionUploads() {
         }
       });
 
-      if (error) throw error;
+      if (error || (data && (data as any).success === false)) {
+        const details = (data as any)?.error || error?.message || 'Unknown error';
+        throw new Error(details);
+      }
 
       toast({
-        title: "Reprocessing started",
-        description: "Document is being reprocessed",
+        title: 'Reprocessing started',
+        description: `${doc.title || doc.file_name} is being reprocessed` ,
       });
 
       await refreshDocuments();
     } catch (error: any) {
       toast({
-        title: "Reprocessing failed",
-        description: error.message || "Failed to reprocess document",
-        variant: "destructive",
+        title: 'Reprocessing failed',
+        description: error?.message || 'Failed to reprocess document',
+        variant: 'destructive',
       });
     }
   };
-
   const handleBulkDelete = async (documentIds: string[]) => {
     await bulkDeleteDocuments(documentIds);
   };
