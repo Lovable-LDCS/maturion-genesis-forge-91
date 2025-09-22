@@ -17,6 +17,7 @@ import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
 import { Tables } from '@/integrations/supabase/types';
 import { LiveDataSourceQuery } from '@/components/admin/LiveDataSourceQuery';
+import OpenAIKeyManager from '@/components/ai/OpenAIKeyManager';
 import { 
   Database, 
   Key, 
@@ -1063,9 +1064,21 @@ const DataSourcesManagement: React.FC = () => {
           <TabsContent value="api-keys" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>API Keys & Security</CardTitle>
+                <CardTitle>OpenAI Configuration</CardTitle>
                 <p className="text-sm text-muted-foreground">
-                  Manage API keys and security settings for your data sources
+                  Configure your OpenAI API key for AI-powered features
+                </p>
+              </CardHeader>
+              <CardContent>
+                <OpenAIKeyManager />
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Other API Keys & Security</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Additional API configurations and security settings
                 </p>
               </CardHeader>
               <CardContent className="space-y-4">
