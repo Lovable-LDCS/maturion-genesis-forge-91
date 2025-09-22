@@ -8,10 +8,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Calendar, FileText, Tag, User, Database, Clock } from 'lucide-react';
+import { Calendar, FileText, Tag, User, Database, Clock, Building2, HelpCircle } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 import { MaturionDocument } from '@/hooks/useMaturionDocuments';
 import { DOCUMENT_TYPE_OPTIONS, DOMAIN_OPTIONS } from '@/lib/documentConstants';
+import { useOrganizationHierarchy } from '@/hooks/useOrganizationHierarchy';
 
 interface DocumentEditDialogProps {
   open: boolean;
@@ -28,6 +29,8 @@ export interface DocumentUpdateData {
   upload_notes?: string;
   document_type?: MaturionDocument['document_type'];
   change_reason?: string;
+  context_level?: 'global' | 'organization' | 'subsidiary';
+  target_organization_id?: string | null;
 }
 
 export const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
@@ -37,31 +40,35 @@ export const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
   document,
   saving = false
 }) => {
-  const [formData, setFormData] = useState<DocumentUpdateData>({
+const [formData, setFormData] = useState<DocumentUpdateData>({
     title: '',
     domain: '',
     tags: '',
     upload_notes: '',
     document_type: 'general',
-    change_reason: ''
+    change_reason: '',
+    context_level: 'organization',
+    target_organization_id: null
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Initialize form data when document changes
-  useEffect(() => {
-    if (document) {
-      setFormData({
-        title: document.title || '',
-        domain: document.domain || 'none', // Default to "none" if empty
-        tags: Array.isArray(document.tags) ? document.tags.join(', ') : (document.tags || ''),
-        upload_notes: document.upload_notes || '',
-        document_type: document.document_type,
-        change_reason: ''
-      });
-      setErrors({});
-    }
-  }, [document]);
+// Initialize form data when document changes
+useEffect(() => {
+  if (document) {
+    setFormData({
+      title: document.title || '',
+      domain: document.domain || 'none', // Default to "none" if empty
+      tags: Array.isArray(document.tags) ? document.tags.join(', ') : (document.tags || ''),
+      upload_notes: document.upload_notes || '',
+      document_type: document.document_type,
+      change_reason: '',
+      context_level: (document.context_level as any) || 'organization',
+      target_organization_id: (document.context_level === 'global') ? null : (document.target_organization_id || document.organization_id || null)
+    });
+    setErrors({});
+  }
+}, [document]);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
@@ -88,20 +95,22 @@ export const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = async () => {
-    if (!validateForm()) return;
+const handleSave = async () => {
+  if (!validateForm()) return;
 
-    // Convert "none" domain value back to empty string
-    const saveData = {
-      ...formData,
-      domain: formData.domain === "none" ? "" : formData.domain
-    };
-
-    const success = await onSave(saveData);
-    if (success) {
-      onClose();
-    }
+  // Convert values and include context fields
+  const saveData = {
+    ...formData,
+    domain: formData.domain === "none" ? "" : formData.domain,
+    context_level: formData.context_level,
+    target_organization_id: formData.context_level === 'global' ? null : formData.target_organization_id
   };
+
+  const success = await onSave(saveData);
+  if (success) {
+    onClose();
+  }
+};
 
   const handleClose = () => {
     setFormData({
@@ -166,6 +175,40 @@ export const DocumentEditDialog: React.FC<DocumentEditDialogProps> = ({
                 <div>{formatDistanceToNow(new Date(document.updated_at), { addSuffix: true })}</div>
               </div>
             </div>
+          </div>
+
+<Separator />
+
+          {/* Organization / Context Selector */}
+          <div className="space-y-2 mb-2 p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-blue-600" />
+              <Label>Document Context *</Label>
+            </div>
+            <Select
+              value={formData.context_level === 'global' ? 'global' : (formData.target_organization_id || 'global')}
+              onValueChange={(value) => {
+                if (value === 'global') {
+                  setFormData(prev => ({ ...prev, context_level: 'global', target_organization_id: null }));
+                } else {
+                  setFormData(prev => ({ ...prev, context_level: 'organization', target_organization_id: value }));
+                }
+              }}
+            >
+              <SelectTrigger className="bg-white dark:bg-gray-950">
+                <SelectValue placeholder="Select document context" />
+              </SelectTrigger>
+              <SelectContent>
+                {useOrganizationHierarchy().availableContexts.map((context) => (
+                  <SelectItem key={context.id} value={context.id}>
+                    {context.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              {formData.context_level === 'global' ? 'This document will be available across all organizations' : 'This document will be scoped to the selected organization/subsidiary'}
+            </p>
           </div>
 
           <Separator />

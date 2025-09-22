@@ -24,6 +24,9 @@ export interface MaturionDocument {
   upload_notes?: string;
   is_ai_ingested?: boolean;
   deleted_at?: string | null;
+  // Context fields (may be missing on legacy docs)
+  context_level?: 'global' | 'organization' | 'subsidiary';
+  target_organization_id?: string | null;
 }
 
 export const useMaturionDocuments = () => {
@@ -232,7 +235,7 @@ export const useMaturionDocuments = () => {
     }, organizationId);
   };
 
-  const updateDocument = async (
+const updateDocument = async (
     documentId: string,
     updates: {
       title?: string;
@@ -241,6 +244,8 @@ export const useMaturionDocuments = () => {
       upload_notes?: string;
       document_type?: MaturionDocument['document_type'];
       change_reason?: string;
+      context_level?: 'global' | 'organization' | 'subsidiary';
+      target_organization_id?: string | null;
     }
   ): Promise<boolean> => {
     try {
@@ -260,6 +265,8 @@ export const useMaturionDocuments = () => {
           tags: updates.tags ? updates.tags.split(',').map(tag => tag.trim()) : [],
           upload_notes: updates.upload_notes,
           document_type: updates.document_type,
+          context_level: updates.context_level ?? currentDoc.context_level,
+          target_organization_id: updates.context_level === 'global' ? null : (updates.target_organization_id ?? currentDoc.target_organization_id ?? currentDoc.organization_id),
           updated_at: new Date().toISOString(),
           updated_by: (await supabase.auth.getUser()).data.user?.id || '',
           metadata: {
@@ -269,7 +276,9 @@ export const useMaturionDocuments = () => {
             tags: updates.tags ? updates.tags.split(',').map(tag => tag.trim()) : [],
             upload_notes: updates.upload_notes,
             change_reason: updates.change_reason || 'Document updated',
-            last_updated: new Date().toISOString()
+            last_updated: new Date().toISOString(),
+            context_level: updates.context_level ?? currentDoc.context_level,
+            target_organization_id: updates.context_level === 'global' ? null : (updates.target_organization_id ?? currentDoc.target_organization_id ?? currentDoc.organization_id)
           }
         })
         .eq('id', documentId);

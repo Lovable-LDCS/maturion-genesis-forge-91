@@ -77,20 +77,24 @@ export default function MaturionUploads() {
     }
   };
 
-  const handleDelete = async (documentId: string) => {
+const handleDelete = async (documentId: string) => {
     try {
       // Pre-check org ownership to avoid RLS errors and surface clear guidance
-      const { data: doc, error } = await supabase
-        .from('ai_documents')
-        .select('id, organization_id, title, file_name')
-        .eq('id', documentId)
-        .single();
+      const [{ data: doc, error }, { data: isSuperuser }] = await Promise.all([
+        supabase
+          .from('ai_documents')
+          .select('id, organization_id, title, file_name')
+          .eq('id', documentId)
+          .single(),
+        supabase.rpc('is_superuser')
+      ]);
 
       if (error || !doc) {
         throw error || new Error('Document not found');
       }
 
-      if (currentOrganization?.id && doc.organization_id !== currentOrganization.id) {
+      // If not superuser, enforce org match to avoid RLS issues
+      if (!isSuperuser && currentOrganization?.id && doc.organization_id !== currentOrganization.id) {
         toast({
           title: 'Cannot delete document',
           description: `This document belongs to a different organization. Switch org to manage it. (Doc org: ${doc.organization_id}, Your org: ${currentOrganization.id})`,
