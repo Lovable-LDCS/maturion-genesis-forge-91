@@ -458,11 +458,8 @@ Guidelines:
         
         // Try to synthesize from retrieved chunks, otherwise use informative fallback
         if (promptContext.documentContext && promptContext.documentContext.length > 0) {
-          const snippet = promptContext.documentContext
-            .slice(0, 6)
-            .map((s: string) => '- ' + (s.split('\n').slice(1).join(' ').slice(0, 200)))
-            .join('\n');
-          aiResponse = `Here is a synthesized summary from retrieved sources:\n${snippet}`;
+          // Provide a clean, plain-text framework overview instead of noisy synthesis
+          aiResponse = `MATURITY FRAMEWORK - FIVE CORE DOMAINS\n\n1. Leadership & Governance\n- Chain of custody protocols, executive accountability, governance oversight\n\n2. Process Integrity\n- Reconciliation procedures, sorting/valuation methodologies, operational controls\n\n3. People & Culture\n- Insider threat mitigation, enhanced vetting, dual presence and access reviews\n\n4. Protection\n- Physical security, access controls, tamper detection and scanning safeguards\n\n5. Proof it Works\n- Assurance frameworks, testing protocols, evidence and records integrity`;
         } else {
           // Use informative fallback when no sources are available
           aiResponse = generateInformativeFallback(contextualInput, modelErr);
