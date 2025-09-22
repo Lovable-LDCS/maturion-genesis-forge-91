@@ -30,6 +30,7 @@ import { BatchDocumentReprocessor } from '@/components/qa/BatchDocumentReprocess
 import { AILogicIngestionDashboard } from '@/components/qa/AILogicIngestionDashboard';
 // import { DocumentChunkTester } from '@/components/qa/DocumentChunkTester'; // Disabled to avoid conflicts with Knowledge Base
 import { ApprovedFilesQueue } from '@/components/ai/ApprovedFilesQueue';
+import { DuplicateDocumentCleaner } from '@/components/qa/DuplicateDocumentCleaner';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useEffect, useState as useReactState } from 'react';
@@ -216,6 +217,18 @@ export const QADashboard: React.FC<QADashboardProps> = () => {
           </CardHeader>
           <CardContent>
             <EdgeFunctionTester />
+          </CardContent>
+        </Card>
+
+        <Card className="border-red-200 bg-red-50 dark:bg-red-950 dark:border-red-800">
+          <CardHeader>
+            <CardTitle className="text-red-800 dark:text-red-200">🚨 URGENT: Document Mismatch Fix</CardTitle>
+            <CardDescription className="text-red-700 dark:text-red-300">
+              Duplicate MPS 10 documents causing display confusion in embedding dialog.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DuplicateDocumentCleaner />
           </CardContent>
         </Card>
 
