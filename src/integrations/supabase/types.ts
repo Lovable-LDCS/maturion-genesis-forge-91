@@ -4847,6 +4847,10 @@ export type Database = {
           chunks_updated: number
         }[]
       }
+      regenerate_missing_embeddings_for_org: {
+        Args: { org_id: string }
+        Returns: Json
+      }
       request_admin_access: {
         Args: { justification: string; target_user_email: string }
         Returns: Json
