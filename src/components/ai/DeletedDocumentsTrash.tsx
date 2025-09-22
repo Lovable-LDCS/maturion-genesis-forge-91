@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { MaturionDocument } from '@/hooks/useMaturionDocuments';
+import { useOrganization } from '@/hooks/useOrganization';
 
 interface DeletedDocumentsTrashProps {
   onRestore?: () => void;
@@ -19,7 +20,23 @@ export const DeletedDocumentsTrash: React.FC<DeletedDocumentsTrashProps> = ({
   const [deletedDocuments, setDeletedDocuments] = useState<MaturionDocument[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDocs, setSelectedDocs] = useState<Set<string>>(new Set());
+  const [isSuperuser, setIsSuperuser] = useState(false);
   const { toast } = useToast();
+  const { currentOrganization } = useOrganization();
+
+  // Check superuser status
+  useEffect(() => {
+    const checkSuperuser = async () => {
+      try {
+        const { data } = await supabase.rpc('is_superuser');
+        setIsSuperuser(data || false);
+      } catch (error) {
+        console.error('Error checking superuser status:', error);
+        setIsSuperuser(false);
+      }
+    };
+    checkSuperuser();
+  }, []);
 
   const fetchDeletedDocuments = async () => {
     try {
@@ -46,6 +63,26 @@ export const DeletedDocumentsTrash: React.FC<DeletedDocumentsTrashProps> = ({
 
   const restoreDocument = async (documentId: string) => {
     try {
+      // Get document info first for organization check
+      const { data: doc, error: fetchError } = await supabase
+        .from('ai_documents')
+        .select('organization_id, title, file_name')
+        .eq('id', documentId)
+        .single();
+
+      if (fetchError) throw fetchError;
+      if (!doc) throw new Error('Document not found');
+
+      // Check permissions - superuser bypass or organization match
+      if (!isSuperuser && currentOrganization?.id && doc.organization_id !== currentOrganization.id) {
+        toast({
+          title: 'Cannot restore document',
+          description: `This document belongs to a different organization. Switch org to manage it.`,
+          variant: 'destructive',
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('ai_documents')
         .update({ 
@@ -74,12 +111,25 @@ export const DeletedDocumentsTrash: React.FC<DeletedDocumentsTrashProps> = ({
 
   const permanentlyDeleteDocument = async (documentId: string) => {
     try {
-      // Get document info for storage cleanup
-      const { data: doc } = await supabase
+      // Get document info for storage cleanup and organization check
+      const { data: doc, error: fetchError } = await supabase
         .from('ai_documents')
-        .select('file_path, title, file_name')
+        .select('file_path, title, file_name, organization_id')
         .eq('id', documentId)
         .single();
+
+      if (fetchError) throw fetchError;
+      if (!doc) throw new Error('Document not found');
+
+      // Check permissions - superuser bypass or organization match
+      if (!isSuperuser && currentOrganization?.id && doc.organization_id !== currentOrganization.id) {
+        toast({
+          title: 'Cannot delete document',
+          description: `This document belongs to a different organization. Switch org to manage it.`,
+          variant: 'destructive',
+        });
+        return;
+      }
 
       // Delete from storage
       if (doc?.file_path) {
@@ -124,6 +174,26 @@ export const DeletedDocumentsTrash: React.FC<DeletedDocumentsTrashProps> = ({
   const bulkRestore = async () => {
     const docIds = Array.from(selectedDocs);
     try {
+      // Check permissions for all selected documents if not superuser
+      if (!isSuperuser && currentOrganization?.id) {
+        const { data: docs, error: fetchError } = await supabase
+          .from('ai_documents')
+          .select('id, organization_id')
+          .in('id', docIds);
+
+        if (fetchError) throw fetchError;
+        
+        const wrongOrgDocs = docs?.filter(doc => doc.organization_id !== currentOrganization.id);
+        if (wrongOrgDocs && wrongOrgDocs.length > 0) {
+          toast({
+            title: 'Cannot restore documents',
+            description: `Some documents belong to different organizations. Switch org or select only your documents.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+
       const { error } = await supabase
         .from('ai_documents')
         .update({ 
@@ -154,11 +224,26 @@ export const DeletedDocumentsTrash: React.FC<DeletedDocumentsTrashProps> = ({
   const bulkPermanentDelete = async () => {
     const docIds = Array.from(selectedDocs);
     try {
-      // Get documents for storage cleanup
-      const { data: docs } = await supabase
+      // Get documents for storage cleanup and permission check
+      const { data: docs, error: fetchError } = await supabase
         .from('ai_documents')
-        .select('file_path')
+        .select('file_path, organization_id')
         .in('id', docIds);
+
+      if (fetchError) throw fetchError;
+
+      // Check permissions for all selected documents if not superuser
+      if (!isSuperuser && currentOrganization?.id) {
+        const wrongOrgDocs = docs?.filter(doc => doc.organization_id !== currentOrganization.id);
+        if (wrongOrgDocs && wrongOrgDocs.length > 0) {
+          toast({
+            title: 'Cannot delete documents',
+            description: `Some documents belong to different organizations. Switch org or select only your documents.`,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
 
       // Delete from storage
       if (docs && docs.length > 0) {
