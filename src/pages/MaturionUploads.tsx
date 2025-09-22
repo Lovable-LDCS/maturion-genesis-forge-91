@@ -178,37 +178,45 @@ const handleDelete = async (documentId: string) => {
   };
 
   const handleReprocessPending = async () => {
-    const [{ data: isSuperuser }] = await Promise.all([
-      supabase.rpc('is_superuser')
-    ]);
+    if (!currentOrganization?.id) {
+      toast({
+        title: "Error",
+        description: "No organization context available",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setIsRefreshing(true);
-    const pendingDocs = documents?.filter(doc => doc.processing_status === 'pending') || [];
     
-    for (const doc of pendingDocs) {
-      try {
-        // If not superuser, only allow reprocess within current org
-        if (!isSuperuser && currentOrganization?.id && doc.organization_id !== currentOrganization.id) {
-          continue;
+    try {
+      const { data, error } = await supabase.functions.invoke('trigger-pending-processing', {
+        body: {
+          organizationId: currentOrganization.id
         }
-
-        const orgToUse = isSuperuser ? doc.organization_id : currentOrganization?.id;
-        const { error } = await supabase.functions.invoke('reprocess-document', {
-          body: {
-            documentId: doc.id,
-            organizationId: orgToUse!,
-            forceReprocess: true
-          }
-        });
+      });
         
-        if (error) {
-          console.error(`Failed to reprocess ${doc.title}:`, error);
-        } else {
-          console.log(`Successfully triggered reprocessing for ${doc.title}`);
-        }
-      } catch (error) {
-        console.error(`Error reprocessing ${doc.title}:`, error);
+      if (error) {
+        console.error('Failed to trigger pending processing:', error);
+        toast({
+          title: "Error",
+          description: `Failed to process pending documents: ${error.message}`,
+          variant: "destructive"
+        });
+      } else {
+        console.log('Successfully triggered pending document processing:', data);
+        toast({
+          title: "Success",
+          description: `Triggered processing for ${data.totalFound || 0} pending documents`,
+        });
       }
+    } catch (error) {
+      console.error('Error triggering pending processing:', error);
+      toast({
+        title: "Error",
+        description: "Failed to trigger pending document processing",
+        variant: "destructive"
+      });
     }
     
     // Wait a moment then refresh
