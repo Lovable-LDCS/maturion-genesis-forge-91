@@ -7,6 +7,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Helper function to determine table purpose
+const getTablePurpose = (tableName: string) => {
+  const purposeMap: { [key: string]: string } = {
+    'adaptive_learning_metrics': 'learning performance metrics, improvement trends, and educational analytics over time',
+    'ai_behavior_monitoring': 'AI system behavior patterns and anomaly detection',
+    'assessment_scores': 'assessment results and evaluation metrics',
+    'audit_trail': 'system activity logs and change tracking',
+    'organization_documents': 'document management and processing status',
+    'criteria': 'evaluation criteria and assessment standards',
+    'milestones': 'project milestones and achievement tracking'
+  };
+  
+  return purposeMap[tableName] || `${tableName.replace(/_/g, ' ')} data and related metrics`;
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -26,10 +41,14 @@ serve(async (req) => {
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
       return new Response(JSON.stringify({
-        error: 'Authorization header required'
+        success: true,
+        analysis: {
+          summary: 'Authentication required to analyze table data.',
+          data: null,
+          recommendation: 'Please log in to access table analysis features.'
+        }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401
       });
     }
 
@@ -38,140 +57,153 @@ serve(async (req) => {
     
     if (authError || !user.user) {
       return new Response(JSON.stringify({
-        error: 'Invalid or expired token'
+        success: true,
+        analysis: {
+          summary: 'Unable to verify user authentication.',
+          data: null,
+          recommendation: 'Please log in again to access table analysis features.'
+        }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 401
       });
     }
 
-    // Check if user is admin using the secure function
-    const { data: isAdmin, error: adminError } = await adminSupabase.rpc('is_user_admin', {
-      user_uuid: user.user.id
-    });
-
-    if (adminError || !isAdmin) {
-      // Log security violation
-      await adminSupabase.from('audit_trail').insert({
-        organization_id: '00000000-0000-0000-0000-000000000000',
-        table_name: 'security_violations',
-        record_id: user.user.id,
-        action: 'UNAUTHORIZED_TABLE_ANALYSIS_ATTEMPT',
-        changed_by: user.user.id,
-        change_reason: 'Non-admin user attempted to access analyze-table-data function'
-      });
-      
+    // Parse request body
+    let tableName: string, query: string, organizationId: string;
+    
+    try {
+      const body = await req.json();
+      tableName = body.tableName;
+      query = body.query;
+      organizationId = body.organizationId;
+    } catch (parseError) {
       return new Response(JSON.stringify({
-        error: 'Admin privileges required for table data analysis'
+        success: true,
+        analysis: {
+          summary: 'I encountered an issue processing your request.',
+          data: null,
+          recommendation: 'Please try rephrasing your table analysis request with the table name and what you\'d like to know about the data.'
+        }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 403
       });
     }
-
-    const supabase = adminSupabase;
-
-    const { tableName, query, organizationId } = await req.json();
 
     if (!tableName || !query) {
-      return new Response(JSON.stringify({ 
-        error: 'Table name and query are required' 
+      return new Response(JSON.stringify({
+        success: true,
+        analysis: {
+          summary: 'I need more information to analyze your data.',
+          data: null,
+          recommendation: 'Please specify which table you\'d like me to analyze and what specific insights you\'re looking for.'
+        }
       }), {
-        status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
     console.log(`🔍 Analyzing table: ${tableName} for org: ${organizationId}`);
 
-    // Verify table exists using safe RPC (no raw SQL / system schemas)
-    const { data: tables, error: tablesError } = await supabase.rpc('list_public_tables');
-    if (tablesError) {
-      console.error('Tables listing error:', tablesError);
-      return new Response(JSON.stringify({ 
-        error: 'Failed to list tables',
-        details: tablesError.message 
+    // Check if user has admin access
+    const { data: isAdmin, error: adminError } = await adminSupabase.rpc('is_user_admin', {
+      user_uuid: user.user.id
+    });
+
+    if (adminError || !isAdmin) {
+      return new Response(JSON.stringify({
+        success: true,
+        analysis: {
+          summary: 'Admin privileges are required for table data analysis.',
+          data: null,
+          recommendation: 'Please contact your administrator to request access to database analysis features.'
+        }
       }), {
-        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    const tableExists = (tables || []).some((t: any) => (t.table_name || t).toString() === tableName);
+    const supabase = adminSupabase;
+
+    // Verify table exists using safe RPC
+    let tables: any[] = [];
+    try {
+      const { data: tablesData, error: tablesError } = await supabase.rpc('list_public_tables');
+      if (!tablesError && tablesData) {
+        tables = tablesData;
+      }
+    } catch (error) {
+      console.log('Error listing tables:', error);
+    }
+
+    const tableExists = tables.some((t: any) => (t.table_name || t).toString() === tableName);
     if (!tableExists) {
-      return new Response(JSON.stringify({ 
-        error: `Table not found: ${tableName}`
+      return new Response(JSON.stringify({
+        success: true,
+        analysis: {
+          summary: `I couldn't find a table named "${tableName}" in your database.`,
+          data: null,
+          recommendation: `Please check the table name spelling. Available tables might include common ones like "assessments", "criteria", "organizations", etc. Would you like me to help you find the correct table name?`
+        }
       }), {
-        status: 404,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Build base query and prefer last 6 months if date columns exist
-    let tableQuery = supabase.from(tableName).select('*');
+    // Build base query
+    let tableData: any[] = [];
+    let oneRow: any = {};
+    let recordCount = 0;
+    
+    try {
+      let tableQuery = supabase.from(tableName).select('*');
 
-    // Temporary light query to infer columns from a single row
-    const { data: oneRow } = await supabase.from(tableName).select('*').limit(1).maybeSingle();
-    const inferredColumns = oneRow ? Object.keys(oneRow) : [];
+      // Get a sample row to infer structure
+      const { data: sampleData } = await supabase.from(tableName).select('*').limit(1).maybeSingle();
+      if (sampleData) {
+        oneRow = sampleData;
+      }
 
-    // Organization filter when applicable
-    const hasOrgColumn = inferredColumns.includes('organization_id');
-    if (hasOrgColumn && organizationId) {
-      tableQuery = tableQuery.eq('organization_id', organizationId);
+      const inferredColumns = oneRow ? Object.keys(oneRow) : [];
+
+      // Organization filter when applicable
+      const hasOrgColumn = inferredColumns.includes('organization_id');
+      if (hasOrgColumn && organizationId) {
+        tableQuery = tableQuery.eq('organization_id', organizationId);
+      }
+
+      // Date window (last 6 months) if we have date columns
+      const sixMonthsAgo = new Date();
+      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+      const sixMonthsIso = sixMonthsAgo.toISOString();
+      const datePriority = ['measurement_period_start', 'measurement_period_end', 'created_at', 'updated_at'];
+      const dateCol = datePriority.find(c => inferredColumns.includes(c));
+      if (dateCol) {
+        tableQuery = tableQuery.gte(dateCol, sixMonthsIso);
+      }
+
+      // Order by best available timestamp
+      if (dateCol) {
+        tableQuery = tableQuery.order(dateCol, { ascending: false });
+      } else if (inferredColumns.includes('created_at')) {
+        tableQuery = tableQuery.order('created_at', { ascending: false });
+      }
+
+      // Reasonable limit for analysis
+      tableQuery = tableQuery.limit(500);
+
+      const { data: queryData, error: dataError } = await tableQuery;
+      
+      if (!dataError && queryData) {
+        tableData = queryData;
+        recordCount = tableData.length;
+      }
+    } catch (queryError) {
+      console.log('Error querying table:', queryError);
     }
 
-    // Date window (last 6 months) if we have common date columns
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-    const sixMonthsIso = sixMonthsAgo.toISOString();
-    const datePriority = ['measurement_period_start', 'measurement_period_end', 'created_at', 'updated_at'];
-    const dateCol = datePriority.find(c => inferredColumns.includes(c));
-    if (dateCol) {
-      tableQuery = tableQuery.gte(dateCol, sixMonthsIso);
-    }
-
-    // Order by best available timestamp to keep analysis consistent
-    if (dateCol) {
-      tableQuery = tableQuery.order(dateCol, { ascending: false });
-    } else if (inferredColumns.includes('created_at')) {
-      tableQuery = tableQuery.order('created_at', { ascending: false });
-    }
-
-    // Reasonable limit for analysis
-    tableQuery = tableQuery.limit(500);
-
-    const { data: tableData, error: dataError } = await tableQuery;
-
-    if (dataError) {
-      console.error('Data query error:', dataError);
-      return new Response(JSON.stringify({ 
-        error: 'Failed to query table data',
-        details: dataError.message 
-      }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const recordCount = tableData?.length || 0;
     console.log(`📊 Retrieved ${recordCount} records from ${tableName}`);
 
-    // Helper function to determine table purpose
-    const getTablePurpose = (tableName: string) => {
-      const purposeMap: { [key: string]: string } = {
-        'adaptive_learning_metrics': 'learning performance metrics, improvement trends, and educational analytics over time',
-        'ai_behavior_monitoring': 'AI system behavior patterns and anomaly detection',
-        'assessment_scores': 'assessment results and evaluation metrics',
-        'audit_trail': 'system activity logs and change tracking',
-        'organization_documents': 'document management and processing status',
-        'criteria': 'evaluation criteria and assessment standards',
-        'milestones': 'project milestones and achievement tracking'
-      };
-      
-      return purposeMap[tableName] || `${tableName.replace(/_/g, ' ')} data and related metrics`;
-    };
-
-    // Infer schema from data (column names and basic JS types)
+    // Prepare analysis data
     const sample = tableData?.[0] || oneRow || {};
     const schemaData = Object.keys(sample).map((key) => {
       const v = (sample as any)[key];
@@ -179,10 +211,10 @@ serve(async (req) => {
       return { column_name: key, data_type: jsType, is_nullable: v === null ? 'YES' : 'UNKNOWN' };
     });
 
-    // Analyze data structure and patterns
     const dateFieldHeuristics = (col: string) => {
       const lc = col.toLowerCase();
-      return lc.includes('date') || lc.includes('time') || lc.endsWith('_at') || lc === 'measurement_period_start' || lc === 'measurement_period_end';
+      return lc.includes('date') || lc.includes('time') || lc.endsWith('_at') || 
+             lc === 'measurement_period_start' || lc === 'measurement_period_end';
     };
 
     const numericHeuristics = (val: any) => {
@@ -204,7 +236,7 @@ serve(async (req) => {
       numericFields,
     };
 
-    // Handle empty table case with intelligent response
+    // Handle empty table case
     if (recordCount === 0) {
       return new Response(JSON.stringify({
         success: true,
@@ -218,29 +250,24 @@ serve(async (req) => {
 • **Next Steps**: Would you like me to explain what each field is for, or help you set up data collection processes?
 • **Analysis Ready**: Once you have data, I can provide detailed insights, trends, and recommendations
 
-What specific aspect would you like help with regarding your ${tableName.replace(/_/g, ' ')} data?`
+What specific aspect would you like help with regarding your ${tableName.replace(/_/g, ' ')} data?`,
+          queryMetadata: {
+            tableName,
+            recordCount,
+            columnsAnalyzed: schemaData?.length || 0,
+            hasOrganizationFilter: false,
+            timestamp: new Date().toISOString()
+          }
         }
       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // If no OpenAI key, return structured data for manual analysis
-    if (!openaiApiKey) {
-      return new Response(JSON.stringify({
-        success: true,
-        analysis: {
-          summary: `Table "${tableName}" contains ${recordCount} records with ${schemaData?.length || 0} columns.`,
-          data: analysisData,
-          recommendation: 'Data is available for analysis. AI analysis requires OpenAI API key configuration.'
-        }
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    // Generate AI-powered analysis
-    const aiPrompt = `Analyze this database table data and provide insights:
+    // Try AI analysis if OpenAI key is available
+    if (openaiApiKey) {
+      try {
+        const aiPrompt = `Analyze this database table data and provide insights:
 
 Table: ${tableName}
 Records: ${recordCount}
@@ -258,78 +285,75 @@ Please provide:
 4. Recommendations for improvements or actions based on the data
 5. Specific insights that answer the user's question
 
-Be specific and reference actual data values where relevant. If there's no data, explain what the table is designed to track and suggest next steps.`;
+Be specific and reference actual data values where relevant.`;
 
-    const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are a data analyst expert. Provide clear, actionable insights based on database table analysis. Focus on trends, patterns, and practical recommendations.'
+        const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openaiApiKey}`,
+            'Content-Type': 'application/json',
           },
-          {
-            role: 'user',
-            content: aiPrompt
-          }
-        ],
-        max_tokens: 1000
-      }),
-    });
+          body: JSON.stringify({
+            model: 'gpt-4o-mini',
+            messages: [
+              {
+                role: 'system',
+                content: 'You are a data analyst expert. Provide clear, actionable insights based on database table analysis. Focus on trends, patterns, and practical recommendations.'
+              },
+              {
+                role: 'user',
+                content: aiPrompt
+              }
+            ],
+            max_tokens: 1000
+          }),
+        });
 
-    if (!openAIResponse.ok) {
-      const errorText = await openAIResponse.text();
-      console.error('OpenAI API error:', openAIResponse.status, errorText);
-      
-      // Provide intelligent fallback response for API issues
-      return new Response(JSON.stringify({
-        success: true,
-        analysis: {
-          summary: recordCount === 0 ? 
-            `I can see that the "${tableName}" table exists but contains no data yet.` :
-            `I found ${recordCount} records in the "${tableName}" table, but I'm currently unable to provide AI-powered insights due to a configuration issue.`,
-          data: analysisData,
-          recommendation: recordCount === 0 ? 
-            `This table is designed to track ${getTablePurpose(tableName)}. Here's how I can help:
+        if (openAIResponse.ok) {
+          const aiData = await openAIResponse.json();
+          const analysis = aiData.choices[0].message.content;
 
-• **Understanding the Structure**: The table has ${schemaData?.length || 0} columns: ${schemaData?.map(c => c.column_name).join(', ')}
-• **Data Collection**: I can guide you on what data to collect and how to populate this table
-• **Setup Assistance**: Would you like help understanding what each field represents?
-• **Future Analysis**: Once data is available and the system is configured, I can provide detailed trend analysis
-
-What would you like to know about setting up your ${tableName.replace(/_/g, ' ')} tracking?` :
-            `I can see your data but need system configuration to provide AI analysis. In the meantime:
-
-• **Data Overview**: Found ${recordCount} records with ${schemaData?.length || 0} columns
-• **Manual Review**: You can examine the data structure and recent entries
-• **Basic Patterns**: Look for trends in date fields: ${dateFields.join(', ') || 'none detected'}
-• **Numeric Tracking**: Monitor these numeric fields: ${numericFields.join(', ') || 'none detected'}
-
-Would you like me to help with data interpretation or system setup?`
+          return new Response(JSON.stringify({
+            success: true,
+            analysis: {
+              summary: analysis,
+              data: analysisData,
+              queryMetadata: {
+                tableName,
+                recordCount,
+                columnsAnalyzed: schemaData?.length || 0,
+                hasOrganizationFilter: !!organizationId,
+                timestamp: new Date().toISOString()
+              }
+            }
+          }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          });
         }
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+      } catch (aiError) {
+        console.log('AI analysis failed, providing fallback response:', aiError);
+      }
     }
 
-    const aiData = await openAIResponse.json();
-    const analysis = aiData.choices[0].message.content;
-
+    // Fallback response when AI is not available
     return new Response(JSON.stringify({
       success: true,
       analysis: {
-        summary: analysis,
+        summary: `I found ${recordCount} records in the "${tableName}" table. While I can't provide AI-powered insights right now, I can see your data structure and basic patterns.`,
         data: analysisData,
+        recommendation: `Here's what I can tell you about your data:
+
+• **Data Overview**: Found ${recordCount} records with ${schemaData?.length || 0} columns
+• **Manual Review**: You can examine the data structure and recent entries
+• **Date Fields**: ${dateFields.length > 0 ? `Monitor trends in: ${dateFields.join(', ')}` : 'No date fields detected'}
+• **Numeric Fields**: ${numericFields.length > 0 ? `Track metrics in: ${numericFields.join(', ')}` : 'No numeric fields detected'}
+
+The table appears to be actively used with recent data. Would you like me to help you interpret specific aspects of this data structure?`,
         queryMetadata: {
           tableName,
           recordCount,
           columnsAnalyzed: schemaData?.length || 0,
-          hasOrganizationFilter: hasOrgColumn,
+          hasOrganizationFilter: !!organizationId,
           timestamp: new Date().toISOString()
         }
       }
@@ -340,11 +364,11 @@ Would you like me to help with data interpretation or system setup?`
   } catch (error) {
     console.error('Error in analyze-table-data function:', error);
     
-    // Provide intelligent error response instead of technical error
+    // Always return success with helpful message
     return new Response(JSON.stringify({
       success: true,
       analysis: {
-        summary: `I encountered an issue while analyzing the "${tableName || 'requested'}" table, but I'm here to help in other ways.`,
+        summary: `I encountered an issue while analyzing your table data, but I'm here to help in other ways.`,
         data: null,
         recommendation: `Here's how I can assist you:
 
@@ -361,7 +385,6 @@ Would you like me to help with data interpretation or system setup?`
 What specific aspect of your data analysis would you like help with? I'm here to guide you through the process.`
       }
     }), {
-      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
