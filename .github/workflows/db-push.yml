@@ -1,23 +1,19 @@
 name: Supabase migrations
 
 on:
-  workflow_dispatch:      # lets you run it manually from the Actions tab
-  push:                   # re-run when these files change
+  workflow_dispatch:
+  push:
     paths:
-      - "supabase/**"
-      - ".github/workflows/db-push.yml"
+      - 'supabase/**'
+      - '.github/workflows/db-push.yml'
 
 jobs:
   push:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
+      - uses: supabase/setup-cli@v1
 
       - name: Link project
         env:
@@ -26,13 +22,25 @@ jobs:
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
       - name: Push migrations (using DB URL)
+        if: ${{ secrets.SUPABASE_DB_URL != '' }}
         env:
           SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
         run: |
           set -e
-          if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "❌ Missing SUPABASE_DB_URL secret. Add it in Settings → Secrets and variables → Actions."
-            exit 1
-          fi
-          echo "▶ Applying migrations with Supabase CLI…"
-          supabase db push --db-url "$SUPABASE_DB_URL" --debug
+          echo "Applying migrations with Supabase CLI (DB URL)…"
+          supabase db push --db-url "$SUPABASE_DB_URL"
+
+      - name: Push migrations (using password)
+        if: ${{ secrets.SUPABASE_DB_URL == '' && secrets.SUPABASE_DB_PASSWORD != '' }}
+        env:
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          set -e
+          echo "Applying migrations with Supabase CLI (password)…"
+          supabase db push --db-password "$SUPABASE_DB_PASSWORD"
+
+      - name: Fail if no DB secret is configured
+        if: ${{ secrets.SUPABASE_DB_URL == '' && secrets.SUPABASE_DB_PASSWORD == '' }}
+        run: |
+          echo "::error::You must set either SUPABASE_DB_URL or SUPABASE_DB_PASSWORD as an Actions secret in Settings → Secrets and variables → Actions."
+          exit 1
