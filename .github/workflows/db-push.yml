@@ -17,8 +17,6 @@ jobs:
       cancel-in-progress: true
 
     env:
-      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
@@ -29,11 +27,9 @@ jobs:
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
 
-      - name: Link project
-        run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
-
-      # Decide whether to pull a baseline:
-      # Only do it if (A) local migrations are empty AND (B) remote history is empty.
+      # Only pull baseline if BOTH:
+      #   A) local migrations are empty, AND
+      #   B) remote migration history is empty.
       - name: Maybe pull baseline
         id: maybe_pull
         shell: bash
@@ -42,24 +38,23 @@ jobs:
 
           # A) local empty?
           if [ ! -d "supabase/migrations" ] || [ -z "$(ls -A supabase/migrations 2>/dev/null || true)" ]; then
-            local_empty="yes"
+            local_empty=yes
           else
-            local_empty="no"
+            local_empty=no
           fi
 
           # B) remote history empty?
-          # Use psql in a disposable container (no local Docker requirement for your PC; GH runner has Docker).
           remote_count=$(echo "select count(*) from supabase_migrations.schema_migrations;" \
-            | docker run -i --rm postgres:16-alpine psql "$SUPABASE_DB_URL" -At 2>/dev/null || echo "ERR")
+            | docker run -i --rm postgres:16-alpine psql "$SUPABASE_DB_URL" -At 2>/dev/null || echo ERR)
 
-          if [ "$remote_count" = "ERR" ]; then
+          if [ "$remote_count" = ERR ]; then
             echo "Failed to check remote migration history." >&2
             exit 1
           fi
 
           echo "Local empty: $local_empty; Remote history rows: $remote_count"
 
-          if [ "$local_empty" = "yes" ] && [ "$remote_count" = "0" ]; then
+          if [ "$local_empty" = yes ] && [ "$remote_count" = 0 ]; then
             echo "Local empty AND remote history empty -> pulling baseline..."
             supabase db pull --db-url "$SUPABASE_DB_URL" --schema public --non-interactive
             echo "pulled=true" >> "$GITHUB_OUTPUT"
@@ -81,3 +76,10 @@ jobs:
             echo "Neither SUPABASE_DB_URL nor SUPABASE_DB_PASSWORD is set." >&2
             exit 1
           fi
+
+      # Optional: quick connectivity probe (kept last so secrets don't appear in earlier logs)
+      - name: Sanity query (optional)
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          echo "select 1" | docker run -i --rm postgres:16-alpine psql "$SUPABASE_DB_URL" -At || true
