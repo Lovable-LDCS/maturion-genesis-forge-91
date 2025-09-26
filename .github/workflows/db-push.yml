@@ -12,13 +12,11 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
 
-    # prevent overlapping runs on same ref
     concurrency:
       group: supabase-migrate-${{ github.ref }}
       cancel-in-progress: true
 
     env:
-      # prefer DB URL; optional fallback password
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
@@ -29,41 +27,38 @@ jobs:
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
 
-      # Remove any invalid files that could confuse the CLI (e.g. ".sql")
+      # Clean any invalid/hidden files (e.g., ".sql") that confuse the CLI
       - name: Clean invalid migration filenames
         shell: bash
         run: |
           set -euo pipefail
-          if [ -d "supabase/migrations" ]; then
-            echo "Before cleanup:"
-            ls -la supabase/migrations || true
-            # Keep files that match 14-digit timestamp + _name.sql
-            # Delete anything else.
-            shopt -s nullglob
-            for f in supabase/migrations/*; do
-              base="$(basename "$f")"
-              if [[ ! "$base" =~ ^[0-9]{14}_.+\.sql$ ]]; then
-                echo "Removing invalid migration file: $base"
-                rm -f "$f"
-              fi
-            done
-            echo "After cleanup:"
-            ls -la supabase/migrations || true
-          fi
+          mkdir -p supabase/migrations
+          echo "Before cleanup:"
+          ls -la supabase/migrations || true
 
-      # If local migrations are empty after cleanup, pull a baseline from remote
-      - name: Pull baseline if local empty
+          shopt -s dotglob nullglob
+          for f in supabase/migrations/*; do
+            base="$(basename "$f")"
+            if [[ ! "$base" =~ ^[0-9]{14}_.+\.sql$ ]]; then
+              echo "Removing invalid migration file: $base"
+              rm -f "$f"
+            fi
+          done
+
+          echo "After cleanup:"
+          ls -la supabase/migrations || true
+
+      # Always sync local migrations from the remote first
+      - name: Pull from remote (sync local to remote)
         shell: bash
         run: |
           set -euo pipefail
-          if [ ! -d "supabase/migrations" ] || [ -z "$(ls -A supabase/migrations 2>/dev/null || true)" ]; then
-            echo "Local migrations empty -> pulling baseline from remote…"
-            supabase db pull --db-url "$SUPABASE_DB_URL" --schema public
-          else
-            echo "Local migrations exist -> skipping baseline pull."
-          fi
+          echo "Syncing local migrations from remote…"
+          supabase db pull --db-url "$SUPABASE_DB_URL" --schema public
+          echo "Local migrations after pull:"
+          ls -la supabase/migrations || true
 
-      - name: Push migrations
+      - name: Push migrations to remote
         shell: bash
         run: |
           set -euo pipefail
@@ -79,7 +74,7 @@ jobs:
             exit 1
           fi
 
-      # Optional quick probe; runs last
+      # Optional: connectivity probe (kept last)
       - name: Sanity query (optional)
         if: ${{ always() }}
         shell: bash
