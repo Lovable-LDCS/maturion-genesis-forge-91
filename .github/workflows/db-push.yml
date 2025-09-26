@@ -10,37 +10,37 @@ on:
 jobs:
   push:
     runs-on: ubuntu-latest
+
+    # Expose secrets as env so we can use env.* in if: conditions
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+
     steps:
       - uses: actions/checkout@v4
-
       - uses: supabase/setup-cli@v1
 
       - name: Link project
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
       - name: Push migrations (using DB URL)
-        if: ${{ secrets.SUPABASE_DB_URL != '' }}
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        if: ${{ env.SUPABASE_DB_URL != '' }}
         run: |
           set -e
           echo "Applying migrations with Supabase CLI (DB URL)…"
           supabase db push --db-url "$SUPABASE_DB_URL"
 
       - name: Push migrations (using password)
-        if: ${{ secrets.SUPABASE_DB_URL == '' && secrets.SUPABASE_DB_PASSWORD != '' }}
-        env:
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        if: ${{ env.SUPABASE_DB_URL == '' && env.SUPABASE_DB_PASSWORD != '' }}
         run: |
           set -e
           echo "Applying migrations with Supabase CLI (password)…"
           supabase db push --db-password "$SUPABASE_DB_PASSWORD"
 
       - name: Fail if no DB secret is configured
-        if: ${{ secrets.SUPABASE_DB_URL == '' && secrets.SUPABASE_DB_PASSWORD == '' }}
+        if: ${{ env.SUPABASE_DB_URL == '' && env.SUPABASE_DB_PASSWORD == '' }}
         run: |
           echo "::error::You must set either SUPABASE_DB_URL or SUPABASE_DB_PASSWORD as an Actions secret in Settings → Secrets and variables → Actions."
           exit 1
