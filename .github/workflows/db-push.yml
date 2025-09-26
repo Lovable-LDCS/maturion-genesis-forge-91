@@ -12,11 +12,13 @@ jobs:
   migrate:
     runs-on: ubuntu-latest
 
+    # Prevent overlapping runs on the same ref
     concurrency:
       group: supabase-migrate-${{ github.ref }}
       cancel-in-progress: true
 
     env:
+      # Prefer DB URL; optional fallback password
       SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
@@ -27,23 +29,23 @@ jobs:
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
 
-      # Only pull baseline if BOTH:
+      # Pull a baseline ONLY if:
       #   A) local migrations are empty, AND
-      #   B) remote migration history is empty.
+      #   B) remote migration history table is empty.
       - name: Maybe pull baseline
         id: maybe_pull
         shell: bash
         run: |
           set -euo pipefail
 
-          # A) local empty?
+          # A) Check local emptiness
           if [ ! -d "supabase/migrations" ] || [ -z "$(ls -A supabase/migrations 2>/dev/null || true)" ]; then
             local_empty=yes
           else
             local_empty=no
           fi
 
-          # B) remote history empty?
+          # B) Check remote history count using a disposable psql container
           remote_count=$(echo "select count(*) from supabase_migrations.schema_migrations;" \
             | docker run -i --rm postgres:16-alpine psql "$SUPABASE_DB_URL" -At 2>/dev/null || echo ERR)
 
@@ -55,8 +57,8 @@ jobs:
           echo "Local empty: $local_empty; Remote history rows: $remote_count"
 
           if [ "$local_empty" = yes ] && [ "$remote_count" = 0 ]; then
-            echo "Local empty AND remote history empty -> pulling baseline..."
-            supabase db pull --db-url "$SUPABASE_DB_URL" --schema public --non-interactive
+            echo "Local empty AND remote history empty -> pulling baseline from remote…"
+            supabase db pull --db-url "$SUPABASE_DB_URL" --schema public
             echo "pulled=true" >> "$GITHUB_OUTPUT"
           else
             echo "Skip baseline pull (either local not empty or remote already has history)."
@@ -67,17 +69,21 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "Applying migrations to remote..."
+          echo "Applying migrations to remote…"
+
+          # Log safe diagnostics (do NOT print secrets)
           if [ -n "${SUPABASE_DB_URL:-}" ]; then
-            supabase db push --db-url "$SUPABASE_DB_URL" --non-interactive
+            echo "DB URL present (length: ${#SUPABASE_DB_URL})."
+            supabase db push --db-url "$SUPABASE_DB_URL"
           elif [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
-            supabase db push --password "$SUPABASE_DB_PASSWORD" --non-interactive
+            echo "Falling back to DB password secret."
+            supabase db push -p "$SUPABASE_DB_PASSWORD"
           else
             echo "Neither SUPABASE_DB_URL nor SUPABASE_DB_PASSWORD is set." >&2
             exit 1
           fi
 
-      # Optional: quick connectivity probe (kept last so secrets don't appear in earlier logs)
+      # Optional quick probe; runs last
       - name: Sanity query (optional)
         if: ${{ always() }}
         shell: bash
