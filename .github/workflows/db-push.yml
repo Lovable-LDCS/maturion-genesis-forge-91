@@ -37,25 +37,35 @@ jobs:
           ls -la supabase/migrations || true
 
           shopt -s dotglob nullglob
+          valid_count=0
           for f in supabase/migrations/*; do
             base="$(basename "$f")"
-            if [[ ! "$base" =~ ^[0-9]{14}_.+\.sql$ ]]; then
+            if [[ "$base" =~ ^[0-9]{14}_.+\.sql$ ]]; then
+              valid_count=$((valid_count+1))
+            else
               echo "Removing invalid migration file: $base"
               rm -f "$f"
             fi
           done
-
           echo "After cleanup:"
           ls -la supabase/migrations || true
+          echo "VALID_COUNT=$valid_count" >> "$GITHUB_ENV"
 
-      # Always sync local migrations from the remote first
-      - name: Pull from remote (sync local to remote)
+      # If no valid local migrations remain, reset remote metadata (NOT data) and pull baseline
+      - name: Reset remote metadata & pull baseline (when local is empty)
+        if: env.VALID_COUNT == '0'
         shell: bash
         run: |
           set -euo pipefail
-          echo "Syncing local migrations from remote…"
+          echo "No valid local migrations -> resetting remote metadata and pulling baseline…"
+
+          # 1) Reset migration metadata only (safe)
+          echo "truncate table supabase_migrations.schema_migrations;" \
+            | docker run -i --rm postgres:16-alpine psql "$SUPABASE_DB_URL" -At
+
+          # 2) Pull a fresh baseline from remote DB into repo
           supabase db pull --db-url "$SUPABASE_DB_URL" --schema public
-          echo "Local migrations after pull:"
+          echo "Local migrations after baseline pull:"
           ls -la supabase/migrations || true
 
       - name: Push migrations to remote
