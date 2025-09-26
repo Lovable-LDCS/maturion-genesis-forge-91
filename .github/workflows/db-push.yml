@@ -1,45 +1,40 @@
-name: Supabase migrations (DB URL)
+name: Supabase migrations
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - "supabase/**"
+      - ".github/workflows/db-push.yml"
 
 jobs:
-  push:
+  migrate:
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
 
       - name: Link project
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
-      - name: Pull baseline migrations from remote
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      # If there are no local migrations yet, pull a baseline from the remote DB.
+      - name: Pull baseline (only if local is empty)
         run: |
           set -e
-          if [ -z "$SUPABASE_DB_URL" ]; then
-            echo "Missing SUPABASE_DB_URL secret"; exit 1
-          fi
-          supabase db pull --db-url "$SUPABASE_DB_URL"
-
-      - name: Commit baseline if changed
-        run: |
-          set -e
-          if ! git diff --quiet -- supabase; then
-            git config user.name  "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add supabase
-            git commit -m "Baseline Supabase schema (db pull)"
-            git push
+          if [ ! -d supabase/migrations ] || [ -z "$(ls -A supabase/migrations 2>/dev/null || true)" ]; then
+            echo "Local migrations empty -> pulling baseline from remote..."
+            supabase db pull --db-url "$SUPABASE_DB_URL"
           else
-            echo "No baseline changes."
+            echo "Local migrations exist -> skipping baseline pull."
           fi
 
       - name: Push migrations
-        env:
-          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-        run: supabase db push --db-url "$SUPABASE_DB_URL"
+        run: |
+          set -e
+          echo "Applying migrations to remote..."
+          supabase db push --db-url "$SUPABASE_DB_URL"
