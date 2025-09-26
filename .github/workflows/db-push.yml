@@ -1,4 +1,4 @@
-name: Supabase migrations (auto-repair + baseline + push)
+name: Supabase migrations (force IPv4, baseline + push)
 
 on:
   workflow_dispatch:
@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: supabase/setup-cli@v1
 
       - name: Link project
@@ -20,12 +19,12 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: supabase link --project-ref "$SUPABASE_PROJECT_REF"
 
-      - name: Install psql client
+      - name: Install tools we need (psql + dns utils)
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client
+          sudo apt-get install -y postgresql-client dnsutils
 
-      - name: Compute DB URL from secrets
+      - name: Build PRIMARY DB URL (force IPv4)
         id: dburl
         env:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
@@ -36,32 +35,42 @@ jobs:
             echo "Missing SUPABASE_PROJECT_REF or SUPABASE_DB_PASSWORD." >&2
             exit 1
           fi
-          DB_URL="postgres://postgres:${SUPABASE_DB_PASSWORD}@db.${SUPABASE_PROJECT_REF}.supabase.co:5432/postgres?sslmode=require"
+          HOST="db.${SUPABASE_PROJECT_REF}.supabase.co"
+          # Get the first IPv4 A record
+          IPV4=$(dig +short A "$HOST" | head -n1)
+          if [ -z "$IPV4" ]; then
+            # Fallback via glibc
+            IPV4=$(getent ahostsv4 "$HOST" | awk '{print $1; exit}')
+          fi
+          if [ -z "$IPV4" ]; then
+            echo "Could not resolve an IPv4 address for $HOST" >&2
+            exit 1
+          fi
+          # URL-encode the password for safety
+          ENC_PASS=$(python3 -c 'import os,urllib.parse;print(urllib.parse.quote(os.environ["SUPABASE_DB_PASSWORD"], safe=""))')
+          DB_URL="postgres://postgres:${ENC_PASS}@${IPV4}:5432/postgres?sslmode=require"
+          echo "Using $HOST -> $IPV4"
           echo "dburl=$DB_URL" >> "$GITHUB_OUTPUT"
 
+      # --- OPTIONAL one-time repair if remote has history but local doesn't
       - name: Auto-repair remote migration history (one-time)
         env:
           DB_URL: ${{ steps.dburl.outputs.dburl }}
         run: |
           set -e
           COUNT=$(find supabase/migrations -maxdepth 1 -name '*.sql' 2>/dev/null | wc -l | tr -d ' ')
-          echo "Local migration files: $COUNT"
-          # Read currently APPLIED remote versions
-          REMOTE=$(psql "$DB_URL" -Atc "select version from supabase_migrations.schema_migrations where status='applied'" || true)
+          REMOTE=$(psql "$DB_URL" -Atc \
+            "select version from supabase_migrations.schema_migrations where status='applied'" || true)
           if [ "$COUNT" -eq 0 ] && [ -n "$REMOTE" ]; then
-            echo "Reverting remote migration history to match empty local set…"
-            # Force CLI to use the primary DB by passing --db-url
             supabase migration repair --db-url "$DB_URL" --status reverted $REMOTE
           else
             echo "Repair not needed."
           fi
 
-      - name: Pull baseline migrations from remote (use primary DB URL)
+      - name: Pull baseline migrations from remote (IPv4 URL)
         env:
           DB_URL: ${{ steps.dburl.outputs.dburl }}
-        run: |
-          set -e
-          supabase db pull --db-url "$DB_URL"
+        run: supabase db pull --db-url "$DB_URL"
 
       - name: Commit baseline to main (if changed)
         env:
@@ -69,7 +78,7 @@ jobs:
         run: |
           set -e
           if ! git diff --quiet -- supabase; then
-            git config user.name "github-actions[bot]"
+            git config user.name  "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add supabase
             git commit -m "Baseline Supabase schema (db pull)"
@@ -78,13 +87,11 @@ jobs:
             echo "No supabase/ changes to commit."
           fi
 
-      - name: Push migrations (use primary DB URL)
+      - name: Push migrations (IPv4 URL)
         env:
           DB_URL: ${{ steps.dburl.outputs.dburl }}
-        run: |
-          set -e
-          supabase db push --db-url "$DB_URL"
+        run: supabase db push --db-url "$DB_URL"
 
       - name: Fail if no DB secret is configured
         if: ${{ failure() }}
-        run: echo "Check SUPABASE_DB_PASSWORD / SUPABASE_PROJECT_REF secrets and rerun."
+        run: echo "Check SUPABASE_PROJECT_REF / SUPABASE_DB_PASSWORD / SUPABASE_ACCESS_TOKEN secrets."
