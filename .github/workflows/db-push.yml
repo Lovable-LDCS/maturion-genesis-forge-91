@@ -27,7 +27,7 @@ jobs:
       - name: Install Supabase CLI
         uses: supabase/setup-cli@v1
 
-      # Clean any invalid/hidden files (e.g., ".sql") that confuse the CLI
+      # Remove invalid/hidden files (e.g. ".sql") so only legitimate migrations remain
       - name: Clean invalid migration filenames
         shell: bash
         run: |
@@ -47,27 +47,23 @@ jobs:
               rm -f "$f"
             fi
           done
+
           echo "After cleanup:"
           ls -la supabase/migrations || true
           echo "VALID_COUNT=$valid_count" >> "$GITHUB_ENV"
 
-      # If no valid local migrations remain, reset remote metadata (NOT data) and pull baseline
-      - name: Reset remote metadata & pull baseline (when local is empty)
+      # If local is empty after cleanup, reset remote *metadata only*
+      - name: Reset remote migration metadata when local is empty
         if: env.VALID_COUNT == '0'
         shell: bash
         run: |
           set -euo pipefail
-          echo "No valid local migrations -> resetting remote metadata and pulling baseline…"
-
-          # 1) Reset migration metadata only (safe)
+          echo "No valid local migrations -> resetting remote metadata (schema_migrations)…"
           echo "truncate table supabase_migrations.schema_migrations;" \
-            | docker run -i --rm postgres:16-alpine psql "$SUPABASE_DB_URL" -At
+            | docker run -i --rm postgres:17-alpine psql "$SUPABASE_DB_URL" -At
+          echo "Remote metadata reset complete."
 
-          # 2) Pull a fresh baseline from remote DB into repo
-          supabase db pull --db-url "$SUPABASE_DB_URL" --schema public
-          echo "Local migrations after baseline pull:"
-          ls -la supabase/migrations || true
-
+      # Now push migrations (there may be 0 migrations and that's OK)
       - name: Push migrations to remote
         shell: bash
         run: |
@@ -84,9 +80,10 @@ jobs:
             exit 1
           fi
 
-      # Optional: connectivity probe (kept last)
+      # Optional: quick connectivity probe (kept last)
       - name: Sanity query (optional)
         if: ${{ always() }}
         shell: bash
         run: |
-          echo "select 1" | docker run -i --rm postgres:16-alpine psql "$SUPABASE_DB_URL" -At || true
+          echo "select current_setting('server_version');" \
+            | docker run -i --rm postgres:17-alpine psql "$SUPABASE_DB_URL" -At || true
