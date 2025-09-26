@@ -44,22 +44,24 @@ jobs:
           DB_URL: ${{ steps.dburl.outputs.dburl }}
         run: |
           set -e
-          # Count local migration files
           COUNT=$(find supabase/migrations -maxdepth 1 -name '*.sql' 2>/dev/null | wc -l | tr -d ' ')
           echo "Local migration files: $COUNT"
-          # Get remote 'applied' versions
+          # Read currently APPLIED remote versions
           REMOTE=$(psql "$DB_URL" -Atc "select version from supabase_migrations.schema_migrations where status='applied'" || true)
           if [ "$COUNT" -eq 0 ] && [ -n "$REMOTE" ]; then
             echo "Reverting remote migration history to match empty local set…"
-            supabase migration repair --status reverted $REMOTE
+            # Force CLI to use the primary DB by passing --db-url
+            supabase migration repair --db-url "$DB_URL" --status reverted $REMOTE
           else
-            echo "Repair not needed (either local migrations exist or remote has no history)."
+            echo "Repair not needed."
           fi
 
-      - name: Pull baseline migrations from remote
+      - name: Pull baseline migrations from remote (use primary DB URL)
+        env:
+          DB_URL: ${{ steps.dburl.outputs.dburl }}
         run: |
           set -e
-          supabase db pull
+          supabase db pull --db-url "$DB_URL"
 
       - name: Commit baseline to main (if changed)
         env:
@@ -76,13 +78,13 @@ jobs:
             echo "No supabase/ changes to commit."
           fi
 
-      - name: Push migrations (using password)
+      - name: Push migrations (use primary DB URL)
         env:
-          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+          DB_URL: ${{ steps.dburl.outputs.dburl }}
         run: |
           set -e
-          supabase db push -p "$SUPABASE_DB_PASSWORD"
+          supabase db push --db-url "$DB_URL"
 
       - name: Fail if no DB secret is configured
         if: ${{ failure() }}
-        run: echo "Check SUPABASE_DB_PASSWORD / project ref secrets and rerun."
+        run: echo "Check SUPABASE_DB_PASSWORD / SUPABASE_PROJECT_REF secrets and rerun."
