@@ -72,7 +72,7 @@ export const useLearningModelSnapshots = () => {
       if (!currentUser) return false;
 
       // Gather current model state
-      let modelState: Record<string, any> = {};
+      const modelState: Record<string, any> = {};
       let patternCount = 0;
       let activeRulesCount = 0;
       let performanceMetrics: Record<string, any> = {};

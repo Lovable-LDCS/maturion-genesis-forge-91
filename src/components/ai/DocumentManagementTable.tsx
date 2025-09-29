@@ -125,7 +125,7 @@ export const DocumentManagementTable: React.FC<DocumentManagementTableProps> = (
 
   // Filtering and sorting logic
   const filteredAndSortedDocuments = useMemo(() => {
-    let filtered = documents.filter(doc => {
+    const filtered = documents.filter(doc => {
       // Search filter
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();

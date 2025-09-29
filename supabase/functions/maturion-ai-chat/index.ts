@@ -130,8 +130,8 @@ serve(async (req) => {
     const promptContext = await buildPromptContext(request);
 
     // Retrieval QA Implementation
-    let sources: Array<{ id: string; document_id: string; document_title: string; doc_type: string; score: number }> = [];
-    let retrievedContexts: string[] = [];
+    const sources: Array<{ id: string; document_id: string; document_title: string; doc_type: string; score: number }> = [];
+    const retrievedContexts: string[] = [];
 
     if (orgId && sanitizedPrompt.trim()) {
       const startTime = Date.now();

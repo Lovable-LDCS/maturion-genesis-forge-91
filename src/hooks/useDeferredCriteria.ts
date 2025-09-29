@@ -253,7 +253,7 @@ export const useDeferredCriteria = (organizationId: string) => {
     updatedContent?: { statement?: string; summary?: string }
   ) => {
     try {
-      let newStatus: 'approved' | 'discarded' = action === 'approve' ? 'approved' : 'discarded';
+      const newStatus: 'approved' | 'discarded' = action === 'approve' ? 'approved' : 'discarded';
       
       if (action === 'edit') {
         // Handle edit case - this would trigger the edit modal

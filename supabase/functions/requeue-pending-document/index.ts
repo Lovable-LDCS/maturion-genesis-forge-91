@@ -160,7 +160,7 @@ serve(async (req) => {
     if (updateError) throw updateError;
 
     // Attempt to repair storage path to org/<orgId>/uploads/<file_name>
-    let bucketsTried = ['documents', 'ai_documents'];
+    const bucketsTried = ['documents', 'ai_documents'];
     let finalPath = updatedDoc?.file_path || null;
     const expectedPath = `org/${updatedDoc.organization_id}/uploads/${updatedDoc.file_name}`;
     let repaired = false;

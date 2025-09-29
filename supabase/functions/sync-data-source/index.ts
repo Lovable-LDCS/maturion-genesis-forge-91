@@ -153,7 +153,7 @@ serve(async (req) => {
 async function performDataSourceSync(supabase: any, dataSource: any, syncLogId: string) {
   let itemsProcessed = 0;
   let itemsAdded = 0;
-  let itemsUpdated = 0;
+  const itemsUpdated = 0;
   let itemsFailed = 0;
   // Separate statuses for logs vs data_sources table
   let logStatus = 'completed'; // data_source_sync_logs allowed values

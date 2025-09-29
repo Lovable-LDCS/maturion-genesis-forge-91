@@ -51,8 +51,8 @@ serve(async (req) => {
     console.log(`📋 Found ${existingChunks?.length || 0} chunks to analyze for corruption`);
 
     // Analyze chunks for corruption
-    let corruptedChunkIds: string[] = [];
-    let cleanChunkIds: string[] = [];
+    const corruptedChunkIds: string[] = [];
+    const cleanChunkIds: string[] = [];
 
     existingChunks?.forEach(chunk => {
       const content = chunk.content || '';

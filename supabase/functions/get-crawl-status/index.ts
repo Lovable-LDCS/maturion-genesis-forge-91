@@ -48,7 +48,7 @@ serve(async (req) => {
     if (chunksError) throw chunksError;
 
     // Determine status
-    let status = {
+    const status = {
       state: 'idle' as 'idle' | 'running' | 'success' | 'failed',
       domains: domains?.length || 0,
       pages: recentDocs?.length || 0,

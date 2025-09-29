@@ -100,7 +100,7 @@ serve(async (req) => {
       .single();
 
     const jobId = jobData?.id;
-    let totalStats: CrawlStats = {
+    const totalStats: CrawlStats = {
       pagesQueued: 0,
       pagesProcessed: 0,
       errors: 0,

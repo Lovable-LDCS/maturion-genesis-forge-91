@@ -89,7 +89,7 @@ export async function getDocumentContext(params: {
     // 4) generic MPS (gap-fill only)
     
     // Build context with proper ranking
-    let finalContext = '';
+    const finalContext = '';
     
     // 1) Organization profile content (existing documents)
     if (completedDocs.length > 0) {

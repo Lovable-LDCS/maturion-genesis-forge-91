@@ -323,8 +323,8 @@ async function queryAPI(supabase: any, dataSource: any, queryRequest: QueryReque
     }
 
     let url = config.api_endpoint;
-    let method = 'GET';
-    let body = null;
+    const method = 'GET';
+    const body = null;
 
     // Append query parameters or modify URL based on query type
     switch (queryRequest.query_type) {

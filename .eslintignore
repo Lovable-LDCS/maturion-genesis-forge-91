@@ -1,0 +1,4 @@
+node_modules/
+dist/
+.vscode/
+supabase/functions/**  # Deno lints these; avoid double-reporting in ESLint

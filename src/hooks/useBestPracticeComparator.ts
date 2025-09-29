@@ -163,7 +163,7 @@ RESPONSE FORMAT (JSON):
     console.log('🔄 Executing fallback hierarchy for best practice comparison');
     
     let documentContext = '';
-    let sourceHierarchy: ('uploaded_documents' | 'organization_profile' | 'website' | 'global_standards')[] = [];
+    const sourceHierarchy: ('uploaded_documents' | 'organization_profile' | 'website' | 'global_standards')[] = [];
     
     // Level 1: Organization Profile
     const organizationProfile = await getOrganizationProfile();

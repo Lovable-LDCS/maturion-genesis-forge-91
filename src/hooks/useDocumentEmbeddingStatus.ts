@@ -46,8 +46,8 @@ export const useDocumentEmbeddingStatus = () => {
       const batchSize = 10;
       const documentIds = documents.map(doc => doc.id);
       
-      let totalChunksByDoc: Record<string, number> = {};
-      let embeddedChunksByDoc: Record<string, number> = {};
+      const totalChunksByDoc: Record<string, number> = {};
+      const embeddedChunksByDoc: Record<string, number> = {};
       
       // Process documents in batches
       for (let i = 0; i < documentIds.length; i += batchSize) {

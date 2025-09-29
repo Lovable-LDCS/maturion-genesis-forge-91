@@ -59,7 +59,7 @@ serve(async (req) => {
       alertsSent: 0
      };
 
-    let allFindings: RefactorFinding[] = [];
+    const allFindings: RefactorFinding[] = [];
 
     for (const org of organizations || []) {
       console.log(`🏢 Processing refactor scan for organization: ${org.name} (${org.id})`);

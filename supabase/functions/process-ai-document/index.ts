@@ -434,7 +434,7 @@ serve(async (req: Request): Promise<Response> => {
             
             // Extract text from PowerPoint slides
             const zip = await JSZip.loadAsync(arrayBuffer);
-            let slideTexts: string[] = [];
+            const slideTexts: string[] = [];
             
             // Find all slide files in the presentation
             const slideFiles = Object.keys(zip.files).filter(name => 

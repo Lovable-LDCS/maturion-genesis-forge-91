@@ -158,7 +158,7 @@ serve(async (req) => {
       qaGateResults: {
         'AUDIT-01': (verifyAudit?.length || 0) > 0 ? 'PASS' : 'FAIL',
         'TELEMETRY-01': 'PASS',
-        'AUDIT-ASSET-01': !!auditEntry1.data ? 'PASS' : 'FAIL',
+        'AUDIT-ASSET-01': auditEntry1.data ? 'PASS' : 'FAIL',
         'AUDIT-THEME-01': themeAuditEntries.length === 4 ? 'PASS' : 'FAIL'
       },
       evidence: {

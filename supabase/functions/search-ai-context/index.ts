@@ -177,7 +177,7 @@ serve(async (req) => {
           ...searchTerms.filter(term => term.length > 3)
         ];
 
-        let allTextResults: any[] = [];
+        const allTextResults: any[] = [];
 
         for (const searchTerm of searchStrategies.slice(0, 3)) {
           try {

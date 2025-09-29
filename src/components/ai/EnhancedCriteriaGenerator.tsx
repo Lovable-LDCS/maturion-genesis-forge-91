@@ -69,8 +69,8 @@ export const EnhancedCriteriaGenerator = ({
       let criteria: string;
       let source: 'internal' | 'best_practice' | 'smart_feedback' = 'internal';
       let standardRef: string | null = null;
-      let finalFallbackPath: string[] = [...feedbackResult.fallbackTraceability];
-      let finalModifications: string[] = [...feedbackResult.modificationsApplied];
+      const finalFallbackPath: string[] = [...feedbackResult.fallbackTraceability];
+      const finalModifications: string[] = [...feedbackResult.modificationsApplied];
 
       if (bestPracticeResult.fallbackUsed && bestPracticeResult.matches.length > 0) {
         // Use best practice recommendation

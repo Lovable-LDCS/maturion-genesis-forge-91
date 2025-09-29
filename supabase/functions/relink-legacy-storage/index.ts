@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
           const paths = Array.from(candidatePaths)
           let matched = false
           for (const p of paths) {
-            // eslint-disable-next-line no-await-in-loop
+             
             if (await listAndMatch(p)) {
               matched = true
               break
