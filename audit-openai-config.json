@@ -1,0 +1,58 @@
+{
+  "status": "fail",
+  "summary": {
+    "hardcodedKeys": 2,
+    "duplicateModelSources": 2,
+    "misspelledSecretRefs": 0,
+    "usesBlocks": 0,
+    "blockIdMisuse": 0,
+    "yamlSchemaIssues": 0,
+    "vscodeWorkspaceSecrets": "none",
+    "vscodeUserSecretsChecked": "manual-required"
+  },
+  "findings": [
+    {
+      "file": ".continue/agents/local-agent.yaml",
+      "line": 10,
+      "ruleId": "R4",
+      "severity": "high",
+      "snippet": "apiKey: \"sk-proj-***redacted***\"",
+      "quickFix": "Replace with apiKey: ${secrets.OPENAI_API_KEY} (or ${env.OPENAI_API_KEY}); ensure secret exists in VS Code User settings."
+    },
+    {
+      "file": ".continue/agents/local-agent.yaml",
+      "line": 5,
+      "ruleId": "R5",
+      "severity": "medium",
+      "snippet": "models: [...]",
+      "quickFix": "Move global model definitions to .continue/config.yaml or keep only Abbot agent defining models."
+    },
+    {
+      "file": "diamond-builder.yaml",
+      "line": 9,
+      "ruleId": "R4",
+      "severity": "high",
+      "snippet": "apiKey: \"sk-proj-***redacted***\"",
+      "quickFix": "Replace with apiKey: ${secrets.OPENAI_API_KEY} (or ${env.OPENAI_API_KEY})."
+    },
+    {
+      "file": "diamond-builder.yaml",
+      "line": 5,
+      "ruleId": "R5",
+      "severity": "medium",
+      "snippet": "models: [...]",
+      "quickFix": "Do not define models outside .continue; centralize in .continue/config.yaml."
+    }
+  ],
+  "areasWithNoIssues": [
+    "R1: ${secret…} misspelling",
+    "R2: uses: blocks",
+    "R3: openai/gpt-* block ids",
+    "R6: .vscode settings.json with continue.secrets",
+    "R7: ${secrets.OPENAI_*} name mismatches in workspace",
+    "R8: YAML schema violations in Continue YAML (no blocks/headers found)"
+  ],
+  "manualChecksRequired": [
+    "C:\\\\Users\\\\johan\\\\AppData\\\\Roaming\\\\Code\\\\User\\\\settings.json - confirm continue.secrets has OPENAI_API_KEY and optional OPENAI_PROJECT only"
+  ]
+}

@@ -1,0 +1,22 @@
+name: Supabase DB REST smoke
+on:
+  schedule:
+    - cron: "0 * * * *"  # hourly
+  workflow_dispatch:
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: REST GET domains count
+        run: |
+          set -e
+          URL="https://dmhlxhatogrrrvuruayv.supabase.co/rest/v1/domains?select=count"
+          STATUS=$(curl -s -o resp.json -w "%{http_code}" -H "apikey: $SUPABASE_ANON_KEY" -H "Authorization: Bearer $SUPABASE_ANON_KEY" "$URL")
+          echo "HTTP $STATUS"
+          cat resp.json || true
+          if [ "$STATUS" != "200" ]; then
+            echo "DB REST smoke failed with status $STATUS" >&2
+            exit 1
+          fi
+        env:
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}

@@ -1,0 +1,22 @@
+name: Maturion Workspace
+version: 1.0.0
+schema: v1
+
+# Provided via VS Code User settings (JSON):
+# "continue.secrets": {
+#   "CONTINUE_PROXY_URL": "https://<your-proxy-host>",
+#   "CONTINUE_ORG_SCOPE_ID": "<org-or-tenant-id>"
+# }
+onPremProxyUrl: ${secrets.CONTINUE_PROXY_URL}
+orgScopeId: ${secrets.CONTINUE_ORG_SCOPE_ID}
+
+models:
+  - name: openai/gpt-5
+    provider: continue-proxy
+    model: gpt-5
+
+  - name: openai/gpt-4
+    provider: continue-proxy
+    model: gpt-4o
+
+mcpServers: []

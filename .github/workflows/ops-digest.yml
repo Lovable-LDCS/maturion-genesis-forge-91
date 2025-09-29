@@ -1,0 +1,83 @@
+name: Ops digest (health + config audit)
+on:
+  schedule:
+    - cron: "*/30 * * * *"  # every 30 minutes
+  workflow_dispatch:
+
+jobs:
+  digest:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node setup
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Refresh OpenAI/Continue audit
+        run: |
+          node .\scripts\ops\refresh-openai-audit.mjs
+        shell: pwsh
+
+      - name: Run gap analysis (PowerShell)
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\abbot-gap-analysis.ps1 -Fix | Tee-Object -FilePath gap-analysis.txt
+        shell: pwsh
+
+      - name: Supabase healthz
+        id: healthz
+        run: |
+          $Status = (Invoke-WebRequest -Uri "https://dmhlxhatogrrrvuruayv.supabase.co/functions/v1/healthz" -Method GET -UseBasicParsing).StatusCode
+          Write-Host "healthz status: $Status"
+          if ($Status -ne 200) { exit 1 }
+          Set-Content -LiteralPath healthz.txt -Value ("healthz status: " + $Status) -Encoding utf8
+        shell: pwsh
+
+      - name: List recent migrations
+        run: |
+          Get-ChildItem -Path .\supabase\migrations -File | Sort-Object LastWriteTime -Descending | Select-Object -First 10 | ForEach-Object { $_.LastWriteTime.ToString('yyyy-MM-dd HH:mm:ss') + "  " + $_.Name } | Set-Content -LiteralPath migrations.txt -Encoding utf8
+        shell: pwsh
+
+      - name: Prepare email body
+        id: body
+        run: |
+          $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+          $lines = @()
+          $lines += "# Ops Digest ($date)"
+          $lines += ""
+          $lines += (Get-Content healthz.txt -Raw)
+          $lines += ""
+          if (Test-Path ".\audit-openai-config.json") {
+            $audit = (Get-Content ".\audit-openai-config.json" -Raw | ConvertFrom-Json)
+            $status = $audit.status
+            $hardcoded = $audit.summary.hardcodedKeys
+            $dupes = $audit.summary.duplicateModelSources
+            $lines += ("Audit status: {0} (hardcodedKeys={1}, duplicateModelSources={2})" -f $status,$hardcoded,$dupes)
+          } else {
+            $lines += "Audit file not found"
+          }
+          $lines += ""
+          if (Test-Path ".\migrations.txt") {
+            $lines += "Recent migrations:"
+            $lines += (Get-Content ".\migrations.txt")
+          }
+          $body = $lines -join "`r`n"
+          Set-Content -LiteralPath digest-email.txt -Value $body -Encoding utf8
+        shell: pwsh
+
+      - name: Send email digest (SMTP)
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: ${{ secrets.SMTP_HOST }}
+          server_port: ${{ secrets.SMTP_PORT }}
+          username: ${{ secrets.SMTP_USERNAME }}
+          password: ${{ secrets.SMTP_PASSWORD }}
+          subject: "Ops Digest: Supabase health + Continue audit"
+          from: ${{ secrets.OPS_EMAIL_FROM }}
+          to: ${{ secrets.OPS_EMAIL_TO }}
+          secure: true
+          body: |
+            ${{ steps.body.outputs.body || '' }}
+          attachments: audit-openai-config.json,gap-analysis.txt,healthz.txt,migrations.txt
+

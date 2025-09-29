@@ -1,0 +1,12 @@
+name: Local Agent
+version: 1.0.0
+schema: v1
+
+models:
+  - name: OpenAI Chat
+    provider: openai
+    model: gpt-5           # or gpt-4o
+    apiKey: ${secrets.OPENAI_API_KEY}   # or ${env.OPENAI_API_KEY}
+
+mcpServers: []
+instructions: "Reply briefly."

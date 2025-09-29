@@ -1,0 +1,16 @@
+{
+  "recommendations": [
+    "Continue.continue",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "eamodio.gitlens",
+    "streetsidesoftware.code-spell-checker",
+    "bradlc.vscode-tailwindcss",
+    "Supabase.vscode-supabase",
+    "zernonia.supabase-explorer",
+    "redhat.vscode-yaml",
+    "usernamehw.errorlens",
+    "ms-vscode.vscode-typescript-next",
+    "bianxianyang.htmlplay"
+  ]
+}

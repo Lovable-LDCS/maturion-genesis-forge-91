@@ -1,0 +1,14 @@
+name: Supabase migrations - validate
+on:
+  pull_request:
+    branches: [ main ]
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+      - run: supabase --version
+      - run: supabase db lint
+      - run: supabase db reset --local
