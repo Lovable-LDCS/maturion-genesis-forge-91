@@ -1,0 +1,8 @@
+MPS 6 – Quality Assurance and Process Integrity
+
+Category: Process Integrity
+
+Tags: process integrity, quality assurance, procurement controls, behavioral compliance, change management, anomaly detection, loss prevention, sabotage risk, continuous improvement
+
+Description:
+Minimum Performance Standard for Quality Assurance and Process Integrity. Defines the intent, required actions, and guidance for establishing reliable, auditable processes across all operational domains — including procurement, HR, manufacturing, logistics, and finance. This MPS promotes loss prevention, anomaly detection, and continuous improvement through structured process design, control gap analysis, behavioral compliance, and change management.

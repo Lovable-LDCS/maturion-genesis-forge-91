@@ -1,0 +1,8 @@
+Diamond Governance & Oversight Control
+
+Domain: Leadership & Governance
+
+Tags: governance, oversight, committee, KPIs
+
+Description:
+Industry-specific governance model for diamond operations. Overrides generic governance guidance when applied in diamond mining. Establishes tiered oversight (strategic + operational), performance dashboards, and formal accountability for custody, reconciliation, and protection outcomes.

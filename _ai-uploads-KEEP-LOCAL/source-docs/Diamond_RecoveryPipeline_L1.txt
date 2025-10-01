@@ -1,0 +1,8 @@
+Diamond Recovery Pipeline — Layer 1: End-to-End Overview & Security Handoffs (v1.0)
+
+Domain: Process Integrity (primary), Protection (supporting), Leadership & Governance (supporting)
+
+Tags: diamond recovery, pipeline, custody, handoffs, reconciliation, loss-prevention, insider-threat
+
+Description:
+Layer-1 overview of the end-to-end diamond value chain with the security perspective integrated. Identifies the objective of each stage, handoffs & custody points, technologies (XRT-first), major loss/vulnerability modes, and threats most likely to exploit them. Designed as the entry point for Process Integrity and Protection controls.

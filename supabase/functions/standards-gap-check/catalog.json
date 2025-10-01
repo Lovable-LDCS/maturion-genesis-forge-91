@@ -1,0 +1,44 @@
+{
+  "standards": [
+    {
+      "id": "iso-31000",
+      "name": "ISO 31000: Risk Management",
+      "version": "2018",
+      "sections": [
+        { "id": "principles", "title": "Principles" },
+        { "id": "framework", "title": "Framework" },
+        { "id": "process", "title": "Process" }
+      ],
+      "tags": ["risk", "governance", "iso"]
+    },
+    {
+      "id": "iso-37301",
+      "name": "ISO 37301: Compliance Management Systems",
+      "version": "2021",
+      "sections": [
+        { "id": "context", "title": "Context of the organization" },
+        { "id": "leadership", "title": "Leadership" },
+        { "id": "planning", "title": "Planning" },
+        { "id": "support", "title": "Support" },
+        { "id": "operation", "title": "Operation" },
+        { "id": "performance", "title": "Performance Evaluation" },
+        { "id": "improvement", "title": "Improvement" }
+      ],
+      "tags": ["compliance", "governance", "iso"]
+    },
+    {
+      "id": "nist-csf-2.0",
+      "name": "NIST Cybersecurity Framework",
+      "version": "2.0",
+      "sections": [
+        { "id": "govern", "title": "Govern" },
+        { "id": "identify", "title": "Identify" },
+        { "id": "protect", "title": "Protect" },
+        { "id": "detect", "title": "Detect" },
+        { "id": "respond", "title": "Respond" },
+        { "id": "recover", "title": "Recover" }
+      ],
+      "tags": ["security", "cyber", "nist"]
+    }
+  ]
+}

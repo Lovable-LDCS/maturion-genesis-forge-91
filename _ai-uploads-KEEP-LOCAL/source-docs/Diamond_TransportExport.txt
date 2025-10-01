@@ -1,0 +1,8 @@
+Diamond Transport & Export Control
+
+Domain: Protection
+
+Tags: transport, export, Kimberley Process, sealing, diamond-specific
+
+Description:
+Industry-specific Diamond Transport & Export Control. Overrides generic transport security models when applied in diamond mining. Ensures secure packaging, sealing, transport, and international compliance (Kimberley Process Certification Scheme).

@@ -1,0 +1,8 @@
+Diamond Sorting & Valuation Control
+
+Domain: Process Integrity
+
+Tags: sorting, valuation, double-blind, segregation of duties
+
+Description:
+Industry-specific Diamond Sorting & Valuation Control. Overrides generic valuation and asset-handling models when applied in diamond mining. Ensures segregation of duties, double-blind valuation, and reconciliation between sorting, valuation, and dispatch.

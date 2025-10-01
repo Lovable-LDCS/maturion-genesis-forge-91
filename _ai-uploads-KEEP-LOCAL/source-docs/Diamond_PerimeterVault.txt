@@ -1,0 +1,8 @@
+Diamond Perimeter & Vault Integrity Control
+
+Domain: Protection
+
+Tags: perimeter security, vault integrity, barriers, alarms, key control, surveillance
+
+Description:
+Diamond-specific model for hardening site perimeters and vaults. Implements defense-in-depth, certified vault construction, dual-custody key control, alarm/CCTV integration with multi-tier monitoring and independent review. Overrides generic guidance, emphasizing technology-first controls and remote assurance.

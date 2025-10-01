@@ -1,0 +1,13 @@
+---
+source_filename: MPS9_ManagementOfChange.txt
+source_path: _ai-uploads-KEEP-LOCAL\source-docs\MPS9_ManagementOfChange.txt
+extracted_at: 2025-10-01T16:21:44.025Z
+---
+MPS 9 – Management of Change
+
+Category: Process Integrity
+
+Tags: change management, process integrity, risk assessment, operational control, governance, continuous improvement
+
+Description:
+Minimum Performance Standard for Management of Change (MoC). Defines the intent, required actions, and guidance for establishing structured, documented change management processes that systematically assess and mitigate risks before implementing modifications to procedures, equipment, systems, facilities, or operations. Supports international best practices by integrating risk assessment, governance, and operational controls to ensure safe, secure, and efficient operations.

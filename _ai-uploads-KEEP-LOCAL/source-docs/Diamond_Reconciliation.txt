@@ -1,0 +1,8 @@
+Diamond Reconciliation Control
+
+Domain: Process Integrity
+
+Tags: reconciliation, variance detection, accountability
+
+Description:
+Industry-specific Diamond Reconciliation model. Overrides generic reconciliation or variance detection models when applied in diamond mining. Ensures that diamond inputs and outputs are continuously balanced across mining, recovery, sorting, valuation, and dispatch, with formal variance investigation and governance oversight.

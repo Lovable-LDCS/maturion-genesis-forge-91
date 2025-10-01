@@ -1,19 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, RotateCcw, Wand2, AlertTriangle, Info, Shield, Settings } from 'lucide-react';
+import { RotateCcw, Wand2, AlertTriangle, Info } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useOrganization } from '@/hooks/useOrganization';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { validateSecureInput } from '@/lib/security';
-import { buildAICriteriaPrompt, validateCriteria, cleanJSON, neutralizeOrganizationNames, detectAnnex1Fallback, type MPSContext, type OrganizationContext, type ValidationResult } from '@/lib/promptUtils';
-import { logCriticalError, logKeyDecision, logSecurityViolation, type DebugContext } from '@/lib/errorUtils';
-import { AdminTestMode } from './AdminTestMode';
-import { QADebugHub } from '@/components/qa/QADebugHub';
-import { MPSTargetedReprocessor } from '@/components/qa/MPSTargetedReprocessor';
+import { validateCriteria, neutralizeOrganizationNames, type MPSContext, type OrganizationContext } from '@/lib/promptUtils';
+import { logCriticalError } from '@/lib/errorUtils';
+
+
+
 import { RedAlertMonitor, useRedAlertMonitor } from '@/components/qa/RedAlertMonitor';
 
 interface Criterion {
@@ -46,14 +46,7 @@ interface AIGeneratedCriteriaCardsProps {
   onCriteriaChange?: (criteria: Criterion[]) => void;
 }
 
-interface DebugInfo {
-  mpsContext?: MPSContext;
-  organizationContext?: OrganizationContext;
-  documentContext?: any;
-  promptPreview?: string;
-  promptLength?: number;
-  timestamp?: string;
-}
+
 
 export function AIGeneratedCriteriaCards({ mps, onCriteriaChange }: AIGeneratedCriteriaCardsProps) {
   const [criteria, setCriteria] = useState<Criterion[]>([]);
@@ -61,10 +54,10 @@ export function AIGeneratedCriteriaCards({ mps, onCriteriaChange }: AIGeneratedC
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
   const { currentOrganization } = useOrganization();
-  const { toast } = useToast();
+    const { toast } = useToast();
   const [showAdminDebug, setShowAdminDebug] = useState(false);
-  const [testMode, setTestMode] = useState(false);
   const [showQAHub, setShowQAHub] = useState(false);
+  
   
   // QA Framework Integration
   const [redAlerts, setRedAlerts] = useState<any[]>([]);
@@ -72,9 +65,8 @@ export function AIGeneratedCriteriaCards({ mps, onCriteriaChange }: AIGeneratedC
   const { validateForRedAlerts } = useRedAlertMonitor();
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
+        const urlParams = new URLSearchParams(window.location.search);
     setShowAdminDebug(urlParams.get('dev') === 'true');
-    setTestMode(urlParams.get('test') === 'true');
     setShowQAHub(urlParams.get('qa') === 'true');
   }, []);
 
@@ -94,7 +86,7 @@ export function AIGeneratedCriteriaCards({ mps, onCriteriaChange }: AIGeneratedC
       });
 
       const hasValidContext = contextTest.data?.results?.length > 0;
-      const contextSources = contextTest.data?.results?.map((r: any) => r.metadata?.source || 'Unknown source').join(', ') || 'No sources';
+      const contextSources = contextTest.data?.results?.map((r: { metadata?: { source?: string } }) => r.metadata?.source || 'Unknown source').join(', ') || 'No sources';
       
       console.log(`📋 Document context check result:`, {
         found: hasValidContext,
@@ -367,16 +359,41 @@ Generate exactly 10 criteria with diverse evidence types. Each criterion must st
         throw new Error('AI response is not in JSON format - missing array brackets');
       }
 
-      const cleanedResponse = cleanJSON(data.response);
-      let parsedCriteria;
+            // Robust JSON parsing with fallback to edge function
+      const raw = data.response as string;
+      const stripFences = (s: string) => s.replace(/^```json\n?|\n?```$/g, '').trim();
+      const extractJSONArray = (s: string) => {
+        const start = s.indexOf('[');
+        const end = s.lastIndexOf(']');
+        if (start !== -1 && end !== -1 && end >= start) return s.slice(start, end + 1);
+        return s;
+      };
 
+      let parsedCriteria: any[] | null = null;
       try {
-        parsedCriteria = JSON.parse(cleanedResponse);
+        const cleaned = extractJSONArray(stripFences(raw));
+        parsedCriteria = JSON.parse(cleaned);
       } catch (parseError) {
         console.error('JSON Parse Error:', parseError);
-        console.log('Raw response that failed to parse:', data.response);
-        throw new Error('Failed to parse AI response as JSON');
+        console.log('Raw response that failed to parse:', raw?.substring(0, 400));
+
+        // Fallback: call robust edge function that guarantees strict JSON
+        try {
+          const { data: alt, error: altErr } = await supabase.functions.invoke('generate-criteria-list', {
+            body: { organizationId: currentOrganization.id, domainId: mps.domain_id, max: 10 }
+          });
+                    if (!altErr && alt?.success && Array.isArray(alt.criteria)) {
+            parsedCriteria = alt.criteria.map((c: { statement: string; summary?: string }) => ({ statement: c.statement, summary: c.summary }));
+          }
+        } catch (e) {
+          console.error('Fallback criteria generation failed:', e);
+        }
+
+        if (!parsedCriteria) {
+          throw new Error('Failed to parse AI response as JSON');
+        }
       }
+
 
       if (!Array.isArray(parsedCriteria)) {
         throw new Error('AI response is not an array of criteria');
@@ -442,18 +459,19 @@ Generate exactly 10 criteria with diverse evidence types. Each criterion must st
         description: `Successfully generated ${formattedCriteria.length} criteria for ${mps.name}`,
       });
 
-    } catch (error: any) {
+        } catch (error: unknown) {
       logCriticalError('Criteria generation failed', error);
-      setError(error.message || 'Unknown error occurred');
+      const msg = error instanceof Error ? error.message : 'Unknown error occurred';
+      setError(msg);
       toast({
         title: "Generation Failed",
-        description: error.message || 'Unknown error occurred',
+        description: msg,
         variant: "destructive"
       });
     } finally {
       setIsGenerating(false);
     }
-  }, [currentOrganization, user, mps, onCriteriaChange, toast, verifyDocumentContext, cleanPlaceholderPatterns, validateForRedAlerts]);
+  }, [currentOrganization, user, mps, onCriteriaChange, toast, verifyDocumentContext, cleanPlaceholderPatterns, validateForRedAlerts, validateEvidenceArtifacts, isGenerating]);
 
   const handleRegenerateCriteria = useCallback(async () => {
     if (!currentOrganization?.id) return;

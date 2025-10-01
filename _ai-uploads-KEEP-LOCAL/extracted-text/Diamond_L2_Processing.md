@@ -1,0 +1,13 @@
+---
+source_filename: Diamond_L2_Processing.txt
+source_path: _ai-uploads-KEEP-LOCAL\source-docs\Diamond_L2_Processing.txt
+extracted_at: 2025-10-01T16:21:43.732Z
+---
+Diamond Knowledge Pack — Layer 2: Processing (v1.0)
+
+Domain: Process Integrity
+
+Tags: processing, dense-media-separation, x-ray-sorting, custody, loss-prevention, reconciliation, insider-threat
+
+Description:
+Processing is the fourth stage in the diamond recovery pipeline, following Mining. At this stage, mined ore is delivered to specialized facilities where mechanical, chemical, and optical processes are applied to separate diamonds from host rock and other minerals. Focuses on efficiency and security, given the high value of diamonds and risks of loss or tampering.

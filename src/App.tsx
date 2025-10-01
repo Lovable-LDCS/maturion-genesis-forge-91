@@ -49,6 +49,8 @@ const GlobalMaturionChat = () => {
   );
 };
 
+import AppShell from "@/components/layout/AppShell";
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
@@ -57,42 +59,44 @@ const App = () => (
         <Sonner />
         <AuthGuard>
           <BrowserRouter>
-            <Routes>
-              <Route path={ROUTES.HOME} element={<Index />} />
-              <Route path={ROUTES.MODULES} element={<ModulesOverview />} />
-              <Route path={ROUTES.MATURITY_SETUP} element={<MaturitySetup />} />
-              {/* Legacy redirect: /maturity/build -> /maturity/setup */}
-              <Route path={ROUTES.MATURITY_BUILD_LEGACY} element={<Navigate to={ROUTES.MATURITY_SETUP} replace />} />
-              <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
-              <Route path={ROUTES.ASSESSMENT} element={<Assessment />} />
-              <Route path={ROUTES.QA_SIGNOFF} element={<QASignOff />} />
-              <Route path={ROUTES.ASSESSMENT_FRAMEWORK} element={<AuditStructureConfig />} />
-              <Route path="/audit/domain/:domainId" element={<DomainAuditBuilder />} />
-              <Route path="/assessment-framework" element={<AssessmentFramework />} />
-              <Route path="/domain-management" element={<AssessmentFramework />} />
-              <Route path={ROUTES.TEAM} element={<TeamPage />} />
-              <Route path={ROUTES.ORGANIZATION_SETTINGS} element={<OrganizationSettings />} />
-              <Route path={ROUTES.MATURION_KNOWLEDGE_BASE} element={<MaturionKnowledgeBase />} />
-              <Route path="/maturion-knowledge-base" element={<MaturionKnowledgeBase />} />
-              <Route path={ROUTES.MATURION_UPLOADS} element={<MaturionUploads />} />
-              <Route path="/maturion-uploads" element={<Navigate to={ROUTES.MATURION_UPLOADS} replace />} />
-              <Route path="/knowledge-base" element={<Navigate to={ROUTES.MATURION_KNOWLEDGE_BASE} replace />} />
-              <Route path="/uploads" element={<Navigate to={ROUTES.MATURION_UPLOADS} replace />} />
-              <Route path={ROUTES.INVITATION_ACCEPTANCE} element={<InvitationAcceptance />} />
-              <Route path={ROUTES.JOURNEY} element={<Journey />} />
-              <Route path={ROUTES.SUBSCRIBE} element={<Subscribe />} />
-              <Route path={ROUTES.SUBSCRIBE_CHECKOUT} element={<SubscribeCheckout />} />
-              <Route path={ROUTES.ADMIN_CONFIG} element={<AdminConfig />} />
-              <Route path={ROUTES.QA_DASHBOARD} element={<QADashboard />} />
-              <Route path="/qa-test-dashboard" element={<QATestDashboard />} />
-              <Route path="/data-sources" element={<DataSourcesManagement />} />
-              <Route path={ROUTES.WATCHDOG} element={<WatchdogDashboard />} />
-              <Route path="/test-suite" element={<TestSuite />} />
-              <Route path="/milestones/:id" element={<MilestoneDetail />} />
-              <Route path={ROUTES.AUTH} element={<LoginForm />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            <AppShell>
+              <Routes>
+                <Route path={ROUTES.HOME} element={<Index />} />
+                <Route path={ROUTES.MODULES} element={<ModulesOverview />} />
+                <Route path={ROUTES.MATURITY_SETUP} element={<MaturitySetup />} />
+                {/* Legacy redirect: /maturity/build -> /maturity/setup */}
+                <Route path={ROUTES.MATURITY_BUILD_LEGACY} element={<Navigate to={ROUTES.MATURITY_SETUP} replace />} />
+                <Route path={ROUTES.DASHBOARD} element={<Dashboard />} />
+                <Route path={ROUTES.ASSESSMENT} element={<Assessment />} />
+                <Route path={ROUTES.QA_SIGNOFF} element={<QASignOff />} />
+                <Route path={ROUTES.ASSESSMENT_FRAMEWORK} element={<AuditStructureConfig />} />
+                <Route path="/audit/domain/:domainId" element={<DomainAuditBuilder />} />
+                <Route path="/assessment-framework" element={<AssessmentFramework />} />
+                <Route path="/domain-management" element={<AssessmentFramework />} />
+                <Route path={ROUTES.TEAM} element={<TeamPage />} />
+                <Route path={ROUTES.ORGANIZATION_SETTINGS} element={<OrganizationSettings />} />
+                <Route path={ROUTES.MATURION_KNOWLEDGE_BASE} element={<MaturionKnowledgeBase />} />
+                <Route path="/maturion-knowledge-base" element={<MaturionKnowledgeBase />} />
+                <Route path={ROUTES.MATURION_UPLOADS} element={<MaturionUploads />} />
+                <Route path="/maturion-uploads" element={<Navigate to={ROUTES.MATURION_UPLOADS} replace />} />
+                <Route path="/knowledge-base" element={<Navigate to={ROUTES.MATURION_KNOWLEDGE_BASE} replace />} />
+                <Route path="/uploads" element={<Navigate to={ROUTES.MATURION_UPLOADS} replace />} />
+                <Route path={ROUTES.INVITATION_ACCEPTANCE} element={<InvitationAcceptance />} />
+                <Route path={ROUTES.JOURNEY} element={<Journey />} />
+                <Route path={ROUTES.SUBSCRIBE} element={<Subscribe />} />
+                <Route path={ROUTES.SUBSCRIBE_CHECKOUT} element={<SubscribeCheckout />} />
+                <Route path={ROUTES.ADMIN_CONFIG} element={<AdminConfig />} />
+                <Route path={ROUTES.QA_DASHBOARD} element={<QADashboard />} />
+                <Route path="/qa-test-dashboard" element={<QATestDashboard />} />
+                <Route path="/data-sources" element={<DataSourcesManagement />} />
+                <Route path={ROUTES.WATCHDOG} element={<WatchdogDashboard />} />
+                <Route path="/test-suite" element={<TestSuite />} />
+                <Route path="/milestones/:id" element={<MilestoneDetail />} />
+                <Route path={ROUTES.AUTH} element={<LoginForm />} />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </AppShell>
             
             {/* Global Maturion Chat Assistant */}
             <GlobalMaturionChat />

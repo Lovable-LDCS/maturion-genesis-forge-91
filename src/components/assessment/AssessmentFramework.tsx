@@ -3,8 +3,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrganization } from '@/hooks/useOrganization';
+import { useAdminAccess } from '@/hooks/useAdminAccess';
+import { FEATURE_FLAGS } from '@/lib/config';
 import { StatusBadge } from '@/components/milestones/StatusBadge';
 import { BrandingUploader } from '@/components/organization/BrandingUploader';
 import { DeBeersBrandingDemo } from '@/components/organization/DeBeersBrandingDemo';
@@ -34,6 +38,17 @@ export const AssessmentFramework: React.FC = () => {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [domains, setDomains] = useState<Domain[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isAdmin } = useAdminAccess();
+
+  // Review dialog state
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewItems, setReviewItems] = useState<any[]>([]);
+  const [reviewType, setReviewType] = useState<'intents' | 'criteria' | null>(null);
+  const [reviewDomain, setReviewDomain] = useState<Domain | null>(null);
+  const [thinContext, setThinContext] = useState(false);
+  const [saving, setSaving] = useState(false);
+
 
   useEffect(() => {
     if (currentOrganization?.id) {
@@ -87,7 +102,79 @@ export const AssessmentFramework: React.FC = () => {
     );
   }
 
+  const generateIntents = async (domain: Domain) => {
+    if (!FEATURE_FLAGS.intents_generation_enabled || !currentOrganization?.id) return;
+    const { data, error } = await supabase.functions.invoke('generate-intents-list', {
+      body: { organizationId: currentOrganization.id, domainId: domain.id }
+    });
+    if (error || data?.success === false) {
+      console.error('Intents generation error:', error || data);
+      return;
+    }
+    setReviewTitle(`Review intents for ${domain.name}`);
+    setReviewItems(data.intents || []);
+    setReviewType('intents');
+    setReviewDomain(domain);
+    setThinContext(false);
+    setReviewOpen(true);
+  };
+
+  const generateCriteria = async (domain: Domain) => {
+    if (!FEATURE_FLAGS.criteria_generation_enabled || !currentOrganization?.id) return;
+    const { data, error } = await supabase.functions.invoke('generate-criteria-list', {
+      body: { organizationId: currentOrganization.id, domainId: domain.id, max: 12 }
+    });
+    if (error || data?.success === false) {
+      console.error('Criteria generation error:', error || data);
+      return;
+    }
+    setReviewTitle(`Review criteria for ${domain.name}`);
+    setReviewItems(data.criteria || []);
+    setReviewType('criteria');
+    setReviewDomain(domain);
+    setThinContext(!!data.thin_context);
+    setReviewOpen(true);
+  };
+
+  const approveItems = async () => {
+    if (!reviewDomain || !currentOrganization?.id || !reviewType) return;
+    setSaving(true);
+    try {
+      if (reviewType === 'intents') {
+        const primary = reviewItems[0]?.intent_statement || '';
+        if (primary) {
+          await supabase.from('domains').update({ intent_statement: primary }).eq('id', reviewDomain.id);
+        }
+      } else if (reviewType === 'criteria') {
+        // Placeholder: criteria persistence via RPC to be added next.
+      }
+    } finally {
+      setSaving(false);
+      setReviewOpen(false);
+      fetchAssessmentData();
+    }
+  };
+
+  const createGapTicket = async () => {
+    if (!FEATURE_FLAGS.gap_followup_enabled || !currentOrganization?.id || !reviewDomain) return;
+    try {
+      await supabase.from('gap_tickets').insert({
+        organization_id: currentOrganization.id,
+        prompt: `Thin context detected for domain ${reviewDomain.name}`,
+        missing_specifics: ['insufficient_document_context'],
+        follow_up_date: new Date(Date.now() + 48*60*60*1000).toISOString(),
+        status: 'open'
+      });
+      await supabase.functions.invoke('send-gap-followup', { body: { organizationId: currentOrganization.id } });
+    } catch (e) {
+      console.error('Gap ticket creation error:', e);
+    } finally {
+      setReviewOpen(false);
+    }
+  };
+
   return (
+
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold mb-2">Assessment Framework & Organization Setup</h2>
@@ -194,8 +281,18 @@ export const AssessmentFramework: React.FC = () => {
                             <h4 className="font-medium">{domain.name}</h4>
                             <StatusBadge status={domain.status} />
                           </div>
-                          <p className="text-sm text-muted-foreground">{domain.intent_statement}</p>
+                                                    <p className="text-sm text-muted-foreground">{domain.intent_statement}</p>
                         </div>
+                        {isAdmin && (
+                          <div className="flex gap-2">
+                            {FEATURE_FLAGS.intents_generation_enabled && (
+                              <Button size="sm" variant="outline" onClick={() => generateIntents(domain)}>Generate intents</Button>
+                            )}
+                            {FEATURE_FLAGS.criteria_generation_enabled && (
+                              <Button size="sm" onClick={() => generateCriteria(domain)}>Generate criteria</Button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -203,6 +300,40 @@ export const AssessmentFramework: React.FC = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* Review Dialog */}
+          <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>{reviewTitle}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3 max-h-[60vh] overflow-auto">
+                {reviewItems.length === 0 ? (
+                  <p className="text-muted-foreground">No items returned.</p>
+                ) : (
+                  <ul className="list-disc pl-5 space-y-2">
+                    {reviewItems.map((it, idx) => (
+                      <li key={idx}>
+                        {reviewType === 'intents' ? it.intent_statement : it.statement}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {thinContext && (
+                  <div className="p-2 rounded bg-yellow-50 text-yellow-800 text-sm">
+                    Thin context detected. Consider creating a gap ticket. A follow-up email will be sent.
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                {thinContext && FEATURE_FLAGS.gap_followup_enabled && (
+                  <Button variant="outline" onClick={createGapTicket}>Create Gap Ticket</Button>
+                )}
+                <Button onClick={approveItems} disabled={saving}>{saving ? 'Saving...' : 'Approve'}</Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
 
           {/* Implementation Status */}
           <Card>

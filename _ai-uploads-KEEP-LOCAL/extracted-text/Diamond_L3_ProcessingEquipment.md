@@ -1,0 +1,13 @@
+---
+source_filename: Diamond_L3_ProcessingEquipment.txt
+source_path: _ai-uploads-KEEP-LOCAL\source-docs\Diamond_L3_ProcessingEquipment.txt
+extracted_at: 2025-10-01T16:21:43.743Z
+---
+Diamond Knowledge Pack — Layer 3: Processing Equipment (v0.1)
+
+Domain: Equipment & Machinery (Stage: Processing)
+
+Tags: processing, crushers, screens, dense-media-separation, x-ray-sorting, grease-tables, concentrate-handling, magnets, pumps, recovery
+
+Description:
+Structured stubs for Processing Equipment used in diamond recovery. Covers crushers, screens, DMS, XRT/laser sorters, grease tables, concentrate handling, magnetic/eddy-current separators, pumps/piping, and final recovery systems. Designed for expansion with detailed operating parameters, vulnerabilities, and controls.

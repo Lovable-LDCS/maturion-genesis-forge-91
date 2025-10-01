@@ -1,0 +1,8 @@
+Diamond Data & Records Integrity Control
+
+Domain: Proof it Works
+
+Tags: data integrity, audit trail, reconciliation logs, CCTV retention, evidence packs, remote assurance
+
+Description:
+Diamond-specific model ensuring custody, reconciliation, valuation, transport, and scanner records are accurate, time-stamped, tamper-evident, and retrievable for remote assurance. Includes hashing/signatures, retention schedules, backup/restore proofs, and discoverable evidence packs.

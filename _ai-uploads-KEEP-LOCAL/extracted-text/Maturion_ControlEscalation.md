@@ -1,0 +1,18 @@
+---
+source_filename: Maturion_ControlEscalation.txt
+source_path: _ai-uploads-KEEP-LOCAL\source-docs\Maturion_ControlEscalation.txt
+extracted_at: 2025-10-01T16:21:43.843Z
+---
+Maturion Knowledge File: Control Escalation Model
+
+Category: Control Environment – Incident Response and Alerting
+
+Tags: Escalation, Trigger Thresholds, Alert Routing, Supervisory Oversight, Tiered Response, Incident Activation
+
+Purpose: Equips Maturion with the logic to escalate alerts, deviations, and anomalies through structured, role-based pathways to ensure timely intervention and containment.
+
+Key Components:
+1. What Is Escalation? — moving an alert/decision to higher authority once thresholds are met.
+2. Trigger-Based Escalation — risk breaches, unresolved deviations, incident activations.
+3. Role-Based Pathways — tiered response mapped to functions.
+4. Governance Integration — audit trail, review, accountability chain.

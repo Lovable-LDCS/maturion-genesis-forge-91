@@ -1,0 +1,8 @@
+MPS 22 – Investigations and Incident Management
+
+Category: Proof It Works
+
+Tags: incident investigation, misconduct, evidence preservation, incident management, escalation matrix, root cause analysis, compliance, loss event, security breach, procedural failure, HR investigations
+
+Description:
+Minimum Performance Standard for the structured management of investigations related to wrongdoing, control failures, or loss events. Ensures fair, documented, and lawful handling of incidents with full preservation of evidence and appropriate stakeholder notification. Supports risk reduction, organizational learning, and assurance requirements.

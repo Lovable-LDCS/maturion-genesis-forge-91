@@ -1,0 +1,14 @@
+﻿name: Maturion Workspace
+version: 1.0.0
+schema: v1
+
+models:
+  - name: openai/gpt-5
+    provider: continue-proxy
+    model: gpt-5
+
+  - name: openai/gpt-4
+    provider: continue-proxy
+    model: gpt-4o
+
+mcpServers: []

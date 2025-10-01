@@ -79,46 +79,38 @@ export const useMPSManagement = (domainId: string) => {
         domainDbId = newDomain.id;
       }
 
-      // Check for existing MPSs and delete them to avoid duplicates
-      const { error: deleteError } = await supabase
-        .from('maturity_practice_statements')
-        .delete()
-        .eq('domain_id', domainDbId)
-        .eq('organization_id', currentOrganization.id);
-
-      if (deleteError) console.warn('Warning deleting existing MPSs:', deleteError);
-
-      // Prepare MPS data with validated numbers
-      const mpsData = mpsList.map((mps, index) => {
+            // Prepare items for server-side save function (service role, RLS-safe)
+      const items = mpsList.map((mps, index) => {
         let mpsNumber = index + 1;
         if (mps.number) {
           const parsed = parseInt(mps.number.toString());
-          if (!isNaN(parsed) && parsed > 0) {
-            mpsNumber = parsed;
-          }
+          if (!isNaN(parsed) && parsed > 0) mpsNumber = parsed;
         }
-        
         return {
-          domain_id: domainDbId,
-          organization_id: currentOrganization.id,
-          name: mps.name || mps.title || 'Untitled MPS',
-          summary: mps.description || '',
-          mps_number: mpsNumber,
-          status: 'not_started' as const,
-          created_by: user.id,
-          updated_by: user.id
+          number: mpsNumber,
+          title: mps.title || mps.name || 'Untitled MPS',
+          intent: mps.intent || '',
+          summary: mps.rationale || mps.description || ''
         };
       });
 
-      const { error: mpsError } = await supabase
-        .from('maturity_practice_statements')
-        .insert(mpsData);
+      const { data: saveData, error: saveError } = await supabase.functions.invoke('save-mps-list', {
+        body: {
+          organizationId: currentOrganization.id,
+          domainId: domainDbId,
+          userId: user.id,
+          items,
+          upsert: true
+        }
+      });
 
-      if (mpsError) throw mpsError;
+      if (saveError || saveData?.success === false) {
+        throw saveError || new Error(saveData?.error || 'Failed to save MPSs');
+      }
 
       toast({
         title: "MPSs Saved",
-        description: `Successfully saved ${mpsList.length} MPSs to the database.`,
+        description: `Successfully saved ${items.length} MPSs to the database.`,
       });
 
       return true;

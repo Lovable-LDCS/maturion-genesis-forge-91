@@ -1,0 +1,13 @@
+---
+source_filename: Diamond_Exploration_L2.txt
+source_path: _ai-uploads-KEEP-LOCAL\source-docs\Diamond_Exploration_L2.txt
+extracted_at: 2025-10-01T16:21:43.683Z
+---
+Diamond Recovery Pipeline — Layer 2: Exploration (v1.0)
+
+Domain: Process Integrity (primary), Leadership & Governance (supporting)
+
+Tags: exploration, geology, custody, loss-prevention, reconciliation, insider-threat
+
+Description:
+High-level descriptor of the Exploration function in the diamond recovery value chain. Defines objectives, key assets, custody/hand-off points, vulnerabilities, and loss-prevention measures. Designed as the first Layer-2 document, feeding into deeper Layer-3 equipment/machinery breakdowns.

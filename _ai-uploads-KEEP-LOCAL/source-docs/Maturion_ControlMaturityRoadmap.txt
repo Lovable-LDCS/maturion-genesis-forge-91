@@ -1,0 +1,19 @@
+Maturion Knowledge File: Control Maturity Roadmap Model
+
+Category: Strategic Planning – Maturity Progression
+
+Tags: Maturity Roadmap, Year-on-Year Planning, Milestone Tracking, Control Evolution, Phase Locking, Readiness Gates
+
+Purpose: Guides structured maturity improvements using control evolution logic, readiness gates, and visual milestones.
+
+Phases:
+- Baseline
+- Year +1
+- Year +2
+- Year +3
+- Year +4
+
+Rules:
+- Locks future phases until evidence uploaded, validations passed, domain thresholds met.
+- Visual milestones tracked with AI prompts and MPS performance anchors.
+- Control-specific journeys highlight stagnation and next steps.

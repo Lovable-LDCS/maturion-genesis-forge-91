@@ -1,0 +1,13 @@
+---
+source_filename: MPS24_SecurityInfoManagement.txt
+source_path: _ai-uploads-KEEP-LOCAL\source-docs\MPS24_SecurityInfoManagement.txt
+extracted_at: 2025-10-01T16:21:43.991Z
+---
+MPS 24 – Security Information Management and Analysis
+
+Category: Proof
+
+Tags: security information management, threat environment, environmental scan, analysis, remote assurance, compliance, human rights, data protection, ISO31000, NIST, proof
+
+Description:
+Minimum Performance Standard for Security Information Management and Analysis. Defines the intent, required actions, and guidance for building a structured, ethical, and rights-respecting process to collect, analyse, manage, and share security-relevant information. Emphasises professionalism, transparency, and auditability, with robust records to support remote, independent assurance, ongoing threat monitoring, and continuous improvement. Aligns with ISO 31000, ISO 27001, NIST frameworks, and human right...
