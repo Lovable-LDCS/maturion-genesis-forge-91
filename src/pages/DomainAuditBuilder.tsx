@@ -9,6 +9,9 @@ import { ArrowLeft, Database, Target, CheckSquare, BarChart3, ClipboardCheck, Sp
 import { MPSSelectionModal } from '@/components/assessment/MPSSelectionModal';
 import { IntentCreator } from '@/components/assessment/IntentCreator';
 import { CriteriaManagement } from '@/components/assessment/CriteriaManagement';
+import DomainMPSRunner from '@/components/assessment/DomainMPSRunner';
+import MPSDashboard from '@/components/assessment/MPSDashboard';
+import DomainCriteriaRunner from '@/components/assessment/DomainCriteriaRunner';
 
 import { useDomainAuditBuilder, type AuditStep } from '@/hooks/useDomainAuditBuilder';
 import { useDeferredCriteria } from '@/hooks/useDeferredCriteria';
@@ -196,9 +199,25 @@ const DomainAuditBuilder = () => {
             </div>
           </div>
 
+                              {/* Domain MPS Runner Panel */}
+          <div className="mb-8">
+            <DomainMPSRunner domainName={domainName} orgId={currentOrganization?.id || ''} />
+          </div>
+
+          {/* Domain MPS Dashboard (collapsible UI) */}
+          <div className="mb-8">
+            <MPSDashboard domainName={domainName} orgId={currentOrganization?.id || ''} />
+          </div>
+
+                    {/* Domain Criteria Runner */}
+          <div className="mb-8">
+            <DomainCriteriaRunner domainName={domainName} orgId={currentOrganization?.id || ''} />
+          </div>
+
           {/* Workflow Steps */}
           <div className="grid gap-6">
             {auditSteps.map((step, index) => {
+
               const stepStyles = getStepStatus(step.status);
               
               return (

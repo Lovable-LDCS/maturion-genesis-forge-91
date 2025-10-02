@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "lib": ["deno.window", "dom"],
+    "strict": true
+  },
+  "importMap": "./import_map.json",
+  "lint": {
+    "rules": {
+      "exclude": ["no-explicit-any", "no-unused-vars"]
+    }
+  },
+  "tasks": {
+    "dev": "deno run -A",
+    "fmt": "deno fmt",
+    "lint": "deno lint"
+  }
+}

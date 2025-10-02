@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { DomainManagement } from '@/components/assessment/DomainManagement';
 import { MPSManagement } from '@/components/assessment/MPSManagement';
+import AdminMPSRunner from '@/components/assessment/AdminMPSRunner';
 
 import { BulkImportExport } from '@/components/assessment/BulkImportExport';
 import { ISOComplianceValidation } from '@/components/assessment/ISOComplianceValidation';
@@ -144,7 +144,7 @@ export default function AssessmentFramework() {
                   
                   {nextSuggestedDomain && (
                     <div className="text-center">
-                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 border border-primary/20 rounded-full text-sm text-primary">
+                      <div className="inline-flex items-center gap-2 px/4 py-2 bg-primary/10 border border-primary/20 rounded-full text-sm text-primary">
                         <span className="animate-pulse">💡</span>
                         <span>Continue with <strong>{nextSuggestedDomain.name}</strong></span>
                       </div>
@@ -278,6 +278,15 @@ export default function AssessmentFramework() {
                 <MPSManagement />
               </CardContent>
             </Card>
+
+            <Card className="mt-4">
+              <CardHeader>
+                <CardTitle>Admin MPS Runner</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AdminMPSRunner />
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="criteria" className="space-y-4">
@@ -285,7 +294,7 @@ export default function AssessmentFramework() {
               <CardHeader>
                 <CardTitle>Criteria Configuration</CardTitle>
                 <CardDescription>
-                  Criteria management has been moved to the individual domain audit builders. 
+                  Criteria management has been moved to the individual domain audit builders.
                   Use the "Domain Audit Builder" for each domain to configure criteria.
                 </CardDescription>
               </CardHeader>
@@ -334,3 +343,4 @@ export default function AssessmentFramework() {
     </div>
   );
 }
+

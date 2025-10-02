@@ -89,34 +89,91 @@ serve(async (req: Request) => {
       // Check if existing MPS with same (domain_id, mps_number)
       const { data: exists, error: selErr } = await admin
         .from('maturity_practice_statements')
-        .select('id')
+        .select('id, name, summary, intent_statement')
         .eq('domain_id', r.domain_id)
         .eq('mps_number', r.mps_number)
         .limit(1);
       if (selErr) throw selErr;
 
       if (exists && exists.length > 0) {
-        const id = exists[0].id;
+        const current = exists[0];
+        const id = current.id;
+        const nextIntent = r.ai_suggested_intent ? r.ai_suggested_intent : current.intent_statement;
         const { data: upd, error: updErr } = await admin
           .from('maturity_practice_statements')
           .update({
             name: r.name,
             ai_suggested_intent: r.ai_suggested_intent,
+            intent_statement: nextIntent || null,
+            intent_approved_at: nextIntent ? new Date().toISOString() : null,
+            intent_approved_by: nextIntent ? (r.updated_by) : null,
             summary: r.summary,
             updated_by: r.updated_by,
             updated_at: new Date().toISOString(),
           })
           .eq('id', id)
-          .select('id, name, mps_number, domain_id');
+          .select('id, name, mps_number, domain_id, summary, intent_statement');
         if (updErr) throw updErr;
-        if (upd && upd.length) saved.push(upd[0]);
+        if (upd && upd.length) {
+          const updated = upd[0];
+          saved.push(updated);
+          // Log learning deltas for edits
+          const deltas: Array<{ field: string; original: string | null; modified: string | null }> = [
+            { field: 'name', original: current.name, modified: r.name },
+            { field: 'summary', original: current.summary, modified: r.summary },
+            { field: 'intent_statement', original: current.intent_statement, modified: nextIntent || null }
+          ];
+          for (const d of deltas) {
+            if ((d.original || '') !== (d.modified || '')) {
+              await admin.from('ai_feedback_submissions').insert({
+                organization_id: organizationId,
+                user_id: r.updated_by,
+                feedback_type: 'approved',
+                feedback_category: 'mps',
+                ai_generated_content: String(d.original ?? ''),
+                human_override_content: String(d.modified ?? ''),
+                justification: `field=${d.field}; mps_id=${id}`,
+                metadata: { entity: 'mps', mps_id: id, field: d.field }
+              });
+            }
+          }
+        }
       } else {
+        const intentStmt = r.ai_suggested_intent || null;
         const { data: ins, error: insErr } = await admin
           .from('maturity_practice_statements')
-          .insert([{ ...r }])
-          .select('id, name, mps_number, domain_id');
+          .insert([{ 
+            ...r,
+            intent_statement: intentStmt,
+            intent_approved_at: intentStmt ? new Date().toISOString() : null,
+            intent_approved_by: intentStmt ? (r.created_by) : null,
+          }])
+          .select('id, name, mps_number, domain_id, summary, intent_statement');
         if (insErr) throw insErr;
-        if (ins && ins.length) saved.push(ins[0]);
+        if (ins && ins.length) {
+          const inserted = ins[0];
+          saved.push(inserted);
+          // Log learning entries for inserted values (original considered empty)
+          const deltas: Array<{ field: string; original: string | null; modified: string | null }> = [
+            { field: 'name', original: null, modified: r.name },
+            { field: 'summary', original: null, modified: r.summary },
+            { field: 'intent_statement', original: null, modified: intentStmt }
+          ];
+          for (const d of deltas) {
+            if (d.modified) {
+              await admin.from('ai_feedback_submissions').insert({
+                organization_id: organizationId,
+                user_id: r.created_by,
+                feedback_type: 'approved',
+                feedback_category: 'mps',
+                ai_generated_content: String(d.original ?? ''),
+                human_override_content: String(d.modified ?? ''),
+                justification: `field=${d.field}; mps_id=${inserted.id}`,
+                metadata: { entity: 'mps', mps_id: inserted.id, field: d.field }
+              });
+            }
+          }
+        }
       }
     }
 

@@ -99,9 +99,9 @@ const AuditStructureConfig = () => {
       <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <Button 
+                        <Button 
               variant="ghost" 
-              onClick={() => navigate('/maturity/setup')}
+              onClick={() => navigate('/assessment/framework')}
               className="flex items-center gap-2"
             >
               <ArrowLeft className="h-4 w-4" />
