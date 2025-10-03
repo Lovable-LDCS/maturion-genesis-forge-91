@@ -1,0 +1,20 @@
+Maturion Knowledge File: Core Security Control Principles
+
+Category: Subject Knowledge – Security Philosophy
+
+Tags: Defense in Depth, Weakest Link, Resilience, Chain of Custody, Control Design, Governance, Continuous Improvement
+
+Purpose: Equips Maturion with foundational principles to reason about the purpose, architecture, layering, and assurance of security controls.
+
+Principles:
+1. Weakest-Link Problem — single-point-of-failure detection, cross-functional mapping.
+2. Security = Risk Reduction — always link control to risk.
+3. Trade-Off Awareness — balance between assurance and usability.
+4. Defense-in-Depth — mutually reinforcing control layers (physical, technical, operational, governance).
+5. Chain of Custody — enforce accountability across flows.
+6. Aligning Controls with Business Risk — proportionality and integration.
+7. Resilience through Control Design — redundancy, automated fallback, early-warning indicators.
+8. Governance of Security Controls — ownership, validation, metrics, periodic review.
+9. Continuous Improvement — learning from incidents and feedback loops.
+10. Human Element — culture, compliance, integrity.
+11. Integration — mapped to MPS 3, 5, 10, 15, 22.

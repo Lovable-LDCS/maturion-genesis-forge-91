@@ -25,10 +25,12 @@ interface OrganizationWithRole {
 }
 
 export const useOrganization = () => {
-  const { user } = useAuth()
+    const { user } = useAuth()
   const [organizations, setOrganizations] = useState<OrganizationWithRole[]>([])
   const [currentOrganization, setCurrentOrganization] = useState<OrganizationWithRole | null>(null)
   const [loading, setLoading] = useState(true)
+  const ACTIVE_ORG_KEY = 'active_org_id'
+
 
   useEffect(() => {
     if (user) {
@@ -36,7 +38,7 @@ export const useOrganization = () => {
     }
   }, [user])
 
-  const fetchUserOrganizations = async () => {
+    const fetchUserOrganizations = async () => {
     if (!user) {
       setOrganizations([])
       setLoading(false)
@@ -45,8 +47,59 @@ export const useOrganization = () => {
 
     try {
       setLoading(true)
-      
-      // Step 1: Get my memberships
+
+      // Determine if this is a Main Admin (APGI) — temporary heuristic + table check
+      const isMainAdminByEmail = Boolean(user.email && user.email.endsWith('@apginc.ca'))
+      let isMainAdminByTable = false
+      try {
+        const { data: adminRow } = await supabase
+          .from('backoffice_admins')
+          .select('id')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle()
+        isMainAdminByTable = !!adminRow
+      } catch { /* ignore */ }
+      const isMainAdmin = isMainAdminByEmail || isMainAdminByTable
+
+      if (isMainAdmin) {
+        // Main Admin: see all organizations
+        const { data: allOrgs, error: allErr } = await supabase
+          .from('organizations')
+          .select('*')
+          .order('created_at', { ascending: false })
+        if (allErr) throw allErr
+
+        const orgsWithRoles: OrganizationWithRole[] = (allOrgs || []).map((org: any) => ({
+          id: org.id,
+          name: org.name,
+          description: org.description,
+          created_at: org.created_at,
+          updated_at: org.updated_at,
+          owner_id: org.owner_id,
+          user_role: 'owner', // elevate in UI context for Main Admin
+          slack_webhook_url: org.slack_webhook_url,
+          email_webhook_url: org.email_webhook_url,
+          zapier_webhook_url: org.zapier_webhook_url,
+          primary_website_url: org.primary_website_url,
+          linked_domains: org.linked_domains,
+          industry_tags: org.industry_tags,
+          custom_industry: org.custom_industry,
+          region_operating: org.region_operating,
+          risk_concerns: org.risk_concerns,
+          compliance_commitments: org.compliance_commitments,
+          threat_sensitivity_level: org.threat_sensitivity_level,
+        }))
+                setOrganizations(orgsWithRoles)
+        // Try restore persisted selection
+        const saved = localStorage.getItem(ACTIVE_ORG_KEY)
+        const found = orgsWithRoles.find(o => o.id === saved)
+        if (found) setCurrentOrganization(found)
+        else if (orgsWithRoles.length > 0 && !currentOrganization) setCurrentOrganization(orgsWithRoles[0])
+        return
+      }
+
+      // Otherwise: list orgs from memberships
       const { data: memberships, error: membershipError } = await supabase
         .from('organization_members')
         .select('organization_id, role')
@@ -63,7 +116,6 @@ export const useOrganization = () => {
         return
       }
 
-      // Step 2: Get those organizations
       const orgIds = memberships.map(m => m.organization_id)
       const { data: organizations, error } = await supabase
         .from('organizations')
@@ -76,7 +128,6 @@ export const useOrganization = () => {
         return
       }
 
-      // Create a map of organization_id to role for easy lookup
       const roleMap = memberships.reduce((acc, membership) => {
         acc[membership.organization_id] = membership.role
         return acc
@@ -103,12 +154,11 @@ export const useOrganization = () => {
         threat_sensitivity_level: org.threat_sensitivity_level,
       })) || []
 
-      setOrganizations(orgsWithRoles)
-      
-      // Auto-select first organization if none selected
-      if (orgsWithRoles.length > 0 && !currentOrganization) {
-        setCurrentOrganization(orgsWithRoles[0])
-      }
+            setOrganizations(orgsWithRoles)
+      const saved = localStorage.getItem(ACTIVE_ORG_KEY)
+      const found = orgsWithRoles.find(o => o.id === saved)
+      if (found) setCurrentOrganization(found)
+      else if (orgsWithRoles.length > 0 && !currentOrganization) setCurrentOrganization(orgsWithRoles[0])
     } catch (error) {
       console.error('Error in fetchUserOrganizations:', error)
       setOrganizations([])
@@ -117,12 +167,17 @@ export const useOrganization = () => {
     }
   }
 
-  const switchOrganization = (orgId: string) => {
+    const switchOrganization = (orgId: string) => {
     const org = organizations.find(o => o.id === orgId)
     if (org) {
       setCurrentOrganization(org)
+      try {
+        localStorage.setItem(ACTIVE_ORG_KEY, org.id)
+        window.dispatchEvent(new CustomEvent('org-switched', { detail: { orgId: org.id } }))
+      } catch {}
     }
   }
+
 
   const hasPermission = (permission: 'read' | 'write' | 'admin' | 'owner') => {
     if (!currentOrganization) return false

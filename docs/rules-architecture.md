@@ -141,3 +141,84 @@ Operating Practice for This File
 - Treat this document as the canonical reference.
 - Update it daily or as soon as behavior/requirements change.
 - Keep it simple and actionable; add links to specific files or functions as needed.
+
+Appendix A — Canonical Domains & Reset/Learning Policy (2025‑10‑03)
+
+Canonical Domains (fixed names)
+- Leadership & Governance
+- Process Integrity
+- People & Culture
+- Protection
+- Proof it Works
+
+Domain pages (user‑facing)
+- src/pages/DomainAuditBuilder.tsx shows only the current flow:
+  - DomainMPSRunner (generate/save MPS)
+  - MPSDashboard (view MPS/criteria)
+  - DomainCriteriaRunner (generate/edit/save criteria)
+- Legacy stepper/modals are removed.
+
+Rerun (Reset) Semantics — Learn then Remove
+- User clicks Rerun on a domain to replace existing MPS with a fresh set.
+- The system MUST first capture learning signals from what is being replaced, then remove it from the user’s domain.
+- Learning signals: write one row per MPS, and one per Criteria, into public.ai_feedback_submissions with feedback_type='rejected'.
+  - If the DB check constraint rejects categories 'mps'/'criteria', fallback to 'general' to ensure signals are stored.
+  - justification: 'rerun_reset'; metadata includes { entity, ids, domain_id, rerun: true }.
+- Removal policy (current): reset-domain-mps-v2 moves the items out of the active domain immediately so the user sees a clean domain and can Generate again.
+- Target policy (near‑term): perform hard‑delete after learning and dependent cleanup, once audit_trail delete triggers are patched.
+
+Reset Implementation (Edge Functions)
+- supabase/functions/reset-domain-mps-v2/index.ts (current)
+  - Stage 1: fetch MPS/criteria; Stage 2: log learning signals; Stage 3: normalize org ids; Stage 4: archive (move) MPS/criteria; return success.
+  - Includes a fallback for feedback_category check constraints (retries with 'general').
+- supabase/functions/save-mps-list/index.ts
+  - On save/upsert, logs 'approved' learning deltas to ai_feedback_submissions for 'mps' (name/summary/intent changes).
+- supabase/functions/save-criteria-list/index.ts
+  - On save, logs 'approved' learning deltas to ai_feedback_submissions for 'criteria' (statement edits).
+
+Permission & Trigger Notes
+- service_role grants must allow reads/writes/deletes used by reset functions.
+- audit_trail delete triggers currently require organization_id NOT NULL; migration pending to ensure deletes set it (COALESCE to OLD.organization_id or a system UUID) so hard‑delete is safe.
+
+UI Policy
+- Users never see rejected or archived items. If archived temporarily, the UI must exclude __trash__ domain and MPS #999.
+- Admin backoffice may include tools for diagnostics only; no manual cleanup should be required at scale.
+
+Standards & Learning
+- ai_feedback_submissions is the source of truth for learning signals (approved/rejected).
+- ai_learning_patterns distills reusable patterns from feedback for future proposals.
+
+Appendix B — Organization Hierarchy, Roles, and Access (2025-10-03)
+
+Organization Model
+- Main Admin (APGI): superuser scope for backoffice; can view/switch into any organization context. Used to manage platform-wide settings, documents QA, and watchdog.
+- Parent Organization (Subscriber): signs up, completes “Tell us more”, uploads branding and domains, builds the maturity model (5 Domains → MPS → Intent → Criteria), signs off, and invites child orgs.
+- Child Organization (Subsidiary): inherits the parent’s model, customizes where allowed, uploads evidence, invites evidence collectors.
+- Evidence Collector: scoped to Domain OR MPS OR Criteria via evidence_assignments; can upload evidence and see only what is assigned.
+- External Auditor: read/limited-write for scoring and notes; no structural changes.
+- Read-only Oversight: read access, with optional approval/sign-off where assigned.
+
+Active Organization Context
+- The app operates in a selected organization context. Queries (domains/MPS/criteria) are filtered by organization_id of the active org.
+- UI: an organization selector is available where applicable (Domain Audit Builder now; header-wide selector planned). Main Admin can switch to any org; other users see only orgs they belong to.
+- The “Organization” left-nav entry is reserved for child org features.
+
+Backoffice (APGI-only)
+- Documents (uploads/KB QA) and Watchdog are APGI-only backoffice tools. Hidden from non-main-admin users.
+- Route guarding and nav visibility enforced by role checks.
+
+New Tables (foundation)
+- public.organization_hierarchy: links parent_org_id → child_org_id (relationship_type = ‘subsidiary’ by default) for inherited access and rollups.
+- public.evidence_assignments: scopes evidence collectors to exactly one of: domain_id OR mps_id OR criteria_id, for a given organization_id + user_id.
+
+RLS and Service Role
+- RLS stays on everywhere. End-user queries are restricted to the active organization context.
+- Edge Functions run with service_role for privileged operations (resets, generation persistence) per least-privilege grants.
+
+Backoffice Access Matrix (Planned)
+- A Main Admin page shows features (rows) vs roles (columns) with toggleable cells. Writes to a role_permissions table (planned) to allow dynamic feature gating per role.
+- Default policy: conservative; Only Main Admin sees APGI backoffice. Parent/Child org users see their own org-scoped features.
+
+Operational Notes
+- Organization selection will be persisted per user session (planned) so the context survives navigation and reloads.
+- All destructive or structural actions remain explicit with audit entries and clear justifications.

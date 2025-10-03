@@ -16,13 +16,16 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Building, LogOut, Settings, ChevronDown, Target, Users, BarChart3, FileText, Brain } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import SessionSummaryList from '@/components/admin/SessionSummaryList';
+import SaveSessionButton from '@/components/admin/SaveSessionButton';
 
 const Dashboard = () => {
-  const { user, signOut, profile } = useAuth();
+    const { user, signOut, profile } = useAuth();
   const { organizations, currentOrganization, loading } = useOrganization();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const [showOrgSetup, setShowOrgSetup] = useState(false);
 
   useEffect(() => {
@@ -218,9 +221,12 @@ const Dashboard = () => {
           </div>
 
           {/* Right Column - Milestone Tracker */}
-          <div className="space-y-6">
+                    <div className="space-y-6">
             <MilestoneTracker />
-            <AssessmentFramework />
+                        <AssessmentFramework />
+            {/* Session notes saver */}
+            <SaveSessionButton orgId={currentOrganization?.id || ''} route={location.pathname} />
+            <SessionSummaryList />
           </div>
         </div>
       </main>

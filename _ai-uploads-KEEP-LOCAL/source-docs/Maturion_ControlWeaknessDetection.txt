@@ -1,0 +1,15 @@
+Maturion Knowledge File: Control Weakness Detection Model
+
+Category: Control Environment – Vulnerability Detection
+
+Tags: Weak Controls, Silent Failure, Control Drift, Ownership Gaps, Bypass Patterns, Audit Deficiency
+
+Purpose: Enables Maturion to detect, predict, and flag weak or failing controls through pattern analysis, behavioral signals, audit results, and performance anomalies.
+
+Key Components:
+1. Definition of Control Weakness — exists but doesn’t prevent loss, can be bypassed, has no owner, fails silently.
+2. Common Weak Control Types — SOPs with no enforcement, one-person checks, unmeasured performance.
+3. Silent Control Failure — inactive alerts, forgotten monitoring zones, no linked response.
+4. Behavioral & Cultural Weakness — cultural shortcuts, peer pressure, supervisor workarounds.
+5. Control Ownership Gaps — orphaned controls, absent roles, lack of review cycles.
+6. Unreviewed and Outdated Controls — flagged for update or redesign.

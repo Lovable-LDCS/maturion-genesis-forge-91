@@ -47,51 +47,150 @@ export default function MPSDashboard({ domainName, orgId }: { domainName: string
   const [levelsByCriteria, setLevelsByCriteria] = useState<Record<string, MaturityLevel[]>>({})
   const [evidenceStatus, setEvidenceStatus] = useState<Record<string, 'submitted' | 'pending' | 'missing'>>({})
 
-  // Resolve domain UUID
+      // Resolve domain UUID with synonyms/loose matching
   useEffect(() => {
     (async () => {
-      if (!orgId || !domainName) return
-      const { data } = await supabase
+      if (!orgId || !domainName) { setDomainUuid(''); return }
+
+      const DOMAIN_SYNONYMS: Record<string, string[]> = {
+        'Leadership & Governance': ['Leadership and Governance', 'Leadership & Governance'],
+        'People & Culture': ['People and Culture', 'People & Culture'],
+        'Process Integrity': ['Process Integrity'],
+        'Protection': ['Protection'],
+        'Proof it Works': ['Proof it Works', 'Proof It Works']
+      }
+
+      // Try exact
+      let { data, error } = await supabase
         .from('domains')
-        .select('id')
+        .select('id, name')
         .eq('organization_id', orgId)
         .eq('name', domainName)
         .maybeSingle()
-      if (data?.id) setDomainUuid(data.id)
+
+      // Try synonyms
+      if ((!data || error) && DOMAIN_SYNONYMS[domainName]) {
+        const names = Array.from(new Set([domainName, ...DOMAIN_SYNONYMS[domainName]]))
+        const { data: list } = await supabase
+          .from('domains')
+          .select('id, name')
+          .eq('organization_id', orgId)
+          .in('name', names)
+          .limit(1)
+        if (list && list.length > 0) {
+          data = list[0] as any
+          error = null as any
+        }
+      }
+
+      // Loose ilike fallback
+      if (!data) {
+        const loose = domainName.replace('&', '').replace('  ', ' ').trim()
+        const { data: list2 } = await supabase
+          .from('domains')
+          .select('id, name')
+          .eq('organization_id', orgId)
+          .ilike('name', `%${loose.split(' ').join('%')}%`)
+          .limit(1)
+        if (list2 && list2.length > 0) data = list2[0] as any
+      }
+
+      setDomainUuid((data as any)?.id || '')
     })()
   }, [orgId, domainName])
 
-  // Fetch MPS and Criteria
+    // Fetch MPS and Criteria
+    const fetchData = async () => {
+    if (!domainUuid) return
+    // Load MPS in this domain
+        const { data: mpsRows, error: mpsError } = await supabase
+      .from('maturity_practice_statements')
+      .select('id,name,mps_number,summary,intent_statement')
+      .eq('organization_id', orgId)
+      .eq('domain_id', domainUuid)
+      .order('mps_number', { ascending: true })
+    if (mpsError) {
+      console.warn('MPSDashboard: mps fetch error', mpsError)
+    }
+    setMps(mpsRows || [])
+
+    // If none remain, clear dependent state and stop
+    if (!mpsRows || mpsRows.length === 0) {
+      setCriteria([])
+      setLevelsByCriteria({})
+      setEvidenceStatus({})
+      return
+    }
+
+    // Load criteria only for the fetched MPS
+    const mpsIds = mpsRows.map(r => r.id)
+        const { data: critRows, error: critError } = await supabase
+      .from('criteria')
+      .select('id,mps_id,criteria_number,statement')
+      .eq('organization_id', orgId)
+      .in('mps_id', mpsIds)
+      .order('criteria_number', { ascending: true })
+    if (critError) {
+      console.warn('MPSDashboard: criteria fetch error', critError)
+    }
+    setCriteria(critRows || [])
+
+    const lvMap: Record<string, MaturityLevel[]> = {}
+    for (const c of critRows || []) {
+      lvMap[c.id] = ORDERED_LEVELS.map(l => ({ level: l, descriptor: '' }))
+    }
+    setLevelsByCriteria(lvMap)
+
+    const evMap: Record<string, 'submitted' | 'pending' | 'missing'> = {}
+    for (const c of critRows || []) evMap[c.id] = 'pending'
+    setEvidenceStatus(evMap)
+  }
+
   useEffect(() => {
-    (async () => {
-      if (!domainUuid) return
-      const { data: mpsRows } = await supabase
-        .from('maturity_practice_statements')
-        .select('id,name,mps_number,summary,intent_statement')
-        .eq('domain_id', domainUuid)
-        .order('mps_number', { ascending: true })
-      setMps(mpsRows || [])
+    fetchData()
+  }, [domainUuid])
 
-      const { data: critRows } = await supabase
-        .from('criteria')
-        .select('id,mps_id,criteria_number,statement')
-        .in('mps_id', (mpsRows || []).map(r => r.id))
-        .order('criteria_number', { ascending: true })
-      setCriteria(critRows || [])
+    // Listen for cross-component reset events to refresh immediately
+    useEffect(() => {
+    const onReset = () => {
+      // Clear immediately to avoid stale display, then refetch
+      setMps([])
+      setCriteria([])
+      setLevelsByCriteria({})
+      setEvidenceStatus({})
+      fetchData()
+    }
+    window.addEventListener('domain-mps-reset', onReset)
+    return () => window.removeEventListener('domain-mps-reset', onReset)
+  }, [domainUuid])
 
-      // Optionally fetch maturity levels per criterion (placeholder: we’ll map to ordered levels if rows exist later)
-      // For now, leave empty and show bands that can be expanded when real descriptors exist
-      const lvMap: Record<string, MaturityLevel[]> = {}
-      for (const c of critRows || []) {
-        lvMap[c.id] = ORDERED_LEVELS.map(l => ({ level: l, descriptor: '' }))
-      }
-      setLevelsByCriteria(lvMap)
+  // Supabase realtime: refresh on any MPS/Criteria change in this domain
+    useEffect(() => {
+    if (!domainUuid) {
+      // Clear when domain is unresolved
+      setMps([])
+      setCriteria([])
+      setLevelsByCriteria({})
+      setEvidenceStatus({})
+      return
+    }
+    const channel = supabase
+      .channel(`mps-dashboard-${domainUuid}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'maturity_practice_statements', filter: `domain_id=eq.${domainUuid}` },
+        () => fetchData()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'criteria' },
+        () => fetchData()
+      )
+      .subscribe()
 
-      // Evidence placeholder: mark all as pending for now; we will wire counts later
-      const evMap: Record<string, 'submitted' | 'pending' | 'missing'> = {}
-      for (const c of critRows || []) evMap[c.id] = 'pending'
-      setEvidenceStatus(evMap)
-    })()
+    return () => {
+      try { supabase.removeChannel(channel) } catch {}
+    }
   }, [domainUuid])
 
   const criteriaByMps = useMemo(() => {
@@ -118,8 +217,15 @@ export default function MPSDashboard({ domainName, orgId }: { domainName: string
     return counts
   }
 
-  return (
+      return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <CardTitle className="text-base">MPS Dashboard</CardTitle>
+        <div className="flex items-center gap-3">
+          <div className="text-xs text-muted-foreground">Domain: {domainName} ({domainUuid || 'unresolved'}) • MPS: {mps.length}</div>
+          <Button size="sm" variant="outline" onClick={() => fetchData()}>Refresh</Button>
+        </div>
+      </div>
       {mps.map(m => {
         const crit = criteriaByMps[m.id] || []
         const ev = evidenceCounts(m.id)

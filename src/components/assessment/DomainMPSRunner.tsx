@@ -25,20 +25,62 @@ export default function DomainMPSRunner({ domainName, orgId }: Props) {
   const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false)
   const anySelected = useMemo(() => Object.values(selected).some(Boolean), [selected])
 
-  // Resolve slug-like domainId to real UUID by (orgId, domainName)
+  // Resolve domain UUID by (orgId, domainName) with synonyms fallback
   useEffect(() => {
     (async () => {
       if (!orgId || !domainName) return
-      const { data, error } = await supabase
+
+      const DOMAIN_SYNONYMS: Record<string, string[]> = {
+        'Leadership & Governance': ['Leadership and Governance', 'Leadership & Governance'],
+        'People & Culture': ['People and Culture', 'People & Culture'],
+        'Process Integrity': ['Process Integrity'],
+        'Protection': ['Protection'],
+        'Proof it Works': ['Proof it Works', 'Proof It Works']
+      }
+
+      // Try exact first
+      let { data, error } = await supabase
         .from('domains')
-        .select('id, status')
+        .select('id, status, name')
         .eq('organization_id', orgId)
         .eq('name', domainName)
         .maybeSingle()
-      if (!error && data?.id) {
+
+      // If not found, try synonyms (case-insensitive)
+      if ((!data || error) && DOMAIN_SYNONYMS[domainName]) {
+        const names = Array.from(new Set([domainName, ...DOMAIN_SYNONYMS[domainName]]))
+        const { data: list } = await supabase
+          .from('domains')
+          .select('id, status, name')
+          .eq('organization_id', orgId)
+          .in('name', names)
+          .limit(1)
+        if (list && list.length > 0) {
+          data = list[0]
+          error = null as any
+        }
+      }
+
+      // Final fallback: ilike loose match removing symbol differences
+      if (!data) {
+        const loose = domainName.replace('&', '').replace('  ', ' ').trim()
+        const { data: list2 } = await supabase
+          .from('domains')
+          .select('id, status, name')
+          .eq('organization_id', orgId)
+          .ilike('name', `%${loose.split(' ').join('%')}%`)
+          .limit(1)
+        if (list2 && list2.length > 0) {
+          data = list2[0]
+        }
+      }
+
+      if (data?.id) {
         setDomainUuid(data.id)
-        // Locked only when approved_locked (final sign-off)
-        setDomainLocked(data.status === 'approved_locked')
+        setDomainLocked(data.status === 'approved_locked' || data.status === 'completed')
+      } else {
+        setDomainUuid('')
+        setDomainLocked(false)
       }
     })()
   }, [orgId, domainName])
@@ -50,6 +92,7 @@ export default function DomainMPSRunner({ domainName, orgId }: Props) {
       const { count } = await supabase
         .from('maturity_practice_statements')
         .select('id', { count: 'exact', head: true })
+        .eq('organization_id', orgId)
         .eq('domain_id', domainUuid)
       setMpsCount(count || 0)
     })()
@@ -135,9 +178,12 @@ export default function DomainMPSRunner({ domainName, orgId }: Props) {
         <CardTitle>Domain MPS Runner</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
+        {/* Debug info to ensure correct domain is resolved */}
+        <div className="text-xs text-muted-foreground">Domain resolved: {domainName} ({domainUuid || 'unresolved'}) • DB MPS count: {mpsCount}</div>
+
         {domainLocked && (
           <div className="p-3 border rounded bg-muted text-sm">
-            This domain has been signed off and is locked. MPS generation is disabled.
+            This domain has been signed off or completed and is locked. MPS generation is disabled.
           </div>
         )}
         {!domainLocked && mpsCount > 0 && items.length === 0 && (
@@ -152,6 +198,7 @@ export default function DomainMPSRunner({ domainName, orgId }: Props) {
           <Button disabled={loading || domainLocked} onClick={() => handleGenerate(false)}>Generate</Button>
           <Button disabled={loading || domainLocked} variant="secondary" onClick={() => handleGenerate(true)}>Generate more</Button>
           <Button disabled={loading || !anySelected || domainLocked} variant="outline" onClick={handleSave}>Save selected</Button>
+          <Button disabled={loading || items.length === 0} variant="ghost" onClick={() => setItems([])}>Clear proposals</Button>
         </div>
         {items.length > 0 && (
           <div className="border rounded p-3 max-h-96 overflow-auto text-sm">
@@ -196,18 +243,38 @@ export default function DomainMPSRunner({ domainName, orgId }: Props) {
               <Button variant="outline" onClick={() => setShowResetConfirm(false)}>Cancel</Button>
               <Button onClick={async () => {
                 try {
+                  if (!domainUuid) {
+                    toast({ title: 'Please wait', description: 'Resolving domain… try again in a moment', variant: 'destructive' })
+                    return
+                  }
+                  if (domainLocked) {
+                    toast({ title: 'Domain locked', description: 'This domain is completed/signed off and cannot be reset.' })
+                    return
+                  }
                   const { data: sess } = await supabase.auth.getSession()
                   const userId = sess.session?.user?.id
-                  const { error } = await supabase.functions.invoke('reset-domain-mps', {
+                  // Use v2 reset to avoid delete triggers and status enums
+                  const { error } = await supabase.functions.invoke('reset-domain-mps-v2', {
                     body: { organizationId: orgId, domainId: domainUuid, userId }
                   })
                   if (error) throw error
+
+                  // Re-count from DB to ensure UI reflects true state
+                  const { count, error: countErr } = await supabase
+                    .from('maturity_practice_statements')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('organization_id', orgId)
+                    .eq('domain_id', domainUuid)
+                  if (countErr) console.warn('DomainMPSRunner: recount error', countErr)
+
                   setShowResetConfirm(false)
                   setItems([])
                   setSelected({})
                   setEditing({})
-                  setMpsCount(0)
-                  toast({ title: 'Domain reset', description: 'Previous MPS and criteria removed. You can generate new MPS now.' })
+                  setMpsCount(count || 0)
+                  // Notify other components (e.g., MPSDashboard) to refresh
+                  try { window.dispatchEvent(new CustomEvent('domain-mps-reset', { detail: { domainId: domainUuid } })); } catch {}
+                  toast({ title: 'Domain reset', description: (count ?? 0) === 0 ? 'Previous MPS removed. You can generate new MPS now.' : `Some MPS remain (${count}). Please refresh or contact support.` })
                 } catch (e: unknown) {
                   const msg = e instanceof Error ? e.message : 'Failed to reset domain'
                   toast({ title: 'Error', description: msg, variant: 'destructive' })
