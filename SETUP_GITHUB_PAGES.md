@@ -22,24 +22,39 @@ This guide will walk you through deploying the Maturion Genesis Forge applicatio
 
 ### 1.2 Add Environment Variables (Secrets)
 
+**Good news!** If you already have the following secrets configured, you don't need to add new ones:
+
+| Your Existing Secret | Used For | Notes |
+|---------------------|----------|-------|
+| `SUPABASE_PROJECT_REF` | Project ID | Already configured ✅ |
+| `SUPABASE_ANON_KEY` | Anon/public key | Already configured ✅ |
+| `SUPABASE_DB_URL` | Supabase URL | Already configured ✅ |
+
+The deployment workflow has been configured to use your existing secret names, so **no additional secrets are needed**.
+
+<details>
+<summary>If you need to add these secrets (click to expand)</summary>
+
 1. Go to **Settings** → **Secrets and variables** → **Actions**
 2. Click **New repository secret**
 3. Add the following secrets:
 
 | Secret Name | Value | Where to Find |
 |-------------|-------|---------------|
-| `VITE_SUPABASE_PROJECT_ID` | Your Supabase project ID | Supabase Dashboard → Project Settings |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | Your anon/public key | Supabase Dashboard → API Settings |
-| `VITE_SUPABASE_URL` | Your Supabase URL | Supabase Dashboard → API Settings |
+| `SUPABASE_PROJECT_REF` | Your Supabase project ID | Supabase Dashboard → Project Settings |
+| `SUPABASE_ANON_KEY` | Your anon/public key | Supabase Dashboard → API Settings |
+| `SUPABASE_DB_URL` | Your Supabase URL | Supabase Dashboard → API Settings |
 
 **Example values:**
 ```
-VITE_SUPABASE_PROJECT_ID: dmhlxhatogrrrvuruayv
-VITE_SUPABASE_PUBLISHABLE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-VITE_SUPABASE_URL: https://dmhlxhatogrrrvuruayv.supabase.co
+SUPABASE_PROJECT_REF: dmhlxhatogrrrvuruayv
+SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+SUPABASE_DB_URL: https://dmhlxhatogrrrvuruayv.supabase.co
 ```
 
 > ⚠️ **Important**: These are **public** keys that will be exposed in the client-side code. Never use secret/service keys here.
+
+</details>
 
 ---
 
