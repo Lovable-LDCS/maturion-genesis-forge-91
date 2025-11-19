@@ -62,7 +62,31 @@ This project is built with:
 
 ## How can I deploy this project?
 
+### Deploy with Lovable
+
 Simply open [Lovable](https://lovable.dev/projects/3c69e685-8e54-4e6e-839f-825a37d4f745) and click on Share -> Publish.
+
+### Deploy to GitHub Pages
+
+This project is fully compatible with GitHub Pages! See the [GitHub Pages Setup Guide](./SETUP_GITHUB_PAGES.md) for detailed deployment instructions.
+
+Quick steps:
+1. Configure GitHub repository secrets for Supabase
+2. Enable GitHub Pages in repository settings
+3. Push to `main` branch to trigger automatic deployment
+
+For detailed instructions, see:
+- [SETUP_GITHUB_PAGES.md](./SETUP_GITHUB_PAGES.md) - Step-by-step deployment guide
+- [GITHUB_PAGES_DEPLOYMENT.md](./GITHUB_PAGES_DEPLOYMENT.md) - Compatibility analysis
+- [PROJECT_ANALYSIS.md](./PROJECT_ANALYSIS.md) - Complete project overview
+
+### Deploy to Other Platforms
+
+This project can also be deployed to:
+- **Netlify** - Drag-and-drop or Git integration
+- **Vercel** - Optimized for React applications
+- **Cloudflare Pages** - Global CDN deployment
+
 
 ## Can I connect a custom domain to my Lovable project?
 

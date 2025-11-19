@@ -5,6 +5,13 @@ import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
+  // Base path for GitHub Pages deployment
+  // For custom domain or root deployment, use '/'
+  // For repository deployment, use '/repo-name/'
+  base: process.env.GITHUB_PAGES === 'true' 
+    ? '/maturion-genesis-forge-91/' 
+    : '/',
+  
   server: {
     host: "::",
     port: 8080,
