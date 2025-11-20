@@ -1,5 +1,4 @@
-name: Supabase migrations
-
+name: Supabase db push
 on:
   workflow_dispatch:
   push:
@@ -9,25 +8,19 @@ on:
       - ".github/workflows/db-push.yml"
 
 jobs:
-  migrate:
+  push:
     runs-on: ubuntu-latest
-
     concurrency:
       group: supabase-migrate-${{ github.ref }}
       cancel-in-progress: true
-
-    env:
-      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
-      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Install Supabase CLI
-        uses: supabase/setup-cli@v1
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
 
-      # Remove invalid/hidden files (e.g. ".sql") so only legitimate migrations remain
+      # Remove invalid/hidden files so only legitimate migrations remain
       - name: Clean invalid migration filenames
         shell: bash
         run: |
@@ -35,7 +28,6 @@ jobs:
           mkdir -p supabase/migrations
           echo "Before cleanup:"
           ls -la supabase/migrations || true
-
           shopt -s dotglob nullglob
           valid_count=0
           for f in supabase/migrations/*; do
@@ -47,43 +39,16 @@ jobs:
               rm -f "$f"
             fi
           done
-
           echo "After cleanup:"
           ls -la supabase/migrations || true
           echo "VALID_COUNT=$valid_count" >> "$GITHUB_ENV"
 
-      # If local is empty after cleanup, reset remote *metadata only*
-      - name: Reset remote migration metadata when local is empty
-        if: env.VALID_COUNT == '0'
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "No valid local migrations -> resetting remote metadata (schema_migrations)…"
-          echo "truncate table supabase_migrations.schema_migrations;" \
-            | docker run -i --rm postgres:17-alpine psql "$SUPABASE_DB_URL" -At
-          echo "Remote metadata reset complete."
+      - name: Link project
+        run: supabase link --project-ref dmhlxhatogrrrvuruayv
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
-      # Now push migrations (there may be 0 migrations and that's OK)
-      - name: Push migrations to remote
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Applying migrations to remote…"
-          if [ -n "${SUPABASE_DB_URL:-}" ]; then
-            echo "DB URL present (length: ${#SUPABASE_DB_URL})."
-            supabase db push --db-url "$SUPABASE_DB_URL"
-          elif [ -n "${SUPABASE_DB_PASSWORD:-}" ]; then
-            echo "Falling back to DB password secret."
-            supabase db push -p "$SUPABASE_DB_PASSWORD"
-          else
-            echo "Neither SUPABASE_DB_URL nor SUPABASE_DB_PASSWORD is set." >&2
-            exit 1
-          fi
-
-      # Optional: quick connectivity probe (kept last)
-      - name: Sanity query (optional)
-        if: ${{ always() }}
-        shell: bash
-        run: |
-          echo "select current_setting('server_version');" \
-            | docker run -i --rm postgres:17-alpine psql "$SUPABASE_DB_URL" -At || true
+      - name: Push migrations
+        run: supabase db push
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
