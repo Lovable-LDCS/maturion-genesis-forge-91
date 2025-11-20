@@ -49,15 +49,19 @@ const GlobalMaturionChat = () => {
   );
 };
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <AuthGuard>
-          <BrowserRouter>
-            <Routes>
+const App = () => {
+  // Set basename for GitHub Pages deployment
+  const basename = import.meta.env.BASE_URL || '/';
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      <AuthProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <AuthGuard>
+            <BrowserRouter basename={basename}>
+              <Routes>
               <Route path={ROUTES.HOME} element={<Index />} />
               <Route path={ROUTES.MODULES} element={<ModulesOverview />} />
               <Route path={ROUTES.MATURITY_SETUP} element={<MaturitySetup />} />
@@ -101,6 +105,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
