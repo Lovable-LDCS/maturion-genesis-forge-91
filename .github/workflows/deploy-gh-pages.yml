@@ -43,9 +43,8 @@ jobs:
           # Enable GitHub Pages base path
           GITHUB_PAGES: 'true'
           # Supabase environment variables (using existing secret names)
-          VITE_SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_REF }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           VITE_SUPABASE_URL: ${{ secrets.SUPABASE_DB_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
