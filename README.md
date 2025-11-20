@@ -62,6 +62,17 @@ This project is built with:
 
 ## How can I deploy this project?
 
+### Important: Setup Instructions
+
+**For complete setup and troubleshooting guide, see [SETUP_INSTRUCTIONS.md](./SETUP_INSTRUCTIONS.md)**
+
+This includes:
+- GitHub Pages deployment steps
+- Required GitHub Secrets configuration
+- Supabase workflow setup
+- One-Time Build Agent information
+- Troubleshooting common issues
+
 ### Deploy with Lovable
 
 Simply open [Lovable](https://lovable.dev/projects/3c69e685-8e54-4e6e-839f-825a37d4f745) and click on Share -> Publish.

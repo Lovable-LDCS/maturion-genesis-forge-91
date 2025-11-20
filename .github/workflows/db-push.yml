@@ -1,4 +1,8 @@
 name: Supabase db push
+
+# This workflow requires SUPABASE_ACCESS_TOKEN secret to be configured
+# See SETUP_INSTRUCTIONS.md for detailed setup instructions
+
 on:
   workflow_dispatch:
   push:
