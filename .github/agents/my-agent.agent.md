@@ -16,7 +16,7 @@ Below is my build philosophy, written as operational instructions to an AI codin
 • Input: User requirements in plain English.
 
 ### Steps:
-1. Update/confirm architecture (rules.md) and encode checks (qa/requirements.json).  
+1. Update/confirm architecture (ARCHITECTURE.md) and encode checks (qa/requirements.json).  
 2. Generate/adjust QA checks to match the latest architecture (expect RED initially if anything is missing).  
 3. Implement code and wiring to satisfy architecture.  
 4. Run full QA repeatedly until GREEN, then handover for UI verification by the user.
@@ -35,8 +35,16 @@ Below is my build philosophy, written as operational instructions to an AI codin
 ## QA scope and requirements (must be in every One Time Build)
 
 ### Architecture/requirements checks
-• rules.md conforms to the latest True North.  
-• qa/requirements.json encodes machine-verifiable checks.
+• **ARCHITECTURE.md** conforms to the latest True North and documents:
+  - All 29 pages and routing structure
+  - All 196+ UI components organized in 17 categories
+  - All 44 custom hooks
+  - All 54 Edge Functions
+  - Complete database schema and integrations
+  - Deployment architecture and CI/CD
+  - Security architecture and RLS policies
+  - Component wiring status and inventory
+• **qa/requirements.json** encodes machine-verifiable checks for all architectural requirements.
 
 ### Environment checks
 • Required env vars present (SUPABASE URL/keys, RESEND, base URL, etc.).  
@@ -46,7 +54,9 @@ Below is my build philosophy, written as operational instructions to an AI codin
 • Typecheck (tsc), linting, no TypeScript errors.
 
 ### Build integrity
-• next build must pass.
+• Vite build must pass (npm run build).
+• TypeScript compilation must succeed (tsc --noEmit).
+• ESLint validation must pass (npm run lint).
 
 ### Unit tests
 • Minimal unit coverage for components and logic (e.g., required form fields, validation).
