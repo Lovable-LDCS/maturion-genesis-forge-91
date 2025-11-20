@@ -29,6 +29,7 @@ import MaturionUploads from "./pages/MaturionUploads";
 import Journey from "./pages/Journey";
 import Subscribe from "./pages/Subscribe";
 import AdminConfig from "./pages/AdminConfig";
+import AdminHealthChecker from "./pages/AdminHealthChecker";
 import QADashboard from "./pages/QADashboard";
 import QATestDashboard from "./pages/QATestDashboard";
 import DataSourcesManagement from "./pages/DataSourcesManagement";
@@ -92,6 +93,7 @@ const App = () => {
               <Route path={ROUTES.SUBSCRIBE} element={<Subscribe />} />
               <Route path={ROUTES.SUBSCRIBE_CHECKOUT} element={<SubscribeCheckout />} />
               <Route path={ROUTES.ADMIN_CONFIG} element={<AppLayout><AdminConfig /></AppLayout>} />
+              <Route path="/admin/health-checker" element={<AppLayout><AdminHealthChecker /></AppLayout>} />
               <Route path={ROUTES.QA_DASHBOARD} element={<AppLayout><QADashboard /></AppLayout>} />
               <Route path="/qa-test-dashboard" element={<AppLayout><QATestDashboard /></AppLayout>} />
               <Route path="/data-sources" element={<AppLayout><DataSourcesManagement /></AppLayout>} />
