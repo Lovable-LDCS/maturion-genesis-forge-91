@@ -15,6 +15,20 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    
+    <!-- GitHub Pages SPA Redirect Handler -->
+    <script>
+      // Check if we were redirected from 404.html
+      (function() {
+        var redirect = sessionStorage.getItem('redirect');
+        if (redirect) {
+          sessionStorage.removeItem('redirect');
+          // Use replaceState to update URL without triggering a navigation
+          // The React Router will handle the routing
+          history.replaceState(null, '', redirect);
+        }
+      })();
+    </script>
   </head>
 
   <body>

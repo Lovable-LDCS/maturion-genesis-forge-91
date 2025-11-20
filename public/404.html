@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>maturion-genesis-forge</title>
+    
+    <!-- Single Page Application Redirect for GitHub Pages -->
+    <!-- This script redirects 404 requests back to index.html with the path as a query parameter -->
+    <script>
+      // Store the path in sessionStorage and redirect to index.html
+      sessionStorage.setItem('redirect', window.location.pathname + window.location.search + window.location.hash);
+      window.location.replace('/maturion-genesis-forge-91/');
+    </script>
+  </head>
+  <body>
+    <!-- This page is only shown briefly during redirect -->
+    <div style="font-family: sans-serif; text-align: center; padding: 50px;">
+      <h1>Redirecting...</h1>
+      <p>You are being redirected to the application.</p>
+    </div>
+  </body>
+</html>
