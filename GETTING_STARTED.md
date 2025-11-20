@@ -56,12 +56,12 @@ npm run build
 ```
 
 ### Step 3: Access Health Checker (2 min)
-1. Start the dev server:
+1. Access the deployed app on GitHub Pages or run locally:
    ```bash
    npm run dev
    ```
 
-2. Navigate to: `http://localhost:8080/admin/health-checker`
+2. Navigate to: `/admin/health-checker` (Admin only)
 
 3. Click "Run Health Test"
 
@@ -265,10 +265,10 @@ npm run lint       # Lint code
 npm run preview    # Preview production build
 ```
 
-### URLs (Development)
-- App: http://localhost:8080
-- Health Checker: http://localhost:8080/admin/health-checker
-- QA Dashboard: http://localhost:8080/qa-dashboard
+### URLs
+- Health Checker: `/admin/health-checker` (Admin only)
+- QA Dashboard: `/qa-dashboard`
+- Full app deployed on GitHub Pages (see repository Settings > Pages for URL)
 
 ## Tips for Success
 

@@ -1192,10 +1192,15 @@ EMAIL_FROM=[email]
 ### Deployment Targets
 
 #### GitHub Pages
-- **URL**: Custom or github.io subdomain
-- **Build**: Static SPA
-- **Routing**: BrowserRouter with base path
-- **Status**: ✅ Configured
+- **URL**: `https://<username>.github.io/maturion-genesis-forge-91/` (see repository Settings > Pages for actual URL)
+- **Build**: Static SPA deployed via GitHub Actions
+- **Routing**: BrowserRouter with base path support
+- **Status**: ✅ Configured and Active
+- **Deployment**: Automatic on push to `main` branch
+- **Access**: 
+  - Main app: `https://<username>.github.io/maturion-genesis-forge-91/`
+  - Health Checker: `https://<username>.github.io/maturion-genesis-forge-91/admin/health-checker`
+  - QA Dashboard: `https://<username>.github.io/maturion-genesis-forge-91/qa-dashboard`
 
 #### Alternative Platforms
 - **Netlify**: Compatible
@@ -1527,7 +1532,7 @@ npm run dev
 
 #### Available Scripts
 ```bash
-npm run dev          # Start dev server (http://localhost:8080)
+npm run dev          # Start dev server
 npm run build        # Production build
 npm run build:dev    # Development mode build
 npm run lint         # Run ESLint
