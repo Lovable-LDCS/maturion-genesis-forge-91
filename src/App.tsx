@@ -94,9 +94,9 @@ const App = () => {
               <Route path={ROUTES.MATURION_KNOWLEDGE_BASE} element={<ProtectedRoute><AppLayout><MaturionKnowledgeBase /></AppLayout></ProtectedRoute>} />
               <Route path="/maturion-knowledge-base" element={<ProtectedRoute><AppLayout><MaturionKnowledgeBase /></AppLayout></ProtectedRoute>} />
               <Route path={ROUTES.MATURION_UPLOADS} element={<ProtectedRoute><AppLayout><MaturionUploads /></AppLayout></ProtectedRoute>} />
-              <Route path="/maturion-uploads" element={<Navigate to={ROUTES.MATURION_UPLOADS} replace />} />
-              <Route path="/knowledge-base" element={<Navigate to={ROUTES.MATURION_KNOWLEDGE_BASE} replace />} />
-              <Route path="/uploads" element={<Navigate to={ROUTES.MATURION_UPLOADS} replace />} />
+              <Route path="/maturion-uploads" element={<ProtectedRoute><Navigate to={ROUTES.MATURION_UPLOADS} replace /></ProtectedRoute>} />
+              <Route path="/knowledge-base" element={<ProtectedRoute><Navigate to={ROUTES.MATURION_KNOWLEDGE_BASE} replace /></ProtectedRoute>} />
+              <Route path="/uploads" element={<ProtectedRoute><Navigate to={ROUTES.MATURION_UPLOADS} replace /></ProtectedRoute>} />
               <Route path={ROUTES.JOURNEY} element={<ProtectedRoute><AppLayout><Journey /></AppLayout></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_CONFIG} element={<ProtectedRoute><AppLayout><AdminConfig /></AppLayout></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_HEALTH_CHECKER} element={<ProtectedRoute><AppLayout><AdminHealthChecker /></AppLayout></ProtectedRoute>} />
