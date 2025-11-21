@@ -33,6 +33,7 @@ import AdminHealthChecker from "./pages/AdminHealthChecker";
 import AdminWorkflowDashboard from "./pages/AdminWorkflowDashboard";
 import UserFieldMatrix from "./pages/UserFieldMatrix";
 import QADashboard from "./pages/QADashboard";
+import UnifiedQADashboard from "./pages/UnifiedQADashboard";
 import QATestDashboard from "./pages/QATestDashboard";
 import DataSourcesManagement from "./pages/DataSourcesManagement";
 import WatchdogDashboard from "./pages/WatchdogDashboard";
@@ -98,7 +99,8 @@ const App = () => {
               <Route path={ROUTES.ADMIN_HEALTH_CHECKER} element={<AppLayout><AdminHealthChecker /></AppLayout>} />
               <Route path={ROUTES.ADMIN_WORKFLOW} element={<AppLayout><AdminWorkflowDashboard /></AppLayout>} />
               <Route path={ROUTES.ADMIN_USER_MATRIX} element={<AppLayout><UserFieldMatrix /></AppLayout>} />
-              <Route path={ROUTES.QA_DASHBOARD} element={<AppLayout><QADashboard /></AppLayout>} />
+              <Route path={ROUTES.QA_DASHBOARD} element={<AppLayout><UnifiedQADashboard /></AppLayout>} />
+              <Route path="/qa-dashboard-legacy" element={<AppLayout><QADashboard /></AppLayout>} />
               <Route path="/qa-test-dashboard" element={<AppLayout><QATestDashboard /></AppLayout>} />
               <Route path="/data-sources" element={<AppLayout><DataSourcesManagement /></AppLayout>} />
               <Route path={ROUTES.WATCHDOG} element={<AppLayout><WatchdogDashboard /></AppLayout>} />
