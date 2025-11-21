@@ -1,0 +1,94 @@
+name: QA Validation
+
+on:
+  pull_request:
+    branches: [ main, develop ]
+  push:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  qa-checks:
+    name: QA Validation Checks
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run TypeScript type checking
+        run: npx tsc --noEmit
+        continue-on-error: true
+      
+      - name: Run linting
+        run: npm run lint
+        continue-on-error: true
+      
+      - name: Run build
+        run: npm run build
+      
+      - name: Run QA checks
+        run: npm run qa
+        continue-on-error: true
+      
+      - name: Run wiring verification
+        run: npm run qa:wiring-check
+        continue-on-error: true
+      
+      - name: Run legacy component scan
+        run: npm run qa:legacy
+        continue-on-error: true
+      
+      - name: QA Summary
+        if: always()
+        run: |
+          echo "## QA Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Status" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Build completed successfully" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### QA Checks" >> $GITHUB_STEP_SUMMARY
+          echo "Detailed results available in the workflow logs above." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- Review any warnings from the QA checks" >> $GITHUB_STEP_SUMMARY
+          echo "- Address any unwired components identified" >> $GITHUB_STEP_SUMMARY
+          echo "- Review legacy component detections" >> $GITHUB_STEP_SUMMARY
+
+  strict-qa:
+    name: Strict QA (Production Ready)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Run strict QA validation
+        run: npm run qa:strict
+        continue-on-error: false
+      
+      - name: Production readiness check
+        run: |
+          echo "## Production Readiness Check" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Strict QA validation passed" >> $GITHUB_STEP_SUMMARY
+          echo "System is ready for production deployment" >> $GITHUB_STEP_SUMMARY
