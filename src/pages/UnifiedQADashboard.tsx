@@ -51,14 +51,15 @@ export const UnifiedQADashboard: React.FC = () => {
   const { currentOrganization } = useOrganization();
   const [isRunning, setIsRunning] = useState(false);
   const [lastRunTime, setLastRunTime] = useState<string>('Never');
-  const [systemHealth, setSystemHealth] = useState<number>(58);
-  const [totalTests, setTotalTests] = useState<number>(142);
-  const [passedTests, setPassedTests] = useState<number>(82);
-  const [failedTests, setFailedTests] = useState<number>(60);
+  const [systemHealth, setSystemHealth] = useState<number>(0);
+  const [totalTests, setTotalTests] = useState<number>(0);
+  const [passedTests, setPassedTests] = useState<number>(0);
+  const [failedTests, setFailedTests] = useState<number>(0);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<QATestResult[]>([]);
   const [qaStatus, setQaStatus] = useState<QAStatus | null>(null);
   const [aiSummary, setAiSummary] = useState<string>('');
+  const [isLoading, setIsLoading] = useState(true);
 
   // Test categories matching the reference design
   const [categories, setCategories] = useState<TestCategory[]>([
@@ -152,8 +153,12 @@ export const UnifiedQADashboard: React.FC = () => {
   }, [currentOrganization]);
 
   const loadQAMetrics = async () => {
-    if (!currentOrganization?.id) return;
+    if (!currentOrganization?.id) {
+      setIsLoading(false);
+      return;
+    }
 
+    setIsLoading(true);
     try {
       // Load latest QA metrics from database
       const { data: metrics } = await supabase
@@ -234,6 +239,8 @@ export const UnifiedQADashboard: React.FC = () => {
 
     } catch (error) {
       console.error('Error loading QA metrics:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -261,7 +268,8 @@ export const UnifiedQADashboard: React.FC = () => {
           });
       }
 
-      // Simulate test execution (in production, this would trigger actual tests)
+      // TODO: In production, replace this with actual test execution logic
+      // For now, simulate test execution to demonstrate the UI
       await new Promise(resolve => setTimeout(resolve, 2000));
       
       // Reload metrics after run
@@ -275,26 +283,27 @@ export const UnifiedQADashboard: React.FC = () => {
 
   const handleViewCategory = (categoryId: string) => {
     setSelectedCategory(categoryId);
-    // Load detailed test results for this category
+    
+    // TODO: Replace mock data with actual database queries for test results
+    // For now, generate placeholder data to demonstrate the drill-down UI
     const category = categories.find(c => c.id === categoryId);
     if (category) {
-      // Simulate loading test results
       const mockResults: QATestResult[] = [];
       for (let i = 0; i < category.passed; i++) {
         mockResults.push({
           category: category.name,
-          test_name: `Test ${i + 1}`,
+          test_name: `${category.name} - Test ${i + 1}`,
           status: 'passed',
-          message: 'All checks passed',
+          message: 'All checks passed successfully',
           timestamp: new Date().toISOString()
         });
       }
       for (let i = 0; i < category.failed; i++) {
         mockResults.push({
           category: category.name,
-          test_name: `Test ${category.passed + i + 1}`,
+          test_name: `${category.name} - Test ${category.passed + i + 1}`,
           status: 'failed',
-          message: 'Check failed - needs attention',
+          message: 'Check failed - requires attention',
           timestamp: new Date().toISOString()
         });
       }
@@ -333,7 +342,22 @@ export const UnifiedQADashboard: React.FC = () => {
       </div>
 
       {/* Top-level Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {isLoading ? (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-6">
+                <div className="animate-pulse space-y-2">
+                  <div className="h-4 bg-muted rounded w-1/2"></div>
+                  <div className="h-8 bg-muted rounded w-3/4"></div>
+                  <div className="h-3 bg-muted rounded w-1/3"></div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* System Health */}
         <Card>
           <CardHeader className="pb-3">
@@ -434,6 +458,7 @@ export const UnifiedQADashboard: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Test Categories Breakdown */}
       <Card>

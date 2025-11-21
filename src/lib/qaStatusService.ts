@@ -7,6 +7,13 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
+// Health score calculation constants
+const HEALTH_SCORE_PENALTIES = {
+  INCIDENT_PENALTY: 5,      // Points deducted per unresolved incident
+  CRITICAL_ALERT_PENALTY: 10, // Points deducted per critical alert
+  FAILURE_RATE_MULTIPLIER: 0.5 // Multiplier for test failure rate impact
+} as const;
+
 export interface QAStatus {
   systemHealth: number;
   totalTests: number;
@@ -125,18 +132,18 @@ export async function getQAStatus(organizationId: string): Promise<QAStatus> {
 
     // Deduct for unresolved incidents
     if (unresolvedIncidents.length > 0) {
-      healthScore -= unresolvedIncidents.length * 5;
+      healthScore -= unresolvedIncidents.length * HEALTH_SCORE_PENALTIES.INCIDENT_PENALTY;
     }
 
     // Deduct for critical alerts
     if (criticalAlerts.length > 0) {
-      healthScore -= criticalAlerts.length * 10;
+      healthScore -= criticalAlerts.length * HEALTH_SCORE_PENALTIES.CRITICAL_ALERT_PENALTY;
     }
 
     // Deduct for failed tests
     if (failedTests > 0 && totalTests > 0) {
       const failureRate = (failedTests / totalTests) * 100;
-      healthScore -= failureRate * 0.5;
+      healthScore -= failureRate * HEALTH_SCORE_PENALTIES.FAILURE_RATE_MULTIPLIER;
     }
 
     healthScore = Math.max(0, Math.min(100, Math.round(healthScore)));
