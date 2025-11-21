@@ -1,0 +1,89 @@
+{
+  "detected": {
+    "src/components/admin/BackofficeAdminManagement.tsx": {
+      "first_detected": "2025-11-21T14:17:07.974Z",
+      "is_test_component": false
+    },
+    "src/components/admin/DataSourceManagement.tsx": {
+      "first_detected": "2025-11-21T14:17:07.992Z",
+      "is_test_component": false
+    },
+    "src/components/admin/EvidenceSubmissionInterface.tsx": {
+      "first_detected": "2025-11-21T14:17:07.998Z",
+      "is_test_component": false
+    },
+    "src/components/ai/DocumentFilterPanel.tsx": {
+      "first_detected": "2025-11-21T14:17:08.058Z",
+      "is_test_component": false
+    },
+    "src/components/layout/BrandedHeader.tsx": {
+      "first_detected": "2025-11-21T14:17:08.169Z",
+      "is_test_component": false
+    },
+    "src/components/milestones/EnhancedTestResultsDialog.tsx": {
+      "first_detected": "2025-11-21T14:17:08.179Z",
+      "is_test_component": false
+    },
+    "src/components/organization/SubsidiaryManagement.tsx": {
+      "first_detected": "2025-11-21T14:17:08.219Z",
+      "is_test_component": false
+    },
+    "src/components/security/SecurityStatusPanel.tsx": {
+      "first_detected": "2025-11-21T14:17:08.307Z",
+      "is_test_component": false
+    },
+    "src/components/ui/aspect-ratio.tsx": {
+      "first_detected": "2025-11-21T14:17:08.343Z",
+      "is_test_component": false
+    },
+    "src/components/ui/calendar.tsx": {
+      "first_detected": "2025-11-21T14:17:08.361Z",
+      "is_test_component": false
+    },
+    "src/components/ui/carousel.tsx": {
+      "first_detected": "2025-11-21T14:17:08.368Z",
+      "is_test_component": false
+    },
+    "src/components/ui/context-menu.tsx": {
+      "first_detected": "2025-11-21T14:17:08.379Z",
+      "is_test_component": false
+    },
+    "src/components/ui/drawer.tsx": {
+      "first_detected": "2025-11-21T14:17:08.385Z",
+      "is_test_component": false
+    },
+    "src/components/ui/hover-card.tsx": {
+      "first_detected": "2025-11-21T14:17:08.393Z",
+      "is_test_component": false
+    },
+    "src/components/ui/input-otp.tsx": {
+      "first_detected": "2025-11-21T14:17:08.400Z",
+      "is_test_component": false
+    },
+    "src/components/ui/menubar.tsx": {
+      "first_detected": "2025-11-21T14:17:08.415Z",
+      "is_test_component": false
+    },
+    "src/components/ui/navigation-menu.tsx": {
+      "first_detected": "2025-11-21T14:17:08.428Z",
+      "is_test_component": false
+    },
+    "src/components/ui/organization-logo.tsx": {
+      "first_detected": "2025-11-21T14:17:08.435Z",
+      "is_test_component": false
+    },
+    "src/components/ui/pagination.tsx": {
+      "first_detected": "2025-11-21T14:17:08.442Z",
+      "is_test_component": false
+    },
+    "src/components/ui/resizable.tsx": {
+      "first_detected": "2025-11-21T14:17:08.456Z",
+      "is_test_component": false
+    },
+    "src/components/ui/toggle-group.tsx": {
+      "first_detected": "2025-11-21T14:17:08.477Z",
+      "is_test_component": false
+    }
+  },
+  "marked_for_deletion": []
+}
