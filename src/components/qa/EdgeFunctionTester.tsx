@@ -4,21 +4,17 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { AlertCircle, CheckCircle, Play, AlertTriangle, Clock } from 'lucide-react';
-import { EdgeFunctionComplexityAlert, useEdgeFunctionComplexityMonitor } from './EdgeFunctionComplexityAlert';
 
 export const EdgeFunctionTester: React.FC = () => {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<{ success: boolean; message: string; documentId?: string } | null>(null);
   const { toast } = useToast();
-  const { alerts, checkFunctionComplexity, dismissAlert } = useEdgeFunctionComplexityMonitor();
 
   const testSingleDocument = async () => {
     setTesting(true);
     setResult(null);
 
     try {
-      // Check edge function complexity before testing
-      checkFunctionComplexity('process-ai-document', 'mock-content-with-700-lines'); // Mock to trigger alert
 
       // Get a pending MPS document
       const { data: pendingDoc, error: fetchError } = await supabase
@@ -112,21 +108,10 @@ export const EdgeFunctionTester: React.FC = () => {
   };
 
   return (
-    <>
-      {/* Complexity Alerts */}
-      {alerts.map(alert => (
-        <EdgeFunctionComplexityAlert
-          key={alert.id}
-          functionName={alert.functionName}
-          lineCount={alert.lineCount}
-          onDismiss={() => dismissAlert(alert.id)}
-        />
-      ))}
-      
-      <Card className={getStatusColor()}>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {getStatusIcon()}
+    <Card className={getStatusColor()}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          {getStatusIcon()}
             Edge Function Tester
           </CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -169,6 +154,5 @@ export const EdgeFunctionTester: React.FC = () => {
           )}
         </CardContent>
       </Card>
-    </>
   );
 };
