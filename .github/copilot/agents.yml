@@ -1,0 +1,25 @@
+---
+# GitHub Copilot Custom Agents Configuration
+# This file registers custom agents for use in GitHub Copilot
+
+agents:
+  - name: "maturion-build-agent"
+    displayName: "Maturion Build Agent"
+    description: "Full-stack build agent specialized in One Time Build philosophy with True North architecture-first approach"
+    file: "../agents/my-agent.agent.md"
+    enabled: true
+    tags:
+      - build
+      - architecture
+      - qa
+      - full-stack
+      - admin
+    expertise:
+      - "Architecture-first development"
+      - "True North requirements encoding"
+      - "Comprehensive QA automation"
+      - "Database migrations and schema management"
+      - "UI/UX verification workflows"
+      - "Admin functionality implementation"
+      - "Workflow design and integration"
+      - "Organizational hierarchy management"
