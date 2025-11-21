@@ -27,6 +27,8 @@ export const ROUTES = {
   // Admin & QA
   ADMIN_CONFIG: '/admin/config',
   ADMIN_HEALTH_CHECKER: '/admin/health-checker',
+  ADMIN_WORKFLOW: '/admin/workflow',
+  ADMIN_USER_MATRIX: '/admin/user-matrix',
   QA_DASHBOARD: '/qa-dashboard',
   QA_SIGNOFF: '/qa-signoff',
   WATCHDOG: '/watchdog',

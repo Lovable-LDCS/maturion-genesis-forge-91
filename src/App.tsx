@@ -30,6 +30,8 @@ import Journey from "./pages/Journey";
 import Subscribe from "./pages/Subscribe";
 import AdminConfig from "./pages/AdminConfig";
 import AdminHealthChecker from "./pages/AdminHealthChecker";
+import AdminWorkflowDashboard from "./pages/AdminWorkflowDashboard";
+import UserFieldMatrix from "./pages/UserFieldMatrix";
 import QADashboard from "./pages/QADashboard";
 import QATestDashboard from "./pages/QATestDashboard";
 import DataSourcesManagement from "./pages/DataSourcesManagement";
@@ -93,7 +95,9 @@ const App = () => {
               <Route path={ROUTES.SUBSCRIBE} element={<Subscribe />} />
               <Route path={ROUTES.SUBSCRIBE_CHECKOUT} element={<SubscribeCheckout />} />
               <Route path={ROUTES.ADMIN_CONFIG} element={<AppLayout><AdminConfig /></AppLayout>} />
-              <Route path="/admin/health-checker" element={<AppLayout><AdminHealthChecker /></AppLayout>} />
+              <Route path={ROUTES.ADMIN_HEALTH_CHECKER} element={<AppLayout><AdminHealthChecker /></AppLayout>} />
+              <Route path={ROUTES.ADMIN_WORKFLOW} element={<AppLayout><AdminWorkflowDashboard /></AppLayout>} />
+              <Route path={ROUTES.ADMIN_USER_MATRIX} element={<AppLayout><UserFieldMatrix /></AppLayout>} />
               <Route path={ROUTES.QA_DASHBOARD} element={<AppLayout><QADashboard /></AppLayout>} />
               <Route path="/qa-test-dashboard" element={<AppLayout><QATestDashboard /></AppLayout>} />
               <Route path="/data-sources" element={<AppLayout><DataSourcesManagement /></AppLayout>} />

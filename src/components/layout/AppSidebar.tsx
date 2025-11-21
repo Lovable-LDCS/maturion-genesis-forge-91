@@ -11,6 +11,8 @@ import {
   Shield,
   Activity,
   Brain,
+  Workflow,
+  Lock,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -26,6 +28,7 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ROUTES } from "@/lib/routes";
 
@@ -104,10 +107,38 @@ const navigationItems = [
   },
 ];
 
+const adminNavigationItems = [
+  {
+    title: "Workflow Dashboard",
+    icon: Workflow,
+    url: ROUTES.ADMIN_WORKFLOW,
+    group: "admin",
+  },
+  {
+    title: "User Matrix",
+    icon: Lock,
+    url: ROUTES.ADMIN_USER_MATRIX,
+    group: "admin",
+  },
+  {
+    title: "Admin Config",
+    icon: Settings,
+    url: ROUTES.ADMIN_CONFIG,
+    group: "admin",
+  },
+  {
+    title: "Health Checker",
+    icon: Activity,
+    url: ROUTES.ADMIN_HEALTH_CHECKER,
+    group: "admin",
+  },
+];
+
 export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const { isAdmin } = useAdminAccess();
 
   const userInitials = profile?.full_name
     ?.split(" ")
@@ -121,6 +152,7 @@ export function AppSidebar() {
     organization: navigationItems.filter((item) => item.group === "organization"),
     maturion: navigationItems.filter((item) => item.group === "maturion"),
     tools: navigationItems.filter((item) => item.group === "tools"),
+    admin: adminNavigationItems.filter((item) => item.group === "admin"),
   };
 
   return (
@@ -217,6 +249,28 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Admin (Admin-only) */}
+        {isAdmin && groupedItems.admin.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="text-orange-600">Admin</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {groupedItems.admin.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      onClick={() => navigate(item.url)}
+                      isActive={location.pathname === item.url}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Tools */}
         {groupedItems.tools.length > 0 && (
