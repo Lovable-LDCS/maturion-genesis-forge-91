@@ -18,11 +18,12 @@
 8. [Data Architecture](#data-architecture)
 9. [Integration Architecture](#integration-architecture)
 10. [Security Architecture](#security-architecture)
-11. [Deployment Architecture](#deployment-architecture)
-12. [QA & Testing Strategy](#qa--testing-strategy)
-13. [Component Inventory & Wiring](#component-inventory--wiring)
-14. [Custom Agent Integration](#custom-agent-integration)
-15. [Build & Development Guidelines](#build--development-guidelines)
+11. [ISMS Workflow Architecture](#isms-workflow-architecture)
+12. [Deployment Architecture](#deployment-architecture)
+13. [QA & Testing Strategy](#qa--testing-strategy)
+14. [Component Inventory & Wiring](#component-inventory--wiring)
+15. [Custom Agent Integration](#custom-agent-integration)
+16. [Build & Development Guidelines](#build--development-guidelines)
 
 ---
 
@@ -1110,6 +1111,392 @@ FOR ALL USING (
 
 ---
 
+## ISMS Workflow Architecture
+
+### Overview
+
+The Integrated Security Management System (ISMS) Workflow provides a structured, phase-based approach to implementing and managing security and maturity assessments. The workflow is designed to guide administrators through the complete lifecycle of ISMS implementation, from initial setup to continuous monitoring.
+
+### Workflow Philosophy
+
+The ISMS workflow embodies the following principles:
+1. **Phase-Based Progression**: Clear, sequential phases with defined objectives
+2. **Admin-Centric**: Primary focus on administrative functionality and oversight
+3. **Organizational Hierarchy**: Respects multi-level organizational structure
+4. **Progress Tracking**: Visual indicators and metrics for completion status
+5. **Flexibility**: Allows non-linear navigation while maintaining structure
+
+### Workflow Phases
+
+#### Phase 1: Initial Setup & Configuration
+**Objective**: Establish foundational organizational structure and admin access
+
+**Key Activities**:
+- Admin user onboarding
+- Organization profile configuration
+- User field matrix setup
+- Role and permission assignment
+
+**Routes**:
+- `/admin/config` - Admin configuration
+- `/organization/settings` - Organization setup
+- `/team` - Team management
+
+**Completion Criteria**:
+- Admin users created and configured
+- Organization profile complete
+- Basic team structure established
+- Permission matrix configured
+
+**Status**: ✅ Implemented
+
+---
+
+#### Phase 2: Assessment Framework Definition
+**Objective**: Configure assessment criteria and maturity framework
+
+**Key Activities**:
+- Domain configuration (6 core domains)
+- Criteria customization
+- Maturity level definition
+- Knowledge base setup
+
+**Routes**:
+- `/assessment/framework` - Framework configuration
+- `/maturity/setup` - Maturity level setup
+- `/maturion/knowledge-base` - Knowledge base management
+- `/maturion/uploads` - Document uploads
+
+**Completion Criteria**:
+- All 6 domains configured
+- Assessment criteria defined
+- Maturity levels established
+- Knowledge base populated
+
+**Status**: ✅ Implemented
+
+---
+
+#### Phase 3: Team & Access Management
+**Objective**: Invite team members and configure access controls
+
+**Key Activities**:
+- Team member invitations
+- Role assignments
+- Access matrix configuration
+- Approval workflow setup
+
+**Routes**:
+- `/team` - Team management
+- `/admin/config` - Access configuration
+- `/admin/user-matrix` - User field matrix
+
+**Completion Criteria**:
+- Team members invited
+- Roles assigned appropriately
+- Access controls configured
+- Approval workflows active
+
+**Status**: ✅ Implemented
+
+---
+
+#### Phase 4: Assessment Execution
+**Objective**: Conduct maturity assessments and gather evidence
+
+**Key Activities**:
+- Assessment initialization
+- Evidence collection
+- Scoring and evaluation
+- Progress tracking
+
+**Routes**:
+- `/assessment` - Assessment execution
+- `/dashboard` - Assessment overview
+- `/modules` - Module-based assessment
+
+**Completion Criteria**:
+- Assessments created and assigned
+- Evidence collected and linked
+- Scoring completed
+- Results documented
+
+**Status**: ✅ Implemented
+
+---
+
+#### Phase 5: Review & Sign-Off
+**Objective**: Review assessment results and obtain approvals
+
+**Key Activities**:
+- Results review
+- QA sign-off
+- Final approval
+- Results publication
+
+**Routes**:
+- `/qa-signoff` - QA sign-off workflow
+- `/qa-dashboard` - QA dashboard
+- `/admin/health-checker` - System health validation
+
+**Completion Criteria**:
+- Results reviewed and validated
+- QA sign-off obtained
+- Management approval secured
+- Results published
+
+**Status**: ✅ Implemented
+
+---
+
+#### Phase 6: Continuous Monitoring
+**Objective**: Monitor ongoing compliance and maturity improvements
+
+**Key Activities**:
+- Watchdog monitoring
+- Journey tracking
+- Periodic reviews
+- Continuous improvement
+
+**Routes**:
+- `/watchdog` - Watchdog monitoring
+- `/journey` - Maturity journey
+- `/dashboard` - Progress dashboard
+
+**Completion Criteria**:
+- Monitoring active
+- Incidents tracked
+- Improvement initiatives logged
+- Trend analysis available
+
+**Status**: ✅ Implemented
+
+---
+
+### Workflow Dashboard
+
+**Component**: `AdminWorkflowDashboard.tsx`
+**Route**: `/admin/workflow`
+**Access**: Admin-only
+
+**Features**:
+- Overall progress tracking across all phases
+- Current phase highlighting
+- Phase-specific quick actions
+- Visual progress indicators
+- Completion statistics (Completed/In Progress/Pending)
+
+**Status**: ✅ Wired
+
+---
+
+### Organizational Hierarchy Integration
+
+#### Hierarchy Levels
+
+1. **Backoffice/Global (APGI)**
+   - **Level**: `backoffice`
+   - **Scope**: All organizations and best practices
+   - **Access**: Global view across all Mother Companies
+   - **Permissions**: Full system administration
+
+2. **Mother Companies**
+   - **Level**: `parent`
+   - **Scope**: Own organization and future subsidiaries
+   - **Access**: Own data and aggregated subsidiary data
+   - **Permissions**: Organization-level administration
+
+3. **Future: Sister Companies**
+   - **Level**: `parent` (peer to Mother Companies)
+   - **Scope**: Own organization and future subsidiaries
+   - **Access**: Own data only (isolated from other sisters)
+   - **Permissions**: Organization-level administration
+   - **Status**: 🔄 Planned
+
+4. **Future: Subsidiaries**
+   - **Level**: `subsidiary`
+   - **Scope**: Own organization only
+   - **Access**: Own data, limited parent visibility
+   - **Permissions**: Limited administration
+   - **Status**: 🔄 Planned
+
+**Database Schema**:
+- Table: `organizations`
+- Fields: `organization_level`, `parent_organization_id`
+- Hook: `useOrganizationHierarchy.ts`
+
+**Status**: ✅ Implemented (Backoffice & Mother Companies)
+
+---
+
+### User Field Matrix
+
+**Component**: `UserFieldMatrix.tsx`
+**Route**: `/admin/user-matrix`
+**Access**: Admin-only
+
+#### Role Definitions
+
+| Role | Level | Scope | Permissions |
+|------|-------|-------|-------------|
+| **Superuser** | Backoffice | Global (APGI) | Full access to all features and organizations |
+| **Owner** | Organization | Org + Subsidiaries | Full access within organization hierarchy |
+| **Admin** | Organization | Org + Subsidiaries | Configuration and team management |
+| **Technician** | Organization | Single Org | Assessment execution and evidence submission |
+| **Viewer** | Organization | Single Org | Read-only access to results |
+
+#### Permission Categories
+
+**Organization Settings**:
+- Edit profile: Superuser, Owner, Admin
+- Manage branding: Superuser, Owner, Admin
+- Delete organization: Superuser, Owner only
+
+**Team Management**:
+- Invite members: Superuser, Owner, Admin
+- Assign roles: Superuser, Owner, Admin (limited)
+- Remove members: Superuser, Owner, Admin
+
+**Assessment Framework**:
+- Configure domains: Superuser, Owner, Admin
+- Edit criteria: Superuser, Owner, Admin
+- Import frameworks: Superuser, Owner, Admin
+
+**Assessment Execution**:
+- Create assessment: All except Viewer
+- Submit evidence: All except Viewer
+- Score responses: All except Viewer
+- View results: All roles
+
+**QA & Approval**:
+- QA sign-off: Superuser, Owner, Admin
+- Final approval: Superuser, Owner only
+- Publish results: Superuser, Owner only
+
+**Admin Functions**:
+- System configuration: Superuser only
+- Health checker: Superuser, Owner
+- Watchdog setup: Superuser, Owner, Admin
+
+**Status**: ✅ Implemented
+
+---
+
+### Admin Sidebar Integration
+
+The workflow has been integrated into the application sidebar with admin-only visibility.
+
+**Admin Section Items**:
+1. **Workflow Dashboard** - `/admin/workflow`
+   - Icon: Workflow
+   - Purpose: Track ISMS implementation progress
+
+2. **User Matrix** - `/admin/user-matrix`
+   - Icon: Lock
+   - Purpose: View and manage role-based permissions
+
+3. **Admin Config** - `/admin/config`
+   - Icon: Settings
+   - Purpose: System configuration
+
+4. **Health Checker** - `/admin/health-checker`
+   - Icon: Activity
+   - Purpose: System health validation
+
+**Conditional Rendering**:
+- Hook: `useAdminAccess()`
+- Condition: `isAdmin === true`
+- Visual Indicator: Orange label for admin section
+
+**Status**: ✅ Wired
+
+---
+
+### Workflow State Management
+
+**Current Implementation**:
+- Progress values: Hardcoded in `AdminWorkflowDashboard.tsx`
+- Status tracking: Component-level state
+
+**Future Enhancement** (Planned):
+- Database table: `workflow_state`
+- Fields: `organization_id`, `phase`, `progress`, `status`, `last_updated`
+- Real-time updates: Supabase subscriptions
+- Persistent tracking: Cross-session state recovery
+
+**Status**: 🔄 Planned for enhancement
+
+---
+
+### Integration Points
+
+#### With Existing Features
+
+1. **Organization Management**
+   - Hook: `useOrganizationHierarchy`
+   - Integration: Workflow respects org hierarchy
+   - Status: ✅ Integrated
+
+2. **Admin Access Control**
+   - Hook: `useAdminAccess`
+   - Integration: Workflow dashboard admin-only
+   - Status: ✅ Integrated
+
+3. **Team Management**
+   - Component: `TeamManagement.tsx`
+   - Integration: Phase 3 links to team page
+   - Status: ✅ Integrated
+
+4. **QA Sign-Off**
+   - Component: `QASignOffDynamic.tsx`
+   - Integration: Phase 5 links to QA workflow
+   - Status: ✅ Integrated
+
+#### With Future Features
+
+1. **Sister Company Support**
+   - Enhancement: Add peer-level organizations
+   - Impact: Workflow isolation per sister company
+   - Status: 🔄 Planned
+
+2. **Subsidiary Management**
+   - Enhancement: Full subsidiary hierarchy
+   - Impact: Cascading workflow states
+   - Status: 🔄 Planned
+
+3. **Workflow Automation**
+   - Enhancement: Auto-advance on completion
+   - Impact: Reduced manual progression
+   - Status: 🔄 Planned
+
+---
+
+### Routes Summary
+
+**New Routes Added**:
+- `/admin/workflow` - Workflow Dashboard (Admin-only)
+- `/admin/user-matrix` - User Field Matrix (Admin-only)
+
+**Routes Referenced**:
+- All existing routes integrated into workflow phases
+- Quick actions link to relevant pages
+- Sidebar provides navigation to all workflow-related pages
+
+---
+
+### Documentation References
+
+**Primary Documentation**:
+- `docs/ISMS_WORKFLOW.md` - Comprehensive workflow specification
+- `.github/agents/README.md` - Custom agent usage guide
+- `.github/copilot/agents.yml` - Agent configuration
+
+**Related Documents**:
+- This ARCHITECTURE.md - System architecture
+- `qa/requirements.json` - QA requirements (to be updated)
+
+---
+
 ## Deployment Architecture
 
 ### Build Configuration
@@ -1731,6 +2118,7 @@ See `qa/requirements.json` for machine-readable QA requirements.
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | 1.0 | 2025-11-20 | AI Agent | Initial comprehensive architecture |
+| 1.1 | 2025-11-21 | Copilot | Added ISMS Workflow Architecture section with workflow phases, organizational hierarchy, user field matrix, and admin sidebar integration |
 
 ---
 
