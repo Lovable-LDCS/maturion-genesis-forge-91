@@ -21,11 +21,14 @@ import {
   Search,
   Database,
   Shield,
-  Activity
+  Activity,
+  MessageCircle,
+  RefreshCw
 } from 'lucide-react';
 import { NavigationHelper } from '@/components/ui/navigation-helper';
 import { useOrganization } from '@/hooks/useOrganization';
 import { supabase } from '@/integrations/supabase/client';
+import { getQAStatus, generateQASummary, hasImmediateIssues, type QAStatus } from '@/lib/qaStatusService';
 
 interface TestCategory {
   id: string;
@@ -54,6 +57,8 @@ export const UnifiedQADashboard: React.FC = () => {
   const [failedTests, setFailedTests] = useState<number>(60);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<QATestResult[]>([]);
+  const [qaStatus, setQaStatus] = useState<QAStatus | null>(null);
+  const [aiSummary, setAiSummary] = useState<string>('');
 
   // Test categories matching the reference design
   const [categories, setCategories] = useState<TestCategory[]>([
@@ -141,6 +146,9 @@ export const UnifiedQADashboard: React.FC = () => {
 
   useEffect(() => {
     loadQAMetrics();
+    // Refresh every 30 seconds
+    const interval = setInterval(loadQAMetrics, 30000);
+    return () => clearInterval(interval);
   }, [currentOrganization]);
 
   const loadQAMetrics = async () => {
@@ -161,20 +169,69 @@ export const UnifiedQADashboard: React.FC = () => {
           const runTime = new Date(latestMetric.metric_data.last_run_time);
           setLastRunTime(runTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
         }
+        if (latestMetric.metric_data?.total_tests) {
+          setTotalTests(latestMetric.metric_data.total_tests);
+        }
+        if (latestMetric.metric_data?.passed) {
+          setPassedTests(latestMetric.metric_data.passed);
+        }
+        if (latestMetric.metric_data?.failed) {
+          setFailedTests(latestMetric.metric_data.failed);
+        }
       }
 
-      // Load watchdog system health
-      const { data: watchdogData } = await supabase
+      // Load watchdog system health from multiple indicators
+      const { data: watchdogIncidents } = await supabase
         .from('watchdog_incidents')
         .select('status')
         .eq('organization_id', currentOrganization.id);
 
-      if (watchdogData) {
-        const totalIncidents = watchdogData.length;
-        const resolvedIncidents = watchdogData.filter(i => i.status === 'resolved').length;
-        const health = totalIncidents > 0 ? Math.round((resolvedIncidents / totalIncidents) * 100) : 100;
-        setSystemHealth(health);
+      const { data: watchdogAlerts } = await supabase
+        .from('watchdog_alerts')
+        .select('severity_level, resolved')
+        .eq('organization_id', currentOrganization.id);
+
+      // Load document processing success rates
+      const { data: documents } = await supabase
+        .from('maturion_documents')
+        .select('status')
+        .eq('organization_id', currentOrganization.id);
+
+      // Calculate comprehensive system health
+      let healthScore = 100;
+      
+      // Factor 1: Watchdog incidents (30% weight)
+      if (watchdogIncidents && watchdogIncidents.length > 0) {
+        const resolvedIncidents = watchdogIncidents.filter(i => i.status === 'resolved').length;
+        const incidentHealth = (resolvedIncidents / watchdogIncidents.length) * 100;
+        healthScore -= (100 - incidentHealth) * 0.3;
       }
+
+      // Factor 2: Active alerts (30% weight)
+      if (watchdogAlerts && watchdogAlerts.length > 0) {
+        const unresolvedAlerts = watchdogAlerts.filter(a => !a.resolved).length;
+        const criticalAlerts = watchdogAlerts.filter(a => a.severity_level === 'critical' && !a.resolved).length;
+        const alertPenalty = (unresolvedAlerts * 2 + criticalAlerts * 5);
+        healthScore -= Math.min(alertPenalty, 30);
+      }
+
+      // Factor 3: Document processing success (40% weight)
+      if (documents && documents.length > 0) {
+        const processedDocs = documents.filter(d => d.status === 'processed').length;
+        const docHealth = (processedDocs / documents.length) * 100;
+        healthScore -= (100 - docHealth) * 0.4;
+      }
+
+      setSystemHealth(Math.max(0, Math.min(100, Math.round(healthScore))));
+
+      // Get AI-ready status summary
+      if (currentOrganization?.id) {
+        const status = await getQAStatus(currentOrganization.id);
+        setQaStatus(status);
+        const summary = generateQASummary(status);
+        setAiSummary(summary);
+      }
+
     } catch (error) {
       console.error('Error loading QA metrics:', error);
     }
@@ -497,18 +554,89 @@ export const UnifiedQADashboard: React.FC = () => {
       )}
 
       {/* AI Integration Notice */}
-      <Alert>
-        <Shield className="h-4 w-4" />
-        <AlertDescription>
-          <div className="space-y-1">
-            <p className="font-semibold">AI Assistant Integration Active</p>
-            <p className="text-sm">
-              You can ask the AI assistant "Are there any issues in the app that need immediate attention?" 
-              and it will analyze the current QA status to provide intelligent answers based on real test results.
+      <Card className={qaStatus && hasImmediateIssues(qaStatus) ? 'border-red-500 border-2' : ''}>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5" />
+              <CardTitle>AI Assistant Integration</CardTitle>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={loadQAMetrics}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh Status
+            </Button>
+          </div>
+          <CardDescription>
+            Ask the AI assistant about system health and get intelligent real-time answers
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="bg-muted p-4 rounded-lg">
+            <p className="text-sm font-semibold mb-2">Try asking the AI:</p>
+            <ul className="text-sm space-y-1 text-muted-foreground">
+              <li>• "Are there any issues in the app that need immediate attention?"</li>
+              <li>• "What is the current system health status?"</li>
+              <li>• "Show me critical QA issues"</li>
+              <li>• "What are the recent test failures?"</li>
+            </ul>
+          </div>
+
+          {qaStatus && qaStatus.criticalIssues.length > 0 && (
+            <Alert variant="destructive">
+              <Shield className="h-4 w-4" />
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p className="font-semibold">Critical Issues Detected:</p>
+                  <ul className="text-sm space-y-1">
+                    {qaStatus.criticalIssues.slice(0, 5).map((issue, index) => (
+                      <li key={index}>{issue}</li>
+                    ))}
+                  </ul>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {qaStatus && qaStatus.warnings.length > 0 && (
+            <Alert>
+              <AlertDescription>
+                <div className="space-y-2">
+                  <p className="font-semibold">Warnings:</p>
+                  <ul className="text-sm space-y-1">
+                    {qaStatus.warnings.map((warning, index) => (
+                      <li key={index}>⚠️ {warning}</li>
+                    ))}
+                  </ul>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {qaStatus && qaStatus.recommendations.length > 0 && (
+            <div className="bg-blue-50 dark:bg-blue-950 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+              <p className="font-semibold text-sm mb-2 text-blue-900 dark:text-blue-100">
+                Recommendations:
+              </p>
+              <ul className="text-sm space-y-1 text-blue-800 dark:text-blue-200">
+                {qaStatus.recommendations.map((rec, index) => (
+                  <li key={index}>💡 {rec}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="text-xs text-muted-foreground">
+            <p>
+              The AI assistant has full access to real-time QA status, watchdog alerts, 
+              and test results. Responses are generated from live data - not hard-coded.
             </p>
           </div>
-        </AlertDescription>
-      </Alert>
+        </CardContent>
+      </Card>
     </div>
   );
 };
