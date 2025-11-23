@@ -14,6 +14,13 @@ import {
   Workflow,
   Lock,
   ClipboardCheck,
+  Map,
+  AlertTriangle,
+  Wrench,
+  LineChart,
+  GraduationCap,
+  AlertCircle,
+  Database,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -36,23 +43,59 @@ import { ROUTES } from "@/lib/routes";
 // Navigation items visible to all authenticated users
 // These are the core workflow items accessible based on user assignments
 const navigationItems = [
+  // Pre-subscription - Marketing and exploration pages
   {
-    title: "Dashboard",
+    title: "Landing Page",
     icon: Home,
-    url: ROUTES.DASHBOARD,
-    group: "main",
+    url: ROUTES.HOME,
+    group: "pre-subscription",
   },
-  {
-    title: "Modules",
-    icon: Target,
-    url: ROUTES.MODULES,
-    group: "main",
-  },
-  // Pre-subscription - Free Assessment
   {
     title: "Free Assessment",
     icon: ClipboardCheck,
     url: ROUTES.FREE_ASSESSMENT,
+    group: "pre-subscription",
+  },
+  {
+    title: "Journey",
+    icon: Map,
+    url: ROUTES.JOURNEY,
+    group: "pre-subscription",
+  },
+  {
+    title: "Risk Management",
+    icon: AlertTriangle,
+    url: "/risk-management-info",
+    group: "pre-subscription",
+  },
+  {
+    title: "PIT",
+    icon: Wrench,
+    url: "/pit-info",
+    group: "pre-subscription",
+  },
+  {
+    title: "Data Analytics",
+    icon: LineChart,
+    url: "/data-analytics-info",
+    group: "pre-subscription",
+  },
+  {
+    title: "Skills Development",
+    icon: GraduationCap,
+    url: "/skills-development-info",
+    group: "pre-subscription",
+  },
+  {
+    title: "Incident Management",
+    icon: AlertCircle,
+    url: "/incident-management-info",
+    group: "pre-subscription",
+  },
+  {
+    title: "Data Extraction Tool",
+    icon: Database,
+    url: "/data-extraction-info",
     group: "pre-subscription",
   },
   // Maturity Roadmap - Accessible by users based on assignments (post-subscription)
@@ -93,6 +136,13 @@ const navigationItems = [
 // Includes: Maturion (AI config), Settings (org hierarchy), Admin pages, and Watchdog
 // All admin sections are styled with orange labels for visual distinction
 const adminNavigationItems = [
+  // Dashboard - moved to admin
+  {
+    title: "Dashboard",
+    icon: Home,
+    url: ROUTES.DASHBOARD,
+    group: "admin",
+  },
   // Maturion - AI Configuration
   {
     title: "Knowledge Base",
@@ -160,7 +210,6 @@ export function AppSidebar() {
     .toUpperCase() || "U";
 
   const groupedItems = {
-    main: navigationItems.filter((item) => item.group === "main"),
     preSubscription: navigationItems.filter((item) => item.group === "pre-subscription"),
     maturityRoadmap: navigationItems.filter((item) => item.group === "maturity-roadmap"),
     // Admin-only groups
@@ -185,27 +234,7 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent>
-        {/* Main Navigation */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {groupedItems.main.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    onClick={() => navigate(item.url)}
-                    isActive={location.pathname === item.url}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {/* Pre-subscription - Free Assessment */}
+        {/* Pre-subscription - Marketing and exploration pages */}
         <SidebarGroup>
           <SidebarGroupLabel>Pre-subscription</SidebarGroupLabel>
           <SidebarGroupContent>
