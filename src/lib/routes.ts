@@ -8,6 +8,12 @@ export const ROUTES = {
   MODULES: '/modules',
   DASHBOARD: '/dashboard',
   
+  // Pre-subscription & Onboarding
+  GET_TO_KNOW_YOU: '/get-to-know-you',
+  
+  // ISMS
+  ISMS: '/isms',
+  
   // Maturity system - canonical routes
   MATURITY_SETUP: '/maturity/setup', // Canonical onboarding route
   

@@ -13,6 +13,8 @@ import {
   Brain,
   Workflow,
   Lock,
+  Building2,
+  TrendingUp,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -42,12 +44,16 @@ const navigationItems = [
     group: "main",
   },
   {
-    title: "Modules",
-    icon: Target,
-    url: ROUTES.MODULES,
+    title: "ISMS",
+    icon: Building2,
+    url: ROUTES.ISMS,
     group: "main",
   },
-  // Maturity Roadmap - Accessible by users based on assignments
+];
+
+// Maturity Roadmap sub-navigation items
+// These appear under the ISMS > Maturity Roadmap section
+const maturityRoadmapItems = [
   {
     title: "Audit Structure Setup",
     icon: BarChart3,
@@ -153,7 +159,7 @@ export function AppSidebar() {
 
   const groupedItems = {
     main: navigationItems.filter((item) => item.group === "main"),
-    maturityRoadmap: navigationItems.filter((item) => item.group === "maturity-roadmap"),
+    maturityRoadmap: maturityRoadmapItems.filter((item) => item.group === "maturity-roadmap"),
     // Admin-only groups
     maturion: adminNavigationItems.filter((item) => item.group === "maturion"),
     settings: adminNavigationItems.filter((item) => item.group === "settings"),
