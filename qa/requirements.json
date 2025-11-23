@@ -29,7 +29,7 @@
           "type": "route_validation",
           "source": "ARCHITECTURE.md",
           "target": "src/App.tsx",
-          "expected_routes": 29,
+          "expected_routes": 31,
           "required": true
         },
         {
@@ -39,7 +39,7 @@
           "type": "component_existence",
           "source": "ARCHITECTURE.md",
           "target_dir": "src/pages",
-          "expected_count": 29,
+          "expected_count": 31,
           "required": true
         },
         {
@@ -105,7 +105,7 @@
           "type": "runtime_wiring",
           "validation": "check_route_accessibility",
           "test_routes": [
-            "/", "/dashboard", "/modules", "/assessment",
+            "/", "/dashboard", "/isms", "/get-to-know-you", "/modules", "/assessment",
             "/team", "/qa-dashboard", "/admin/config"
           ],
           "required": true
@@ -131,9 +131,9 @@
           "type": "navigation_structure",
           "validation": "check_sidebar_groups",
           "expected_structure": {
-            "public_pages_no_sidebar": ["/", "/journey", "/subscribe", "/subscribe/checkout", "/auth", "/accept-invitation"],
+            "public_pages_no_sidebar": ["/", "/journey", "/subscribe", "/subscribe/checkout", "/get-to-know-you", "/auth", "/accept-invitation"],
             "authenticated_sidebar_groups": {
-              "main": ["Dashboard", "Modules"],
+              "main": ["Dashboard", "ISMS"],
               "maturity_roadmap": ["Audit Structure Setup", "Assessment", "Assessment Framework", "QA Sign-Off", "Team"],
               "admin_only": {
                 "maturion": ["Knowledge Base", "Uploads"],
@@ -153,6 +153,49 @@
           "validation": "check_admin_gating",
           "admin_sections": ["maturion", "settings", "admin", "watchdog"],
           "required_hook": "useAdminAccess",
+          "required": true
+        },
+        {
+          "id": "WIRE-008",
+          "name": "ISMS Module Cards Rendering",
+          "description": "ISMS landing page must display all 7 module cards with correct status",
+          "type": "ui_component_check",
+          "validation": "check_isms_modules",
+          "target_page": "/isms",
+          "expected_modules": [
+            "Maturity Roadmap",
+            "Risk Management",
+            "Project Implementation",
+            "Data Analytics & Assurance",
+            "Skills Development Portal",
+            "Incident Management",
+            "Systems Data Extraction Tool"
+          ],
+          "required": true
+        },
+        {
+          "id": "WIRE-009",
+          "name": "Get to Know You Navigation Flow",
+          "description": "Get to Know You page must navigate to ISMS upon completion",
+          "type": "navigation_flow",
+          "validation": "check_navigation_flow",
+          "flow": [
+            {"from": "/subscribe/checkout", "to": "/get-to-know-you", "trigger": "checkout_success"},
+            {"from": "/get-to-know-you", "to": "/isms", "trigger": "form_submit"}
+          ],
+          "required": true
+        },
+        {
+          "id": "WIRE-010",
+          "name": "ISMS Module Subscription Gating",
+          "description": "Clicking unsubscribed modules must redirect to subscribe page",
+          "type": "navigation_gating",
+          "validation": "check_subscription_gates",
+          "target_page": "/isms",
+          "test_cases": [
+            {"module": "Risk Management", "subscribed": false, "expected_redirect": "/subscribe"},
+            {"module": "Maturity Roadmap", "subscribed": true, "expected_redirect": "/maturity/setup"}
+          ],
           "required": true
         }
       ]
