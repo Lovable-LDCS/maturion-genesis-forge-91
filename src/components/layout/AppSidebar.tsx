@@ -32,6 +32,8 @@ import { useAdminAccess } from "@/hooks/useAdminAccess";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ROUTES } from "@/lib/routes";
 
+// Navigation items visible to all authenticated users
+// These are the core workflow items accessible based on user assignments
 const navigationItems = [
   {
     title: "Dashboard",
@@ -79,6 +81,9 @@ const navigationItems = [
 ];
 
 // Admin-only navigation items
+// These items are ONLY visible to users with admin access (checked via useAdminAccess hook)
+// Includes: Maturion (AI config), Settings (org hierarchy), Admin pages, and Watchdog
+// All admin sections are styled with orange labels for visual distinction
 const adminNavigationItems = [
   // Maturion - AI Configuration
   {
