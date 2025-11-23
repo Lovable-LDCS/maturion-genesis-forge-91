@@ -87,12 +87,12 @@ const App = () => {
               {/* Pre-subscription routes with sidebar - Marketing/exploration pages */}
               <Route path={ROUTES.JOURNEY} element={<ProtectedRoute><AppLayout><Journey /></AppLayout></ProtectedRoute>} />
               <Route path={ROUTES.FREE_ASSESSMENT} element={<ProtectedRoute><AppLayout><FreeAssessment /></AppLayout></ProtectedRoute>} />
-              <Route path="/risk-management-info" element={<ProtectedRoute><AppLayout><RiskManagementInfo /></AppLayout></ProtectedRoute>} />
-              <Route path="/pit-info" element={<ProtectedRoute><AppLayout><PITInfo /></AppLayout></ProtectedRoute>} />
-              <Route path="/data-analytics-info" element={<ProtectedRoute><AppLayout><DataAnalyticsInfo /></AppLayout></ProtectedRoute>} />
-              <Route path="/skills-development-info" element={<ProtectedRoute><AppLayout><SkillsDevelopmentInfo /></AppLayout></ProtectedRoute>} />
-              <Route path="/incident-management-info" element={<ProtectedRoute><AppLayout><IncidentManagementInfo /></AppLayout></ProtectedRoute>} />
-              <Route path="/data-extraction-info" element={<ProtectedRoute><AppLayout><DataExtractionInfo /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.RISK_MANAGEMENT_INFO} element={<ProtectedRoute><AppLayout><RiskManagementInfo /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.PIT_INFO} element={<ProtectedRoute><AppLayout><PITInfo /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.DATA_ANALYTICS_INFO} element={<ProtectedRoute><AppLayout><DataAnalyticsInfo /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.SKILLS_DEVELOPMENT_INFO} element={<ProtectedRoute><AppLayout><SkillsDevelopmentInfo /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.INCIDENT_MANAGEMENT_INFO} element={<ProtectedRoute><AppLayout><IncidentManagementInfo /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.DATA_EXTRACTION_INFO} element={<ProtectedRoute><AppLayout><DataExtractionInfo /></AppLayout></ProtectedRoute>} />
               
               {/* Protected routes with authentication */}
               <Route path={ROUTES.MATURITY_SETUP} element={<ProtectedRoute><AppLayout><MaturitySetup /></AppLayout></ProtectedRoute>} />

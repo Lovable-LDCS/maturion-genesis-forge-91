@@ -65,37 +65,37 @@ const navigationItems = [
   {
     title: "Risk Management",
     icon: AlertTriangle,
-    url: "/risk-management-info",
+    url: ROUTES.RISK_MANAGEMENT_INFO,
     group: "pre-subscription",
   },
   {
     title: "PIT",
     icon: Wrench,
-    url: "/pit-info",
+    url: ROUTES.PIT_INFO,
     group: "pre-subscription",
   },
   {
     title: "Data Analytics",
     icon: LineChart,
-    url: "/data-analytics-info",
+    url: ROUTES.DATA_ANALYTICS_INFO,
     group: "pre-subscription",
   },
   {
     title: "Skills Development",
     icon: GraduationCap,
-    url: "/skills-development-info",
+    url: ROUTES.SKILLS_DEVELOPMENT_INFO,
     group: "pre-subscription",
   },
   {
     title: "Incident Management",
     icon: AlertCircle,
-    url: "/incident-management-info",
+    url: ROUTES.INCIDENT_MANAGEMENT_INFO,
     group: "pre-subscription",
   },
   {
     title: "Data Extraction Tool",
     icon: Database,
-    url: "/data-extraction-info",
+    url: ROUTES.DATA_EXTRACTION_INFO,
     group: "pre-subscription",
   },
   // Maturity Roadmap - Accessible by users based on assignments (post-subscription)
