@@ -373,50 +373,53 @@ The application is built around six core domains of operational excellence:
 
 ### Page Inventory (29 Pages)
 
-#### Public Routes (No Authentication Required)
+#### Public Routes (No Authentication Required, No Sidebar)
 | Route | Page Component | Purpose | Wiring Status |
 |-------|---------------|---------|---------------|
 | `/` | Index.tsx | Landing page with domain overview | ✅ Wired |
+| `/journey` | Journey.tsx | Maturity development journey visualization | ✅ Wired |
 | `/auth` | LoginForm | User authentication | ✅ Wired |
 | `/accept-invitation` | InvitationAcceptance | Team invitation acceptance | ✅ Wired |
 | `/subscribe` | Subscribe.tsx | Subscription landing | ✅ Wired |
 | `/subscribe/checkout` | SubscribeCheckout.tsx | Payment checkout | ✅ Wired |
 
-#### Authenticated Routes (Require Login + AppLayout)
+#### Authenticated Routes (Require Login + AppLayout with Sidebar)
 | Route | Page Component | Purpose | Wiring Status |
 |-------|---------------|---------|---------------|
 | `/modules` | ModulesOverview.tsx | Module selection | ✅ Wired |
 | `/dashboard` | Dashboard.tsx | Main dashboard | ✅ Wired |
-| `/maturity/setup` | MaturitySetup.tsx | Maturity model setup | ✅ Wired |
+| `/maturity/setup` | MaturitySetup.tsx | Audit structure setup (Maturity Roadmap) | ✅ Wired |
 | `/assessment` | Assessment.tsx | Assessment interface | ✅ Wired |
 | `/assessment/framework` | AuditStructureConfig.tsx | Framework configuration | ✅ Wired |
 | `/audit/domain/:domainId` | DomainAuditBuilder.tsx | Domain audit builder | ✅ Wired |
 | `/assessment-framework` | AssessmentFramework.tsx | Framework management | ✅ Wired |
 | `/domain-management` | AssessmentFramework.tsx | Domain management | ✅ Wired (alias) |
 
-#### Team & Organization Routes
+#### Team & Organization Routes (Authenticated)
 | Route | Page Component | Purpose | Wiring Status |
 |-------|---------------|---------|---------------|
 | `/team` | TeamPage.tsx | Team management | ✅ Wired |
-| `/organization/settings` | OrganizationSettings.tsx | Org settings | ✅ Wired |
-| `/journey` | Journey.tsx | Onboarding journey | ✅ Wired |
+| `/organization/settings` | OrganizationSettings.tsx | Org settings & hierarchy (Admin-only) | ✅ Wired |
 
-#### AI & Knowledge Routes
+#### AI & Knowledge Routes (Admin-only)
 | Route | Page Component | Purpose | Wiring Status |
 |-------|---------------|---------|---------------|
-| `/maturion/knowledge-base` | MaturionKnowledgeBase.tsx | Knowledge base | ✅ Wired |
-| `/maturion/uploads` | MaturionUploads.tsx | Document uploads | ✅ Wired |
+| `/maturion/knowledge-base` | MaturionKnowledgeBase.tsx | Knowledge base (Admin-only) | ✅ Wired |
+| `/maturion/uploads` | MaturionUploads.tsx | Document uploads (Admin-only) | ✅ Wired |
 | `/data-sources` | DataSourcesManagement.tsx | Data source config | ✅ Wired |
 
-#### QA & Admin Routes
+#### QA & Admin Routes (Admin-only)
 | Route | Page Component | Purpose | Wiring Status |
 |-------|---------------|---------|---------------|
 | `/qa-dashboard` | QADashboard.tsx | QA tools dashboard | ✅ Wired |
 | `/qa-signoff` | QASignOffDynamic.tsx | QA sign-off workflows | ✅ Wired |
 | `/qa-test-dashboard` | QATestDashboard.tsx | Test dashboard | ✅ Wired |
 | `/test-suite` | TestSuite.tsx | Test suite | ✅ Wired |
-| `/admin/config` | AdminConfig.tsx | Admin configuration | ✅ Wired |
-| `/watchdog` | WatchdogDashboard.tsx | System monitoring | ✅ Wired |
+| `/admin/config` | AdminConfig.tsx | Admin configuration (Admin-only) | ✅ Wired |
+| `/admin/workflow` | AdminWorkflowDashboard.tsx | Workflow dashboard (Admin-only) | ✅ Wired |
+| `/admin/user-matrix` | UserFieldMatrix.tsx | User matrix (Admin-only) | ✅ Wired |
+| `/admin/health-checker` | AdminHealthChecker.tsx | Health checker (Admin-only) | ✅ Wired |
+| `/watchdog` | WatchdogDashboard.tsx | System monitoring (Admin-only) | ✅ Wired |
 
 #### Other Routes
 | Route | Page Component | Purpose | Wiring Status |
@@ -1382,6 +1385,81 @@ The ISMS workflow embodies the following principles:
 
 ---
 
+### Navigation & Sidebar Architecture
+
+The application implements a workflow-based sidebar structure that reflects the user journey from pre-subscription through maturity roadmap development.
+
+#### Pre-Subscription Pages (No Sidebar)
+
+Marketing and onboarding pages operate without a sidebar to optimize for conversion:
+
+**Public Routes (No Authentication, No Sidebar)**:
+- `/` - Landing page with domain overview and value proposition
+- `/journey` - Maturity development journey visualization  
+- `/subscribe` - Subscription landing page
+- `/subscribe/checkout` - Payment checkout flow
+- `/auth` - User authentication
+- `/accept-invitation` - Team invitation acceptance
+
+**Characteristics**:
+- Full-width marketing layouts
+- Custom navigation optimized for conversion
+- No AppLayout wrapper
+- Direct navigation between marketing pages
+
+#### Authenticated User Sidebar Structure
+
+Once users subscribe and authenticate, they see a structured sidebar organized by workflow phase:
+
+**1. Main Section** (Always visible to authenticated users)
+- **Dashboard** - `/dashboard` - Overview and metrics
+- **Modules** - `/modules` - ISMS module selection
+
+**2. Maturity Roadmap Section** (User-accessible based on assignments)
+This section contains the core audit structure setup and evidence management workflow:
+- **Audit Structure Setup** - `/maturity/setup` - Configure maturity model (formerly "Maturity Setup")
+- **Assessment** - `/assessment` - Conduct assessments
+- **Assessment Framework** - `/assessment/framework` - Framework configuration
+- **QA Sign-Off** - `/qa-signoff` - Quality assurance validation
+- **Team** - `/team` - Team member management
+
+**Note**: Once published, Audit Structure Setup becomes the "Maturity Roadmap Evidence Management Workflow"
+
+**3. Admin-Only Sections** (Visible only to administrators)
+
+All admin sections are styled with orange labels for visual distinction and use `useAdminAccess()` hook for access control.
+
+**Maturion Section** (AI Configuration)
+- **Knowledge Base** - `/maturion/knowledge-base` - AI knowledge management
+- **Uploads** - `/maturion/uploads` - Document processing
+
+**Settings Section** (Organization Hierarchy)
+- **Settings** - `/organization/settings` - Organization settings with hierarchy matrix for viewing signed-up organizations and subsidiary users
+
+**Admin Section** (System Administration)
+- **Workflow Dashboard** - `/admin/workflow` - ISMS implementation progress tracking
+- **User Matrix** - `/admin/user-matrix` - Role-based permissions management
+- **Admin Config** - `/admin/config` - System configuration
+- **Health Checker** - `/admin/health-checker` - System health validation and QA dashboard
+
+**Watchdog Section** (System Monitoring)
+- **Watchdog** - `/watchdog` - AI behavior monitoring and system drift detection
+
+#### Access Control
+
+**Admin Detection**:
+- Hook: `useAdminAccess()`
+- Condition: `isAdmin === true` (based on user role or email in admin list)
+- Renders: All admin-only sidebar sections
+
+**User Access**:
+- All authenticated users see Main and Maturity Roadmap sections
+- Team assignments control visibility within Maturity Roadmap pages
+
+**Sidebar Status**: ✅ Wired and tested
+
+---
+
 ### Admin Sidebar Integration
 
 The workflow has been integrated into the application sidebar with admin-only visibility.
@@ -2119,6 +2197,7 @@ See `qa/requirements.json` for machine-readable QA requirements.
 |---------|------|--------|---------|
 | 1.0 | 2025-11-20 | AI Agent | Initial comprehensive architecture |
 | 1.1 | 2025-11-21 | Copilot | Added ISMS Workflow Architecture section with workflow phases, organizational hierarchy, user field matrix, and admin sidebar integration |
+| 1.2 | 2025-11-23 | Copilot | Restructured sidebar navigation workflow: Pre-subscription pages (no sidebar), Maturity Roadmap section for users, Admin-only sections (Maturion, Settings, Admin, Watchdog). Updated page inventory and routes. |
 
 ---
 

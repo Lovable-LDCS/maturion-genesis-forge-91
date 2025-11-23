@@ -1,6 +1,6 @@
 {
-  "version": "1.0.0",
-  "updated": "2025-11-20",
+  "version": "1.2.0",
+  "updated": "2025-11-23",
   "description": "Machine-verifiable QA requirements aligned with ARCHITECTURE.md (True North)",
   "qa_philosophy": {
     "true_north": "Architecture document is the single source of truth",
@@ -122,6 +122,37 @@
             "maturion_chat_toggle",
             "auth_guard"
           ],
+          "required": true
+        },
+        {
+          "id": "WIRE-006",
+          "name": "Sidebar Navigation Structure",
+          "description": "Sidebar must follow workflow-based structure per ARCHITECTURE.md",
+          "type": "navigation_structure",
+          "validation": "check_sidebar_groups",
+          "expected_structure": {
+            "public_pages_no_sidebar": ["/", "/journey", "/subscribe", "/subscribe/checkout", "/auth", "/accept-invitation"],
+            "authenticated_sidebar_groups": {
+              "main": ["Dashboard", "Modules"],
+              "maturity_roadmap": ["Audit Structure Setup", "Assessment", "Assessment Framework", "QA Sign-Off", "Team"],
+              "admin_only": {
+                "maturion": ["Knowledge Base", "Uploads"],
+                "settings": ["Settings"],
+                "admin": ["Workflow Dashboard", "User Matrix", "Admin Config", "Health Checker"],
+                "watchdog": ["Watchdog"]
+              }
+            }
+          },
+          "required": true
+        },
+        {
+          "id": "WIRE-007",
+          "name": "Admin Access Control",
+          "description": "Admin-only sidebar sections must be gated by useAdminAccess hook",
+          "type": "access_control",
+          "validation": "check_admin_gating",
+          "admin_sections": ["maturion", "settings", "admin", "watchdog"],
+          "required_hook": "useAdminAccess",
           "required": true
         }
       ]

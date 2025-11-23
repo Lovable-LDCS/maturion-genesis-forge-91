@@ -70,12 +70,13 @@ const App = () => {
           <Sonner />
           <BrowserRouter basename={basename}>
             <Routes>
-              {/* Public routes without authentication */}
+              {/* Public routes without authentication (Pre-subscription - no sidebar) */}
               <Route path={ROUTES.HOME} element={<Index />} />
               <Route path={ROUTES.AUTH} element={<LoginForm />} />
               <Route path={ROUTES.INVITATION_ACCEPTANCE} element={<InvitationAcceptance />} />
               <Route path={ROUTES.SUBSCRIBE} element={<Subscribe />} />
               <Route path={ROUTES.SUBSCRIBE_CHECKOUT} element={<SubscribeCheckout />} />
+              <Route path={ROUTES.JOURNEY} element={<Journey />} />
               
               {/* Protected routes with authentication */}
               <Route path={ROUTES.MODULES} element={<ProtectedRoute><AppLayout><ModulesOverview /></AppLayout></ProtectedRoute>} />
@@ -97,7 +98,6 @@ const App = () => {
               <Route path="/maturion-uploads" element={<ProtectedRoute><Navigate to={ROUTES.MATURION_UPLOADS} replace /></ProtectedRoute>} />
               <Route path="/knowledge-base" element={<ProtectedRoute><Navigate to={ROUTES.MATURION_KNOWLEDGE_BASE} replace /></ProtectedRoute>} />
               <Route path="/uploads" element={<ProtectedRoute><Navigate to={ROUTES.MATURION_UPLOADS} replace /></ProtectedRoute>} />
-              <Route path={ROUTES.JOURNEY} element={<ProtectedRoute><AppLayout><Journey /></AppLayout></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_CONFIG} element={<ProtectedRoute><AppLayout><AdminConfig /></AppLayout></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_HEALTH_CHECKER} element={<ProtectedRoute><AppLayout><AdminHealthChecker /></AppLayout></ProtectedRoute>} />
               <Route path={ROUTES.ADMIN_WORKFLOW} element={<ProtectedRoute><AppLayout><AdminWorkflowDashboard /></AppLayout></ProtectedRoute>} />
