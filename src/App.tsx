@@ -39,6 +39,13 @@ import DataSourcesManagement from "./pages/DataSourcesManagement";
 import WatchdogDashboard from "./pages/WatchdogDashboard";
 import NotFound from "./pages/NotFound";
 import SubscribeCheckout from "./pages/SubscribeCheckout";
+import FreeAssessment from "./pages/FreeAssessment";
+import RiskManagementInfo from "./pages/RiskManagementInfo";
+import PITInfo from "./pages/PITInfo";
+import DataAnalyticsInfo from "./pages/DataAnalyticsInfo";
+import SkillsDevelopmentInfo from "./pages/SkillsDevelopmentInfo";
+import IncidentManagementInfo from "./pages/IncidentManagementInfo";
+import DataExtractionInfo from "./pages/DataExtractionInfo";
 
 const queryClient = new QueryClient();
 
@@ -76,10 +83,18 @@ const App = () => {
               <Route path={ROUTES.INVITATION_ACCEPTANCE} element={<InvitationAcceptance />} />
               <Route path={ROUTES.SUBSCRIBE} element={<Subscribe />} />
               <Route path={ROUTES.SUBSCRIBE_CHECKOUT} element={<SubscribeCheckout />} />
-              <Route path={ROUTES.JOURNEY} element={<Journey />} />
+              
+              {/* Pre-subscription routes with sidebar - Marketing/exploration pages */}
+              <Route path={ROUTES.JOURNEY} element={<ProtectedRoute><AppLayout><Journey /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.FREE_ASSESSMENT} element={<ProtectedRoute><AppLayout><FreeAssessment /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.RISK_MANAGEMENT_INFO} element={<ProtectedRoute><AppLayout><RiskManagementInfo /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.PIT_INFO} element={<ProtectedRoute><AppLayout><PITInfo /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.DATA_ANALYTICS_INFO} element={<ProtectedRoute><AppLayout><DataAnalyticsInfo /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.SKILLS_DEVELOPMENT_INFO} element={<ProtectedRoute><AppLayout><SkillsDevelopmentInfo /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.INCIDENT_MANAGEMENT_INFO} element={<ProtectedRoute><AppLayout><IncidentManagementInfo /></AppLayout></ProtectedRoute>} />
+              <Route path={ROUTES.DATA_EXTRACTION_INFO} element={<ProtectedRoute><AppLayout><DataExtractionInfo /></AppLayout></ProtectedRoute>} />
               
               {/* Protected routes with authentication */}
-              <Route path={ROUTES.MODULES} element={<ProtectedRoute><AppLayout><ModulesOverview /></AppLayout></ProtectedRoute>} />
               <Route path={ROUTES.MATURITY_SETUP} element={<ProtectedRoute><AppLayout><MaturitySetup /></AppLayout></ProtectedRoute>} />
               {/* Legacy redirect: /maturity/build -> /maturity/setup */}
               <Route path={ROUTES.MATURITY_BUILD_LEGACY} element={<Navigate to={ROUTES.MATURITY_SETUP} replace />} />

@@ -19,11 +19,12 @@
 9. [Integration Architecture](#integration-architecture)
 10. [Security Architecture](#security-architecture)
 11. [ISMS Workflow Architecture](#isms-workflow-architecture)
-12. [Deployment Architecture](#deployment-architecture)
-13. [QA & Testing Strategy](#qa--testing-strategy)
-14. [Component Inventory & Wiring](#component-inventory--wiring)
-15. [Custom Agent Integration](#custom-agent-integration)
-16. [Build & Development Guidelines](#build--development-guidelines)
+12. [Maturion AI Agent Architecture](#maturion-ai-agent-architecture)
+13. [Deployment Architecture](#deployment-architecture)
+14. [QA & Testing Strategy](#qa--testing-strategy)
+15. [Component Inventory & Wiring](#component-inventory--wiring)
+16. [Custom Agent Integration](#custom-agent-integration)
+17. [Build & Development Guidelines](#build--development-guidelines)
 
 ---
 
@@ -39,12 +40,13 @@
 - **Quality Assurance**: Comprehensive QA workflows ensuring system integrity
 
 ### Key Metrics
-- **29 Pages**: Complete application with public and authenticated routes
+- **30 Pages**: Complete application with public and authenticated routes (including Free Assessment)
 - **196 UI Components**: Modular, reusable component architecture
 - **44 Custom Hooks**: Business logic encapsulation
 - **54 Edge Functions**: Serverless backend processing
 - **17 Component Categories**: Feature-based organization
 - **6 Assessment Domains**: Core maturity evaluation framework
+- **Maturion AI Agent**: Intelligent AI assistant with model routing, RAG, and tool-based capabilities
 
 ---
 
@@ -371,7 +373,7 @@ The application is built around six core domains of operational excellence:
 
 ## UI/UX Components
 
-### Page Inventory (29 Pages)
+### Page Inventory (30 Pages)
 
 #### Public Routes (No Authentication Required, No Sidebar)
 | Route | Page Component | Purpose | Wiring Status |
@@ -383,7 +385,12 @@ The application is built around six core domains of operational excellence:
 | `/subscribe` | Subscribe.tsx | Subscription landing | ✅ Wired |
 | `/subscribe/checkout` | SubscribeCheckout.tsx | Payment checkout | ✅ Wired |
 
-#### Authenticated Routes (Require Login + AppLayout with Sidebar)
+#### Authenticated Routes - Pre-Subscription (Require Login + AppLayout with Sidebar)
+| Route | Page Component | Purpose | Wiring Status |
+|-------|---------------|---------|---------------|
+| `/free-assessment` | FreeAssessment.tsx | Free maturity assessment landing (Pre-subscription) | ✅ Wired |
+
+#### Authenticated Routes - Core (Require Login + AppLayout with Sidebar)
 | Route | Page Component | Purpose | Wiring Status |
 |-------|---------------|---------|---------------|
 | `/modules` | ModulesOverview.tsx | Module selection | ✅ Wired |
@@ -1409,23 +1416,32 @@ Marketing and onboarding pages operate without a sidebar to optimize for convers
 
 #### Authenticated User Sidebar Structure
 
-Once users subscribe and authenticate, they see a structured sidebar organized by workflow phase:
+Once users authenticate, they see a structured sidebar organized by workflow phase:
 
 **1. Main Section** (Always visible to authenticated users)
 - **Dashboard** - `/dashboard` - Overview and metrics
 - **Modules** - `/modules` - ISMS module selection
 
-**2. Maturity Roadmap Section** (User-accessible based on assignments)
+**2. Pre-subscription Section** (Accessible before full subscription)
+- **Free Assessment** - `/free-assessment` - Free maturity assessment landing page
+
+This section helps users:
+- Understand the assessment process
+- Complete the free 15-minute maturity assessment
+- See what they'll receive (scores, gap analysis, recommendations)
+- Be directed to subscribe after completion
+
+**3. Maturity Roadmap Section** (Post-subscription, user-accessible based on assignments)
 This section contains the core audit structure setup and evidence management workflow:
 - **Audit Structure Setup** - `/maturity/setup` - Configure maturity model (formerly "Maturity Setup")
-- **Assessment** - `/assessment` - Conduct assessments
+- **Assessment** - `/assessment` - Conduct full assessments
 - **Assessment Framework** - `/assessment/framework` - Framework configuration
 - **QA Sign-Off** - `/qa-signoff` - Quality assurance validation
 - **Team** - `/team` - Team member management
 
 **Note**: Once published, Audit Structure Setup becomes the "Maturity Roadmap Evidence Management Workflow"
 
-**3. Admin-Only Sections** (Visible only to administrators)
+**4. Admin-Only Sections** (Visible only to administrators)
 
 All admin sections are styled with orange labels for visual distinction and use `useAdminAccess()` hook for access control.
 
@@ -1453,8 +1469,9 @@ All admin sections are styled with orange labels for visual distinction and use 
 - Renders: All admin-only sidebar sections
 
 **User Access**:
-- All authenticated users see Main and Maturity Roadmap sections
-- Team assignments control visibility within Maturity Roadmap pages
+- All authenticated users see Main, Pre-subscription, and Maturity Roadmap sections
+- Pre-subscription section accessible to all authenticated users
+- Maturity Roadmap section accessible based on subscription and team assignments
 
 **Sidebar Status**: ✅ Wired and tested
 
@@ -1572,6 +1589,380 @@ The workflow has been integrated into the application sidebar with admin-only vi
 **Related Documents**:
 - This ARCHITECTURE.md - System architecture
 - `qa/requirements.json` - QA requirements (to be updated)
+
+---
+
+## Maturion AI Agent Architecture
+
+### Overview
+
+**Maturion** is an enterprise-grade AI assistant specializing in Security, Loss Prevention, and Operational Excellence. The agent implements a sophisticated architecture combining multiple AI models, context awareness, document retrieval (RAG), and tool-based capabilities.
+
+### Core Components
+
+#### 1. Model Router (`/src/agents/maturion/router/modelRouter.ts`)
+
+**Purpose**: Dynamically selects the appropriate AI model based on task complexity
+
+**Supported Models**:
+- **GPT-5 Thinking (o1-preview)**: Deep risk reasoning, security analysis, audit interpretation
+- **GPT-5 (gpt-4-turbo-preview)**: General conversation, professional advisory
+- **GPT-4.1 (gpt-4-turbo-preview)**: Fast classification, lightweight Q/A
+- **GPT-4o-mini**: UI responses, metadata formatting
+- **Specialist Models**: Future code analysis, log analysis, anomaly detection
+
+**Task Categories**:
+```typescript
+type TaskCategory =
+  | 'deep_reasoning'      // Complex security analysis
+  | 'general_advisory'    // Standard conversation
+  | 'quick_classification'// Fast categorization
+  | 'ui_formatting'       // Response formatting
+  | 'code_analysis'       // Code review
+  | 'log_analysis'        // Security logs
+  | 'anomaly_detection';  // Threat detection
+```
+
+**Intelligence**: Automatically infers task category from query content and context
+
+**Status**: ✅ Implemented
+
+---
+
+#### 2. Context Provider (`/src/agents/maturion/context/contextProvider.ts`)
+
+**Purpose**: Provides comprehensive contextual awareness
+
+**Context Elements**:
+- **Organization**: ID, name, industry tags, compliance commitments
+- **User**: ID, role, name, email
+- **Page**: Current page, domain, audit item ID
+- **Documents**: Uploaded documents linked to page/domain
+- **History**: Last 10 interactions (short-term memory)
+
+**Functions**:
+- `buildMaturionContext()`: Constructs context from app state
+- `formatContextForPrompt()`: Formats context for AI prompts
+- `getRelevantDocuments()`: Filters documents by current page/domain
+
+**Status**: ✅ Implemented
+
+---
+
+#### 3. RAG System (`/src/agents/maturion/rag/documentRetrieval.ts`)
+
+**Purpose**: Retrieval-Augmented Generation for document interpretation
+
+**Capabilities**:
+- **Document Chunking**: Splits documents into 800-1200 token chunks with 100-token overlap
+- **Embedding Generation**: Creates vector embeddings using OpenAI
+- **Semantic Search**: Performs vector similarity search across document chunks
+- **Context Retrieval**: Retrieves relevant document sections for AI queries
+
+**Key Functions**:
+- `chunkDocument()`: Chunks documents for embedding
+- `generateEmbedding()`: Generates embeddings via Edge Function
+- `searchDocuments()`: Performs semantic search
+- `retrieveContext()`: Retrieves relevant context for queries
+- `processDocument()`: Processes newly uploaded documents
+
+**Database Integration**:
+- Stores chunks in `document_chunks` table
+- Uses vector similarity search (pgvector extension)
+- Supports domain/organization filtering
+
+**Status**: ✅ Implemented
+
+---
+
+#### 4. Tool Interface (`/src/agents/maturion/tools/toolInterface.ts`)
+
+**Purpose**: Defines and manages tool-based capabilities
+
+**Tool Definition Structure**:
+```typescript
+interface ToolDefinition {
+  name: string;
+  description: string;
+  category: ToolCategory;
+  parameters: ToolParameter[];
+  execute: (args, context) => Promise<ToolResult>;
+}
+```
+
+**Tool Categories**:
+- Policy Management
+- Procedure Building
+- Threat Analysis
+- Control Design
+- Maturity Assessment
+- Implementation Planning
+- Template Generation
+- Audit Evidence
+- Risk Management
+- Incident Analysis
+- Governance
+- Code Assistance
+- Log Analysis
+
+**Tool Registry**: Central registry for registering and executing tools
+
+**Status**: ✅ Implemented
+
+---
+
+#### 5. Core Tools (`/src/agents/maturion/tools/coreTools.ts`)
+
+**Implemented Tools**:
+
+1. **Policy Writer/Updater**
+   - Generates security policies aligned with industry standards
+   - Supports ISO 27001, NIST, PCI DSS, SOC 2
+   - Updates existing policies
+
+2. **Procedure Builder**
+   - Creates step-by-step implementation procedures
+   - Maps to Six Domains framework
+   - Defines roles and responsibilities
+
+3. **Threat Modelling Assistant**
+   - Analyzes threats using STRIDE, PASTA, or DREAD
+   - Identifies attack vectors
+   - Recommends mitigations
+
+4. **Maturity Gap Explainer**
+   - Explains gaps between current and target maturity
+   - Provides actionable recommendations
+   - Estimates timeline and effort
+
+5. **Template Generator**
+   - Creates SOPs, logs, registers, checklists
+   - Organization-branded templates
+   - Domain-specific content
+
+**Future Tools** (Planned):
+- Control Design Advisor
+- Implementation Roadmap Generator
+- Audit Evidence Evaluator
+- Risk Register Generator
+- Incident Analysis Tool
+- Corporate Governance Advisor
+- Code Assistance Tool
+- Log Parser Security Tool
+
+**Status**: ✅ 5/13 tools implemented
+
+---
+
+#### 6. Guardrails (`/src/agents/maturion/guardrails/guardrails.ts`)
+
+**Purpose**: Security and safety constraints for AI behavior
+
+**Guardrail Rules**:
+1. **Organization Isolation**: Actions must be scoped to user's organization
+2. **Authentication Required**: User must be authenticated
+3. **No Arbitrary URLs**: Direct URL fetching prohibited
+4. **No Autonomous Scanning**: Scanning must use approved tools
+5. **Admin-Only Modifications**: Data changes require admin role
+6. **Cross-Org Prevention**: Cannot access other organizations' data
+7. **Sensitive Data Handling**: Detects and protects sensitive information
+
+**Security Functions**:
+- `checkGuardrails()`: Validates action permissions
+- `sanitizeResponse()`: Removes sensitive data from responses
+- `validateToolArguments()`: Prevents SQL/command injection
+- `checkRateLimit()`: Rate limiting per user/tool
+- `logSecurityEvent()`: Logs security violations
+
+**Status**: ✅ Implemented
+
+---
+
+#### 7. System Prompt (`/src/agents/maturion/prompts/system.md`)
+
+**Purpose**: Core identity and behavioral instructions for Maturion
+
+**Key Elements**:
+- Identity as enterprise security AI consultant
+- Six Domains expertise
+- Standards-based approach (ISO, NIST, ASIS, PCI, SOC 2)
+- Tool-usage protocols
+- Response formatting guidelines
+- Security constraints
+
+**Conversational Style**: Professional, clear, concise, helpful, transparent
+
+**Status**: ✅ Implemented
+
+---
+
+#### 8. Learning Layer (`/src/agents/maturion/learning/learningLayer.ts`)
+
+**Purpose**: Human-in-the-loop learning (NOT autonomous self-training)
+
+**Capabilities**:
+- **Pattern Recording**: Stores anonymized interaction patterns
+- **Feedback Collection**: Captures user feedback (helpful/rating/comments)
+- **Learning Patterns**: Identifies improvement opportunities
+- **Developer Approval**: All changes require human approval
+- **KB Auto-Ingestion**: Automatically processes new documents
+
+**Learning Pattern Types**:
+- Query improvement suggestions
+- Tool usage recommendations
+- Response quality issues
+- Gap identification
+
+**Feedback Analysis**:
+- Helpful rate calculation
+- Average rating tracking
+- Common issue identification
+- Improvement suggestions
+
+**Status**: ✅ Implemented
+
+---
+
+#### 9. Main Orchestrator (`/src/agents/maturion/index.ts`)
+
+**Purpose**: Coordinates all Maturion capabilities
+
+**Query Flow**:
+1. Check guardrails
+2. Select appropriate model
+3. Retrieve relevant documents (RAG)
+4. Build full prompt with context
+5. Execute AI query
+6. Handle tool calls (iterative)
+7. Sanitize response
+8. Calculate confidence score
+9. Store interaction
+10. Record learning patterns
+
+**Main Function**:
+```typescript
+queryMaturion(params: MaturionQuery): Promise<MaturionResponse>
+```
+
+**Response Structure**:
+```typescript
+interface MaturionResponse {
+  response: string;
+  taskCategory: TaskCategory;
+  modelUsed: string;
+  toolsExecuted: Array<ToolExecution>;
+  documentsReferenced: string[];
+  confidenceScore: number;
+  interactionId: string;
+}
+```
+
+**Status**: ✅ Implemented
+
+---
+
+### Integration Points
+
+#### With Existing Systems
+
+**MaturionChat Component**: Global chat assistant (already exists)
+- Will be enhanced to use new Maturion agent
+- Context passed from current page/domain
+- Tool results displayed in UI
+
+**Document Upload System**: Existing document processors
+- Integration with RAG processing
+- Automatic embedding generation
+- Vector search capabilities
+
+**Watchdog System**: AI behavior monitoring
+- Monitor Maturion queries and responses
+- Track confidence scores
+- Alert on anomalies
+
+**Admin Dashboard**: Learning pattern review
+- View pending learning patterns
+- Approve/reject improvements
+- Analyze feedback trends
+
+---
+
+### Future Enhancements
+
+#### Multi-Agent Mesh
+Instead of single Maturion, implement specialized sub-agents:
+- **PolicyCraft**: Policy writing specialist
+- **ThreatLens**: Threat analysis specialist
+- **AuditMaster**: Audit and compliance specialist
+- **CodeSmith**: Code improvement specialist
+
+Maturion delegates to specialized agents based on query type.
+
+#### Industry Intelligence Plugin
+- Hook into curated RSS feeds
+- MITRE ATT&CK updates
+- Security news aggregators
+- Industry-specific threat intelligence
+
+#### Advanced Tooling
+- Real-time log analysis
+- Automated threat detection
+- Continuous compliance monitoring
+- Code security scanning
+
+---
+
+### Database Schema
+
+**Required Tables**:
+```sql
+-- AI learning patterns
+ai_learning_patterns (
+  id uuid primary key,
+  pattern_type text,
+  description text,
+  suggested_improvement text,
+  status text,
+  occurrence_count integer,
+  created_at timestamp,
+  approved_by uuid,
+  approved_at timestamp
+)
+
+-- AI feedback submissions
+ai_feedback_submissions (
+  id uuid primary key,
+  interaction_id text,
+  helpful boolean,
+  rating integer,
+  comment text,
+  user_id uuid,
+  timestamp timestamp
+)
+
+-- Existing: maturion_responses (already in schema)
+-- Existing: document_chunks (already in schema)
+-- Existing: documents (already in schema)
+```
+
+---
+
+### Wiring Status
+
+| Component | Status | Integration |
+|-----------|--------|-------------|
+| Model Router | ✅ Implemented | Standalone module |
+| Context Provider | ✅ Implemented | Standalone module |
+| RAG System | ✅ Implemented | Uses existing document_chunks table |
+| Tool Interface | ✅ Implemented | Standalone module |
+| Core Tools | ✅ 5/13 Implemented | Tool registry |
+| Guardrails | ✅ Implemented | Standalone module |
+| System Prompt | ✅ Implemented | Markdown file |
+| Learning Layer | ✅ Implemented | Requires DB tables |
+| Main Orchestrator | ✅ Implemented | Coordinates all components |
+| UI Integration | 🔄 Pending | MaturionChat component |
+| Watchdog Integration | 🔄 Pending | Monitoring hooks |
+| Admin Dashboard | 🔄 Pending | Learning pattern UI |
 
 ---
 
@@ -1856,8 +2247,8 @@ dist/
 
 All components are currently wired. This matrix will be maintained to track wiring status:
 
-#### Pages (29/29 Wired - 100%)
-✅ All pages properly wired through App.tsx routing
+#### Pages (30/30 Wired - 100%)
+✅ All pages properly wired through App.tsx routing (including new Free Assessment page)
 
 #### Component Categories (17/17 Wired - 100%)
 ✅ All component categories in active use
@@ -1870,6 +2261,17 @@ All components are currently wired. This matrix will be maintained to track wiri
 
 #### Edge Functions (54/54 Active - 100%)
 ✅ All functions deployed and callable
+
+#### Maturion AI Agent Components (9/9 Implemented - 100%)
+✅ All core Maturion agent modules implemented:
+- Model Router
+- Context Provider
+- RAG System
+- Tool Interface & Core Tools
+- Guardrails
+- System Prompt
+- Learning Layer
+- Main Orchestrator
 
 ### Legacy Component Detection Rules
 
@@ -2198,6 +2600,7 @@ See `qa/requirements.json` for machine-readable QA requirements.
 | 1.0 | 2025-11-20 | AI Agent | Initial comprehensive architecture |
 | 1.1 | 2025-11-21 | Copilot | Added ISMS Workflow Architecture section with workflow phases, organizational hierarchy, user field matrix, and admin sidebar integration |
 | 1.2 | 2025-11-23 | Copilot | Restructured sidebar navigation workflow: Pre-subscription pages (no sidebar), Maturity Roadmap section for users, Admin-only sections (Maturion, Settings, Admin, Watchdog). Updated page inventory and routes. |
+| 1.3 | 2025-11-23 | Copilot | Added Maturion AI Agent Architecture section with comprehensive documentation of model routing, context awareness, RAG system, tools, guardrails, and learning layer. Added Free Assessment page to Pre-subscription category. Updated page count to 30. |
 
 ---
 

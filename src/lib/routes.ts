@@ -12,6 +12,7 @@ export const ROUTES = {
   MATURITY_SETUP: '/maturity/setup', // Canonical onboarding route
   
   // Assessment system
+  FREE_ASSESSMENT: '/free-assessment', // Pre-subscription free assessment
   ASSESSMENT: '/assessment',
   ASSESSMENT_FRAMEWORK: '/assessment/framework',
   DOMAIN_AUDIT_BUILDER: (domainId: string) => `/audit/domain/${domainId}`,
@@ -33,6 +34,14 @@ export const ROUTES = {
   QA_SIGNOFF: '/qa-signoff',
   WATCHDOG: '/watchdog',
   DATA_SOURCES: '/data-sources',
+  
+  // Pre-subscription module info pages
+  RISK_MANAGEMENT_INFO: '/risk-management-info',
+  PIT_INFO: '/pit-info',
+  DATA_ANALYTICS_INFO: '/data-analytics-info',
+  SKILLS_DEVELOPMENT_INFO: '/skills-development-info',
+  INCIDENT_MANAGEMENT_INFO: '/incident-management-info',
+  DATA_EXTRACTION_INFO: '/data-extraction-info',
   
   // Other
   JOURNEY: '/journey',
