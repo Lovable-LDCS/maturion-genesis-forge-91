@@ -12,6 +12,7 @@ export const ROUTES = {
   MATURITY_SETUP: '/maturity/setup', // Canonical onboarding route
   
   // Assessment system
+  FREE_ASSESSMENT: '/free-assessment', // Pre-subscription free assessment
   ASSESSMENT: '/assessment',
   ASSESSMENT_FRAMEWORK: '/assessment/framework',
   DOMAIN_AUDIT_BUILDER: (domainId: string) => `/audit/domain/${domainId}`,

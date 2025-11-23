@@ -13,6 +13,7 @@ import {
   Brain,
   Workflow,
   Lock,
+  ClipboardCheck,
 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
@@ -47,7 +48,14 @@ const navigationItems = [
     url: ROUTES.MODULES,
     group: "main",
   },
-  // Maturity Roadmap - Accessible by users based on assignments
+  // Pre-subscription - Free Assessment
+  {
+    title: "Free Assessment",
+    icon: ClipboardCheck,
+    url: ROUTES.FREE_ASSESSMENT,
+    group: "pre-subscription",
+  },
+  // Maturity Roadmap - Accessible by users based on assignments (post-subscription)
   {
     title: "Audit Structure Setup",
     icon: BarChart3,
@@ -153,6 +161,7 @@ export function AppSidebar() {
 
   const groupedItems = {
     main: navigationItems.filter((item) => item.group === "main"),
+    preSubscription: navigationItems.filter((item) => item.group === "pre-subscription"),
     maturityRoadmap: navigationItems.filter((item) => item.group === "maturity-roadmap"),
     // Admin-only groups
     maturion: adminNavigationItems.filter((item) => item.group === "maturion"),
@@ -182,6 +191,26 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {groupedItems.main.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton
+                    onClick={() => navigate(item.url)}
+                    isActive={location.pathname === item.url}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Pre-subscription - Free Assessment */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Pre-subscription</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {groupedItems.preSubscription.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.url)}

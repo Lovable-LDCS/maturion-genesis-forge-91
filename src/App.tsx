@@ -39,6 +39,7 @@ import DataSourcesManagement from "./pages/DataSourcesManagement";
 import WatchdogDashboard from "./pages/WatchdogDashboard";
 import NotFound from "./pages/NotFound";
 import SubscribeCheckout from "./pages/SubscribeCheckout";
+import FreeAssessment from "./pages/FreeAssessment";
 
 const queryClient = new QueryClient();
 
@@ -77,6 +78,7 @@ const App = () => {
               <Route path={ROUTES.SUBSCRIBE} element={<Subscribe />} />
               <Route path={ROUTES.SUBSCRIBE_CHECKOUT} element={<SubscribeCheckout />} />
               <Route path={ROUTES.JOURNEY} element={<Journey />} />
+              <Route path={ROUTES.FREE_ASSESSMENT} element={<ProtectedRoute><AppLayout><FreeAssessment /></AppLayout></ProtectedRoute>} />
               
               {/* Protected routes with authentication */}
               <Route path={ROUTES.MODULES} element={<ProtectedRoute><AppLayout><ModulesOverview /></AppLayout></ProtectedRoute>} />
