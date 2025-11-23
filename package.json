@@ -8,7 +8,14 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "qa": "node qa/checker.js",
+    "qa:strict": "node qa/checker.js --strict",
+    "qa:full": "npm run lint && npm run build && node qa/checker.js",
+    "qa:arch": "node qa/checker.js --category=architecture_compliance",
+    "qa:wiring": "node qa/checker.js --category=wiring_verification",
+    "qa:wiring-check": "node qa/wiring-check.js",
+    "qa:legacy": "node qa/legacy-scanner.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
