@@ -28,6 +28,8 @@ import MaturionKnowledgeBase from "./pages/MaturionKnowledgeBase";
 import MaturionUploads from "./pages/MaturionUploads";
 import Journey from "./pages/Journey";
 import Subscribe from "./pages/Subscribe";
+import GetToKnowYou from "./pages/GetToKnowYou";
+import ISMSLanding from "./pages/ISMSLanding";
 import AdminConfig from "./pages/AdminConfig";
 import AdminHealthChecker from "./pages/AdminHealthChecker";
 import AdminWorkflowDashboard from "./pages/AdminWorkflowDashboard";
@@ -76,9 +78,11 @@ const App = () => {
               <Route path={ROUTES.INVITATION_ACCEPTANCE} element={<InvitationAcceptance />} />
               <Route path={ROUTES.SUBSCRIBE} element={<Subscribe />} />
               <Route path={ROUTES.SUBSCRIBE_CHECKOUT} element={<SubscribeCheckout />} />
+              <Route path={ROUTES.GET_TO_KNOW_YOU} element={<GetToKnowYou />} />
               <Route path={ROUTES.JOURNEY} element={<Journey />} />
               
               {/* Protected routes with authentication */}
+              <Route path={ROUTES.ISMS} element={<ProtectedRoute><AppLayout><ISMSLanding /></AppLayout></ProtectedRoute>} />
               <Route path={ROUTES.MODULES} element={<ProtectedRoute><AppLayout><ModulesOverview /></AppLayout></ProtectedRoute>} />
               <Route path={ROUTES.MATURITY_SETUP} element={<ProtectedRoute><AppLayout><MaturitySetup /></AppLayout></ProtectedRoute>} />
               {/* Legacy redirect: /maturity/build -> /maturity/setup */}
