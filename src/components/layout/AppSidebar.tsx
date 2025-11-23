@@ -45,42 +45,42 @@ const navigationItems = [
     url: ROUTES.MODULES,
     group: "main",
   },
+  // Maturity Roadmap - Accessible by users based on assignments
+  {
+    title: "Audit Structure Setup",
+    icon: BarChart3,
+    url: ROUTES.MATURITY_SETUP,
+    group: "maturity-roadmap",
+  },
   {
     title: "Assessment",
     icon: ClipboardList,
     url: ROUTES.ASSESSMENT,
-    group: "assessment",
-  },
-  {
-    title: "Maturity Setup",
-    icon: BarChart3,
-    url: ROUTES.MATURITY_SETUP,
-    group: "assessment",
+    group: "maturity-roadmap",
   },
   {
     title: "Assessment Framework",
     icon: Shield,
     url: ROUTES.ASSESSMENT_FRAMEWORK,
-    group: "assessment",
+    group: "maturity-roadmap",
   },
   {
     title: "QA Sign-Off",
     icon: FileText,
     url: ROUTES.QA_SIGNOFF,
-    group: "assessment",
+    group: "maturity-roadmap",
   },
   {
     title: "Team",
     icon: Users,
     url: ROUTES.TEAM,
-    group: "organization",
+    group: "maturity-roadmap",
   },
-  {
-    title: "Organization Settings",
-    icon: Settings,
-    url: ROUTES.ORGANIZATION_SETTINGS,
-    group: "organization",
-  },
+];
+
+// Admin-only navigation items
+const adminNavigationItems = [
+  // Maturion - AI Configuration
   {
     title: "Knowledge Base",
     icon: BookOpen,
@@ -93,21 +93,14 @@ const navigationItems = [
     url: ROUTES.MATURION_UPLOADS,
     group: "maturion",
   },
+  // Settings - includes organization hierarchy
   {
-    title: "Journey",
-    icon: Activity,
-    url: ROUTES.JOURNEY,
-    group: "maturion",
+    title: "Settings",
+    icon: Settings,
+    url: ROUTES.ORGANIZATION_SETTINGS,
+    group: "settings",
   },
-  {
-    title: "Watchdog",
-    icon: Brain,
-    url: ROUTES.WATCHDOG,
-    group: "tools",
-  },
-];
-
-const adminNavigationItems = [
+  // Admin Pages
   {
     title: "Workflow Dashboard",
     icon: Workflow,
@@ -132,6 +125,13 @@ const adminNavigationItems = [
     url: ROUTES.ADMIN_HEALTH_CHECKER,
     group: "admin",
   },
+  // Watchdog
+  {
+    title: "Watchdog",
+    icon: Brain,
+    url: ROUTES.WATCHDOG,
+    group: "watchdog",
+  },
 ];
 
 export function AppSidebar() {
@@ -148,11 +148,12 @@ export function AppSidebar() {
 
   const groupedItems = {
     main: navigationItems.filter((item) => item.group === "main"),
-    assessment: navigationItems.filter((item) => item.group === "assessment"),
-    organization: navigationItems.filter((item) => item.group === "organization"),
-    maturion: navigationItems.filter((item) => item.group === "maturion"),
-    tools: navigationItems.filter((item) => item.group === "tools"),
+    maturityRoadmap: navigationItems.filter((item) => item.group === "maturity-roadmap"),
+    // Admin-only groups
+    maturion: adminNavigationItems.filter((item) => item.group === "maturion"),
+    settings: adminNavigationItems.filter((item) => item.group === "settings"),
     admin: adminNavigationItems.filter((item) => item.group === "admin"),
+    watchdog: adminNavigationItems.filter((item) => item.group === "watchdog"),
   };
 
   return (
@@ -190,12 +191,12 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Assessment */}
+        {/* Maturity Roadmap - Accessible by users based on assignments */}
         <SidebarGroup>
-          <SidebarGroupLabel>Assessment</SidebarGroupLabel>
+          <SidebarGroupLabel>Maturity Roadmap</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {groupedItems.assessment.map((item) => (
+              {groupedItems.maturityRoadmap.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.url)}
@@ -210,88 +211,97 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Organization */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Organization</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {groupedItems.organization.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    onClick={() => navigate(item.url)}
-                    isActive={location.pathname === item.url}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Admin-only sections */}
+        {isAdmin && (
+          <>
+            {/* Maturion - AI Configuration (Admin-only) */}
+            {groupedItems.maturion.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupLabel className="text-orange-600">Maturion</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {groupedItems.maturion.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          onClick={() => navigate(item.url)}
+                          isActive={location.pathname === item.url}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
 
-        {/* Maturion */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Maturion</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {groupedItems.maturion.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    onClick={() => navigate(item.url)}
-                    isActive={location.pathname === item.url}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+            {/* Settings - Organization hierarchy (Admin-only) */}
+            {groupedItems.settings.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupLabel className="text-orange-600">Settings</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {groupedItems.settings.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          onClick={() => navigate(item.url)}
+                          isActive={location.pathname === item.url}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
 
-        {/* Admin (Admin-only) */}
-        {isAdmin && groupedItems.admin.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel className="text-orange-600">Admin</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {groupedItems.admin.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      onClick={() => navigate(item.url)}
-                      isActive={location.pathname === item.url}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
+            {/* Admin Pages (Admin-only) */}
+            {groupedItems.admin.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupLabel className="text-orange-600">Admin</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {groupedItems.admin.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          onClick={() => navigate(item.url)}
+                          isActive={location.pathname === item.url}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
 
-        {/* Tools */}
-        {groupedItems.tools.length > 0 && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Tools</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {groupedItems.tools.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      onClick={() => navigate(item.url)}
-                      isActive={location.pathname === item.url}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+            {/* Watchdog (Admin-only) */}
+            {groupedItems.watchdog.length > 0 && (
+              <SidebarGroup>
+                <SidebarGroupLabel className="text-orange-600">Watchdog</SidebarGroupLabel>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {groupedItems.watchdog.map((item) => (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          onClick={() => navigate(item.url)}
+                          isActive={location.pathname === item.url}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
+          </>
         )}
       </SidebarContent>
 
