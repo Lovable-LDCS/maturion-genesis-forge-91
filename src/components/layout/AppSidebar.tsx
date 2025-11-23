@@ -13,6 +13,14 @@ import {
   Brain,
   Workflow,
   Lock,
+  ClipboardCheck,
+  Map,
+  AlertTriangle,
+  Wrench,
+  LineChart,
+  GraduationCap,
+  AlertCircle,
+  Database,
   Building2,
   TrendingUp,
 } from "lucide-react";
@@ -37,12 +45,62 @@ import { ROUTES } from "@/lib/routes";
 // Navigation items visible to all authenticated users
 // These are the core workflow items accessible based on user assignments
 const navigationItems = [
+  // Pre-subscription - Marketing and exploration pages
   {
-    title: "Dashboard",
+    title: "Landing Page",
     icon: Home,
-    url: ROUTES.DASHBOARD,
-    group: "main",
+    url: ROUTES.HOME,
+    group: "pre-subscription",
   },
+  {
+    title: "Free Assessment",
+    icon: ClipboardCheck,
+    url: ROUTES.FREE_ASSESSMENT,
+    group: "pre-subscription",
+  },
+  {
+    title: "Journey",
+    icon: Map,
+    url: ROUTES.JOURNEY,
+    group: "pre-subscription",
+  },
+  {
+    title: "Risk Management",
+    icon: AlertTriangle,
+    url: ROUTES.RISK_MANAGEMENT_INFO,
+    group: "pre-subscription",
+  },
+  {
+    title: "PIT",
+    icon: Wrench,
+    url: ROUTES.PIT_INFO,
+    group: "pre-subscription",
+  },
+  {
+    title: "Data Analytics",
+    icon: LineChart,
+    url: ROUTES.DATA_ANALYTICS_INFO,
+    group: "pre-subscription",
+  },
+  {
+    title: "Skills Development",
+    icon: GraduationCap,
+    url: ROUTES.SKILLS_DEVELOPMENT_INFO,
+    group: "pre-subscription",
+  },
+  {
+    title: "Incident Management",
+    icon: AlertCircle,
+    url: ROUTES.INCIDENT_MANAGEMENT_INFO,
+    group: "pre-subscription",
+  },
+  {
+    title: "Data Extraction Tool",
+    icon: Database,
+    url: ROUTES.DATA_EXTRACTION_INFO,
+    group: "pre-subscription",
+  },
+  // ISMS - Post-subscription main navigation
   {
     title: "ISMS",
     icon: Building2,
@@ -52,7 +110,7 @@ const navigationItems = [
 ];
 
 // Maturity Roadmap sub-navigation items
-// These appear under the ISMS > Maturity Roadmap section
+// These appear under the Maturity Roadmap section
 const maturityRoadmapItems = [
   {
     title: "Audit Structure Setup",
@@ -91,6 +149,13 @@ const maturityRoadmapItems = [
 // Includes: Maturion (AI config), Settings (org hierarchy), Admin pages, and Watchdog
 // All admin sections are styled with orange labels for visual distinction
 const adminNavigationItems = [
+  // Dashboard - moved to admin
+  {
+    title: "Dashboard",
+    icon: Home,
+    url: ROUTES.DASHBOARD,
+    group: "admin",
+  },
   // Maturion - AI Configuration
   {
     title: "Knowledge Base",
@@ -158,6 +223,7 @@ export function AppSidebar() {
     .toUpperCase() || "U";
 
   const groupedItems = {
+    preSubscription: navigationItems.filter((item) => item.group === "pre-subscription"),
     main: navigationItems.filter((item) => item.group === "main"),
     maturityRoadmap: maturityRoadmapItems.filter((item) => item.group === "maturity-roadmap"),
     // Admin-only groups
@@ -182,12 +248,12 @@ export function AppSidebar() {
       </SidebarHeader>
       
       <SidebarContent>
-        {/* Main Navigation */}
+        {/* Pre-subscription - Marketing and exploration pages */}
         <SidebarGroup>
-          <SidebarGroupLabel>Main</SidebarGroupLabel>
+          <SidebarGroupLabel>Pre-subscription</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {groupedItems.main.map((item) => (
+              {groupedItems.preSubscription.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.url)}
@@ -201,6 +267,28 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Main Navigation - Post-subscription */}
+        {groupedItems.main.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Main</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {groupedItems.main.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      onClick={() => navigate(item.url)}
+                      isActive={location.pathname === item.url}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Maturity Roadmap - Accessible by users based on assignments */}
         <SidebarGroup>
