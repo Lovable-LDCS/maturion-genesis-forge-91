@@ -39,12 +39,13 @@
 - **Quality Assurance**: Comprehensive QA workflows ensuring system integrity
 
 ### Key Metrics
-- **29 Pages**: Complete application with public and authenticated routes
+- **31 Pages**: Complete application with public and authenticated routes (includes Get to Know You and ISMS Landing)
 - **196 UI Components**: Modular, reusable component architecture
 - **44 Custom Hooks**: Business logic encapsulation
 - **54 Edge Functions**: Serverless backend processing
 - **17 Component Categories**: Feature-based organization
 - **6 Assessment Domains**: Core maturity evaluation framework
+- **7 ISMS Modules**: Integrated Security Management System modules
 
 ---
 
@@ -371,7 +372,7 @@ The application is built around six core domains of operational excellence:
 
 ## UI/UX Components
 
-### Page Inventory (29 Pages)
+### Page Inventory (31 Pages)
 
 #### Public Routes (No Authentication Required, No Sidebar)
 | Route | Page Component | Purpose | Wiring Status |
@@ -382,11 +383,13 @@ The application is built around six core domains of operational excellence:
 | `/accept-invitation` | InvitationAcceptance | Team invitation acceptance | ✅ Wired |
 | `/subscribe` | Subscribe.tsx | Subscription landing | ✅ Wired |
 | `/subscribe/checkout` | SubscribeCheckout.tsx | Payment checkout | ✅ Wired |
+| `/get-to-know-you` | GetToKnowYou.tsx | Company onboarding profile | ✅ Wired |
 
 #### Authenticated Routes (Require Login + AppLayout with Sidebar)
 | Route | Page Component | Purpose | Wiring Status |
 |-------|---------------|---------|---------------|
-| `/modules` | ModulesOverview.tsx | Module selection | ✅ Wired |
+| `/isms` | ISMSLanding.tsx | ISMS module overview and navigation hub | ✅ Wired |
+| `/modules` | ModulesOverview.tsx | Module selection (legacy) | ✅ Wired |
 | `/dashboard` | Dashboard.tsx | Main dashboard | ✅ Wired |
 | `/maturity/setup` | MaturitySetup.tsx | Audit structure setup (Maturity Roadmap) | ✅ Wired |
 | `/assessment` | Assessment.tsx | Assessment interface | ✅ Wired |
@@ -1398,8 +1401,16 @@ Marketing and onboarding pages operate without a sidebar to optimize for convers
 - `/journey` - Maturity development journey visualization  
 - `/subscribe` - Subscription landing page
 - `/subscribe/checkout` - Payment checkout flow
+- `/get-to-know-you` - Company onboarding and profile creation
 - `/auth` - User authentication
 - `/accept-invitation` - Team invitation acceptance
+
+**Navigation Flow**:
+1. Landing page (`/`) → User explores platform
+2. Subscribe page (`/subscribe`) → User selects modules
+3. Checkout page (`/subscribe/checkout`) → User completes payment
+4. Get to Know You (`/get-to-know-you`) → User provides company information
+5. ISMS Landing (`/isms`) → User enters main application
 
 **Characteristics**:
 - Full-width marketing layouts
@@ -1413,7 +1424,7 @@ Once users subscribe and authenticate, they see a structured sidebar organized b
 
 **1. Main Section** (Always visible to authenticated users)
 - **Dashboard** - `/dashboard` - Overview and metrics
-- **Modules** - `/modules` - ISMS module selection
+- **ISMS** - `/isms` - Integrated Security Management System hub with module cards
 
 **2. Maturity Roadmap Section** (User-accessible based on assignments)
 This section contains the core audit structure setup and evidence management workflow:
@@ -1457,6 +1468,129 @@ All admin sections are styled with orange labels for visual distinction and use 
 - Team assignments control visibility within Maturity Roadmap pages
 
 **Sidebar Status**: ✅ Wired and tested
+
+---
+
+### ISMS Modules Architecture
+
+The Integrated Security Management System (ISMS) comprises 7 core modules accessible through the ISMS landing page (`/isms`). Each module represents a distinct functional area of security management.
+
+#### Module Overview
+
+**ISMS Landing Page** (`ISMSLanding.tsx`)
+- **Route**: `/isms`
+- **Purpose**: Central hub for all ISMS modules
+- **Features**: 
+  - Module cards with subscription status
+  - Feature previews for each module
+  - Active vs. inactive module visualization
+  - Direct navigation to subscribed modules
+  - Subscription gateway for locked modules
+
+#### 7 ISMS Modules
+
+**1. Maturity Roadmap** ✅ Active
+- **ID**: `maturity-roadmap`
+- **Route**: `/maturity/setup`
+- **Status**: Subscribed (default module)
+- **Description**: Build and assess organizational security maturity framework across six operational domains
+- **Features**:
+  - Six Domains Assessment (Leadership & Governance, Process Integrity, People & Culture, Protection, Proof it Works, Performance)
+  - Audit Structure Setup
+  - Assessment execution
+  - Assessment Framework configuration
+  - QA Sign-Off workflows
+  - Team Management
+- **Sidebar Items**:
+  - Audit Structure Setup
+  - Assessment
+  - Assessment Framework
+  - QA Sign-Off
+  - Team
+
+**2. Risk Management** 🔒 Planned
+- **ID**: `risk-management`
+- **Route**: `/risk-management`
+- **Status**: Not subscribed
+- **Description**: Comprehensive risk identification, assessment, and mitigation strategies
+- **Features**:
+  - Risk Assessment
+  - Threat Modeling
+  - Control Registers
+  - Compliance Tracking
+
+**3. Project Implementation** 🔒 Planned
+- **ID**: `project-implementation`
+- **Route**: `/project-implementation`
+- **Status**: Not subscribed
+- **Description**: Streamline security project planning, execution, and delivery
+- **Features**:
+  - Project Planning
+  - Resource Management
+  - Timeline Tracking
+  - Deliverable Management
+
+**4. Data Analytics & Assurance** 🔒 Planned
+- **ID**: `data-analytics`
+- **Route**: `/data-analytics`
+- **Status**: Not subscribed
+- **Description**: AI-driven insights from access control, video surveillance, and operational data
+- **Features**:
+  - Access Analytics
+  - Video Surveillance Analysis
+  - Anomaly Detection
+  - Compliance Reporting
+
+**5. Skills Development Portal** 🔒 Planned
+- **ID**: `skills-development`
+- **Route**: `/skills-development`
+- **Status**: Not subscribed
+- **Description**: Upskill your security team with globally recognized training and certification programs
+- **Features**:
+  - Training Programs
+  - Certification Tracking
+  - Skill Assessments
+  - Learning Paths
+- **Partnership**: Powered by APGI
+
+**6. Incident Management** 🔒 Planned
+- **ID**: `incident-management`
+- **Route**: `/incident-management`
+- **Status**: Not subscribed
+- **Description**: Rapid incident response, tracking, and resolution workflows
+- **Features**:
+  - Incident Logging
+  - Response Workflows
+  - Root Cause Analysis
+  - Corrective Actions
+
+**7. Systems Data Extraction Tool** 🔒 Planned
+- **ID**: `systems-extraction`
+- **Route**: `/systems-extraction`
+- **Status**: Not subscribed
+- **Description**: Extract, transform, and analyze data from multiple security and operational systems
+- **Features**:
+  - Data Extraction
+  - System Integration
+  - Data Transformation
+  - Export & Reporting
+
+#### Module Subscription Logic
+
+**Subscription Status Determination**:
+- Currently hardcoded in `ISMSLanding.tsx`
+- Future: Query `subscriptions` table or user profile
+- Default: Maturity Roadmap active for all users
+
+**Navigation Behavior**:
+- **Subscribed modules**: Navigate to module route
+- **Unsubscribed modules**: Redirect to `/subscribe` page
+- **Visual indicators**: Lock icon, greyed out styling, "Not Subscribed" badge
+
+**Status**: 
+- ISMS Landing Page: ✅ Wired
+- Maturity Roadmap: ✅ Active
+- Other modules: 🔒 Planned (UI ready, functionality pending)
 
 ---
 
