@@ -1,0 +1,511 @@
+{
+  "version": "1.0.0",
+  "created": "2025-11-25",
+  "description": "Watchdog rules for drift detection, system behavior monitoring, and compliance tracking",
+  "drift_detection": {
+    "enabled": true,
+    "categories": [
+      {
+        "id": "ARCH",
+        "name": "Architecture Drift",
+        "description": "Detect when implementation diverges from architecture",
+        "rules": [
+          {
+            "id": "ARCH-DRIFT-001",
+            "name": "Route Count Mismatch",
+            "description": "Routes in App.tsx differ from ARCHITECTURE.md",
+            "detection_method": "count_comparison",
+            "source": "src/App.tsx",
+            "reference": "ARCHITECTURE.md",
+            "severity": "critical",
+            "auto_fix": false
+          },
+          {
+            "id": "ARCH-DRIFT-002",
+            "name": "Component Category Missing",
+            "description": "Component category in architecture not in codebase",
+            "detection_method": "directory_check",
+            "source": "src/components/",
+            "reference": "ARCHITECTURE.md",
+            "severity": "high",
+            "auto_fix": false
+          },
+          {
+            "id": "ARCH-DRIFT-003",
+            "name": "Hook Not Implemented",
+            "description": "Hook listed in architecture not found in hooks/",
+            "detection_method": "file_check",
+            "source": "src/hooks/",
+            "reference": "ARCHITECTURE.md",
+            "severity": "high",
+            "auto_fix": false
+          },
+          {
+            "id": "ARCH-DRIFT-004",
+            "name": "Edge Function Missing",
+            "description": "Edge function in architecture not deployed",
+            "detection_method": "function_check",
+            "source": "supabase/functions/",
+            "reference": "ARCHITECTURE.md",
+            "severity": "high",
+            "auto_fix": false
+          }
+        ]
+      },
+      {
+        "id": "CODE",
+        "name": "Code Drift",
+        "description": "Detect code quality and standard deviations",
+        "rules": [
+          {
+            "id": "CODE-DRIFT-001",
+            "name": "TypeScript Error Introduced",
+            "description": "New TypeScript compilation errors detected",
+            "detection_method": "compile_check",
+            "command": "tsc --noEmit",
+            "severity": "critical",
+            "auto_fix": false
+          },
+          {
+            "id": "CODE-DRIFT-002",
+            "name": "ESLint Errors Increased",
+            "description": "More ESLint errors than baseline",
+            "detection_method": "lint_comparison",
+            "command": "npm run lint",
+            "baseline_errors": 0,
+            "baseline_warnings": 10,
+            "severity": "high",
+            "auto_fix": false
+          },
+          {
+            "id": "CODE-DRIFT-003",
+            "name": "Bundle Size Increased",
+            "description": "Production bundle exceeds size threshold",
+            "detection_method": "size_check",
+            "threshold_mb": 3.0,
+            "severity": "medium",
+            "auto_fix": false
+          },
+          {
+            "id": "CODE-DRIFT-004",
+            "name": "Dependency Vulnerability",
+            "description": "npm audit reports new vulnerabilities",
+            "detection_method": "audit_check",
+            "command": "npm audit",
+            "severity": "high",
+            "auto_fix": false
+          }
+        ]
+      },
+      {
+        "id": "WIRING",
+        "name": "Wiring Drift",
+        "description": "Detect component wiring issues",
+        "rules": [
+          {
+            "id": "WIRING-DRIFT-001",
+            "name": "Orphaned Component",
+            "description": "Component file not imported anywhere",
+            "detection_method": "import_scan",
+            "target": "src/components/",
+            "severity": "high",
+            "grace_period_cycles": 2,
+            "auto_fix": false
+          },
+          {
+            "id": "WIRING-DRIFT-002",
+            "name": "Unused Hook",
+            "description": "Hook not imported in any component",
+            "detection_method": "import_scan",
+            "target": "src/hooks/",
+            "severity": "high",
+            "grace_period_cycles": 2,
+            "auto_fix": false
+          },
+          {
+            "id": "WIRING-DRIFT-003",
+            "name": "Route Not Wired",
+            "description": "Page component exists but not in routes",
+            "detection_method": "route_check",
+            "target": "src/pages/",
+            "severity": "critical",
+            "auto_fix": false
+          },
+          {
+            "id": "WIRING-DRIFT-004",
+            "name": "Context Not Provided",
+            "description": "Context used without provider",
+            "detection_method": "context_check",
+            "severity": "critical",
+            "auto_fix": false
+          }
+        ]
+      },
+      {
+        "id": "DB",
+        "name": "Database Drift",
+        "description": "Detect database schema and configuration drift",
+        "rules": [
+          {
+            "id": "DB-DRIFT-001",
+            "name": "Pending Migrations",
+            "description": "Migrations exist but not applied",
+            "detection_method": "migration_status",
+            "severity": "critical",
+            "auto_fix": false
+          },
+          {
+            "id": "DB-DRIFT-002",
+            "name": "RLS Disabled",
+            "description": "Row Level Security disabled on table",
+            "detection_method": "rls_check",
+            "severity": "critical",
+            "auto_fix": false
+          },
+          {
+            "id": "DB-DRIFT-003",
+            "name": "Schema Mismatch",
+            "description": "Database schema differs from expected",
+            "detection_method": "schema_comparison",
+            "severity": "high",
+            "auto_fix": false
+          }
+        ]
+      }
+    ]
+  },
+  "minimum_system_behaviour": {
+    "description": "Minimum expected behaviors that must always work",
+    "requirements": [
+      {
+        "id": "MSB-001",
+        "name": "Application Starts",
+        "description": "npm run dev starts without errors",
+        "test_command": "npm run dev",
+        "expected_result": "Server starts on localhost",
+        "severity": "critical"
+      },
+      {
+        "id": "MSB-002",
+        "name": "Build Succeeds",
+        "description": "npm run build completes successfully",
+        "test_command": "npm run build",
+        "expected_result": "Exit code 0",
+        "severity": "critical"
+      },
+      {
+        "id": "MSB-003",
+        "name": "Routes Resolve",
+        "description": "All defined routes return valid pages",
+        "test_type": "route_check",
+        "expected_result": "200 status or redirect",
+        "severity": "critical"
+      },
+      {
+        "id": "MSB-004",
+        "name": "Authentication Works",
+        "description": "Users can log in and out",
+        "test_type": "functional",
+        "expected_result": "Session created/destroyed",
+        "severity": "critical"
+      },
+      {
+        "id": "MSB-005",
+        "name": "Database Connects",
+        "description": "Supabase connection established",
+        "test_type": "connectivity",
+        "expected_result": "Connection successful",
+        "severity": "critical"
+      },
+      {
+        "id": "MSB-006",
+        "name": "Sidebar Renders",
+        "description": "Navigation sidebar appears on authenticated pages",
+        "test_type": "render",
+        "expected_result": "Sidebar visible",
+        "severity": "high"
+      },
+      {
+        "id": "MSB-007",
+        "name": "MaturionChat Available",
+        "description": "AI chat assistant accessible globally",
+        "test_type": "render",
+        "expected_result": "Chat toggle visible",
+        "severity": "high"
+      },
+      {
+        "id": "MSB-008",
+        "name": "Admin Gating Works",
+        "description": "Non-admins cannot access admin routes",
+        "test_type": "access_control",
+        "expected_result": "Redirect to dashboard",
+        "severity": "critical"
+      }
+    ]
+  },
+  "ai_behavioral_notes": {
+    "description": "Expected AI system behaviors and constraints",
+    "maturion_agent": {
+      "constraints": [
+        {
+          "id": "AI-CONST-001",
+          "name": "Organization Isolation",
+          "description": "AI responses scoped to user's organization only",
+          "enforcement": "guardrails",
+          "severity": "critical"
+        },
+        {
+          "id": "AI-CONST-002",
+          "name": "No Arbitrary URL Access",
+          "description": "AI cannot fetch arbitrary external URLs",
+          "enforcement": "guardrails",
+          "severity": "critical"
+        },
+        {
+          "id": "AI-CONST-003",
+          "name": "Admin-Only Modifications",
+          "description": "Data modifications require admin role",
+          "enforcement": "guardrails",
+          "severity": "critical"
+        },
+        {
+          "id": "AI-CONST-004",
+          "name": "Rate Limiting",
+          "description": "Requests limited per user per time period",
+          "enforcement": "rate_limiter",
+          "severity": "high"
+        }
+      ],
+      "expected_behaviors": [
+        {
+          "id": "AI-BEH-001",
+          "name": "Context Awareness",
+          "description": "AI aware of current page, organization, user role",
+          "validation": "context_provider"
+        },
+        {
+          "id": "AI-BEH-002",
+          "name": "Document Retrieval",
+          "description": "AI retrieves relevant documents via RAG",
+          "validation": "rag_system"
+        },
+        {
+          "id": "AI-BEH-003",
+          "name": "Tool Usage",
+          "description": "AI uses appropriate tools for tasks",
+          "validation": "tool_registry"
+        },
+        {
+          "id": "AI-BEH-004",
+          "name": "Response Sanitization",
+          "description": "AI responses sanitized before display",
+          "validation": "guardrails"
+        }
+      ],
+      "model_routing": {
+        "description": "Model selection based on task complexity",
+        "models": [
+          {"task": "deep_reasoning", "model": "o1-preview"},
+          {"task": "general_advisory", "model": "gpt-4-turbo-preview"},
+          {"task": "quick_classification", "model": "gpt-4-turbo-preview"},
+          {"task": "ui_formatting", "model": "gpt-4o-mini"}
+        ]
+      }
+    },
+    "coding_agent": {
+      "constraints": [
+        {
+          "id": "AGENT-CONST-001",
+          "name": "Architecture First",
+          "description": "Agent must update architecture before code changes",
+          "enforcement": "workflow"
+        },
+        {
+          "id": "AGENT-CONST-002",
+          "name": "QA Before Handover",
+          "description": "Agent must run QA until GREEN before handover",
+          "enforcement": "workflow"
+        },
+        {
+          "id": "AGENT-CONST-003",
+          "name": "No Legacy Code",
+          "description": "Agent must wire or delete all components",
+          "enforcement": "wiring_check"
+        },
+        {
+          "id": "AGENT-CONST-004",
+          "name": "User Verification",
+          "description": "User verifies via UI only, no code pasting",
+          "enforcement": "process"
+        }
+      ]
+    }
+  },
+  "compliance_monitoring": {
+    "description": "Compliance categories and monitoring status",
+    "categories": [
+      {
+        "id": "COMP-SEC",
+        "name": "Security Compliance",
+        "status": "active",
+        "checks": [
+          {
+            "id": "SEC-COMP-001",
+            "name": "Authentication Required",
+            "description": "Protected routes require authentication",
+            "status": "implemented"
+          },
+          {
+            "id": "SEC-COMP-002",
+            "name": "Data Encryption",
+            "description": "Sensitive data encrypted at rest and transit",
+            "status": "implemented"
+          },
+          {
+            "id": "SEC-COMP-003",
+            "name": "XSS Protection",
+            "description": "User content sanitized",
+            "status": "implemented"
+          },
+          {
+            "id": "SEC-COMP-004",
+            "name": "Access Logging",
+            "description": "Security events logged",
+            "status": "implemented"
+          }
+        ]
+      },
+      {
+        "id": "COMP-DATA",
+        "name": "Data Protection",
+        "status": "active",
+        "checks": [
+          {
+            "id": "DATA-COMP-001",
+            "name": "Organization Isolation",
+            "description": "RLS prevents cross-org data access",
+            "status": "implemented"
+          },
+          {
+            "id": "DATA-COMP-002",
+            "name": "Credential Encryption",
+            "description": "API credentials encrypted with AES-256",
+            "status": "implemented"
+          },
+          {
+            "id": "DATA-COMP-003",
+            "name": "Audit Trail",
+            "description": "Data changes tracked",
+            "status": "partial"
+          }
+        ]
+      }
+    ]
+  },
+  "popi_monitoring": {
+    "description": "POPI (Protection of Personal Information) compliance placeholders",
+    "status": "placeholder",
+    "requirements": [
+      {
+        "id": "POPI-001",
+        "name": "Consent Management",
+        "description": "Track user consent for data processing",
+        "status": "placeholder",
+        "implementation_notes": "Requires consent tracking system"
+      },
+      {
+        "id": "POPI-002",
+        "name": "Data Subject Rights",
+        "description": "Support for access, correction, deletion requests",
+        "status": "placeholder",
+        "implementation_notes": "Requires data export/deletion features"
+      },
+      {
+        "id": "POPI-003",
+        "name": "Data Breach Notification",
+        "description": "Process for notifying affected parties",
+        "status": "placeholder",
+        "implementation_notes": "Requires incident management system"
+      },
+      {
+        "id": "POPI-004",
+        "name": "Cross-Border Transfer",
+        "description": "Controls for international data transfers",
+        "status": "placeholder",
+        "implementation_notes": "Depends on hosting region"
+      }
+    ]
+  },
+  "international_standards": {
+    "description": "International standards compliance placeholders",
+    "standards": [
+      {
+        "id": "ISO-27001",
+        "name": "ISO 27001",
+        "description": "Information Security Management",
+        "status": "aligned",
+        "alignment_notes": "Architecture supports ISMS implementation"
+      },
+      {
+        "id": "SOC-2",
+        "name": "SOC 2",
+        "description": "Service Organization Control",
+        "status": "partial",
+        "alignment_notes": "Security controls in place, audit pending"
+      },
+      {
+        "id": "GDPR",
+        "name": "GDPR",
+        "description": "General Data Protection Regulation",
+        "status": "placeholder",
+        "alignment_notes": "Requires consent management, data portability"
+      },
+      {
+        "id": "NIST",
+        "name": "NIST Framework",
+        "description": "Cybersecurity Framework",
+        "status": "aligned",
+        "alignment_notes": "Six Domains framework supports NIST alignment"
+      },
+      {
+        "id": "PCI-DSS",
+        "name": "PCI DSS",
+        "description": "Payment Card Industry Data Security",
+        "status": "not_applicable",
+        "alignment_notes": "No payment card processing in scope"
+      }
+    ]
+  },
+  "watchdog_configuration": {
+    "scan_schedule": {
+      "architecture_drift": "on_commit",
+      "code_drift": "on_commit",
+      "wiring_drift": "daily",
+      "database_drift": "daily",
+      "security_scan": "daily",
+      "compliance_check": "weekly"
+    },
+    "alerting": {
+      "enabled": true,
+      "channels": ["dashboard", "email"],
+      "severity_threshold": "high",
+      "immediate_alert": ["critical"]
+    },
+    "dashboard_route": "/watchdog",
+    "admin_only": true,
+    "incident_management": {
+      "enabled": true,
+      "auto_create_incident": true,
+      "severity_levels": ["critical", "high", "medium", "low"],
+      "resolution_tracking": true
+    }
+  },
+  "revision_history": [
+    {
+      "version": "1.0.0",
+      "date": "2025-11-25",
+      "author": "AI Agent",
+      "changes": "Initial watchdog rules document"
+    }
+  ]
+}
