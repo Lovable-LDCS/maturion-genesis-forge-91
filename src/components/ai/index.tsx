@@ -11,6 +11,7 @@ export { ApprovedFilesQueue } from './ApprovedFilesQueue';
 export { MaturionChat } from './MaturionChat';
 export { AISourceIndicator } from './AISourceIndicator';
 export { AIFeedbackInterface } from './AIFeedbackInterface';
+export { ContextualHelpButton } from './ContextualHelpButton';
 
 // Document Processing and Management
 export { DocumentContentViewer } from './DocumentContentViewer';

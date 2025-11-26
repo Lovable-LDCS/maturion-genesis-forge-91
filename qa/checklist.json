@@ -1,0 +1,429 @@
+{
+  "version": "1.0.0",
+  "created": "2025-11-25",
+  "description": "QA Checklist for True North - One-Time Build process",
+  "evaluation_model": {
+    "green": {
+      "status": "PASS",
+      "meaning": "All criteria met, ready for handover",
+      "action": "Proceed to user verification",
+      "color_code": "#22c55e"
+    },
+    "yellow": {
+      "status": "WARN",
+      "meaning": "Minor issues present, handover possible",
+      "action": "Document issues, proceed with caution",
+      "color_code": "#eab308"
+    },
+    "red": {
+      "status": "FAIL",
+      "meaning": "Critical issues present, handover blocked",
+      "action": "Fix issues before proceeding",
+      "color_code": "#ef4444"
+    }
+  },
+  "handover_criteria": {
+    "mandatory": [
+      {
+        "id": "HC-001",
+        "name": "Build Success",
+        "description": "npm run build must complete without errors",
+        "command": "npm run build",
+        "expected_exit_code": 0,
+        "severity": "critical",
+        "blocking": true
+      },
+      {
+        "id": "HC-002",
+        "name": "TypeScript Compilation",
+        "description": "TypeScript must compile without errors",
+        "command": "npx tsc --noEmit",
+        "expected_exit_code": 0,
+        "severity": "critical",
+        "blocking": true
+      },
+      {
+        "id": "HC-003",
+        "name": "ESLint Validation",
+        "description": "Code must pass linting with acceptable warnings",
+        "command": "npm run lint",
+        "expected_exit_code": 0,
+        "max_warnings": 10,
+        "severity": "critical",
+        "blocking": true
+      },
+      {
+        "id": "HC-004",
+        "name": "All Routes Accessible",
+        "description": "All defined routes must return 200 status",
+        "validation_type": "route_check",
+        "routes": [
+          "/",
+          "/journey",
+          "/auth",
+          "/subscribe",
+          "/dashboard",
+          "/modules",
+          "/assessment",
+          "/team",
+          "/qa-dashboard"
+        ],
+        "severity": "critical",
+        "blocking": true
+      },
+      {
+        "id": "HC-005",
+        "name": "Authentication Flow",
+        "description": "Login and logout must function correctly",
+        "validation_type": "functional_test",
+        "test_steps": [
+          "Navigate to protected route",
+          "Verify redirect to /auth",
+          "Login with valid credentials",
+          "Verify access to protected route",
+          "Logout",
+          "Verify session cleared"
+        ],
+        "severity": "critical",
+        "blocking": true
+      },
+      {
+        "id": "HC-006",
+        "name": "Database Connectivity",
+        "description": "Supabase connection must be established",
+        "validation_type": "connectivity_check",
+        "required_vars": [
+          "VITE_SUPABASE_URL",
+          "VITE_SUPABASE_PUBLISHABLE_KEY"
+        ],
+        "severity": "critical",
+        "blocking": true
+      },
+      {
+        "id": "HC-007",
+        "name": "No Critical Security Issues",
+        "description": "No hardcoded secrets or security vulnerabilities",
+        "validation_type": "security_scan",
+        "patterns_to_detect": [
+          "sk-[a-zA-Z0-9]{32,}",
+          "pk_[a-zA-Z0-9]{32,}",
+          "password\\s*=\\s*['\"][^'\"]+['\"]"
+        ],
+        "severity": "critical",
+        "blocking": true
+      },
+      {
+        "id": "HC-008",
+        "name": "Architecture Updated",
+        "description": "ARCHITECTURE.md must reflect current state",
+        "validation_type": "manual_verification",
+        "checklist": [
+          "Route count matches implementation",
+          "Component categories documented",
+          "Hooks documented",
+          "Version date recent"
+        ],
+        "severity": "critical",
+        "blocking": true
+      }
+    ],
+    "conditional": [
+      {
+        "id": "CC-001",
+        "name": "New Routes Wired",
+        "trigger": "routes_added",
+        "description": "New routes must be properly wired",
+        "validation_type": "wiring_check",
+        "severity": "high",
+        "blocking": true
+      },
+      {
+        "id": "CC-002",
+        "name": "Components Documented",
+        "trigger": "components_added",
+        "description": "New components must be added to architecture",
+        "validation_type": "documentation_check",
+        "severity": "medium",
+        "blocking": false
+      },
+      {
+        "id": "CC-003",
+        "name": "Hooks Documented",
+        "trigger": "hooks_added",
+        "description": "New hooks must be documented",
+        "validation_type": "documentation_check",
+        "severity": "medium",
+        "blocking": false
+      },
+      {
+        "id": "CC-004",
+        "name": "Edge Functions Deployed",
+        "trigger": "functions_changed",
+        "description": "Modified edge functions must be deployed",
+        "validation_type": "deployment_check",
+        "severity": "high",
+        "blocking": true
+      },
+      {
+        "id": "CC-005",
+        "name": "Database Migrations Applied",
+        "trigger": "migrations_added",
+        "description": "New migrations must be applied",
+        "validation_type": "migration_check",
+        "severity": "critical",
+        "blocking": true
+      }
+    ]
+  },
+  "validation_checkpoints": {
+    "pre_build": {
+      "name": "Pre-Build Validation",
+      "description": "Checks before starting build",
+      "checks": [
+        {
+          "id": "PB-001",
+          "name": "Environment Variables",
+          "type": "env_check",
+          "required": ["VITE_SUPABASE_URL", "VITE_SUPABASE_PUBLISHABLE_KEY"],
+          "severity": "critical"
+        },
+        {
+          "id": "PB-002",
+          "name": "Dependencies Installed",
+          "type": "file_check",
+          "target": "node_modules",
+          "severity": "critical"
+        },
+        {
+          "id": "PB-003",
+          "name": "Architecture Document Exists",
+          "type": "file_check",
+          "target": "ARCHITECTURE.md",
+          "severity": "critical"
+        }
+      ]
+    },
+    "build": {
+      "name": "Build Validation",
+      "description": "Checks during/after build",
+      "checks": [
+        {
+          "id": "BV-001",
+          "name": "TypeScript Compilation",
+          "type": "command",
+          "command": "npx tsc --noEmit",
+          "severity": "critical"
+        },
+        {
+          "id": "BV-002",
+          "name": "Vite Build",
+          "type": "command",
+          "command": "npm run build",
+          "severity": "critical"
+        },
+        {
+          "id": "BV-003",
+          "name": "ESLint",
+          "type": "command",
+          "command": "npm run lint",
+          "severity": "high"
+        },
+        {
+          "id": "BV-004",
+          "name": "Bundle Size",
+          "type": "size_check",
+          "max_size_mb": 3.0,
+          "severity": "medium"
+        }
+      ]
+    },
+    "wiring": {
+      "name": "Wiring Validation",
+      "description": "Component wiring checks",
+      "checks": [
+        {
+          "id": "WV-001",
+          "name": "Route Definitions",
+          "type": "route_check",
+          "target": "src/App.tsx",
+          "expected_count": 30,
+          "severity": "critical"
+        },
+        {
+          "id": "WV-002",
+          "name": "Component Imports",
+          "type": "import_check",
+          "target_dir": "src/components",
+          "severity": "high"
+        },
+        {
+          "id": "WV-003",
+          "name": "Hook Usage",
+          "type": "import_check",
+          "target_dir": "src/hooks",
+          "severity": "high"
+        },
+        {
+          "id": "WV-004",
+          "name": "Context Providers",
+          "type": "context_check",
+          "required_contexts": ["AuthProvider", "OrganizationProvider", "QueryClientProvider"],
+          "severity": "critical"
+        }
+      ]
+    },
+    "runtime": {
+      "name": "Runtime Validation",
+      "description": "Runtime behavior checks",
+      "checks": [
+        {
+          "id": "RV-001",
+          "name": "Page Rendering",
+          "type": "render_check",
+          "pages": ["Dashboard", "Modules", "Assessment", "Team"],
+          "severity": "critical"
+        },
+        {
+          "id": "RV-002",
+          "name": "Navigation Works",
+          "type": "functional_check",
+          "action": "sidebar_navigation",
+          "severity": "critical"
+        },
+        {
+          "id": "RV-003",
+          "name": "Forms Submit",
+          "type": "functional_check",
+          "action": "form_submission",
+          "severity": "high"
+        },
+        {
+          "id": "RV-004",
+          "name": "No Console Errors",
+          "type": "console_check",
+          "max_errors": 0,
+          "severity": "high"
+        }
+      ]
+    },
+    "security": {
+      "name": "Security Validation",
+      "description": "Security posture checks",
+      "checks": [
+        {
+          "id": "SV-001",
+          "name": "No Hardcoded Secrets",
+          "type": "pattern_scan",
+          "patterns": ["sk-", "pk_", "apikey=", "password="],
+          "severity": "critical"
+        },
+        {
+          "id": "SV-002",
+          "name": "HTTPS Only",
+          "type": "protocol_check",
+          "severity": "high"
+        },
+        {
+          "id": "SV-003",
+          "name": "Auth Required for Protected Routes",
+          "type": "auth_check",
+          "severity": "critical"
+        },
+        {
+          "id": "SV-004",
+          "name": "Admin Routes Gated",
+          "type": "admin_check",
+          "severity": "critical"
+        }
+      ]
+    },
+    "database": {
+      "name": "Database Validation",
+      "description": "Database integrity checks",
+      "checks": [
+        {
+          "id": "DV-001",
+          "name": "Connection Established",
+          "type": "connectivity",
+          "severity": "critical"
+        },
+        {
+          "id": "DV-002",
+          "name": "RLS Enabled",
+          "type": "rls_check",
+          "tables": ["organizations", "users", "milestones", "documents"],
+          "severity": "critical"
+        },
+        {
+          "id": "DV-003",
+          "name": "Migrations Applied",
+          "type": "migration_check",
+          "severity": "critical"
+        },
+        {
+          "id": "DV-004",
+          "name": "Core Tables Exist",
+          "type": "table_check",
+          "tables": ["organizations", "users", "organization_members", "domains"],
+          "severity": "critical"
+        }
+      ]
+    }
+  },
+  "qa_report_structure": {
+    "sections": [
+      {
+        "name": "Executive Summary",
+        "content": ["overall_status", "pass_count", "fail_count", "warn_count"]
+      },
+      {
+        "name": "Build Status",
+        "content": ["typescript", "vite_build", "eslint", "bundle_size"]
+      },
+      {
+        "name": "Wiring Status",
+        "content": ["routes", "components", "hooks", "contexts"]
+      },
+      {
+        "name": "Runtime Status",
+        "content": ["page_rendering", "navigation", "forms", "console_errors"]
+      },
+      {
+        "name": "Security Status",
+        "content": ["secrets_scan", "auth_check", "admin_gating"]
+      },
+      {
+        "name": "Database Status",
+        "content": ["connectivity", "rls", "migrations", "tables"]
+      },
+      {
+        "name": "Failed Checks",
+        "content": ["check_id", "check_name", "severity", "error_message", "fix_suggestion"]
+      },
+      {
+        "name": "Recommendations",
+        "content": ["priority_fixes", "improvements", "next_steps"]
+      }
+    ],
+    "output_formats": ["console", "html", "json"]
+  },
+  "automation": {
+    "pre_commit_checks": ["HC-002", "HC-003", "SV-001"],
+    "pre_push_checks": ["HC-001", "HC-002", "HC-003", "HC-007"],
+    "pre_deploy_checks": ["HC-001", "HC-002", "HC-003", "HC-004", "HC-005", "HC-006", "HC-007", "HC-008"],
+    "nightly_checks": "all",
+    "ci_integration": {
+      "github_actions": true,
+      "fail_on_red": true,
+      "notify_on_yellow": true
+    }
+  },
+  "health_checker_integration": {
+    "enabled": true,
+    "route": "/admin/health-checker",
+    "admin_only": true,
+    "one_click_run": true,
+    "strict_mode_toggle": true,
+    "report_format": "human_readable"
+  }
+}
