@@ -248,6 +248,47 @@
         }
       ]
     },
+    "git_integrity": {
+      "category": "Git & Version Control",
+      "severity": "critical",
+      "checks": [
+        {
+          "id": "GIT-001",
+          "name": "No Merge Conflicts",
+          "description": "Branch must be mergeable without conflicts with target branch (main)",
+          "type": "git_check",
+          "validation": "check_merge_conflicts_with_main",
+          "target_branch": "main",
+          "required": true
+        },
+        {
+          "id": "GIT-002",
+          "name": "No Conflict Markers in Files",
+          "description": "No files should contain conflict markers (<<<<<<<, =======, >>>>>>>)",
+          "type": "conflict_marker_scan",
+          "validation": "scan_for_conflict_markers",
+          "scan_directories": ["src", "qa", "docs"],
+          "scan_extensions": [".ts", ".tsx", ".js", ".jsx", ".json", ".md"],
+          "patterns": [
+            "^<<<<<<<",
+            "^=======",
+            "^>>>>>>>"
+          ],
+          "required": true
+        },
+        {
+          "id": "GIT-003",
+          "name": "Branch Up to Date",
+          "description": "Feature branch should not be significantly behind target branch",
+          "type": "git_check",
+          "validation": "check_branch_behind_count",
+          "target_branch": "main",
+          "max_commits_behind": 50,
+          "required": false,
+          "severity": "warning"
+        }
+      ]
+    },
     "build_integrity": {
       "category": "Build & Compilation",
       "severity": "critical",
@@ -551,6 +592,7 @@
   },
   "qa_execution": {
     "order": [
+      "git_integrity",
       "architecture_compliance",
       "environment_checks",
       "build_integrity",
@@ -593,11 +635,14 @@
   },
   "automation": {
     "pre_commit_checks": [
+      "GIT-002",
       "BUILD-001",
       "BUILD-003",
       "SEC-001"
     ],
     "pre_deploy_checks": [
+      "GIT-001",
+      "GIT-002",
       "ARCH-001",
       "BUILD-002",
       "WIRE-001",
