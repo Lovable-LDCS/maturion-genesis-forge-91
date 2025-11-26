@@ -3,6 +3,51 @@
 # This file registers custom agents for use in GitHub Copilot
 
 agents:
+  # Supervisor-level agent for oversight, PR review, and architecture enforcement
+  - name: "foreman"
+    displayName: "Foreman (Supervisor AI)"
+    description: "Supervisor-level AI for oversight, PR review, architecture alignment, and QA tasks. Use ONLY for oversight, PR review, architecture alignment, and QA tasks. NOT for module-specific help or general questions."
+    file: "../agents/foreman.md"
+    enabled: true
+    tags:
+      - supervisor
+      - pr-review
+      - architecture
+      - qa
+      - oversight
+    expertise:
+      - "PR Review & Verification"
+      - "Architecture Oversight & Enforcement"
+      - "QA Enforcement & Compliance"
+      - "UX/UI Verification"
+      - "Builder Agent Coordination"
+      - "Owner Communication"
+    role: supervisor
+
+  # Module-level assistant for user help and contextual guidance
+  - name: "maturion-assistant"
+    displayName: "Maturion Assistant (Module AI)"
+    description: "Module-level AI assistant for user questions, contextual help, explanations, and content drafting. The default inline help agent for users."
+    file: "../agents/module-agent.md"
+    enabled: true
+    tags:
+      - module-assistant
+      - user-help
+      - contextual-guide
+      - content-drafter
+      - explainer
+    expertise:
+      - "Answer user questions about module features"
+      - "Provide contextual help and explanations"
+      - "Explain fields, statuses, and page content"
+      - "Draft content and documentation"
+      - "Guide users through basic module-level tasks"
+      - "Maturity assessment framework guidance"
+      - "Compliance management assistance"
+    role: module-assistant
+    default: true
+
+  # Legacy build agent (kept for backward compatibility)
   - name: "maturion-build-agent"
     displayName: "Maturion Build Agent"
     description: "Full-stack build agent specialized in One Time Build philosophy with True North architecture-first approach"
