@@ -661,11 +661,12 @@ Please try again or contact support if the issue persists.`,
       <div className={`fixed bottom-6 right-6 z-[100] ${className}`} style={{ position: 'fixed', bottom: '24px', right: '24px', zIndex: 100 }}>
         <Button
           onClick={toggleChat}
-          className="w-16 h-16 rounded-full bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all duration-300 animate-pulse"
+          className="h-14 px-4 rounded-full bg-primary hover:bg-primary/90 shadow-lg hover:shadow-xl transition-all duration-300"
+          aria-label="Ask ISRMS AI"
         >
-          <div className="flex flex-col items-center">
-            <Bot className="h-6 w-6 text-primary-foreground" />
-            <span className="text-xs text-primary-foreground mt-1">Maturion</span>
+          <div className="flex items-center space-x-2">
+            <Bot className="h-5 w-5 text-primary-foreground" />
+            <span className="text-sm font-medium text-primary-foreground">Ask ISRMS AI</span>
           </div>
         </Button>
       </div>
@@ -854,7 +855,7 @@ Please try again or contact support if the issue persists.`,
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Ask Maturion about your maturity journey..."
+                  placeholder="Ask anything related to this module or ISRMS…"
                   disabled={isLoading}
                   className="flex-1"
                 />
